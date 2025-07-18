@@ -300,7 +300,7 @@ RPC:
   MaxWebSocketFeeds: 16
   SessionEnabled: false
   SessionExpansionEnabled: false
-  SessionExpirationTime: 15
+  SessionLifetime: 15s
   SessionBackedByMPT: false
   SessionPoolSize: 20
   StartWhenSynchronized: false
@@ -355,10 +355,10 @@ where:
   attack. Set to `false` by default. If `false`, iterators are expanded into a
   set of values (see `MaxIteratorResultItems` setting). Implementation note: when
   BoltDB storage is used as a node backend DB, then enabling iterator sessions may
-  cause blockchain persist delays up to 2*`SessionExpirationTime` seconds on
+  cause blockchain persist delays up to 2*`SessionLifetime` on
   early blockchain lifetime stages with relatively small DB size. It can happen
   due to BoltDB re-mmapping behaviour traits. If regular persist is a critical
-  requirement, then we recommend either to decrease `SessionExpirationTime` or to
+  requirement, then we recommend either to decrease `SessionLifetime` or to
   enable `SessionBackedByMPT`, see `SessionBackedByMPT` documentation for more
   details.
 - `SessionExpansionEnabled` enables partial expansion of iterators returned by 
@@ -371,6 +371,10 @@ where:
   By default, `SessionExpansionEnabled` is set to `false`.
 - `SessionExpirationTime` is a lifetime of iterator session in seconds. It is set
   to `TimePerBlock` seconds (but not less than 5s) by default and is relevant
+  only if `SessionEnabled` is set to `true`. Deprecated: use `SessionLifetime`
+  instead.
+- `SessionLifetime` (`Duration`) is a lifetime of iterator session. It is set to
+  `TimePerBlock` seconds (but not less than 5s) by default and is relevant
   only if `SessionEnabled` is set to `true`.
 - `SessionBackedByMPT` is a flag forcing JSON-RPC server into using MPT-backed
   storage for delayed iterator traversal. If `true`, then iterator resources got

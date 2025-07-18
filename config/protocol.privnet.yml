@@ -59,7 +59,7 @@ ApplicationConfiguration:
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
     SessionEnabled: true
-    SessionExpirationTime: 180 # higher expiration time for manual requests and tests.
+    SessionLifetime: 180s # higher expiration time for manual requests and tests.
     TLSConfig:
         Enabled: false
         Addresses:
