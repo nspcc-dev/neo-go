@@ -74,6 +74,10 @@ type (
 		SaveInvocations bool `json:"saveinvocations,omitempty"`
 		// KeepOnlyLatestState specifies if MPT should only store the latest state.
 		KeepOnlyLatestState bool `json:"keeponlylateststate,omitempty"`
+		// RemoveUntraceableBlocks specifies if old data (blocks, headers,
+		// transactions, execution results, transfer logs and MPT data) should be
+		// removed.
+		RemoveUntraceableBlocks bool `json:"removeuntraceableblocks,omitempty"`
 	}
 
 	// protocolMarshallerAux is an auxiliary struct used for Protocol JSON marshalling.

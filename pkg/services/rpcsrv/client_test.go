@@ -2470,6 +2470,7 @@ func TestClient_GetVersion(t *testing.T) {
 	chain, orc, cfg, logger := getUnitTestChainWithCustomConfig(t, false, false, func(cfg *config.Config) {
 		cfg.ApplicationConfiguration.KeepOnlyLatestState = true
 		cfg.ApplicationConfiguration.SaveInvocations = true
+		cfg.ApplicationConfiguration.RemoveUntraceableBlocks = true
 	})
 
 	_, _, httpSrv := wrapUnitTestChain(t, chain, orc, cfg, logger)
@@ -2484,6 +2485,7 @@ func TestClient_GetVersion(t *testing.T) {
 
 	require.True(t, version.Application.SaveInvocations)
 	require.True(t, version.Application.KeepOnlyLatestState)
+	require.True(t, version.Application.RemoveUntraceableBlocks)
 }
 
 func TestClient_NEP24(t *testing.T) {
