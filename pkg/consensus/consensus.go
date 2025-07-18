@@ -548,7 +548,7 @@ func (s *service) verifyBlock(b dbft.Block[util.Uint256]) bool {
 	}
 
 	var fee int64
-	var pool = mempool.New(len(coreb.Transactions), 0, false, s.Chain.GetConfig().MaxTimePerBlock > 0, nil)
+	var pool = mempool.New(len(coreb.Transactions), 0, false, nil)
 	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
 		var err error

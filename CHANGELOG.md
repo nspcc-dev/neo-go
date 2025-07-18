@@ -2,6 +2,58 @@
 
 This document outlines major changes between releases.
 
+## 0.111.0 "Facilitation" (17 Jul 2025)
+
+We've decided to release one more v3.8.0-compatible version since the current
+set of changes includes adaptive block time extension allowing to vary block
+generation time from `TimePerBlock` to `MaxTimePerBlock`. This change is
+important for custom networks with small `TimePerBlock` setting, like those used
+by NeoFS metadata subsystem. It allows to fit the block producing interval up to
+the network activity, effectively preventing chain's database size growth. In
+addition to that, this version includes new audit module for NeoFS block
+storage, an optimisation of light node synchronisation process, enhanced version
+of BoltDB and a couple of other improvements and bug fixes.
+
+Some deprecated functionality has been removed according to the schedule, see
+more details in the `Behaviour changes` section. Also, for those node operators
+who would like to test the dynamic block time extension, new `MaxTimePerBlock`
+option is added to the node's protocol configuration. Finally, configuration
+changes have been introduced: starting from this version,
+`RemoveUntraceableHeaders` mode is a part of `RemoveUntraceableBlocks` and
+hence, should be removed from the node's configuration file in favour of
+`RemoveUntraceableBlocks`. Also, `SessionExpirationTime` RPC server
+configuration setting is replaced with `SessionLifetime` setting of type
+`Duration`, please, upgrade your configuration accordingly.
+
+New features:
+ * `util audit-bin` CLI command for NeoFS block storage audit (#3943, #3945,
+   #3946)
+ * support of `GetBlockHeaderByIndex[Verbose]` RPC client API (#3939)
+ * `MaxTimePerblock` protocol configuration setting enabling dynamic block
+  acceptance interval (#3948)
+
+Behavior changes:
+ * index files support is removed from `util upload-bin` CLI command and
+   NeoFSBlockFetcher service (#3938)
+ * `RemoveUntraceableHeaders` application configuration setting is merged into
+   `RemoveUntraceableBlocks` (#3922)
+ * `GetBlockHeaderVerbose` RPC client API is deprecated and replaced by
+   `GetBlockHeaderByHashVerbose` (#3939)
+ * deprecated `NEP11Payable` and `NEP17Payable` aliases are removed from the
+   smartcontract package in favour of `NEP26StandardName` and
+   `NEP27StandardName` (#3955)
+ * `SessionExpirationTime` RPC server configuration setting is deprecated and
+   replaced by `SessionLifetime` setting of `Duration` type (#3953)
+
+Improvements:
+ * light node synchronisation doesn't require full headers sync anymore (#3922)
+ * BoltDB dependency is upgraded to custom (and faster!) version (#3936, #3937)
+ * dBFT dependency upgrade empowering dynamic block time extension (#3948)
+
+Bugs fixed:
+ * misses in blocks uploaded by `util upload-bin` CLI command (#3942)
+ * panic on attempt to close local RPC client (#3947)
+
 ## 0.110.0 "Utilization" (10 Jun 2025)
 
 This version fixes state difference at block 6701925 of testnet. It also introduces

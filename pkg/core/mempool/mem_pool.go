@@ -82,8 +82,7 @@ type Pool struct {
 	unsubCh              chan chan<- mempoolevent.Event
 
 	// single-use subscriptions for TransactionAdded mempool events.
-	singleUseSubscriptionsEnabled bool
-	transactionAddedCh            atomic.Value // stores single-use chan struct{}, which is closed when new transaction is arrived.
+	transactionAddedCh atomic.Value // stores single-use chan struct{}, which is closed when new transaction is arrived.
 }
 
 func (p items) Len() int           { return len(p) }
@@ -298,11 +297,9 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	}
 	mp.lock.Unlock()
 
-	if mp.singleUseSubscriptionsEnabled {
-		sub := mp.transactionAddedCh.Swap(chan struct{}(nil))
-		if sub != nil && sub != chan struct{}(nil) {
-			close(sub.(chan struct{}))
-		}
+	sub := mp.transactionAddedCh.Swap(chan struct{}(nil))
+	if sub != nil && sub != chan struct{}(nil) {
+		close(sub.(chan struct{}))
 	}
 	if mp.subscriptionsOn.Load() {
 		mp.events <- mempoolevent.Event{
@@ -444,22 +441,21 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 }
 
 // New returns a new Pool struct.
-func New(capacity int, payerIndex int, enableSubscriptions bool, enableSingleUseSubscriptions bool, updateMetricsCb func(int)) *Pool {
+func New(capacity int, payerIndex int, enableSubscriptions bool, updateMetricsCb func(int)) *Pool {
 	mp := &Pool{
-		verifiedMap:                   make(map[util.Uint256]*transaction.Transaction, capacity),
-		verifiedTxes:                  make([]item, 0, capacity),
-		capacity:                      capacity,
-		payerIndex:                    payerIndex,
-		fees:                          make(map[util.Uint160]utilityBalanceAndFees),
-		conflicts:                     make(map[util.Uint256][]util.Uint256),
-		oracleResp:                    make(map[uint64]util.Uint256),
-		subscriptionsEnabled:          enableSubscriptions,
-		singleUseSubscriptionsEnabled: enableSingleUseSubscriptions,
-		stopCh:                        make(chan struct{}),
-		events:                        make(chan mempoolevent.Event),
-		subCh:                         make(chan chan<- mempoolevent.Event),
-		unsubCh:                       make(chan chan<- mempoolevent.Event),
-		updateMetricsCb:               updateMetricsCb,
+		verifiedMap:          make(map[util.Uint256]*transaction.Transaction, capacity),
+		verifiedTxes:         make([]item, 0, capacity),
+		capacity:             capacity,
+		payerIndex:           payerIndex,
+		fees:                 make(map[util.Uint160]utilityBalanceAndFees),
+		conflicts:            make(map[util.Uint256][]util.Uint256),
+		oracleResp:           make(map[uint64]util.Uint256),
+		subscriptionsEnabled: enableSubscriptions,
+		stopCh:               make(chan struct{}),
+		events:               make(chan mempoolevent.Event),
+		subCh:                make(chan chan<- mempoolevent.Event),
+		unsubCh:              make(chan chan<- mempoolevent.Event),
+		updateMetricsCb:      updateMetricsCb,
 	}
 	mp.subscriptionsOn.Store(false)
 	return mp
@@ -645,7 +641,5 @@ func (mp *Pool) IterateVerifiedTransactions(cont func(tx *transaction.Transactio
 // RegisterTransactionAddedSubscriber registers single-use channel that will be
 // closed by the Pool once TransactionAdded event is emitted and relayed.
 func (mp *Pool) RegisterTransactionAddedSubscriber(ch chan struct{}) {
-	if mp.singleUseSubscriptionsEnabled {
-		mp.transactionAddedCh.Store(ch) // don't care about existing channel, it will be disposed by GC.
-	}
+	mp.transactionAddedCh.Store(ch) // don't care about existing channel, it will be disposed by GC.
 }
