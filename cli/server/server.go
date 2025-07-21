@@ -776,8 +776,11 @@ func downloadContract(ctx *cli.Context) error {
 
 	force := ctx.Bool("force")
 	existingState := chain.GetContractState(ch)
-	if existingState != nil && !force {
-		return cli.Exit(fmt.Errorf("contract already exists in the chain. Use --force to overwrite"), 1)
+	if existingState != nil {
+		if !force {
+			return cli.Exit(fmt.Errorf("contract already exists in the chain. Use --force to overwrite"), 1)
+		}
+		contractState.ID = existingState.ID
 	}
 
 	d := dao.NewSimple(store, cfg.ProtocolConfiguration.StateRootInHeader)
