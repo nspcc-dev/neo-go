@@ -2466,6 +2466,26 @@ func TestClient_GetVersion_Hardforks(t *testing.T) {
 	require.InDeltaMapValues(t, expected, v.Protocol.Hardforks, 0)
 }
 
+func TestClient_GetVersion(t *testing.T) {
+	chain, orc, cfg, logger := getUnitTestChainWithCustomConfig(t, false, false, func(cfg *config.Config) {
+		cfg.ApplicationConfiguration.KeepOnlyLatestState = true
+		cfg.ApplicationConfiguration.SaveInvocations = true
+	})
+
+	_, _, httpSrv := wrapUnitTestChain(t, chain, orc, cfg, logger)
+
+	client, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	t.Cleanup(client.Close)
+	require.NoError(t, client.Init())
+
+	version, err := client.GetVersion()
+	require.NoError(t, err)
+
+	require.True(t, version.Application.SaveInvocations)
+	require.True(t, version.Application.KeepOnlyLatestState)
+}
+
 func TestClient_NEP24(t *testing.T) {
 	_, _, httpSrv := initServerWithInMemoryChain(t)
 

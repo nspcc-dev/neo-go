@@ -191,8 +191,12 @@ NeoGo can return additional fields in the `protocol` object depending on the
 extensions enabled. Specifically that's `p2psigextensions` and
 `staterootinheader` booleans and `committeehistory` and `validatorshistory`
 objects (that are effectively maps from stringified integers to other
-integers. These fields are only returned when corresponding settings are
-enabled in the server's protocol configuration.
+integers). These fields are only returned when corresponding settings are
+enabled in the server's protocol configuration. NeoGo can return an additional
+`application` object depending on the extensions enabled which contains two fields:
+`saveinvocations` and `keeponlylateststate` booleans. These fields are only
+returned when corresponding settings are enabled in the node's application
+configuration.
 
 ##### `getnep11transfers` and `getnep17transfers`
 `transfernotifyindex` is not tracked by NeoGo, thus this field is always zero.
