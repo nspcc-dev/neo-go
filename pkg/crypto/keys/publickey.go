@@ -98,11 +98,20 @@ type PublicKey ecdsa.PublicKey
 
 // Equal returns true in case public keys are equal.
 func (p *PublicKey) Equal(key *PublicKey) bool {
-	return p.X.Cmp(key.X) == 0 && p.Y.Cmp(key.Y) == 0
+	return p.Cmp(key) == 0
 }
 
 // Cmp compares two keys.
 func (p *PublicKey) Cmp(key *PublicKey) int {
+	if p.IsInfinity() {
+		if key.IsInfinity() {
+			return 0
+		}
+		return -1
+	}
+	if key.IsInfinity() {
+		return 1
+	}
 	xCmp := p.X.Cmp(key.X)
 	if xCmp != 0 {
 		return xCmp
