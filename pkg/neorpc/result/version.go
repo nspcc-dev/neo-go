@@ -15,12 +15,13 @@ type (
 	// Version model used for reporting server version
 	// info.
 	Version struct {
-		TCPPort   uint16   `json:"tcpport"`
-		WSPort    uint16   `json:"wsport,omitempty"`
-		Nonce     uint32   `json:"nonce"`
-		UserAgent string   `json:"useragent"`
-		Protocol  Protocol `json:"protocol"`
-		RPC       RPC      `json:"rpc"`
+		TCPPort     uint16      `json:"tcpport"`
+		WSPort      uint16      `json:"wsport,omitempty"`
+		Nonce       uint32      `json:"nonce"`
+		UserAgent   string      `json:"useragent"`
+		Protocol    Protocol    `json:"protocol"`
+		Application Application `json:"application,omitempty"`
+		RPC         RPC         `json:"rpc"`
 	}
 
 	// RPC represents the RPC server configuration.
@@ -62,6 +63,21 @@ type (
 		StateRootInHeader bool
 		// ValidatorsHistory stores height:size map of the validators count.
 		ValidatorsHistory map[uint32]uint32
+	}
+
+	// Application represents the node application configuration.
+	// Application is a NeoGo-specific extension to the node that is
+	// returned by the server in case at least one of the nested extensions
+	// is enabled.
+	Application struct {
+		// SaveInvocations enables smart contract invocation data saving.
+		SaveInvocations bool `json:"saveinvocations,omitempty"`
+		// KeepOnlyLatestState specifies if MPT should only store the latest state.
+		KeepOnlyLatestState bool `json:"keeponlylateststate,omitempty"`
+		// RemoveUntraceableBlocks specifies if old data (blocks, headers,
+		// transactions, execution results, transfer logs and MPT data) should be
+		// removed.
+		RemoveUntraceableBlocks bool `json:"removeuntraceableblocks,omitempty"`
 	}
 
 	// protocolMarshallerAux is an auxiliary struct used for Protocol JSON marshalling.
