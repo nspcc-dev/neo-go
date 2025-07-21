@@ -47,7 +47,7 @@ type (
 		// means that the transactions given might be already accepted or soon going
 		// to be accepted. Such transaction can be waited for in a usual way, potentially
 		// with positive result, so that's what will happen.
-		Wait(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error)
+		Wait(ctx context.Context, h util.Uint256, vub uint32, err error) (*state.AppExecResult, error)
 		// WaitAny waits until at least one of the specified transactions will be accepted
 		// to the chain until vub (including). It returns execution result of this
 		// transaction or an error if none of the transactions was accepted to the chain.
@@ -153,7 +153,7 @@ func NewNull() Null {
 }
 
 // Wait implements Waiter interface.
-func (Null) Wait(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
+func (Null) Wait(ctx context.Context, h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
 	return nil, ErrAwaitingNotSupported
 }
 
@@ -194,11 +194,11 @@ func newCustomPollingBased(waiter RPCPollingBased, v *result.Version, config Pol
 }
 
 // Wait implements Waiter interface.
-func (w *PollingBased) Wait(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
+func (w *PollingBased) Wait(ctx context.Context, h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
 	if err != nil && !errIsAlreadyExists(err) {
 		return nil, err
 	}
-	return w.WaitAny(context.TODO(), vub, h)
+	return w.WaitAny(ctx, vub, h)
 }
 
 // WaitAny implements Waiter interface.
@@ -267,11 +267,11 @@ func NewCustomEventBased(waiter RPCEventBased, config Config) (*EventBased, erro
 }
 
 // Wait implements Waiter interface.
-func (w *EventBased) Wait(h util.Uint256, vub uint32, err error) (res *state.AppExecResult, waitErr error) {
+func (w *EventBased) Wait(ctx context.Context, h util.Uint256, vub uint32, err error) (res *state.AppExecResult, waitErr error) {
 	if err != nil && !errIsAlreadyExists(err) {
 		return nil, err
 	}
-	return w.WaitAny(context.TODO(), vub, h)
+	return w.WaitAny(ctx, vub, h)
 }
 
 // WaitAny implements Waiter interface.

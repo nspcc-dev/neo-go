@@ -137,23 +137,23 @@ func TestPollingWaiter_Wait(t *testing.T) {
 
 	// Wait with error.
 	someErr := errors.New("some error")
-	_, err := w.Wait(h, bCount, someErr)
+	_, err := w.Wait(c.Context(), h, bCount, someErr)
 	require.ErrorIs(t, err, someErr)
 
 	// AER is in chain immediately.
-	aer, err := w.Wait(h, bCount-1, nil)
+	aer, err := w.Wait(c.Context(), h, bCount-1, nil)
 	require.NoError(t, err)
 	require.Equal(t, expected, aer)
 
 	// Missing AER after VUB.
 	c.appLog = nil
-	_, err = w.Wait(h, bCount-2, nil)
+	_, err = w.Wait(c.Context(), h, bCount-2, nil)
 	require.ErrorIs(t, waiter.ErrTxNotAccepted, err)
 
 	checkErr := func(t *testing.T, trigger func(), target error) {
 		errCh := make(chan error)
 		go func() {
-			_, err = w.Wait(h, bCount, nil)
+			_, err = w.Wait(c.Context(), h, bCount, nil)
 			errCh <- err
 		}()
 		timer := time.NewTimer(time.Second)
@@ -202,11 +202,11 @@ func TestWSWaiter_Wait(t *testing.T) {
 
 	// Wait with error.
 	someErr := errors.New("some error")
-	_, err := w.Wait(h, bCount, someErr)
+	_, err := w.Wait(c.Context(), h, bCount, someErr)
 	require.ErrorIs(t, err, someErr)
 
 	// AER is in chain immediately.
-	aer, err := w.Wait(h, bCount-1, nil)
+	aer, err := w.Wait(c.Context(), h, bCount-1, nil)
 	require.NoError(t, err)
 	require.Equal(t, expected, aer)
 
@@ -235,7 +235,7 @@ func TestWSWaiter_Wait(t *testing.T) {
 	// AER received after the subscription.
 	c.RPCClient.appLog = nil
 	go func() {
-		aer, err = w.Wait(h, bCount-1, nil)
+		aer, err = w.Wait(c.Context(), h, bCount-1, nil)
 		require.NoError(t, err)
 		require.Equal(t, expected, aer)
 		doneCh <- struct{}{}
@@ -248,7 +248,7 @@ func TestWSWaiter_Wait(t *testing.T) {
 
 	// Missing AER after VUB.
 	go func() {
-		_, err = w.Wait(h, bCount-2, nil)
+		_, err = w.Wait(c.Context(), h, bCount-2, nil)
 		require.ErrorIs(t, err, waiter.ErrTxNotAccepted)
 		doneCh <- struct{}{}
 	}()

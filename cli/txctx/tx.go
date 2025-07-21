@@ -88,7 +88,7 @@ func SignAndSend(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, tx *tr
 			return cli.Exit(err, 1)
 		}
 		if ctx.Bool("await") {
-			aer, err = act.Wait(resTx, vub, err)
+			aer, err = act.Wait(ctx.Context, resTx, vub, err)
 			if err != nil {
 				return cli.Exit(fmt.Errorf("failed to await transaction %s: %w", resTx.StringLE(), err), 1)
 			}
