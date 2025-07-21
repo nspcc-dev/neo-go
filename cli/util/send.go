@@ -43,7 +43,7 @@ func sendTx(ctx *cli.Context) error {
 	var aer *state.AppExecResult
 	if ctx.Bool("await") {
 		version, err := c.GetVersion()
-		aer, err = waiter.New(c, version).Wait(res, tx.ValidUntilBlock, err)
+		aer, err = waiter.New(c, version).Wait(ctx.Context, res, tx.ValidUntilBlock, err)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to await transaction %s: %w", res.StringLE(), err), 1)
 		}

@@ -309,7 +309,7 @@ func TestWaitSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	someErr := errors.New("someErr")
-	_, err = a.WaitSuccess(util.Uint256{}, 0, someErr)
+	_, err = a.WaitSuccess(client.Context(), util.Uint256{}, 0, someErr)
 	require.ErrorIs(t, err, someErr)
 
 	cont := util.Uint256{1, 2, 3}
@@ -326,11 +326,11 @@ func TestWaitSuccess(t *testing.T) {
 	}
 	client.appLog = applog
 	client.appLog.Executions[0].VMState = vmstate.Fault
-	_, err = a.WaitSuccess(util.Uint256{}, 0, nil)
+	_, err = a.WaitSuccess(client.Context(), util.Uint256{}, 0, nil)
 	require.ErrorIs(t, err, ErrExecFailed)
 
 	client.appLog.Executions[0].VMState = vmstate.Halt
-	res, err := a.WaitSuccess(util.Uint256{}, 0, nil)
+	res, err := a.WaitSuccess(client.Context(), util.Uint256{}, 0, nil)
 	require.NoError(t, err)
 	require.Equal(t, &state.AppExecResult{
 		Container: cont,

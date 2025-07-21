@@ -10,6 +10,7 @@ build on top of it.
 package actor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -316,8 +317,8 @@ func (a *Actor) Sender() util.Uint160 {
 // WaitSuccess is similar to [waiter.Wait], but also checks for the VM state
 // to be HALT (successful execution). Execution result is still returned (if
 // HALTed normally) in case you need to examine events or stack.
-func (a *Actor) WaitSuccess(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
-	aer, err := a.Wait(h, vub, err)
+func (a *Actor) WaitSuccess(ctx context.Context, h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
+	aer, err := a.Wait(ctx, h, vub, err)
 	if err != nil {
 		return nil, err
 	}

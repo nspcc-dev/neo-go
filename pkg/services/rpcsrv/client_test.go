@@ -1823,7 +1823,7 @@ func TestClient_Wait(t *testing.T) {
 		check := func(t *testing.T, h util.Uint256, vub uint32, errExpected bool) {
 			rcvr := make(chan struct{})
 			go func() {
-				aer, err := act.Wait(h, vub, nil)
+				aer, err := act.Wait(context.Background(), h, vub, nil)
 				if errExpected {
 					require.Error(t, err)
 				} else {
@@ -1916,7 +1916,7 @@ func testSubClientWait(t *testing.T, local bool) {
 	rcvr := make(chan *state.AppExecResult)
 	check := func(t *testing.T, b *block.Block, h util.Uint256, vub uint32) {
 		go func() {
-			aer, err := act.Wait(h, vub, nil)
+			aer, err := act.Wait(context.Background(), h, vub, nil)
 			require.NoError(t, err, b.Index)
 			rcvr <- aer
 		}()
@@ -2021,7 +2021,7 @@ func testSubClientWaitWithLateSubscription(t *testing.T, local bool) {
 	require.NoError(t, chain.AddBlock(b1))
 
 	// After that, wait and get the result immediately.
-	aer, err := act.Wait(tx.Hash(), tx.ValidUntilBlock, nil)
+	aer, err := act.Wait(context.Background(), tx.Hash(), tx.ValidUntilBlock, nil)
 	require.NoError(t, err)
 	require.Equal(t, tx.Hash(), aer.Container)
 	require.Equal(t, trigger.Application, aer.Trigger)
@@ -2066,7 +2066,7 @@ func testSubClientWaitWithMissedEvent(t *testing.T, local bool) {
 	errCh := make(chan error) // Error channel for goroutine errors
 
 	go func() {
-		aer, err := act.Wait(tx.Hash(), tx.ValidUntilBlock, nil)
+		aer, err := act.Wait(context.Background(), tx.Hash(), tx.ValidUntilBlock, nil)
 		if err != nil {
 			errCh <- err
 			return
