@@ -431,7 +431,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		require.Equal(t, 2, len(aer[0].Events))
 		nfsoMintEvent := aer[0].Events[1]
 		require.Equal(t, "Transfer", nfsoMintEvent.Name)
-		tokenID, err := z[3].TryBytes()
+		tokenID, err := nfsoMintEvent.Item.Value().([]stackitem.Item)[3].TryBytes()
 		require.NoError(t, err)
 		require.NotNil(t, tokenID)
 		return tokenID
