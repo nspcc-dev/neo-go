@@ -275,6 +275,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	if r.witnessInfo == nil && validationErr == nil {
 		r.witnessInfo = newInfo
 	}
+	n.Config.Log.Info("PROCESSING", zap.String("hash", r.main.Hash().StringLE()))
 	// Disallow modification of a fallback transaction got from the notary
 	// request pool. Even though it has dummy Notary witness attached and its
 	// size won't be changed after finalisation, the witness bytes changes may
@@ -331,7 +332,9 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 			// been added - we're OK with that, let the fallback TX to be added
 		}
 	}
+	n.Config.Log.Info("PROCESSED", zap.String("hash", r.main.Hash().StringLE()), zap.String("completed", r.isMainCompleted()))
 	if r.isMainCompleted() && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
+		n.Config.Log.Info("FINALING", zap.String("hash", r.main.Hash().StringLE()))
 		if err := n.finalize(acc, r.main, payload.MainTransaction.Hash()); err != nil {
 			n.Config.Log.Error("failed to finalize main transaction, waiting for the next block to retry",
 				zap.String("hash", r.main.Hash().StringLE()),
