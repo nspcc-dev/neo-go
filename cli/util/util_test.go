@@ -19,19 +19,51 @@ import (
 func TestUtilConvert(t *testing.T) {
 	e := testcli.NewExecutor(t, false)
 
-	e.Run(t, "neo-go", "util", "convert", util.Uint160{1, 2, 3}.StringLE())
-	e.CheckNextLine(t, "f975")                                                                             // int to hex
-	e.CheckNextLine(t, "\\+XU=")                                                                           // int to base64
-	e.CheckNextLine(t, "NKuyBkoGdZZSLyPbJEetheRhMrGSCQx7YL")                                               // BE to address
-	e.CheckNextLine(t, "NL1JGiyJXdTkvFksXbFxgLJcWLj8Ewe7HW")                                               // LE to address
-	e.CheckNextLine(t, "Hex to String")                                                                    // hex to string
-	e.CheckNextLine(t, "5753853598078696051256155186041784866529345536")                                   // hex to int
-	e.CheckNextLine(t, "0102030000000000000000000000000000000000")                                         // swap endianness
-	e.CheckNextLine(t, "Base64 to String")                                                                 // base64 to string
-	e.CheckNextLine(t, "368753434210909009569191652203865891677393101439813372294890211308228051")         // base64 to bigint
-	e.CheckNextLine(t, "30303030303030303030303030303030303030303030303030303030303030303030303330323031") // string to hex
-	e.CheckNextLine(t, "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAzMDIwMQ==")                         // string to base64
-	e.CheckEOF(t)
+	t.Run("from uint160", func(t *testing.T) {
+		e.Run(t, "neo-go", "util", "convert", util.Uint160{1, 2, 3}.StringLE())
+
+		e.CheckNextLine(t, "f975")                                                                             // int to hex
+		e.CheckNextLine(t, "\\+XU=")                                                                           // int to base64
+		e.CheckNextLine(t, "NKuyBkoGdZZSLyPbJEetheRhMrGSCQx7YL")                                               // BE to address
+		e.CheckNextLine(t, "NL1JGiyJXdTkvFksXbFxgLJcWLj8Ewe7HW")                                               // LE to address
+		e.CheckNextLine(t, "Hex to String")                                                                    // hex to string
+		e.CheckNextLine(t, "5753853598078696051256155186041784866529345536")                                   // hex to int
+		e.CheckNextLine(t, "0102030000000000000000000000000000000000")                                         // swap endianness
+		e.CheckNextLine(t, "Base64 to String")                                                                 // base64 to string
+		e.CheckNextLine(t, "368753434210909009569191652203865891677393101439813372294890211308228051")         // base64 to bigint
+		e.CheckNextLine(t, "30303030303030303030303030303030303030303030303030303030303030303030303330323031") // string to hex
+		e.CheckNextLine(t, "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAzMDIwMQ==")                         // string to base64
+		e.CheckEOF(t)
+	})
+
+	t.Run("from base64", func(t *testing.T) {
+		e.Run(t, "neo-go", "util", "convert", "AzAsKhDGXY3es9Sud1UZHlNuaIUeA8RP5L525bksW2X1")
+
+		e.CheckNextLine(t, "Base64 to String")                                                                         // base64 to string
+		e.CheckNextLine(t, "-1227868292132078655324003980891682359404043535734663719936387278487080867713021")         // base64 to bigint
+		e.CheckNextLine(t, "03302c2a10c65d8ddeb3d4ae7755191e536e68851e03c44fe4be76e5b92c5b65f5")                       // public key to hex
+		e.CheckNextLine(t, "102b75c0f23919fa69a0f920239a720f211755fd")                                                 // public key to BE script hash
+		e.CheckNextLine(t, "fd5517210f729a2320f9a069fa1939f2c0752b10")                                                 // public key to LE script hash
+		e.CheckNextLine(t, "NMPU4Udmcg3mWvupa9zTjGK146ifBXhdUh")                                                       // public key to address
+		e.CheckNextLine(t, "417a41734b68444758593365733953756431555a486c4e756149556541385250354c353235626b7357325831") // string to hex
+		e.CheckNextLine(t, "QXpBc0toREdYWTNlczlTdWQxVVpIbE51YUlVZUE4UlA1TDUyNWJrc1cyWDE=")                             // string to base64
+		e.CheckEOF(t)
+	})
+
+	t.Run("from hex", func(t *testing.T) {
+		e.Run(t, "neo-go", "util", "convert", "03302c2a10c65d8ddeb3d4ae7755191e536e68851e03c44fe4be76e5b92c5b65f5")
+
+		e.CheckNextLine(t, "AzAsKhDGXY3es9Sud1UZHlNuaIUeA8RP5L525bksW2X1")                                                                                         // public key to base64
+		e.CheckNextLine(t, "102b75c0f23919fa69a0f920239a720f211755fd")                                                                                             // public key to BE script hash
+		e.CheckNextLine(t, "fd5517210f729a2320f9a069fa1939f2c0752b10")                                                                                             // public key to LE script hash
+		e.CheckNextLine(t, "NMPU4Udmcg3mWvupa9zTjGK146ifBXhdUh")                                                                                                   // public key to address
+		e.CheckNextLine(t, "Hex to String")                                                                                                                        // hex to string
+		e.CheckNextLine(t, "-1227868292132078655324003980891682359404043535734663719936387278487080867713021")                                                     // hex to integer
+		e.CheckNextLine(t, "f5655b2cb9e576bee44fc4031e85686e531e195577aed4b3de8d5dc6102a2c3003")                                                                   // swap endianness
+		e.CheckNextLine(t, "303333303263326131306336356438646465623364346165373735353139316535333665363838353165303363343466653462653736653562393263356236356635") // string to hex
+		e.CheckNextLine(t, "MDMzMDJjMmExMGM2NWQ4ZGRlYjNkNGFlNzc1NTE5MWU1MzZlNjg4NTFlMDNjNDRmZTRiZTc2ZTViOTJjNWI2NWY1")                                             // string to base64
+		e.CheckEOF(t)
+	})
 }
 
 func TestUtilOps(t *testing.T) {

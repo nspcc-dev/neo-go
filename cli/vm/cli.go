@@ -1505,6 +1505,7 @@ func Parse(args []string) (string, error) {
 		}
 		if pub, err := keys.NewPublicKeyFromBytes(rawStr, elliptic.P256()); err == nil {
 			sh := pub.GetScriptHash()
+			buf = fmt.Appendf(buf, "Public key to Base64\t%s\n", base64.StdEncoding.EncodeToString(rawStr))
 			buf = fmt.Appendf(buf, "Public key to BE ScriptHash\t%s\n", sh)
 			buf = fmt.Appendf(buf, "Public key to LE ScriptHash\t%s\n", sh.Reverse())
 			buf = fmt.Appendf(buf, "Public key to Address\t%s\n", address.Uint160ToString(sh))
@@ -1529,6 +1530,13 @@ func Parse(args []string) (string, error) {
 			buf = fmt.Appendf(buf, "Base64 to LE ScriptHash\t%s\n", u.StringLE())
 			buf = fmt.Appendf(buf, "Base64 to Address (BE)\t%s\n", address.Uint160ToString(u))
 			buf = fmt.Appendf(buf, "Base64 to Address (LE)\t%s\n", address.Uint160ToString(u.Reverse()))
+		}
+		if pub, err := keys.NewPublicKeyFromBytes(rawStr, elliptic.P256()); err == nil {
+			sh := pub.GetScriptHash()
+			buf = fmt.Appendf(buf, "Public key to Hex\t%s\n", pub.StringCompressed())
+			buf = fmt.Appendf(buf, "Public key to BE ScriptHash\t%s\n", sh)
+			buf = fmt.Appendf(buf, "Public key to LE ScriptHash\t%s\n", sh.Reverse())
+			buf = fmt.Appendf(buf, "Public key to Address\t%s\n", address.Uint160ToString(sh))
 		}
 	}
 

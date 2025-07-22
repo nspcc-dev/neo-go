@@ -1036,6 +1036,7 @@ func TestParse(t *testing.T) {
 		pub := "02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2"
 		e := newTestVMCLI(t)
 		e.runProg(t, "parse "+pub)
+		e.checkNextLine(t, "Public key to Base64.*ArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43C")
 		e.checkNextLine(t, "Public key to BE ScriptHash.*ee9ea22c27e34bd0148fc4108e08f74e8f5048b2")
 		e.checkNextLine(t, "Public key to LE ScriptHash.*b248508f4ef7088e10c48f14d04be3272ca29eee")
 		e.checkNextLine(t, "Public key to Address.*Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")
