@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
+	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -20,11 +21,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	corestate "github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network"
@@ -100,9 +101,9 @@ func NewCommands() []*cli.Command {
 			Required:    false,
 			DefaultText: "latest",
 		},
-		&cli.StringFlag{
-			Name:     "contract-hash",
-			Usage:    "Script hash of the contract to download",
+		&flags.AddressFlag{
+			Name:     "contract",
+			Usage:    "Contract hash or address to download",
 			Required: true,
 			Aliases:  []string{"c"},
 		},
@@ -127,7 +128,7 @@ func NewCommands() []*cli.Command {
 				{
 					Name:      "download-contract",
 					Usage:     "Download a contract including storage from a remote chain into the local database",
-					UsageText: "neo-go db download-contract -c contract-hash -r endpoint [--height height] [--config-file] [--force]",
+					UsageText: "neo-go db download-contract -c contract -r endpoint [--height height] [--config-file] [--force]",
 					Action:    downloadContract,
 					Flags:     cfgDownloadFlags,
 				},
@@ -749,8 +750,11 @@ func downloadContract(ctx *cli.Context) error {
 		h = uint32(count) - 1
 	}
 
-	ch, err := util.Uint160DecodeStringLE(ctx.String("contract-hash")[2:])
-	if err != nil {
+	var ch util.Uint160
+	addrFlag := ctx.Generic("contract").(*flags.Address)
+	if addrFlag.IsSet {
+		ch = addrFlag.Uint160()
+	} else {
 		return cli.Exit(fmt.Errorf("failed to decode contract hash: %w", err), 1)
 	}
 
@@ -784,10 +788,12 @@ func downloadContract(ctx *cli.Context) error {
 	d := dao.NewSimple(store, cfg.ProtocolConfiguration.StateRootInHeader)
 
 	if !force {
-		// remote contract does not exist in chain by contract hash, but its ID can already be
+		// Remote contract does not exist in chain by contract hash, but its ID can already be
 		// in use.
-		_, err := native.GetContractByID(d, contractState.ID)
-		if !errors.Is(err, storage.ErrKeyNotFound) {
+		_, err := chain.GetContractScriptHash(contractState.ID)
+		if err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+			return cli.Exit(err, 1)
+		} else {
 			// ID is in use, get a new one
 			newID, err := native.GetNextContractID(d)
 			if err != nil {
@@ -816,15 +822,11 @@ func downloadContract(ctx *cli.Context) error {
 		return cli.Exit(fmt.Errorf("failed to close the DB: %w", err), 1)
 	}
 
-	fmt.Printf("downloaded \"%s\" contract (0x%s) and %d storage records\n", contractState.Manifest.Name, contractState.Hash.StringLE(), len(contractStorage))
+	fmt.Fprintf(ctx.App.Writer, `downloaded "%s" contract (0x%s) and %d storage records\n`, contractState.Manifest.Name, contractState.Hash.StringLE(), len(contractStorage))
 	return nil
 }
 
-func getContractStateAndStorageAtHeight(
-	client *rpcclient.Client,
-	height uint32,
-	hash util.Uint160,
-) (*state.Contract, []result.KeyValue, error) {
+func getContractStateAndStorageAtHeight(client *rpcclient.Client, height uint32, hash util.Uint160) (*state.Contract, []result.KeyValue, error) {
 	stateResponse, err := client.GetStateRootByHeight(height)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get stateroot for height %d: %w", height, err)
@@ -847,29 +849,17 @@ func getContractStateAndStorageAtHeight(
 	return cState, states, nil
 }
 
-func getContractStateHistoric(
-	client *rpcclient.Client,
-	stateRoot util.Uint256,
-	hash util.Uint160,
-) (*state.Contract, error) {
-	managementContract, err := util.Uint160DecodeBytesBE([]byte(management.Hash))
-	if err != nil {
-		return nil, err
-	}
+func getContractStateHistoric(client *rpcclient.Client, stateRoot util.Uint256, hash util.Uint160) (*state.Contract, error) {
 	prefix := append([]byte{0x08}, hash.BytesBE()...)
 	states, err := client.FindStates(
 		stateRoot,
-		managementContract,
+		nativehashes.ContractManagement,
 		prefix,
 		nil,
 		nil,
 	)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"failed to fetch contract state for contract %s: %w",
-			hash.StringLE(),
-			err,
-		)
+		return nil, fmt.Errorf("failed to fetch contract state for contract %s: %w", hash.StringLE(), err)
 	}
 	if stateLen := len(states.Results); stateLen != 1 {
 		return nil, fmt.Errorf(
