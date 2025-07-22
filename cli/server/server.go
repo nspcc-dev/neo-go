@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	corestate "github.com/nspcc-dev/neo-go/pkg/core/stateroot"
@@ -25,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/services/metrics"
@@ -749,16 +751,7 @@ func downloadContract(ctx *cli.Context) error {
 
 	ch, err := util.Uint160DecodeStringLE(ctx.String("contract-hash")[2:])
 	if err != nil {
-		return cli.Exit(fmt.Errorf("failed to decode contract hash: %v", err), 1)
-	}
-
-	contractState, err := GetContractStateAtHeight(c, h, ch)
-	if err != nil {
-		return cli.Exit(err, 1)
-	}
-
-	if contractState.ID < 0 {
-		return cli.Exit(fmt.Errorf("native contract download is not supported: %v", contractState.ID), 1)
+		return cli.Exit(fmt.Errorf("failed to decode contract hash: %w", err), 1)
 	}
 
 	log, _, logCloser, err := options.HandleLoggingParams(ctx, cfg.ApplicationConfiguration)
@@ -772,6 +765,11 @@ func downloadContract(ctx *cli.Context) error {
 	chain, store, err := initBlockChain(cfg, log)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to create Blockchain instance: %w", err), 1)
+	}
+
+	contractState, contractStorage, err := getContractStateAndStorageAtHeight(c, h, ch)
+	if err != nil {
+		return cli.Exit(err, 1)
 	}
 
 	force := ctx.Bool("force")
@@ -799,6 +797,10 @@ func downloadContract(ctx *cli.Context) error {
 		}
 	}
 
+	for _, pair := range contractStorage {
+		d.PutStorageItem(contractState.ID, pair.Key, pair.Value)
+	}
+
 	err = native.PutContractStateNoCache(d, contractState)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to put contract state: %w", err), 1)
@@ -809,38 +811,54 @@ func downloadContract(ctx *cli.Context) error {
 		return cli.Exit(fmt.Errorf("failed to persist storage: %w", err), 1)
 	}
 
-	nowstate := chain.GetContractState(ch)
-	if nowstate != nil {
-		fmt.Println("yeah")
-	}
-
 	err = store.Close()
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to close the DB: %w", err), 1)
 	}
 
-	fmt.Printf("downloaded \"%s\" (0x%s)\n", contractState.Manifest.Name, contractState.Hash.StringLE())
+	fmt.Printf("downloaded \"%s\" contract (0x%s) and %d storage records\n", contractState.Manifest.Name, contractState.Hash.StringLE(), len(contractStorage))
 	return nil
 }
 
-// GetContractStateAtHeight gets the contract state for the given smart contract hash at the specific height.
-func GetContractStateAtHeight(
+func getContractStateAndStorageAtHeight(
 	client *rpcclient.Client,
 	height uint32,
 	hash util.Uint160,
-) (*state.Contract, error) {
+) (*state.Contract, []result.KeyValue, error) {
 	stateResponse, err := client.GetStateRootByHeight(height)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get stateroot for height %d: %w", height, err)
+		return nil, nil, fmt.Errorf("failed to get stateroot for height %d: %w", height, err)
 	}
 
+	cState, err := getContractStateHistoric(client, stateResponse.Root, hash)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to contract state: %w", err)
+	}
+
+	if cState.ID < 0 {
+		return nil, nil, fmt.Errorf("native contract download is not supported: %v", cState.ID)
+	}
+
+	states, err := getContractStorageHistoric(client, stateResponse.Root, hash)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get storage: %w", err)
+	}
+
+	return cState, states, nil
+}
+
+func getContractStateHistoric(
+	client *rpcclient.Client,
+	stateRoot util.Uint256,
+	hash util.Uint160,
+) (*state.Contract, error) {
 	managementContract, err := util.Uint160DecodeBytesBE([]byte(management.Hash))
 	if err != nil {
 		return nil, err
 	}
 	prefix := append([]byte{0x08}, hash.BytesBE()...)
 	states, err := client.FindStates(
-		stateResponse.Root,
+		stateRoot,
 		managementContract,
 		prefix,
 		nil,
@@ -871,4 +889,40 @@ func GetContractStateAtHeight(
 	}
 
 	return &contractState, nil
+}
+
+func getContractStorageHistoric(
+	client *rpcclient.Client,
+	stateRoot util.Uint256,
+	hash util.Uint160,
+) ([]result.KeyValue, error) {
+	var start []byte
+	var states []result.KeyValue
+	for {
+		response, err := client.FindStates(stateRoot, hash, nil, start, nil)
+		if err != nil {
+			return nil, err
+		}
+		if len(response.Results) == 0 {
+			break
+		}
+
+		if _, ok := mpt.VerifyProof(stateRoot, response.FirstProof.Key, response.FirstProof.Proof); !ok {
+			return nil, fmt.Errorf("failed to verify first proof")
+		}
+
+		if len(response.Results) > 1 {
+			if _, ok := mpt.VerifyProof(stateRoot, response.LastProof.Key, response.LastProof.Proof); !ok {
+				return nil, fmt.Errorf("failed to verify last proof")
+			}
+		}
+
+		states = append(states, response.Results...)
+		if !response.Truncated {
+			break
+		}
+		start = response.Results[len(response.Results)-1].Key
+	}
+
+	return states, nil
 }

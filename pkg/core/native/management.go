@@ -804,7 +804,7 @@ func PutContractState(d *dao.Simple, cs *state.Contract) error {
 
 // TODO: check with nspcc if we can update PutContractState with an extra param
 // or else how to have the cache for ManagementContract initialized such that it doesn't panic
-// trying to run markUpdated()
+// trying to run markUpdated().
 func PutContractStateNoCache(d *dao.Simple, cs *state.Contract) error {
 	return putContractState(d, cs, false)
 }
@@ -869,7 +869,7 @@ func checkScriptAndMethods(ic *interop.Context, script []byte, methods []manifes
 }
 
 // TODO: decide how to best expose. There are too many options that for the time I picked a duplicate
-// function to have something working and let nspcc decide their preferred exposing option
+// function to have something working and let nspcc decide their preferred exposing option.
 func GetNextContractID(d *dao.Simple) (int32, error) {
 	si := d.GetStorageItem(ManagementContractID, keyNextAvailableID)
 	if si == nil {
