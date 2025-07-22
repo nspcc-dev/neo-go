@@ -332,7 +332,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 			// been added - we're OK with that, let the fallback TX to be added
 		}
 	}
-	n.Config.Log.Info("PROCESSED", zap.String("hash", r.main.Hash().StringLE()), zap.String("completed", r.isMainCompleted()))
+	n.Config.Log.Info("PROCESSED", zap.String("hash", r.main.Hash().StringLE()), zap.Bool("completed", r.isMainCompleted()))
 	if r.isMainCompleted() && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
 		n.Config.Log.Info("FINALING", zap.String("hash", r.main.Hash().StringLE()))
 		if err := n.finalize(acc, r.main, payload.MainTransaction.Hash()); err != nil {
