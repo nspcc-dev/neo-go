@@ -209,10 +209,10 @@ type ContractMD struct {
 	Hash util.Uint160
 	Name string
 	// methods is a generic set of contract methods with activation hardforks. Any HF-dependent part of included methods
-	// (offsets, in particular) must not be used, there's a mdCache field for that.
+	// (offsets, in particular) must not be used, there's an MDCache field for that.
 	methods []MethodAndPrice
-	// events is a generic set of contract events with activation hardforks. Any HF-dependent part of events must not be
-	// used, there's a mdCache field for that.
+	// Events is a generic set of contract events with activation hardforks. Any HF-dependent part of events must not be
+	// used, there's an MDCache field for that.
 	events []Event
 	// ActiveHFs is a map of hardforks that contract should react to. Contract update should be called for active
 	// hardforks. Note, that unlike the C# implementation, this map doesn't include contract's activation hardfork.

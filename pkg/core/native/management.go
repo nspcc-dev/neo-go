@@ -32,8 +32,8 @@ import (
 // Management is a contract-managing native contract.
 type Management struct {
 	interop.ContractMD
-	NEO    *NEO
-	Policy *Policy
+	NEO    INEO
+	Policy IPolicy
 }
 
 type ManagementCache struct {
@@ -96,8 +96,8 @@ func MakeContractKey(h util.Uint160) []byte {
 	return makeUint160Key(PrefixContract, h)
 }
 
-// newManagement creates a new Management native contract.
-func newManagement() *Management {
+// NewManagement creates a new Management native contract.
+func NewManagement() *Management {
 	var m = &Management{
 		ContractMD: *interop.NewContractMD(nativenames.Management, ManagementContractID),
 	}
@@ -536,7 +536,7 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 		d.DeleteStorageItem(contract.ID, k)
 		return true
 	})
-	m.Policy.blockAccountInternal(d, hash)
+	m.Policy.BlockAccountInternal(d, hash)
 	markUpdated(d, hash, nil)
 	return nil
 }
@@ -555,7 +555,7 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	if value.Sign() < 0 {
 		panic("MinimumDeploymentFee cannot be negative")
 	}
-	if !m.NEO.checkCommittee(ic) {
+	if !m.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	ic.DAO.PutStorageItem(m.ID, keyMinimumDeploymentFee, bigint.ToBytes(value))

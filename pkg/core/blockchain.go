@@ -24,6 +24,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
@@ -207,7 +209,14 @@ type Blockchain struct {
 
 	lastBatch *storage.MemBatch
 
-	contracts native.Contracts
+	contracts  *native.Contracts
+	management native.IManagement
+	policy     native.IPolicy
+	neo        native.INEO
+	gas        native.IGAS
+	designate  native.IDesignate
+	oracle     native.IOracle
+	notary     native.INotary
 
 	extensible atomic.Value
 
@@ -257,8 +266,13 @@ type transferData struct {
 
 // NewBlockchain returns a new blockchain object the will use the
 // given Store as its underlying storage. For it to work correctly you need
-// to spawn a goroutine for its Run method after this initialization.
-func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Blockchain, error) {
+// to spawn a goroutine for its Run method after this initialization. As an
+// optional argument it accepts constructor of native contracts that, if set,
+// will be used to allocate and override the list of native contracts with a
+// custom implementation. It's required to keep the same IDs, names and hashes
+// for those contracts that override existing natives; new contract IDs should
+// follow next to the nativeids.Notary ID.
+func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newNatives ...func(cfg config.ProtocolConfiguration) []interop.Contract) (*Blockchain, error) {
 	if log == nil {
 		return nil, errors.New("empty logger")
 	}
@@ -382,6 +396,13 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		cfg.Ledger.GarbageCollectionPeriod = defaultGCPeriod
 		log.Info("GarbageCollectionPeriod is not set or wrong, using default value", zap.Uint32("GarbageCollectionPeriod", cfg.Ledger.GarbageCollectionPeriod))
 	}
+	var natives []interop.Contract
+	if len(newNatives) != 0 && newNatives[0] != nil {
+		natives = newNatives[0](cfg.ProtocolConfiguration)
+	} else {
+		natives = native.NewDefaultContracts(cfg.ProtocolConfiguration)
+	}
+
 	bc := &Blockchain{
 		config:      cfg,
 		dao:         dao.NewSimple(s, cfg.StateRootInHeader),
@@ -394,13 +415,60 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		events:      make(chan bcEvent),
 		subCh:       make(chan any),
 		unsubCh:     make(chan any),
-		contracts:   *native.NewContracts(cfg.ProtocolConfiguration),
+		contracts:   native.NewContracts(natives),
+	}
+	bc.management = bc.contracts.Management()
+	if bc.management == native.IManagement(nil) {
+		return nil, errors.New("native ContractManagement implementation is required")
+	}
+	if err := validateNative(bc.management, nativeids.ContractManagement, nativenames.Management, nativehashes.ContractManagement); err != nil {
+		return nil, err
+	}
+	bc.neo = bc.contracts.NEO()
+	if bc.neo == native.INEO(nil) {
+		return nil, errors.New("native NeoToken implementation is required")
+	}
+	if err := validateNative(bc.neo, nativeids.NeoToken, nativenames.Neo, nativehashes.NeoToken); err != nil {
+		return nil, err
+	}
+	bc.gas = bc.contracts.GAS()
+	if bc.gas == native.IGAS(nil) {
+		return nil, errors.New("native GasToken implementation is required")
+	}
+	if err := validateNative(bc.gas, nativeids.GasToken, nativenames.Gas, nativehashes.GasToken); err != nil {
+		return nil, err
+	}
+	bc.policy = bc.contracts.Policy()
+	if bc.policy == native.IPolicy(nil) {
+		return nil, errors.New("native Policy implementation is required")
+	}
+	if err := validateNative(bc.policy, nativeids.PolicyContract, nativenames.Policy, nativehashes.PolicyContract); err != nil {
+		return nil, err
+	}
+	bc.designate = bc.contracts.Designate()
+	if bc.designate == native.IDesignate(nil) {
+		return nil, errors.New("native RoleManagement implementation is required")
+	}
+	if err := validateNative(bc.designate, nativeids.RoleManagement, nativenames.Designation, nativehashes.RoleManagement); err != nil {
+		return nil, err
+	}
+	bc.oracle = bc.contracts.Oracle()
+	if bc.oracle != native.IOracle(nil) {
+		if err := validateNative(bc.oracle, nativeids.OracleContract, nativenames.Oracle, nativehashes.OracleContract); err != nil {
+			return nil, err
+		}
+	}
+	bc.notary = bc.contracts.Notary()
+	if bc.notary != native.INotary(nil) {
+		if err := validateNative(bc.notary, nativeids.Notary, nativenames.Notary, nativehashes.Notary); err != nil {
+			return nil, err
+		}
 	}
 
 	bc.persistCond = sync.NewCond(&bc.lock)
 	bc.gcBlockTimes, _ = lru.New[uint32, uint64](defaultBlockTimesCache) // Never errors for positive size
 	bc.stateRoot = stateroot.NewModule(cfg, bc.VerifyWitness, bc.log, bc.dao.Store)
-	bc.contracts.Designate.StateRootService = bc.stateRoot
+	bc.designate.SetStateRootService(bc.stateRoot)
 
 	if err := bc.init(); err != nil {
 		return nil, err
@@ -410,13 +478,29 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	return bc, nil
 }
 
+// validateNative ensures that native contract is constructed according to the
+// Blockchain expectations.
+func validateNative(n interop.Contract, expectedID int32, expectedName string, expectedHash util.Uint160) error {
+	md := n.Metadata()
+	if md.ID != expectedID {
+		return fmt.Errorf("native %s: expected ID %d, got %d", md.Name, expectedID, md.ID)
+	}
+	if md.Name != expectedName {
+		return fmt.Errorf("native %s: expected name %s, got %s", md.Name, expectedName, md.Name)
+	}
+	if md.Hash != expectedHash {
+		return fmt.Errorf("native %s: expected hash %s, got %s", md.Name, expectedHash.StringLE(), md.Hash.StringLE())
+	}
+	return nil
+}
+
 // GetDesignatedByRole returns a set of designated public keys for the given role
 // relevant for the next block.
 func (bc *Blockchain) GetDesignatedByRole(r noderoles.Role) (keys.PublicKeys, uint32, error) {
 	// Retrieve designated nodes starting from the next block, because the current
 	// block is already stored, thus, dependant services can't use PostPersist callback
 	// to fetch relevant information at their start.
-	res, h, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, r, bc.BlockHeight()+1)
+	res, h, err := bc.designate.GetDesignatedByRole(bc.dao, r, bc.BlockHeight()+1)
 	return res, h, err
 }
 
@@ -441,31 +525,34 @@ func (bc *Blockchain) getCurrentHF() config.Hardfork {
 // SetOracle sets oracle module. It can safely be called on the running blockchain.
 // To unregister Oracle service use SetOracle(nil).
 func (bc *Blockchain) SetOracle(mod native.OracleService) {
-	orc := bc.contracts.Oracle
+	orc := bc.oracle
+	if orc == native.IOracle(nil) {
+		panic("native Oracle contract implementation is not initialized")
+	}
 	currentHF := bc.getCurrentHF()
 	if mod != nil {
-		orcMd := orc.HFSpecificContractMD(&currentHF)
+		orcMd := orc.Metadata().HFSpecificContractMD(&currentHF)
 		md, ok := orcMd.GetMethod(manifest.MethodVerify, -1)
 		if !ok {
 			panic(fmt.Errorf("%s method not found", manifest.MethodVerify))
 		}
 		mod.UpdateNativeContract(orcMd.NEF.Script, orc.GetOracleResponseScript(),
-			orc.Hash, md.MD.Offset)
+			orc.Metadata().Hash, md.MD.Offset)
 		keys, _, err := bc.GetDesignatedByRole(noderoles.Oracle)
 		if err != nil {
 			bc.log.Error("failed to get oracle key list")
 			return
 		}
 		mod.UpdateOracleNodes(keys)
-		reqs, err := bc.contracts.Oracle.GetRequests(bc.dao)
+		reqs, err := orc.GetRequests(bc.dao)
 		if err != nil {
 			bc.log.Error("failed to get current oracle request list")
 			return
 		}
 		mod.AddRequests(reqs)
 	}
-	orc.Module.Store(&mod)
-	bc.contracts.Designate.OracleService.Store(&mod)
+	orc.SetService(mod)
+	bc.designate.SetOracleService(mod)
 }
 
 // SetNotary sets notary module. It may safely be called on the running blockchain.
@@ -479,7 +566,7 @@ func (bc *Blockchain) SetNotary(mod native.NotaryService) {
 		}
 		mod.UpdateNotaryNodes(keys)
 	}
-	bc.contracts.Designate.NotaryService.Store(&mod)
+	bc.designate.SetNotaryService(mod)
 }
 
 func (bc *Blockchain) init() error {
@@ -612,7 +699,7 @@ func (bc *Blockchain) init() error {
 	// Need to be done after native Management cache initialization to be able to get
 	// contract state from DAO via high-level bc API.
 	var current = bc.getCurrentHF()
-	for _, c := range bc.contracts.Contracts {
+	for _, c := range bc.contracts.List {
 		md := c.Metadata()
 		storedCS := bc.GetContractState(md.Hash)
 		// Check that contract was deployed.
@@ -1216,7 +1303,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 }
 
 func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) error {
-	for _, c := range bc.contracts.Contracts {
+	for _, c := range bc.contracts.List {
 		// Check that contract was deployed.
 		if !bc.IsHardforkEnabled(c.ActiveIn(), blockHeight) {
 			continue
@@ -2076,7 +2163,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 	updateCommittee := bc.config.ShouldUpdateCommitteeAt(height)
-	stateVals, sh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, height)
+	stateVals, sh, err := bc.designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, height)
 	if err != nil {
 		return err
 	}
@@ -2085,8 +2172,8 @@ func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 		return nil
 	}
 
-	newList := []util.Uint160{bc.contracts.NEO.GetCommitteeAddress(bc.dao)}
-	nextVals := bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao)
+	newList := []util.Uint160{bc.neo.GetCommitteeAddress(bc.dao)}
+	nextVals := bc.neo.GetNextBlockValidatorsInternal(bc.dao)
 	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(nextVals)
 	if err != nil {
 		return err
@@ -2095,7 +2182,7 @@ func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 	bc.updateExtensibleList(&newList, nextVals)
 
 	if len(stateVals) > 0 {
-		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, noderoles.StateValidator)
+		h, err := bc.designate.GetLastDesignatedHash(bc.dao, noderoles.StateValidator)
 		if err != nil {
 			return err
 		}
@@ -2314,12 +2401,12 @@ func (bc *Blockchain) ForEachNEP11Transfer(acc util.Uint160, newestTimestamp uin
 
 // GetNEP17Contracts returns the list of deployed NEP-17 contracts.
 func (bc *Blockchain) GetNEP17Contracts() []util.Uint160 {
-	return bc.contracts.Management.GetNEP17Contracts(bc.dao)
+	return bc.management.GetNEP17Contracts(bc.dao)
 }
 
 // GetNEP11Contracts returns the list of deployed NEP-11 contracts.
 func (bc *Blockchain) GetNEP11Contracts() []util.Uint160 {
-	return bc.contracts.Management.GetNEP11Contracts(bc.dao)
+	return bc.management.GetNEP11Contracts(bc.dao)
 }
 
 // GetTokenLastUpdated returns a set of contract ids with the corresponding last updated
@@ -2331,10 +2418,10 @@ func (bc *Blockchain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, e
 		return nil, err
 	}
 	if bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks {
-		if _, ok := info.LastUpdated[bc.contracts.NEO.ID]; !ok {
-			nBalance, lub := bc.contracts.NEO.BalanceOf(bc.dao, acc)
+		if _, ok := info.LastUpdated[bc.neo.Metadata().ID]; !ok {
+			nBalance, lub := bc.neo.BalanceOf(bc.dao, acc)
 			if nBalance.Sign() != 0 {
-				info.LastUpdated[bc.contracts.NEO.ID] = lub
+				info.LastUpdated[bc.neo.Metadata().ID] = lub
 			}
 		}
 	}
@@ -2347,7 +2434,7 @@ func (bc *Blockchain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, e
 
 // GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
 func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
-	bs := bc.contracts.GAS.BalanceOf(bc.dao, acc)
+	bs := bc.gas.BalanceOf(bc.dao, acc)
 	if bs == nil {
 		return big.NewInt(0)
 	}
@@ -2357,16 +2444,19 @@ func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
 // GetGoverningTokenBalance returns governing token (NEO) balance and the height
 // of the last balance change for the account.
 func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32) {
-	return bc.contracts.NEO.BalanceOf(bc.dao, acc)
+	return bc.neo.BalanceOf(bc.dao, acc)
 }
 
 // GetNotaryBalance returns Notary deposit amount for the specified account.
 // Default value is returned if Notary contract is not yet active.
 func (bc *Blockchain) GetNotaryBalance(acc util.Uint160) *big.Int {
-	if !bc.IsHardforkEnabled(bc.contracts.Notary.ActiveIn(), bc.BlockHeight()) {
+	if bc.notary == native.INotary(nil) {
 		return nil
 	}
-	return bc.contracts.Notary.BalanceOf(bc.dao, acc)
+	if !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight()) {
+		return nil
+	}
+	return bc.notary.BalanceOf(bc.dao, acc)
 }
 
 // GetNotaryServiceFeePerKey returns a NotaryAssisted transaction attribute fee
@@ -2376,16 +2466,19 @@ func (bc *Blockchain) GetNotaryServiceFeePerKey() int64 {
 	if !bc.IsHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight()) {
 		return 0
 	}
-	return bc.contracts.Policy.GetAttributeFeeInternal(bc.dao, transaction.NotaryAssistedT)
+	return bc.policy.GetAttributeFeeInternal(bc.dao, transaction.NotaryAssistedT)
 }
 
 // GetNotaryDepositExpiration returns Notary deposit expiration height for the specified account.
 // Default value is returned if Notary contract is not yet active.
 func (bc *Blockchain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
-	if !bc.IsHardforkEnabled(bc.contracts.Notary.ActiveIn(), bc.BlockHeight()) {
+	if bc.notary == native.INotary(nil) {
 		return 0
 	}
-	return bc.contracts.Notary.ExpirationOf(bc.dao, acc)
+	if !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight()) {
+		return 0
+	}
+	return bc.notary.ExpirationOf(bc.dao, acc)
 }
 
 // LastBatch returns last persisted storage batch.
@@ -2568,9 +2661,10 @@ func (bc *Blockchain) GetNativeContractScriptHash(name string) (util.Uint160, er
 
 // GetNatives returns list of native contracts.
 func (bc *Blockchain) GetNatives() []state.Contract {
-	res := make([]state.Contract, 0, len(bc.contracts.Contracts))
+	css := bc.contracts.List
+	res := make([]state.Contract, 0, len(css))
 	current := bc.getCurrentHF()
-	for _, c := range bc.contracts.Contracts {
+	for _, c := range css {
 		activeIn := c.ActiveIn()
 		if !(activeIn == nil || activeIn.Cmp(current) <= 0) {
 			continue
@@ -2720,12 +2814,12 @@ func (bc *Blockchain) CalculateClaimable(acc util.Uint160, endHeight uint32) (*b
 		return nil, err
 	}
 	ic := bc.newInteropContext(trigger.Application, bc.dao, nextBlock, nil)
-	return bc.contracts.NEO.CalculateBonus(ic, acc, endHeight)
+	return bc.neo.CalculateBonus(ic, acc, endHeight)
 }
 
 // FeePerByte returns transaction network fee per byte.
 func (bc *Blockchain) FeePerByte() int64 {
-	return bc.contracts.Policy.GetFeePerByteInternal(bc.dao)
+	return bc.policy.GetFeePerByteInternal(bc.dao)
 }
 
 // GetMemPool returns the memory pool of the blockchain.
@@ -2747,7 +2841,7 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	curVC := bc.config.GetNumOfCNs(bc.BlockHeight() + 1)
 	if oldVC == nil || oldVC != curVC {
 		m := smartcontract.GetDefaultHonestNodeCount(curVC)
-		verification, _ := smartcontract.CreateDefaultMultiSigRedeemScript(bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao))
+		verification, _ := smartcontract.CreateDefaultMultiSigRedeemScript(bc.neo.GetNextBlockValidatorsInternal(bc.dao))
 		defaultWitness = transaction.Witness{
 			InvocationScript:   make([]byte, 66*m),
 			VerificationScript: verification,
@@ -2828,7 +2922,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d", ErrTxExpired, t.ValidUntilBlock, height)
 	}
 	// Policying.
-	if err := bc.contracts.Policy.CheckPolicy(bc.dao, t); err != nil {
+	if err := bc.policy.CheckPolicy(bc.dao, t); err != nil {
 		// Only one %w can be used.
 		return fmt.Errorf("%w: %w", ErrPolicy, err)
 	}
@@ -2888,7 +2982,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 func (bc *Blockchain) CalculateAttributesFee(tx *transaction.Transaction) int64 {
 	var feeSum int64
 	for _, attr := range tx.Attributes {
-		base := bc.contracts.Policy.GetAttributeFeeInternal(bc.dao, attr.Type)
+		base := bc.policy.GetAttributeFeeInternal(bc.dao, attr.Type)
 		switch attr.Type {
 		case transaction.ConflictsT:
 			feeSum += base * int64(len(tx.Signers))
@@ -2908,12 +3002,15 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 	for i := range tx.Attributes {
 		switch attrType := tx.Attributes[i].Type; attrType {
 		case transaction.HighPriority:
-			h := bc.contracts.NEO.GetCommitteeAddress(d)
+			h := bc.neo.GetCommitteeAddress(d)
 			if !tx.HasSigner(h) {
 				return fmt.Errorf("%w: high priority tx is not signed by committee", ErrInvalidAttribute)
 			}
 		case transaction.OracleResponseT:
-			h, err := bc.contracts.Oracle.GetScriptHash(bc.dao)
+			if bc.oracle == native.IOracle(nil) {
+				return fmt.Errorf("%w: native Oracle contract implementation is not initialized", ErrInvalidAttribute)
+			}
+			h, err := bc.oracle.GetScriptHash(bc.dao)
 			if err != nil || h.Equals(util.Uint160{}) {
 				return fmt.Errorf("%w: %w", ErrInvalidAttribute, err)
 			}
@@ -2929,11 +3026,11 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 			if !hasOracle {
 				return fmt.Errorf("%w: oracle tx is not signed by oracle nodes", ErrInvalidAttribute)
 			}
-			if !bytes.Equal(tx.Script, bc.contracts.Oracle.GetOracleResponseScript()) {
+			if !bytes.Equal(tx.Script, bc.oracle.GetOracleResponseScript()) {
 				return fmt.Errorf("%w: oracle tx has invalid script", ErrInvalidAttribute)
 			}
 			resp := tx.Attributes[i].Value.(*transaction.OracleResponse)
-			req, err := bc.contracts.Oracle.GetRequestInternal(bc.dao, resp.ID)
+			req, err := bc.oracle.GetRequestInternal(bc.dao, resp.ID)
 			if err != nil {
 				return fmt.Errorf("%w: oracle tx points to invalid request: %w", ErrInvalidAttribute, err)
 			}
@@ -3065,7 +3162,7 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data any, mp *m
 
 // GetCommittee returns the sorted list of public keys of nodes in committee.
 func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
-	pubs := bc.contracts.NEO.GetCommitteeMembers(bc.dao)
+	pubs := bc.neo.GetCommitteeMembers(bc.dao)
 	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 	return pubs, nil
 }
@@ -3078,7 +3175,7 @@ func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
 // For the not-last block of dBFT epoch this method returns the same list as
 // GetNextBlockValidators.
 func (bc *Blockchain) ComputeNextBlockValidators() []*keys.PublicKey {
-	return bc.contracts.NEO.ComputeNextBlockValidators(bc.dao)
+	return bc.neo.ComputeNextBlockValidators(bc.dao)
 }
 
 // GetNextBlockValidators returns next block validators. Validators list returned
@@ -3088,12 +3185,12 @@ func (bc *Blockchain) ComputeNextBlockValidators() []*keys.PublicKey {
 // method is being updated once per (committee size) number of blocks, but not
 // every block.
 func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao), nil
+	return bc.neo.GetNextBlockValidatorsInternal(bc.dao), nil
 }
 
 // GetEnrollments returns all registered validators.
 func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
-	return bc.contracts.NEO.GetCandidates(bc.dao)
+	return bc.neo.GetCandidates(bc.dao)
 }
 
 // GetTestVM returns an interop context with VM set up for a test run.
@@ -3168,7 +3265,7 @@ func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 	var hf = config.HFEchidna
 	if bc.IsHardforkEnabled(&hf, bc.BlockHeight()) {
-		return bc.contracts.Policy.GetMaxValidUntilBlockIncrementFromCache(bc.dao)
+		return bc.policy.GetMaxValidUntilBlockIncrementFromCache(bc.dao)
 	}
 	return bc.GetConfig().MaxValidUntilBlockIncrement
 }
@@ -3179,7 +3276,7 @@ func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
 	var hf = config.HFEchidna
 	if bc.IsHardforkEnabled(&hf, bc.BlockHeight()) {
-		return bc.contracts.Policy.GetMillisecondsPerBlockInternal(bc.dao)
+		return bc.policy.GetMillisecondsPerBlockInternal(bc.dao)
 	}
 	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
 }
@@ -3197,7 +3294,7 @@ func (bc *Blockchain) GetMaxTraceableBlocks() uint32 {
 		if h == 0 {
 			return bc.GetConfig().Genesis.MaxTraceableBlocks
 		}
-		return bc.contracts.Policy.GetMaxTraceableBlocksInternal(bc.dao)
+		return bc.policy.GetMaxTraceableBlocksInternal(bc.dao)
 	}
 	return bc.GetConfig().MaxTraceableBlocks
 }
@@ -3270,7 +3367,7 @@ func (bc *Blockchain) VerifyWitness(h util.Uint160, c hash.Hashable, w *transact
 
 // verifyHashAgainstScript verifies given hash against the given witness and returns the amount of GAS consumed.
 func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, gas int64) (int64, error) {
-	gas = min(gas, bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO))
+	gas = min(gas, bc.policy.GetMaxVerificationGas(interopCtx.DAO))
 
 	vm := interopCtx.SpawnVM()
 	vm.GasLimit = gas
@@ -3337,17 +3434,17 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 
 // GoverningTokenHash returns the governing token (NEO) native contract hash.
 func (bc *Blockchain) GoverningTokenHash() util.Uint160 {
-	return bc.contracts.NEO.Hash
+	return nativehashes.NeoToken
 }
 
 // UtilityTokenHash returns the utility token (GAS) native contract hash.
 func (bc *Blockchain) UtilityTokenHash() util.Uint160 {
-	return bc.contracts.GAS.Hash
+	return nativehashes.GasToken
 }
 
 // ManagementContractHash returns management contract's hash.
 func (bc *Blockchain) ManagementContractHash() util.Uint160 {
-	return bc.contracts.Management.Hash
+	return nativehashes.ContractManagement
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
@@ -3355,15 +3452,15 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, blo
 	if block == nil || block.Index != 0 {
 		// Use provided dao instead of Blockchain's one to fetch possible ExecFeeFactor
 		// changes that were not yet persisted to Blockchain's dao.
-		baseExecFee = bc.contracts.Policy.GetExecFeeFactorInternal(d)
+		baseExecFee = bc.policy.GetExecFeeFactorInternal(d)
 	}
 	baseStorageFee := int64(native.DefaultStoragePrice)
 	if block == nil || block.Index != 0 {
 		// Use provided dao instead of Blockchain's one to fetch possible StoragePrice
 		// changes that were not yet persisted to Blockchain's dao.
-		baseStorageFee = bc.contracts.Policy.GetStoragePriceInternal(d)
+		baseStorageFee = bc.policy.GetStoragePriceInternal(d)
 	}
-	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, native.GetContract, bc.contracts.Contracts, contract.LoadToken, block, tx, bc.log)
+	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, native.GetContract, bc.contracts.List, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {
 	case tx != nil:
@@ -3391,20 +3488,23 @@ func (bc *Blockchain) GetBaseExecFee() int64 {
 	if bc.BlockHeight() == 0 {
 		return interop.DefaultBaseExecFee
 	}
-	return bc.contracts.Policy.GetExecFeeFactorInternal(bc.dao)
+	return bc.policy.GetExecFeeFactorInternal(bc.dao)
 }
 
 // GetMaxVerificationGAS returns maximum verification GAS Policy limit.
 func (bc *Blockchain) GetMaxVerificationGAS() int64 {
-	return bc.contracts.Policy.GetMaxVerificationGas(bc.dao)
+	return bc.policy.GetMaxVerificationGas(bc.dao)
 }
 
 // GetMaxNotValidBeforeDelta returns maximum NotValidBeforeDelta Notary limit.
 func (bc *Blockchain) GetMaxNotValidBeforeDelta() (uint32, error) {
-	if !bc.IsHardforkEnabled(bc.contracts.Notary.ActiveIn(), bc.BlockHeight()) {
-		return 0, fmt.Errorf("native Notary is active starting from %s", bc.contracts.Notary.ActiveIn().String())
+	if bc.notary == native.INotary(nil) {
+		return 0, errors.New("native Notary contract implementation is not initialized")
 	}
-	return bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao), nil
+	if !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight()) {
+		return 0, fmt.Errorf("native Notary is active starting from %s", bc.notary.ActiveIn().String())
+	}
+	return bc.notary.GetMaxNotValidBeforeDelta(bc.dao), nil
 }
 
 // GetStoragePrice returns current storage price.
@@ -3412,7 +3512,7 @@ func (bc *Blockchain) GetStoragePrice() int64 {
 	if bc.BlockHeight() == 0 {
 		return native.DefaultStoragePrice
 	}
-	return bc.contracts.Policy.GetStoragePriceInternal(bc.dao)
+	return bc.policy.GetStoragePriceInternal(bc.dao)
 }
 
 // GetTrimmedBlock returns a block with only the header and transaction hashes.

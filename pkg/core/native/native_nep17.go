@@ -275,7 +275,7 @@ func (c *nep17TokenNative) balanceOfInternal(d *dao.Simple, h util.Uint160) *big
 	return balance
 }
 
-func (c *nep17TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool) {
+func (c *nep17TokenNative) Mint(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool) {
 	if amount.Sign() == 0 {
 		return
 	}
@@ -283,7 +283,7 @@ func (c *nep17TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big
 	c.postTransfer(ic, nil, &h, amount, stackitem.Null{}, callOnPayment, postF)
 }
 
-func (c *nep17TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big.Int) {
+func (c *nep17TokenNative) Burn(ic *interop.Context, h util.Uint160, amount *big.Int) {
 	if amount.Sign() == 0 {
 		return
 	}

@@ -29,10 +29,10 @@ import (
 // Notary represents Notary native contract.
 type Notary struct {
 	interop.ContractMD
-	GAS    *GAS
-	NEO    *NEO
-	Desig  *Designate
-	Policy *Policy
+	GAS    IGAS
+	NEO    INEO
+	Desig  IDesignate
+	Policy IPolicy
 }
 
 type NotaryCache struct {
@@ -199,7 +199,7 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 	feePerKey := n.Policy.GetAttributeFeeInternal(ic.DAO, transaction.NotaryAssistedT)
 	singleReward := calculateNotaryReward(nFees, feePerKey, len(notaries))
 	for _, notary := range notaries {
-		n.GAS.mint(ic, notary.GetScriptHash(), singleReward, false)
+		n.GAS.Mint(ic, notary.GetScriptHash(), singleReward, false)
 	}
 	return nil
 }
@@ -217,7 +217,7 @@ func (n *Notary) ActiveIn() *config.Hardfork {
 // onPayment records the deposited amount as belonging to "from" address with a lock
 // till the specified chain's height.
 func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	if h := ic.VM.GetCallingScriptHash(); h != n.GAS.Hash {
+	if h := ic.VM.GetCallingScriptHash(); h != n.GAS.Metadata().Hash {
 		panic(fmt.Errorf("only GAS can be accepted for deposit, got %s", h.StringBE()))
 	}
 	from := toUint160(args[0])
@@ -316,7 +316,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if ic.BlockHeight() < deposit.Till {
 		return stackitem.NewBool(false)
 	}
-	cs, err := ic.GetContract(n.GAS.Hash)
+	cs, err := ic.GetContract(n.GAS.Metadata().Hash)
 	if err != nil {
 		panic(fmt.Errorf("failed to get GAS contract state: %w", err))
 	}
@@ -434,7 +434,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.BlockHeight())) {
 		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.BlockHeight())))
 	}
-	if !n.NEO.checkCommittee(ic) {
+	if !n.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))

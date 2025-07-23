@@ -32,10 +32,10 @@ import (
 // Oracle represents Oracle native contract.
 type Oracle struct {
 	interop.ContractMD
-	GAS *GAS
-	NEO *NEO
+	GAS   IGAS
+	NEO   INEO
+	Desig IDesignate
 
-	Desig        *Designate
 	oracleScript []byte
 
 	// Module is an oracle module capable of talking with the external world.
@@ -231,7 +231,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 	}
 	for i := range reward {
-		o.GAS.mint(ic, nodes[i].GetScriptHash(), &reward[i], false)
+		o.GAS.Mint(ic, nodes[i].GetScriptHash(), &reward[i], false)
 	}
 
 	if len(removedIDs) != 0 {
@@ -281,6 +281,11 @@ func (o *Oracle) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32
 // ActiveIn implements the Contract interface.
 func (o *Oracle) ActiveIn() *config.Hardfork {
 	return nil
+}
+
+// SetService implements IOracle interface.
+func (o *Oracle) SetService(s OracleService) {
+	o.Module.Store(&s)
 }
 
 func getResponse(tx *transaction.Transaction) *transaction.OracleResponse {
@@ -397,7 +402,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return ErrNotEnoughGas
 	}
 	callingHash := ic.VM.GetCallingScriptHash()
-	o.GAS.mint(ic, o.Hash, gas, false)
+	o.GAS.Mint(ic, o.Hash, gas, false)
 	si := ic.DAO.GetStorageItem(o.ID, prefixRequestID)
 	itemID := bigint.FromBytes(si)
 	id := itemID.Uint64()
@@ -513,7 +518,7 @@ func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.
 	if price.Sign() <= 0 || !price.IsInt64() {
 		panic("invalid register price")
 	}
-	if !o.NEO.checkCommittee(ic) {
+	if !o.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64())
