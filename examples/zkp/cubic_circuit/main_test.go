@@ -150,7 +150,7 @@ func TestCubicCircuit_EndToEnd(t *testing.T) {
 	validatorInvoker.Invoke(t, true, "verifyProof", args.A, args.B, args.C, args.PublicWitnesses)
 }
 
-// TestCubicCircuit_EndToEnd shows how to generate proof for pre-defined cubic circuit,
+// TestCubicCircuit_EndToEnd_Prod shows how to generate proof for pre-defined cubic circuit,
 // how to generate Go verification contract that can be compiled by NeoGo and deployed
 // to the chain and how to verify proofs via verification contract invocation. It
 // differs from TestCubicCircuit_EndToEnd in that it uses pre-generated Powers of Tau
