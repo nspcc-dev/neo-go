@@ -94,6 +94,27 @@ func TestDecodeFromString(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestPublicKey_Cmp(t *testing.T) {
+	var pub1 = &PublicKey{}
+	require.NoError(t, pub1.DecodeBytes([]byte{0x00}))
+
+	pk, err := NewPrivateKey()
+	require.NoError(t, err)
+	pub2 := pk.PublicKey()
+
+	t.Run("cmp infinity with non-nil key", func(t *testing.T) {
+		require.Equal(t, -1, pub1.Cmp(pub2))
+	})
+
+	t.Run("cmp non-nil key with infinity", func(t *testing.T) {
+		require.Equal(t, 1, pub2.Cmp(pub1))
+	})
+
+	t.Run("cmp infinity with infinity", func(t *testing.T) {
+		require.Equal(t, 0, pub1.Cmp(pub1))
+	})
+}
+
 func TestDecodeFromStringBadCompressed(t *testing.T) {
 	str := "02ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 	_, err := NewPublicKeyFromString(str)
