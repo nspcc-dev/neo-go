@@ -25,3 +25,22 @@ func TestFromString(t *testing.T) {
 		require.False(t, ok)
 	}
 }
+
+func TestIsValid(t *testing.T) {
+	tests := []struct {
+		name     string
+		role     Role
+		expected bool
+	}{
+		{"below range", StateValidator - 1, false},
+		{"at lower bound", StateValidator, true},
+		{"at upper bound", last - 1, true},
+		{"above range", last, false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, IsValid(tc.role))
+		})
+	}
+}
