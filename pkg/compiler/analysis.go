@@ -555,7 +555,7 @@ func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 	return usage
 }
 
-// checkGenericFuncDecl checks whether provided ast.FuncDecl has generic code.
+// checkGenericsFuncDecl checks whether provided ast.FuncDecl has generic code.
 func (c *codegen) checkGenericsFuncDecl(n *ast.FuncDecl, funcName string) error {
 	var errGenerics error
 
