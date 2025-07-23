@@ -10,9 +10,9 @@ import (
 // TestNativeGetMethod is needed to ensure that methods list has the same sorting
 // rule as we expect inside the `ContractMD.GetMethod`.
 func TestNativeGetMethod(t *testing.T) {
-	cs := NewContracts(config.ProtocolConfiguration{})
+	cs := NewDefaultContracts(config.ProtocolConfiguration{})
 	latestHF := config.HFLatestKnown
-	for _, c := range cs.Contracts {
+	for _, c := range cs {
 		hfMD := c.Metadata().HFSpecificContractMD(&latestHF)
 		t.Run(c.Metadata().Name, func(t *testing.T) {
 			for _, m := range hfMD.Methods {

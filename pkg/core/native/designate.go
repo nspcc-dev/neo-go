@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
-	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -30,17 +29,18 @@ import (
 // Designate represents a designation contract.
 type Designate struct {
 	interop.ContractMD
-	NEO *NEO
+	NEO INEO
 
 	// initialNodeRoles defines a set of node roles that should be defined at the contract
 	// deployment (initialization).
 	initialNodeRoles map[noderoles.Role]keys.PublicKeys
 
+	// OracleService represents an Oracle node module.
 	OracleService atomic.Value
 	// NotaryService represents a Notary node module.
 	NotaryService atomic.Value
 	// StateRootService represents a StateRoot node module.
-	StateRootService *stateroot.Module
+	StateRootService atomic.Value
 }
 
 type roleData struct {
@@ -57,6 +57,12 @@ type DesignationCache struct {
 	stateVals        roleData
 	neofsAlphabet    roleData
 	notaries         roleData
+}
+
+// StateRootService specifies state root module interface.
+type StateRootService interface {
+	// UpdateStateValidators updates state validator nodes.
+	UpdateStateValidators(uint32, keys.PublicKeys)
 }
 
 const (
@@ -95,7 +101,8 @@ func copyDesignationCache(src, dst *DesignationCache) {
 	*dst = *src
 }
 
-func newDesignate(initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
+// NewDesignate creates a new RoleManagement contract.
+func NewDesignate(initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
 	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
 	defer s.BuildHFSpecificMD(s.ActiveIn())
 
@@ -202,6 +209,21 @@ func (s *Designate) ActiveIn() *config.Hardfork {
 	return nil
 }
 
+// SetOracleService implements IDesignate interface.
+func (s *Designate) SetOracleService(o OracleService) {
+	s.OracleService.Store(&o)
+}
+
+// SetNotaryService implements IDesignate interface.
+func (s *Designate) SetNotaryService(n NotaryService) {
+	s.NotaryService.Store(&n)
+}
+
+// SetStateRootService implements IDesignate interface.
+func (s *Designate) SetStateRootService(sr StateRootService) {
+	s.StateRootService.Store(&sr)
+}
+
 func (s *Designate) getDesignatedByRole(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	r, ok := s.getRole(args[0])
 	if !ok {
@@ -272,8 +294,8 @@ func (s *Designate) notifyRoleChanged(v *roleData, r noderoles.Role) {
 			(*ntr).UpdateNotaryNodes(v.nodes.Copy())
 		}
 	case noderoles.StateValidator:
-		if s.StateRootService != nil {
-			s.StateRootService.UpdateStateValidators(v.height, v.nodes.Copy())
+		if sr, _ := s.StateRootService.Load().(*StateRootService); sr != nil && *sr != nil {
+			(*sr).UpdateStateValidators(v.height, v.nodes.Copy())
 		}
 	default:
 	}

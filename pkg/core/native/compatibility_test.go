@@ -10,9 +10,9 @@ import (
 
 // "C" and "O" can easily be typed by accident.
 func TestNamesASCII(t *testing.T) {
-	cs := NewContracts(config.ProtocolConfiguration{})
+	cs := NewDefaultContracts(config.ProtocolConfiguration{})
 	latestHF := config.HFLatestKnown
-	for _, c := range cs.Contracts {
+	for _, c := range cs {
 		require.True(t, isASCII(c.Metadata().Name))
 		hfMD := c.Metadata().HFSpecificContractMD(&latestHF)
 		for _, m := range hfMD.Methods {

@@ -20,7 +20,7 @@ import (
 func TestDesignate_DesignateAsRole(t *testing.T) {
 	bc := newTestChain(t)
 
-	des := bc.contracts.Designate
+	des := bc.designate.(*native.Designate)
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	bl := block.New(bc.config.StateRootInHeader)
 	bl.Index = bc.BlockHeight() + 1

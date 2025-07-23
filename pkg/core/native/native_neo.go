@@ -34,8 +34,8 @@ import (
 // NEO represents NEO native contract.
 type NEO struct {
 	nep17TokenNative
-	GAS    *GAS
-	Policy *Policy
+	GAS    IGAS
+	Policy IPolicy
 
 	// Configuration and standby keys are set in constructor and then
 	// only read from.
@@ -337,7 +337,7 @@ func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 	if err != nil {
 		return err
 	}
-	n.mint(ic, h, big.NewInt(NEOTotalSupply), false)
+	n.Mint(ic, h, big.NewInt(NEOTotalSupply), false)
 
 	var index uint32
 	value := big.NewInt(5 * GASFactor)
@@ -500,7 +500,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 	committeeSize := n.cfg.GetCommitteeSize(ic.Block.Index)
 	index := int(ic.Block.Index) % committeeSize
 	committeeReward := new(big.Int).Mul(gas, bigCommitteeRewardRatio)
-	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false)
+	n.GAS.Mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false)
 
 	var isCacheRW bool
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
@@ -595,7 +595,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		return nil, err
 	}
 	if newGas != nil { // Can be if it was already distributed in the same block.
-		postF = func() { n.GAS.mint(ic, h, newGas, true) }
+		postF = func() { n.GAS.Mint(ic, h, newGas, true) }
 	}
 	if amount.Sign() == 0 {
 		*si = acc.Bytes(ic.DAO.GetItemCtx())
@@ -689,7 +689,7 @@ func (n *NEO) GetCommitteeAddress(d *dao.Simple) util.Uint160 {
 	return cache.committeeHash
 }
 
-func (n *NEO) checkCommittee(ic *interop.Context) bool {
+func (n *NEO) CheckCommittee(ic *interop.Context) bool {
 	ok, err := runtime.CheckHashedWitness(ic, n.GetCommitteeAddress(ic.DAO))
 	if err != nil {
 		panic(err)
@@ -711,7 +711,7 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) er
 	if gas.Sign() == -1 || gas.Cmp(big.NewInt(10*GASFactor)) == 1 {
 		return errors.New("invalid value for GASPerBlock")
 	}
-	if !n.checkCommittee(ic) {
+	if !n.CheckCommittee(ic) {
 		return errors.New("invalid committee signature")
 	}
 	n.putGASRecord(ic.DAO, index, gas)
@@ -737,7 +737,7 @@ func (n *NEO) setRegisterPrice(ic *interop.Context, args []stackitem.Item) stack
 	if price.Sign() <= 0 || !price.IsInt64() {
 		panic("invalid register price")
 	}
-	if !n.checkCommittee(ic) {
+	if !n.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 
@@ -874,7 +874,7 @@ func (n *NEO) onNEP17Payment(ic *interop.Context, args []stackitem.Item) stackit
 		regPrice = n.getRegisterPriceInternal(ic.DAO)
 	)
 
-	if caller != n.GAS.Hash {
+	if caller != n.GAS.Metadata().Hash {
 		panic("only GAS is accepted")
 	}
 	if !amount.IsInt64() || amount.Int64() != regPrice {
@@ -884,7 +884,7 @@ func (n *NEO) onNEP17Payment(ic *interop.Context, args []stackitem.Item) stackit
 	if err != nil {
 		panic(err)
 	}
-	n.GAS.burn(ic, n.Hash, amount)
+	n.GAS.Burn(ic, n.Hash, amount)
 	return stackitem.Null{}
 }
 
@@ -1058,7 +1058,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	}
 
 	if newGas != nil { // Can be if it was already distributed in the same block.
-		n.GAS.mint(ic, h, newGas, true)
+		n.GAS.Mint(ic, h, newGas, true)
 	}
 	return nil
 }

@@ -22,13 +22,13 @@ import (
 // proxy between regular Blockchain/DAO interface and smart contracts.
 type Ledger struct {
 	interop.ContractMD
-	Policy *Policy
+	Policy IPolicy
 }
 
 const ledgerContractID = -4
 
-// newLedger creates a new Ledger native contract.
-func newLedger() *Ledger {
+// NewLedger creates a new Ledger native contract.
+func NewLedger() *Ledger {
 	var l = &Ledger{
 		ContractMD: *interop.NewContractMD(nativenames.Ledger, ledgerContractID),
 	}

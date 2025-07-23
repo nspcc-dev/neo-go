@@ -77,7 +77,7 @@ var (
 // Policy represents Policy native contract.
 type Policy struct {
 	interop.ContractMD
-	NEO *NEO
+	NEO INEO
 }
 
 type PolicyCache struct {
@@ -369,7 +369,7 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 	if value <= 0 || maxExecFeeFactor < value {
 		panic(fmt.Errorf("ExecFeeFactor must be between 1 and %d", maxExecFeeFactor))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, int64(value))
@@ -421,7 +421,7 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	if value <= 0 || maxStoragePrice < value {
 		panic(fmt.Errorf("StoragePrice must be between 1 and %d", maxStoragePrice))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, storagePriceKey, int64(value))
@@ -476,7 +476,7 @@ func (p *Policy) setAttributeFeeGeneric(ic *interop.Context, args []stackitem.It
 	if value > maxAttributeFee {
 		panic(fmt.Errorf("attribute value is out of range: %d", value))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(t)}, int64(value))
@@ -491,7 +491,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	if value < 0 || value > maxFeePerByte {
 		panic(fmt.Errorf("FeePerByte shouldn't be negative or greater than %d", maxFeePerByte))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, feePerByteKey, value)
@@ -503,7 +503,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 // blockAccount is a Policy contract method that adds the given account hash to the list
 // of blocked accounts.
 func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	hash := toUint160(args[0])
@@ -512,9 +512,10 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 			panic("cannot block native contract")
 		}
 	}
-	return stackitem.NewBool(p.blockAccountInternal(ic.DAO, hash))
+	return stackitem.NewBool(p.BlockAccountInternal(ic.DAO, hash))
 }
-func (p *Policy) blockAccountInternal(d *dao.Simple, hash util.Uint160) bool {
+
+func (p *Policy) BlockAccountInternal(d *dao.Simple, hash util.Uint160) bool {
 	i, blocked := p.isBlockedInternal(d.GetROCache(p.ID).(*PolicyCache), hash)
 	if blocked {
 		return false
@@ -534,7 +535,7 @@ func (p *Policy) blockAccountInternal(d *dao.Simple, hash util.Uint160) bool {
 // unblockAccount is a Policy contract method that removes the given account hash from
 // the list of blocked accounts.
 func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	hash := toUint160(args[0])
@@ -579,7 +580,7 @@ func (p *Policy) setMaxValidUntilBlockIncrement(ic *interop.Context, args []stac
 	if value >= mtb {
 		panic(fmt.Errorf("MaxValidUntilBlockIncrement should be less than MaxTraceableBlocks %d, got %d", mtb, value))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, maxVUBIncrementKey, int64(value))
@@ -604,7 +605,7 @@ func (p *Policy) setMillisecondsPerBlock(ic *interop.Context, args []stackitem.I
 	if value <= 0 || maxMillisecondsPerBlock < value {
 		panic(fmt.Errorf("MillisecondsPerBlock should be positive and not greater than %d, got %d", maxMillisecondsPerBlock, value))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, msPerBlockKey, int64(value))
@@ -646,7 +647,7 @@ func (p *Policy) setMaxTraceableBlocks(ic *interop.Context, args []stackitem.Ite
 	if value <= maxVUBInc {
 		panic(fmt.Errorf("MaxTraceableBlocks should be larger than MaxValidUntilBlockIncrement %d, got %d", maxVUBInc, value))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 
