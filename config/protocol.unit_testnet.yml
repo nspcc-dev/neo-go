@@ -57,6 +57,7 @@ ApplicationConfiguration:
     SessionEnabled: true
     SessionLifetime: 2s # enough for tests as they run locally.
     MaxFindStoragePageSize: 2 # small value to test server-side paging
+    MempoolSubscriptionsEnabled: true
   Prometheus:
     Enabled: false #since it's not useful for unit tests.
     Addresses:

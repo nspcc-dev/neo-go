@@ -3,6 +3,7 @@ package neorpc
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -63,6 +64,38 @@ func TestTxFilterCopy(t *testing.T) {
 	tf = bf.Copy()
 	require.Equal(t, bf, tf)
 	*bf.Signer = util.Uint160{3, 2, 1}
+	require.NotEqual(t, bf, tf)
+}
+
+func TestMempoolFilterCopy(t *testing.T) {
+	var bf, tf *MempoolEventFilter
+
+	require.Nil(t, bf.Copy())
+
+	bf = new(MempoolEventFilter)
+	tf = bf.Copy()
+	require.Equal(t, bf, tf)
+
+	bf.Sender = &util.Uint160{1, 2, 3}
+
+	tf = bf.Copy()
+	require.Equal(t, bf, tf)
+	*bf.Sender = util.Uint160{3, 2, 1}
+	require.NotEqual(t, bf, tf)
+
+	bf.Signer = &util.Uint160{1, 2, 3}
+
+	tf = bf.Copy()
+	require.Equal(t, bf, tf)
+	*bf.Signer = util.Uint160{3, 2, 1}
+	require.NotEqual(t, bf, tf)
+
+	added := mempoolevent.TransactionAdded
+	bf.Type = &added
+
+	tf = bf.Copy()
+	require.Equal(t, bf, tf)
+	*bf.Type = mempoolevent.TransactionRemoved
 	require.NotEqual(t, bf, tf)
 }
 

@@ -76,6 +76,14 @@ type (
 		Signer *util.Uint160      `json:"signer,omitempty"`
 		Type   *mempoolevent.Type `json:"type,omitempty"`
 	}
+	// MempoolEventFilter is a wrapper structure used for filtering mempool events.
+	// It allows to filter mempool events by transaction sender, signer, and/or
+	// event type. nil value treated as missing filter.
+	MempoolEventFilter struct {
+		Sender *util.Uint160      `json:"sender,omitempty"`
+		Signer *util.Uint160      `json:"signer,omitempty"`
+		Type   *mempoolevent.Type `json:"type,omitempty"`
+	}
 )
 
 // SubscriptionFilter is an interface for all subscription filters.
@@ -270,5 +278,31 @@ func (f *NotaryRequestFilter) Copy() *NotaryRequestFilter {
 
 // IsValid implements SubscriptionFilter interface.
 func (f NotaryRequestFilter) IsValid() error {
+	return nil
+}
+
+// Copy creates a deep copy of the MempoolEventFilter. It handles nil MempoolEventFilter correctly.
+func (f *MempoolEventFilter) Copy() *MempoolEventFilter {
+	if f == nil {
+		return nil
+	}
+	var res = new(MempoolEventFilter)
+	if f.Sender != nil {
+		res.Sender = new(util.Uint160)
+		*res.Sender = *f.Sender
+	}
+	if f.Signer != nil {
+		res.Signer = new(util.Uint160)
+		*res.Signer = *f.Signer
+	}
+	if f.Type != nil {
+		res.Type = new(mempoolevent.Type)
+		*res.Type = *f.Type
+	}
+	return res
+}
+
+// IsValid implements SubscriptionFilter interface.
+func (f MempoolEventFilter) IsValid() error {
 	return nil
 }

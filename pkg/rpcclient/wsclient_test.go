@@ -52,6 +52,7 @@ func TestWSClientSubscription(t *testing.T) {
 	aerCh := make(chan *state.AppExecResult)
 	ntfCh := make(chan *state.ContainedNotificationEvent)
 	ntrCh := make(chan *result.NotaryRequestEvent)
+	mempoolCh := make(chan *result.MempoolEvent)
 	var cases = map[string]func(*WSClient) (string, error){
 		"blocks": func(wsc *WSClient) (string, error) {
 			return wsc.ReceiveBlocks(nil, bCh)
@@ -67,6 +68,9 @@ func TestWSClientSubscription(t *testing.T) {
 		},
 		"notary requests": func(wsc *WSClient) (string, error) {
 			return wsc.ReceiveNotaryRequests(nil, ntrCh)
+		},
+		"mempool_event": func(wsc *WSClient) (string, error) {
+			return wsc.ReceiveMempoolEvents(nil, mempoolCh)
 		},
 	}
 	t.Run("good", func(t *testing.T) {
@@ -154,6 +158,8 @@ func TestWSClientEvents(t *testing.T) {
 		`{"jsonrpc":"2.0","method":"notification_from_execution","params":[{"container":"0xe1cd5e57e721d2a2e05fb1f08721b12057b25ab1dd7fd0f33ee1639932fdfad7","contract":"0x1b4357bff5a01bdf2a6581247cf9ed1e24629176","eventname":"contract call","state":{"type":"Array","value":[{"type":"ByteString","value":"dHJhbnNmZXI="},{"type":"Array","value":[{"type":"ByteString","value":"dpFiJB7t+XwkgWUq3xug9b9XQxs="},{"type":"ByteString","value":"MW6FEDkBnTnfwsN9bD/uGf1YCYc="},{"type":"Integer","value":"1000"}]}]}}]}`,
 		`{"jsonrpc":"2.0","method":"transaction_executed","params":[{"container":"0xf97a72b7722c109f909a8bc16c22368c5023d85828b09b127b237aace33cf099","trigger":"Application","vmstate":"HALT","gasconsumed":"6042610","stack":[],"notifications":[{"contract":"0xe65ff7b3a02d207b584a5c27057d4e9862ef01da","eventname":"contract call","state":{"type":"Array","value":[{"type":"ByteString","value":"dHJhbnNmZXI="},{"type":"Array","value":[{"type":"ByteString","value":"MW6FEDkBnTnfwsN9bD/uGf1YCYc="},{"type":"ByteString","value":"IHKCdK+vw29DoHHTKM+j5inZy7A="},{"type":"Integer","value":"123"}]}]}},{"contract":"0xe65ff7b3a02d207b584a5c27057d4e9862ef01da","eventname":"transfer","state":{"type":"Array","value":[{"type":"ByteString","value":"MW6FEDkBnTnfwsN9bD/uGf1YCYc="},{"type":"ByteString","value":"IHKCdK+vw29DoHHTKM+j5inZy7A="},{"type":"Integer","value":"123"}]}}]}]}`,
 		fmt.Sprintf(`{"jsonrpc":"2.0","method":"block_added","params":[%s]}`, b1Verbose),
+		`{"jsonrpc":"2.0","method":"mempool_event","params":[{"type":"added", "transaction":{"hash":"0x523d70fab2c25caf3e6d08a4e080062e5c28ae4043bf61678a980270ffb3d7d5","size":51,"version":0,"nonce":0,"sender":"NKuyBkoGdZZSLyPbJEetheRhMjeznFZszf","sysfee":"0","netfee":"0","validuntilblock":0,"attributes":null,"signers":[{"account":"0x0000000000000000000000000000000000000000","scopes":"None"}],"script":"EQ==","witnesses":null}}]}`,
+		`{"jsonrpc":"2.0","method":"mempool_event","params":[{"type":"removed", "transaction":{"hash":"0x523d70fab2c25caf3e6d08a4e080062e5c28ae4043bf61678a980270ffb3d7d5","size":51,"version":0,"nonce":0,"sender":"NKuyBkoGdZZSLyPbJEetheRhMjeznFZszf","sysfee":"0","netfee":"0","validuntilblock":0,"attributes":null,"signers":[{"account":"0x0000000000000000000000000000000000000000","scopes":"None"}],"script":"EQ==","witnesses":null}}]}`,
 		`{"jsonrpc":"2.0","method":"event_missed","params":[]}`, // the last one, will trigger receiver channels closing.
 	}
 	startSending := make(chan struct{})
@@ -191,6 +197,9 @@ func TestWSClientEvents(t *testing.T) {
 	aerCh2 := make(chan *state.AppExecResult)
 	aerCh3 := make(chan *state.AppExecResult)
 	ntfCh := make(chan *state.ContainedNotificationEvent)
+	memAllCh := make(chan *result.MempoolEvent)
+	memAddedCh := make(chan *result.MempoolEvent)
+	memRemovedCh := make(chan *result.MempoolEvent)
 	halt := "HALT"
 	fault := "FAULT"
 	wsc.subscriptionsLock.Lock()
@@ -209,26 +218,37 @@ func TestWSClientEvents(t *testing.T) {
 	wsc.receivers[chan<- *state.AppExecResult(aerCh2)] = []string{"5"}
 	wsc.subscriptions["6"] = &executionReceiver{filter: &neorpc.ExecutionFilter{State: &fault}, ch: aerCh3}
 	wsc.receivers[chan<- *state.AppExecResult(aerCh3)] = []string{"6"}
+
+	added := mempoolevent.TransactionAdded
+	removed := mempoolevent.TransactionRemoved
+	wsc.subscriptions["7"] = &mempoolEventReceiver{ch: memAllCh}
+	wsc.receivers[chan<- *result.MempoolEvent(memAllCh)] = []string{"7"}
+	wsc.subscriptions["8"] = &mempoolEventReceiver{filter: &neorpc.MempoolEventFilter{Type: &added}, ch: memAddedCh}
+	wsc.receivers[chan<- *result.MempoolEvent(memAddedCh)] = []string{"8"}
+	wsc.subscriptions["9"] = &mempoolEventReceiver{filter: &neorpc.MempoolEventFilter{Type: &removed}, ch: memRemovedCh}
+	wsc.receivers[chan<- *result.MempoolEvent(memRemovedCh)] = []string{"9"}
 	// MissedEvent must close the channels above.
 
 	wsc.subscriptionsLock.Unlock()
 	close(startSending)
 
 	var (
-		b1Cnt, b2Cnt                                      int
-		aer1Cnt, aer2Cnt, aer3Cnt                         int
-		ntfCnt                                            int
-		expectedb1Cnt, expectedb2Cnt                      = 1, 1    // single Block event
-		expectedaer1Cnt, expectedaer2Cnt, expectedaer3Cnt = 2, 2, 0 // two HALTED AERs
-		expectedntfCnt                                    = 1       // single notification event
-		aer                                               *state.AppExecResult
+		b1Cnt, b2Cnt                                                  int
+		aer1Cnt, aer2Cnt, aer3Cnt                                     int
+		ntfCnt                                                        int
+		memAllCnt, memAddedCnt, memRemovedCnt                         int
+		expectedb1Cnt, expectedb2Cnt                                  = 1, 1    // single Block event
+		expectedaer1Cnt, expectedaer2Cnt, expectedaer3Cnt             = 2, 2, 0 // two HALTED AERs
+		expectedntfCnt                                                = 1       // single notification event
+		expectedmemAllCnt, expectedmemAddedCnt, expectedmemRemovedCnt = 2, 1, 1
+		aer                                                           *state.AppExecResult
 	)
 	for b1Cnt+b2Cnt+
 		aer1Cnt+aer2Cnt+aer3Cnt+
-		ntfCnt !=
+		ntfCnt+memAllCnt+memAddedCnt+memRemovedCnt !=
 		expectedb1Cnt+expectedb2Cnt+
 			expectedaer1Cnt+expectedaer2Cnt+expectedaer3Cnt+
-			expectedntfCnt {
+			expectedntfCnt+expectedmemAllCnt+expectedmemAddedCnt+expectedmemRemovedCnt {
 		select {
 		case _, ok = <-bCh1:
 			if ok {
@@ -255,6 +275,18 @@ func TestWSClientEvents(t *testing.T) {
 			if ok {
 				ntfCnt++
 			}
+		case _, ok = <-memAllCh:
+			if ok {
+				memAllCnt++
+			}
+		case _, ok = <-memAddedCh:
+			if ok {
+				memAddedCnt++
+			}
+		case _, ok = <-memRemovedCh:
+			if ok {
+				memRemovedCnt++
+			}
 		case <-time.After(time.Second):
 			t.Fatal("timeout waiting for event")
 		}
@@ -265,6 +297,9 @@ func TestWSClientEvents(t *testing.T) {
 	assert.Equal(t, expectedaer2Cnt, aer2Cnt)
 	assert.Equal(t, expectedaer3Cnt, aer3Cnt)
 	assert.Equal(t, expectedntfCnt, ntfCnt)
+	require.Equal(t, expectedmemAllCnt, memAllCnt)
+	require.Equal(t, expectedmemAddedCnt, memAddedCnt)
+	require.Equal(t, expectedmemRemovedCnt, memRemovedCnt)
 
 	// Channels must be closed by server
 	_, ok = <-bCh1
@@ -280,6 +315,12 @@ func TestWSClientEvents(t *testing.T) {
 	_, ok = <-ntfCh
 	require.False(t, ok)
 	_, ok = <-ntfCh
+	require.False(t, ok)
+	_, ok = <-memAllCh
+	require.False(t, ok)
+	_, ok = <-memAddedCh
+	require.False(t, ok)
+	_, ok = <-memRemovedCh
 	require.False(t, ok)
 }
 
@@ -752,6 +793,55 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Sender)
 				require.Equal(t, util.Uint160{0, 42}, *filt.Signer)
 				require.Equal(t, mempoolevent.TransactionAdded, *filt.Type)
+			},
+		},
+		{
+			name: "mempool event type",
+			clientCode: func(t *testing.T, wsc *WSClient) {
+				typ := mempoolevent.TransactionAdded
+				_, err := wsc.ReceiveMempoolEvents(&neorpc.MempoolEventFilter{Type: &typ}, make(chan *result.MempoolEvent))
+				require.NoError(t, err)
+			},
+			serverCode: func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.MempoolEventFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.NotNil(t, filt.Type)
+				require.Equal(t, mempoolevent.TransactionAdded, *filt.Type)
+				require.Nil(t, filt.Sender)
+				require.Nil(t, filt.Signer)
+			},
+		},
+		{
+			name: "mempool event sender",
+			clientCode: func(t *testing.T, wsc *WSClient) {
+				sender := util.Uint160{1, 2, 3, 4, 5}
+				_, err := wsc.ReceiveMempoolEvents(&neorpc.MempoolEventFilter{Sender: &sender}, make(chan *result.MempoolEvent))
+				require.NoError(t, err)
+			},
+			serverCode: func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.MempoolEventFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Nil(t, filt.Type)
+				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Sender)
+				require.Nil(t, filt.Signer)
+			},
+		},
+		{
+			name: "mempool event signer",
+			clientCode: func(t *testing.T, wsc *WSClient) {
+				signer := util.Uint160{0, 42}
+				_, err := wsc.ReceiveMempoolEvents(&neorpc.MempoolEventFilter{Signer: &signer}, make(chan *result.MempoolEvent))
+				require.NoError(t, err)
+			},
+			serverCode: func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.MempoolEventFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Nil(t, filt.Type)
+				require.Nil(t, filt.Sender)
+				require.Equal(t, util.Uint160{0, 42}, *filt.Signer)
 			},
 		},
 	}

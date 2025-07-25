@@ -389,7 +389,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		store:       s,
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
-		memPool:     mempool.New(cfg.MemPoolSize, 0, false, updateMempoolMetrics),
+		memPool:     mempool.New(cfg.MemPoolSize, 0, cfg.MempoolSubscriptionsEnabled, updateMempoolMetrics),
 		log:         log,
 		events:      make(chan bcEvent),
 		subCh:       make(chan any),
@@ -1259,6 +1259,9 @@ func (bc *Blockchain) Run() {
 		close(bc.runToExitCh)
 	}()
 	go bc.notificationDispatcher()
+	if bc.config.MempoolSubscriptionsEnabled {
+		bc.memPool.RunSubscriptions()
+	}
 	for {
 		select {
 		case <-bc.stopCh:
@@ -1722,6 +1725,9 @@ func (bc *Blockchain) Close() {
 	close(bc.stopCh)
 	<-bc.runToExitCh
 	bc.addLock.Unlock()
+	if bc.config.MempoolSubscriptionsEnabled {
+		bc.memPool.StopSubscriptions()
+	}
 	_ = bc.log.Sync()
 }
 

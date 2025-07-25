@@ -24,6 +24,8 @@ const (
 	NotaryRequestEventID
 	// HeaderOfAddedBlockEventID is used for the `header_of_added_block` event.
 	HeaderOfAddedBlockEventID
+	// MempoolEventID is used for the `mempool_event` event.
+	MempoolEventID
 	// MissedEventID notifies user of missed events.
 	MissedEventID EventID = 255
 )
@@ -45,6 +47,8 @@ func (e EventID) String() string {
 		return "header_of_added_block"
 	case MissedEventID:
 		return "event_missed"
+	case MempoolEventID:
+		return "mempool_event"
 	default:
 		return "unknown"
 	}
@@ -67,6 +71,8 @@ func GetEventIDFromString(s string) (EventID, error) {
 		return HeaderOfAddedBlockEventID, nil
 	case "event_missed":
 		return MissedEventID, nil
+	case "mempool_event":
+		return MempoolEventID, nil
 	default:
 		return 255, errors.New("invalid stream name")
 	}

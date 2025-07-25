@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -136,7 +137,7 @@ func callUnsubscribe(t *testing.T, ws *websocket.Conn, msgs <-chan []byte, id st
 
 func TestSubscriptions(t *testing.T) {
 	var subIDs = make([]string, 0)
-	var subFeeds = []string{"block_added", "transaction_added", "notification_from_execution", "transaction_executed", "notary_request_event", "header_of_added_block"}
+	var subFeeds = []string{"block_added", "transaction_added", "notification_from_execution", "transaction_executed", "notary_request_event", "header_of_added_block", "mempool_event"}
 
 	chain, rpcSrv, c, respMsgs := initCleanServerAndWSClient(t, true)
 
@@ -192,6 +193,21 @@ func TestSubscriptions(t *testing.T) {
 			break
 		}
 	}
+	// Test that subscribing to the mempool delivers both “added” and “removed” events.
+	// We add a transaction with a specific signer and then remove it, expecting
+	// two notifications: one when it’s added to the pool, and one when it’s removed.
+	signer := testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()
+	tx := &transaction.Transaction{
+		Signers: []transaction.Signer{{Account: signer}},
+	}
+
+	require.NoError(t, chain.GetMemPool().Add(tx, &FeerStub{}))
+	e := getNotification(t, respMsgs)
+	require.Equal(t, neorpc.MempoolEventID, e.Event)
+
+	chain.GetMemPool().Remove(tx.Hash())
+	e2 := getNotification(t, respMsgs)
+	require.Equal(t, neorpc.MempoolEventID, e2.Event)
 
 	for _, id := range subIDs {
 		callUnsubscribe(t, c, respMsgs, id)
@@ -414,6 +430,73 @@ func TestFilteredSubscriptions(t *testing.T) {
 
 			callUnsubscribe(t, c, respMsgs, subID)
 			callUnsubscribe(t, c, respMsgs, blockSubID)
+		})
+	}
+}
+
+func TestFilteredMempoolSubscriptions(t *testing.T) {
+	// We can’t fit this into TestFilteredSubscriptions because mempool events
+	// doesn't depend on blocks events.
+	priv0 := testchain.PrivateKeyByID(0)
+	goodSender := priv0.GetScriptHash()
+
+	var cases = map[string]struct {
+		params string
+		check  func(*testing.T, *neorpc.Notification)
+	}{
+		"mempool_event matching type": {
+			params: `["mempool_event", {"type":"added"}]`,
+			check: func(t *testing.T, resp *neorpc.Notification) {
+				require.Equal(t, neorpc.MempoolEventID, resp.Event)
+				rmap := resp.Payload[0].(map[string]any)
+				require.Equal(t, "added", rmap["type"].(string))
+			},
+		},
+		"mempool_event matching sender": {
+			params: `["mempool_event", {"sender":"` + goodSender.StringLE() + `"}]`,
+			check: func(t *testing.T, resp *neorpc.Notification) {
+				require.Equal(t, neorpc.MempoolEventID, resp.Event)
+				txMap := resp.Payload[0].(map[string]any)["transaction"].(map[string]any)
+				require.Equal(t, address.Uint160ToString(goodSender), txMap["sender"].(string))
+			},
+		},
+		"mempool_event matching signer": {
+			params: `["mempool_event", {"signer":"` + goodSender.StringLE() + `"}]`,
+			check: func(t *testing.T, resp *neorpc.Notification) {
+				require.Equal(t, neorpc.MempoolEventID, resp.Event)
+				txMap := resp.Payload[0].(map[string]any)["transaction"].(map[string]any)
+				require.Equal(t, "0x"+goodSender.StringLE(), txMap["signers"].([]any)[0].(map[string]any)["account"].(string))
+			},
+		},
+		"mempool_event matching sender, signer and type": {
+			params: `["mempool_event", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `", "type":"added"}]`,
+			check: func(t *testing.T, resp *neorpc.Notification) {
+				require.Equal(t, neorpc.MempoolEventID, resp.Event)
+				rmap := resp.Payload[0].(map[string]any)
+				require.Equal(t, "added", rmap["type"].(string))
+				txMap := rmap["transaction"].(map[string]any)
+				require.Equal(t, address.Uint160ToString(goodSender), txMap["sender"].(string))
+				require.Equal(t, "0x"+goodSender.StringLE(), txMap["signers"].([]any)[0].(map[string]any)["account"].(string))
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			chain, _, c, respMsgs := initCleanServerAndWSClient(t)
+
+			subID := callSubscribe(t, c, respMsgs, tc.params)
+			defer callUnsubscribe(t, c, respMsgs, subID)
+
+			tx := &transaction.Transaction{
+				Signers: []transaction.Signer{
+					{Account: goodSender},
+				},
+			}
+			require.NoError(t, chain.GetMemPool().Add(tx, &FeerStub{}))
+
+			resp := getNotification(t, respMsgs)
+			tc.check(t, resp)
 		})
 	}
 }

@@ -298,6 +298,7 @@ RPC:
   MaxRequestHeaderBytes: 1048576
   MaxWebSocketClients: 64
   MaxWebSocketFeeds: 16
+  MempoolSubscriptionsEnabled: false
   SessionEnabled: false
   SessionExpansionEnabled: false
   SessionLifetime: 15s
@@ -347,6 +348,11 @@ where:
 - `MaxWebSocketFeeds` -- the maximum simultaneous event subscriptions number
   for a single client (16 by default). Attemps to create additional subscriptions
   will lead to error.
+- `MempoolSubscriptionsEnabled` - denotes whether JSON-RPC websocket subscription
+  for mempool events is enabled. If not set, a call to `subscribe` JSON-RPC handler
+  with `mempool_event` argument will return an error. Defaults to false, to avoid
+  running the subscriptions dispatcher, as it can noticeably affect the node's
+  performance. It is not recommended to enable this extension on consensus nodes.
 - `SessionEnabled` denotes whether session-based iterator JSON-RPC API is enabled.
   If true, then all iterators got from `invoke*` calls will be stored as sessions
   on the server side available for further traverse. `traverseiterator` and

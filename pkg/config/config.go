@@ -64,10 +64,11 @@ func (c Config) GenerateUserAgent() string {
 // Application settings.
 func (c Config) Blockchain() Blockchain {
 	return Blockchain{
-		ProtocolConfiguration: c.ProtocolConfiguration,
-		Ledger:                c.ApplicationConfiguration.Ledger,
-		NeoFSBlockFetcher:     c.ApplicationConfiguration.NeoFSBlockFetcher,
-		NeoFSStateFetcher:     c.ApplicationConfiguration.NeoFSStateFetcher,
+		ProtocolConfiguration:       c.ProtocolConfiguration,
+		Ledger:                      c.ApplicationConfiguration.Ledger,
+		NeoFSBlockFetcher:           c.ApplicationConfiguration.NeoFSBlockFetcher,
+		NeoFSStateFetcher:           c.ApplicationConfiguration.NeoFSStateFetcher,
+		MempoolSubscriptionsEnabled: c.ApplicationConfiguration.RPC.MempoolSubscriptionsEnabled,
 	}
 }
 

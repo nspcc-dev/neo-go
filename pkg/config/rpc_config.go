@@ -14,17 +14,18 @@ type (
 		EnableCORSWorkaround bool `yaml:"EnableCORSWorkaround"`
 		// MaxGasInvoke is the maximum amount of GAS which
 		// can be spent during an RPC call.
-		MaxGasInvoke              fixedn.Fixed8 `yaml:"MaxGasInvoke"`
-		MaxIteratorResultItems    int           `yaml:"MaxIteratorResultItems"`
-		MaxFindResultItems        int           `yaml:"MaxFindResultItems"`
-		MaxFindStorageResultItems int           `yaml:"MaxFindStoragePageSize"`
-		MaxNEP11Tokens            int           `yaml:"MaxNEP11Tokens"`
-		MaxRequestBodyBytes       int           `yaml:"MaxRequestBodyBytes"`
-		MaxRequestHeaderBytes     int           `yaml:"MaxRequestHeaderBytes"`
-		MaxWebSocketClients       int           `yaml:"MaxWebSocketClients"`
-		MaxWebSocketFeeds         int           `yaml:"MaxWebSocketFeeds"`
-		SessionEnabled            bool          `yaml:"SessionEnabled"`
-		SessionExpansionEnabled   bool          `yaml:"SessionExpansionEnabled"`
+		MaxGasInvoke                fixedn.Fixed8 `yaml:"MaxGasInvoke"`
+		MaxIteratorResultItems      int           `yaml:"MaxIteratorResultItems"`
+		MaxFindResultItems          int           `yaml:"MaxFindResultItems"`
+		MaxFindStorageResultItems   int           `yaml:"MaxFindStoragePageSize"`
+		MaxNEP11Tokens              int           `yaml:"MaxNEP11Tokens"`
+		MaxRequestBodyBytes         int           `yaml:"MaxRequestBodyBytes"`
+		MaxRequestHeaderBytes       int           `yaml:"MaxRequestHeaderBytes"`
+		MaxWebSocketClients         int           `yaml:"MaxWebSocketClients"`
+		MaxWebSocketFeeds           int           `yaml:"MaxWebSocketFeeds"`
+		MempoolSubscriptionsEnabled bool          `yaml:"MempoolSubscriptionsEnabled"`
+		SessionEnabled              bool          `yaml:"SessionEnabled"`
+		SessionExpansionEnabled     bool          `yaml:"SessionExpansionEnabled"`
 		// Deprecated: Use SessionLifetime instead.
 		SessionExpirationTime int           `yaml:"SessionExpirationTime"`
 		SessionLifetime       time.Duration `yaml:"SessionLifetime"`
