@@ -80,47 +80,47 @@ func newNotary() *Notary {
 	})}
 	defer n.BuildHFSpecificMD(n.ActiveIn())
 
-	desc := newDescriptor("onNEP17Payment", smartcontract.VoidType,
+	desc := NewDescriptor("onNEP17Payment", smartcontract.VoidType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md := newMethodAndPrice(n.onPayment, 1<<15, callflag.States)
+	md := NewMethodAndPrice(n.onPayment, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("lockDepositUntil", smartcontract.BoolType,
+	desc = NewDescriptor("lockDepositUntil", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("till", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.lockDepositUntil, 1<<15, callflag.States)
+	md = NewMethodAndPrice(n.lockDepositUntil, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("withdraw", smartcontract.BoolType,
+	desc = NewDescriptor("withdraw", smartcontract.BoolType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("to", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.withdraw, 1<<15, callflag.All)
+	md = NewMethodAndPrice(n.withdraw, 1<<15, callflag.All)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
+	desc = NewDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.balanceOf, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(n.balanceOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("expirationOf", smartcontract.IntegerType,
+	desc = NewDescriptor("expirationOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.expirationOf, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(n.expirationOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("verify", smartcontract.BoolType,
+	desc = NewDescriptor("verify", smartcontract.BoolType,
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.verify, nativeprices.NotaryVerificationPrice, callflag.ReadStates)
+	md = NewMethodAndPrice(n.verify, nativeprices.NotaryVerificationPrice, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getMaxNotValidBeforeDelta", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.getMaxNotValidBeforeDelta, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getMaxNotValidBeforeDelta", smartcontract.IntegerType)
+	md = NewMethodAndPrice(n.getMaxNotValidBeforeDelta, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxNotValidBeforeDelta", smartcontract.VoidType,
+	desc = NewDescriptor("setMaxNotValidBeforeDelta", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setMaxNotValidBeforeDelta, 1<<15, callflag.States)
+	md = NewMethodAndPrice(n.setMaxNotValidBeforeDelta, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
 	return n

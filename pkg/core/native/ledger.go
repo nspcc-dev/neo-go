@@ -34,43 +34,43 @@ func newLedger() *Ledger {
 	}
 	defer l.BuildHFSpecificMD(l.ActiveIn())
 
-	desc := newDescriptor("currentHash", smartcontract.Hash256Type)
-	md := newMethodAndPrice(l.currentHash, 1<<15, callflag.ReadStates)
+	desc := NewDescriptor("currentHash", smartcontract.Hash256Type)
+	md := NewMethodAndPrice(l.currentHash, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
-	desc = newDescriptor("currentIndex", smartcontract.IntegerType)
-	md = newMethodAndPrice(l.currentIndex, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("currentIndex", smartcontract.IntegerType)
+	md = NewMethodAndPrice(l.currentIndex, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
-	desc = newDescriptor("getBlock", smartcontract.ArrayType,
+	desc = NewDescriptor("getBlock", smartcontract.ArrayType,
 		manifest.NewParameter("indexOrHash", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(l.getBlock, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(l.getBlock, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
-	desc = newDescriptor("getTransaction", smartcontract.ArrayType,
+	desc = NewDescriptor("getTransaction", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash256Type))
-	md = newMethodAndPrice(l.getTransaction, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(l.getTransaction, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
-	desc = newDescriptor("getTransactionHeight", smartcontract.IntegerType,
+	desc = NewDescriptor("getTransactionHeight", smartcontract.IntegerType,
 		manifest.NewParameter("hash", smartcontract.Hash256Type))
-	md = newMethodAndPrice(l.getTransactionHeight, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(l.getTransactionHeight, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
-	desc = newDescriptor("getTransactionFromBlock", smartcontract.ArrayType,
+	desc = NewDescriptor("getTransactionFromBlock", smartcontract.ArrayType,
 		manifest.NewParameter("blockIndexOrHash", smartcontract.ByteArrayType),
 		manifest.NewParameter("txIndex", smartcontract.IntegerType))
-	md = newMethodAndPrice(l.getTransactionFromBlock, 1<<16, callflag.ReadStates)
+	md = NewMethodAndPrice(l.getTransactionFromBlock, 1<<16, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
-	desc = newDescriptor("getTransactionSigners", smartcontract.ArrayType,
+	desc = NewDescriptor("getTransactionSigners", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash256Type))
-	md = newMethodAndPrice(l.getTransactionSigners, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(l.getTransactionSigners, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
-	desc = newDescriptor("getTransactionVMState", smartcontract.IntegerType,
+	desc = NewDescriptor("getTransactionVMState", smartcontract.IntegerType,
 		manifest.NewParameter("hash", smartcontract.Hash256Type))
-	md = newMethodAndPrice(l.getTransactionVMState, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(l.getTransactionVMState, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	return l

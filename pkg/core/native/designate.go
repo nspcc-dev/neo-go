@@ -101,30 +101,30 @@ func newDesignate(initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designat
 
 	s.initialNodeRoles = initialNodeRoles
 
-	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,
+	desc := NewDescriptor("getDesignatedByRole", smartcontract.ArrayType,
 		manifest.NewParameter("role", smartcontract.IntegerType),
 		manifest.NewParameter("index", smartcontract.IntegerType))
-	md := newMethodAndPrice(s.getDesignatedByRole, 1<<15, callflag.ReadStates)
+	md := NewMethodAndPrice(s.getDesignatedByRole, 1<<15, callflag.ReadStates)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("designateAsRole", smartcontract.VoidType,
+	desc = NewDescriptor("designateAsRole", smartcontract.VoidType,
 		manifest.NewParameter("role", smartcontract.IntegerType),
 		manifest.NewParameter("nodes", smartcontract.ArrayType))
-	md = newMethodAndPrice(s.designateAsRole, 1<<15, callflag.States|callflag.AllowNotify)
+	md = NewMethodAndPrice(s.designateAsRole, 1<<15, callflag.States|callflag.AllowNotify)
 	s.AddMethod(md, desc)
 
-	eDesc := newEventDescriptor(DesignationEventName,
+	eDesc := NewEventDescriptor(DesignationEventName,
 		manifest.NewParameter("Role", smartcontract.IntegerType),
 		manifest.NewParameter("BlockIndex", smartcontract.IntegerType))
-	eMD := newEvent(eDesc, config.HFDefault, config.HFEchidna)
+	eMD := NewEvent(eDesc, config.HFDefault, config.HFEchidna)
 	s.AddEvent(eMD)
 
-	eDesc = newEventDescriptor(DesignationEventName,
+	eDesc = NewEventDescriptor(DesignationEventName,
 		manifest.NewParameter("Role", smartcontract.IntegerType),
 		manifest.NewParameter("BlockIndex", smartcontract.IntegerType),
 		manifest.NewParameter("Old", smartcontract.ArrayType),
 		manifest.NewParameter("New", smartcontract.ArrayType))
-	eMD = newEvent(eDesc, config.HFEchidna)
+	eMD = NewEvent(eDesc, config.HFEchidna)
 	s.AddEvent(eMD)
 
 	return s
