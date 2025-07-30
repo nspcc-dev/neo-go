@@ -23,7 +23,8 @@ Currently supported events:
    Contents: application execution result. Filters: VM state, script container hash.
  * new/removed P2P notary request (if `P2PSigExtensions` are enabled)
 
-   Contents: P2P notary request. Filters: request sender and main tx signer.
+   Contents: P2P notary request. Filters: event type, request sender and main tx
+   signer.
  * new/removed memory pool transaction (if `MempoolSubscriptionsEnabled` is enabled)
 
    Contents: mempool event type along with the transaction.
