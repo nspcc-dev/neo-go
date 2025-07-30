@@ -188,114 +188,114 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 		panic(fmt.Errorf("failed to initialize NEO config cache: %w", err))
 	}
 
-	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
+	desc := NewDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("end", smartcontract.IntegerType))
-	md := newMethodAndPrice(n.unclaimedGas, 1<<17, callflag.ReadStates)
+	md := NewMethodAndPrice(n.unclaimedGas, 1<<17, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
+	desc = NewDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.registerCandidate, 0, callflag.States, config.HFDefault, config.HFEchidna)
+	md = NewMethodAndPrice(n.registerCandidate, 0, callflag.States, config.HFDefault, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	md = newMethodAndPrice(n.registerCandidate, 0, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(n.registerCandidate, 0, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,
+	desc = NewDescriptor("unregisterCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
+	md = NewMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("onNEP17Payment", smartcontract.VoidType,
+	desc = NewDescriptor("onNEP17Payment", smartcontract.VoidType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md = newMethodAndPrice(n.onNEP17Payment, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(n.onNEP17Payment, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("vote", smartcontract.BoolType,
+	desc = NewDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("voteTo", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.vote, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
+	md = NewMethodAndPrice(n.vote, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	md = newMethodAndPrice(n.vote, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(n.vote, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getCandidatesCall, 1<<22, callflag.ReadStates)
+	desc = NewDescriptor("getCandidates", smartcontract.ArrayType)
+	md = NewMethodAndPrice(n.getCandidatesCall, 1<<22, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getAllCandidates", smartcontract.InteropInterfaceType)
-	md = newMethodAndPrice(n.getAllCandidatesCall, 1<<22, callflag.ReadStates)
+	desc = NewDescriptor("getAllCandidates", smartcontract.InteropInterfaceType)
+	md = NewMethodAndPrice(n.getAllCandidatesCall, 1<<22, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getCandidateVote", smartcontract.IntegerType,
+	desc = NewDescriptor("getCandidateVote", smartcontract.IntegerType,
 		manifest.NewParameter("pubKey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.getCandidateVoteCall, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(n.getCandidateVoteCall, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getAccountState", smartcontract.ArrayType,
+	desc = NewDescriptor("getAccountState", smartcontract.ArrayType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.getAccountState, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(n.getAccountState, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getCommittee", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getCommittee, 1<<16, callflag.ReadStates)
+	desc = NewDescriptor("getCommittee", smartcontract.ArrayType)
+	md = NewMethodAndPrice(n.getCommittee, 1<<16, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getCommitteeAddress", smartcontract.Hash160Type)
-	md = newMethodAndPrice(n.getCommitteeAddress, 1<<16, callflag.ReadStates, config.HFCockatrice)
+	desc = NewDescriptor("getCommitteeAddress", smartcontract.Hash160Type)
+	md = NewMethodAndPrice(n.getCommitteeAddress, 1<<16, callflag.ReadStates, config.HFCockatrice)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getNextBlockValidators, 1<<16, callflag.ReadStates)
+	desc = NewDescriptor("getNextBlockValidators", smartcontract.ArrayType)
+	md = NewMethodAndPrice(n.getNextBlockValidators, 1<<16, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getGasPerBlock", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.getGASPerBlock, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getGasPerBlock", smartcontract.IntegerType)
+	md = NewMethodAndPrice(n.getGASPerBlock, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("setGasPerBlock", smartcontract.VoidType,
+	desc = NewDescriptor("setGasPerBlock", smartcontract.VoidType,
 		manifest.NewParameter("gasPerBlock", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setGASPerBlock, 1<<15, callflag.States)
+	md = NewMethodAndPrice(n.setGASPerBlock, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getRegisterPrice", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.getRegisterPrice, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getRegisterPrice", smartcontract.IntegerType)
+	md = NewMethodAndPrice(n.getRegisterPrice, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("setRegisterPrice", smartcontract.VoidType,
+	desc = NewDescriptor("setRegisterPrice", smartcontract.VoidType,
 		manifest.NewParameter("registerPrice", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setRegisterPrice, 1<<15, callflag.States)
+	md = NewMethodAndPrice(n.setRegisterPrice, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
-	eDesc := newEventDescriptor("CandidateStateChanged",
+	eDesc := NewEventDescriptor("CandidateStateChanged",
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType),
 		manifest.NewParameter("registered", smartcontract.BoolType),
 		manifest.NewParameter("votes", smartcontract.IntegerType),
 	)
-	eMD := newEvent(eDesc)
+	eMD := NewEvent(eDesc)
 	n.AddEvent(eMD)
 
-	eDesc = newEventDescriptor("Vote",
+	eDesc = NewEventDescriptor("Vote",
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("from", smartcontract.PublicKeyType),
 		manifest.NewParameter("to", smartcontract.PublicKeyType),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 	)
-	eMD = newEvent(eDesc)
+	eMD = NewEvent(eDesc)
 	n.AddEvent(eMD)
 
-	eDesc = newEventDescriptor("CommitteeChanged",
+	eDesc = NewEventDescriptor("CommitteeChanged",
 		manifest.NewParameter("old", smartcontract.ArrayType),
 		manifest.NewParameter("new", smartcontract.ArrayType),
 	)
-	eMD = newEvent(eDesc, config.HFCockatrice)
+	eMD = NewEvent(eDesc, config.HFCockatrice)
 	n.AddEvent(eMD)
 
 	return n

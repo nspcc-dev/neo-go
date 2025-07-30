@@ -115,102 +115,102 @@ func newPolicy() *Policy {
 	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, PolicyContractID)}
 	defer p.BuildHFSpecificMD(p.ActiveIn())
 
-	desc := newDescriptor("getFeePerByte", smartcontract.IntegerType)
-	md := newMethodAndPrice(p.getFeePerByte, 1<<15, callflag.ReadStates)
+	desc := NewDescriptor("getFeePerByte", smartcontract.IntegerType)
+	md := NewMethodAndPrice(p.getFeePerByte, 1<<15, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("isBlocked", smartcontract.BoolType,
+	desc = NewDescriptor("isBlocked", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.isBlocked, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(p.isBlocked, 1<<15, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getExecFeeFactor", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getExecFeeFactor, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getExecFeeFactor", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getExecFeeFactor, 1<<15, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setExecFeeFactor", smartcontract.VoidType,
+	desc = NewDescriptor("setExecFeeFactor", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setExecFeeFactor, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.setExecFeeFactor, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getStoragePrice", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getStoragePrice, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getStoragePrice", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getStoragePrice, 1<<15, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setStoragePrice", smartcontract.VoidType,
+	desc = NewDescriptor("setStoragePrice", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setStoragePrice, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.setStoragePrice, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getAttributeFee", smartcontract.IntegerType,
+	desc = NewDescriptor("getAttributeFee", smartcontract.IntegerType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.getAttributeFeeV0, 1<<15, callflag.ReadStates, config.HFDefault, transaction.NotaryAssistedActivation)
+	md = NewMethodAndPrice(p.getAttributeFeeV0, 1<<15, callflag.ReadStates, config.HFDefault, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getAttributeFee", smartcontract.IntegerType,
+	desc = NewDescriptor("getAttributeFee", smartcontract.IntegerType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.getAttributeFeeV1, 1<<15, callflag.ReadStates, transaction.NotaryAssistedActivation)
+	md = NewMethodAndPrice(p.getAttributeFeeV1, 1<<15, callflag.ReadStates, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setAttributeFee", smartcontract.VoidType,
+	desc = NewDescriptor("setAttributeFee", smartcontract.VoidType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType),
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setAttributeFeeV0, 1<<15, callflag.States, config.HFDefault, transaction.NotaryAssistedActivation)
+	md = NewMethodAndPrice(p.setAttributeFeeV0, 1<<15, callflag.States, config.HFDefault, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setAttributeFee", smartcontract.VoidType,
+	desc = NewDescriptor("setAttributeFee", smartcontract.VoidType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType),
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setAttributeFeeV1, 1<<15, callflag.States, transaction.NotaryAssistedActivation)
+	md = NewMethodAndPrice(p.setAttributeFeeV1, 1<<15, callflag.States, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setFeePerByte", smartcontract.VoidType,
+	desc = NewDescriptor("setFeePerByte", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setFeePerByte, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.setFeePerByte, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("blockAccount", smartcontract.BoolType,
+	desc = NewDescriptor("blockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.blockAccount, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("unblockAccount", smartcontract.BoolType,
+	desc = NewDescriptor("unblockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.unblockAccount, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.unblockAccount, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getMaxValidUntilBlockIncrement", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getMaxValidUntilBlockIncrement, 1<<15, callflag.ReadStates, config.HFEchidna)
+	desc = NewDescriptor("getMaxValidUntilBlockIncrement", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getMaxValidUntilBlockIncrement, 1<<15, callflag.ReadStates, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxValidUntilBlockIncrement", smartcontract.VoidType,
+	desc = NewDescriptor("setMaxValidUntilBlockIncrement", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMaxValidUntilBlockIncrement, 1<<15, callflag.States, config.HFEchidna)
+	md = NewMethodAndPrice(p.setMaxValidUntilBlockIncrement, 1<<15, callflag.States, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getMillisecondsPerBlock", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getMillisecondsPerBlock, 1<<15, callflag.ReadStates, config.HFEchidna)
+	desc = NewDescriptor("getMillisecondsPerBlock", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getMillisecondsPerBlock, 1<<15, callflag.ReadStates, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMillisecondsPerBlock", smartcontract.VoidType,
+	desc = NewDescriptor("setMillisecondsPerBlock", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMillisecondsPerBlock, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(p.setMillisecondsPerBlock, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	eDesc := newEventDescriptor("MillisecondsPerBlockChanged",
+	eDesc := NewEventDescriptor("MillisecondsPerBlockChanged",
 		manifest.NewParameter("old", smartcontract.IntegerType),
 		manifest.NewParameter("new", smartcontract.IntegerType),
 	)
-	eMD := newEvent(eDesc, config.HFEchidna)
+	eMD := NewEvent(eDesc, config.HFEchidna)
 	p.AddEvent(eMD)
 
-	desc = newDescriptor("getMaxTraceableBlocks", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getMaxTraceableBlocks, 1<<15, callflag.ReadStates, config.HFEchidna)
+	desc = NewDescriptor("getMaxTraceableBlocks", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getMaxTraceableBlocks, 1<<15, callflag.ReadStates, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxTraceableBlocks", smartcontract.VoidType,
+	desc = NewDescriptor("setMaxTraceableBlocks", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMaxTraceableBlocks, 1<<15, callflag.States, config.HFEchidna)
+	md = NewMethodAndPrice(p.setMaxTraceableBlocks, 1<<15, callflag.States, config.HFEchidna)
 	p.AddMethod(md, desc)
 
 	return p

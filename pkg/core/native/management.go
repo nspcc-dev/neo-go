@@ -103,82 +103,82 @@ func newManagement() *Management {
 	}
 	defer m.BuildHFSpecificMD(m.ActiveIn())
 
-	desc := newDescriptor("getContract", smartcontract.ArrayType,
+	desc := NewDescriptor("getContract", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))
-	md := newMethodAndPrice(m.getContract, 1<<15, callflag.ReadStates)
+	md := NewMethodAndPrice(m.getContract, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("deploy", smartcontract.ArrayType,
+	desc = NewDescriptor("deploy", smartcontract.ArrayType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.deploy, 0, callflag.All)
+	md = NewMethodAndPrice(m.deploy, 0, callflag.All)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("deploy", smartcontract.ArrayType,
+	desc = NewDescriptor("deploy", smartcontract.ArrayType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md = newMethodAndPrice(m.deployWithData, 0, callflag.All)
+	md = NewMethodAndPrice(m.deployWithData, 0, callflag.All)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("update", smartcontract.VoidType,
+	desc = NewDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.update, 0, callflag.All)
+	md = NewMethodAndPrice(m.update, 0, callflag.All)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("update", smartcontract.VoidType,
+	desc = NewDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md = newMethodAndPrice(m.updateWithData, 0, callflag.All)
+	md = NewMethodAndPrice(m.updateWithData, 0, callflag.All)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("destroy", smartcontract.VoidType)
-	md = newMethodAndPrice(m.destroy, 1<<15, callflag.States|callflag.AllowNotify)
+	desc = NewDescriptor("destroy", smartcontract.VoidType)
+	md = NewMethodAndPrice(m.destroy, 1<<15, callflag.States|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
-	md = newMethodAndPrice(m.getMinimumDeploymentFee, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
+	md = NewMethodAndPrice(m.getMinimumDeploymentFee, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("setMinimumDeploymentFee", smartcontract.VoidType,
+	desc = NewDescriptor("setMinimumDeploymentFee", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(m.setMinimumDeploymentFee, 1<<15, callflag.States)
+	md = NewMethodAndPrice(m.setMinimumDeploymentFee, 1<<15, callflag.States)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("hasMethod", smartcontract.BoolType,
+	desc = NewDescriptor("hasMethod", smartcontract.BoolType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type),
 		manifest.NewParameter("method", smartcontract.StringType),
 		manifest.NewParameter("pcount", smartcontract.IntegerType))
-	md = newMethodAndPrice(m.hasMethod, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(m.hasMethod, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("getContractById", smartcontract.ArrayType,
+	desc = NewDescriptor("getContractById", smartcontract.ArrayType,
 		manifest.NewParameter("id", smartcontract.IntegerType))
-	md = newMethodAndPrice(m.getContractByID, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(m.getContractByID, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("getContractHashes", smartcontract.InteropInterfaceType)
-	md = newMethodAndPrice(m.getContractHashes, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getContractHashes", smartcontract.InteropInterfaceType)
+	md = NewMethodAndPrice(m.getContractHashes, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
 	hashParam := manifest.NewParameter("Hash", smartcontract.Hash160Type)
-	eDesc := newEventDescriptor(contractDeployNotificationName, hashParam)
-	eMD := newEvent(eDesc)
+	eDesc := NewEventDescriptor(contractDeployNotificationName, hashParam)
+	eMD := NewEvent(eDesc)
 	m.AddEvent(eMD)
 
-	eDesc = newEventDescriptor(contractUpdateNotificationName, hashParam)
-	eMD = newEvent(eDesc)
+	eDesc = NewEventDescriptor(contractUpdateNotificationName, hashParam)
+	eMD = NewEvent(eDesc)
 	m.AddEvent(eMD)
 
-	eDesc = newEventDescriptor(contractDestroyNotificationName, hashParam)
-	eMD = newEvent(eDesc)
+	eDesc = NewEventDescriptor(contractDestroyNotificationName, hashParam)
+	eMD = NewEvent(eDesc)
 	m.AddEvent(eMD)
 
-	desc = newDescriptor("isContract", smartcontract.BoolType,
+	desc = NewDescriptor("isContract", smartcontract.BoolType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))
-	md = newMethodAndPrice(m.isContract, 1<<14, callflag.ReadStates, config.HFEchidna)
+	md = NewMethodAndPrice(m.isContract, 1<<14, callflag.ReadStates, config.HFEchidna)
 	m.AddMethod(md, desc)
 
 	return m

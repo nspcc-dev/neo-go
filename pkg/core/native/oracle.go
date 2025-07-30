@@ -122,42 +122,42 @@ func newOracle() *Oracle {
 
 	o.oracleScript = CreateOracleResponseScript(o.Hash)
 
-	desc := newDescriptor("request", smartcontract.VoidType,
+	desc := NewDescriptor("request", smartcontract.VoidType,
 		manifest.NewParameter("url", smartcontract.StringType),
 		manifest.NewParameter("filter", smartcontract.StringType),
 		manifest.NewParameter("callback", smartcontract.StringType),
 		manifest.NewParameter("userData", smartcontract.AnyType),
 		manifest.NewParameter("gasForResponse", smartcontract.IntegerType))
-	md := newMethodAndPrice(o.request, 0, callflag.States|callflag.AllowNotify)
+	md := NewMethodAndPrice(o.request, 0, callflag.States|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
-	desc = newDescriptor("finish", smartcontract.VoidType)
-	md = newMethodAndPrice(o.finish, 0, callflag.States|callflag.AllowCall|callflag.AllowNotify)
+	desc = NewDescriptor("finish", smartcontract.VoidType)
+	md = NewMethodAndPrice(o.finish, 0, callflag.States|callflag.AllowCall|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
-	desc = newDescriptor("verify", smartcontract.BoolType)
-	md = newMethodAndPrice(o.verify, 1<<15, callflag.NoneFlag)
+	desc = NewDescriptor("verify", smartcontract.BoolType)
+	md = NewMethodAndPrice(o.verify, 1<<15, callflag.NoneFlag)
 	o.AddMethod(md, desc)
 
-	eDesc := newEventDescriptor("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
+	eDesc := NewEventDescriptor("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("RequestContract", smartcontract.Hash160Type),
 		manifest.NewParameter("Url", smartcontract.StringType),
 		manifest.NewParameter("Filter", smartcontract.StringType))
-	eMD := newEvent(eDesc)
+	eMD := NewEvent(eDesc)
 	o.AddEvent(eMD)
 
-	eDesc = newEventDescriptor("OracleResponse", manifest.NewParameter("Id", smartcontract.IntegerType),
+	eDesc = NewEventDescriptor("OracleResponse", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("OriginalTx", smartcontract.Hash256Type))
-	eMD = newEvent(eDesc)
+	eMD = NewEvent(eDesc)
 	o.AddEvent(eMD)
 
-	desc = newDescriptor("getPrice", smartcontract.IntegerType)
-	md = newMethodAndPrice(o.getPrice, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getPrice", smartcontract.IntegerType)
+	md = NewMethodAndPrice(o.getPrice, 1<<15, callflag.ReadStates)
 	o.AddMethod(md, desc)
 
-	desc = newDescriptor("setPrice", smartcontract.VoidType,
+	desc = NewDescriptor("setPrice", smartcontract.VoidType,
 		manifest.NewParameter("price", smartcontract.IntegerType))
-	md = newMethodAndPrice(o.setPrice, 1<<15, callflag.States)
+	md = NewMethodAndPrice(o.setPrice, 1<<15, callflag.States)
 	o.AddMethod(md, desc)
 
 	return o

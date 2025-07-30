@@ -51,89 +51,89 @@ func newCrypto() *Crypto {
 	c := &Crypto{ContractMD: *interop.NewContractMD(nativenames.CryptoLib, cryptoContractID)}
 	defer c.BuildHFSpecificMD(c.ActiveIn())
 
-	desc := newDescriptor("sha256", smartcontract.ByteArrayType,
+	desc := NewDescriptor("sha256", smartcontract.ByteArrayType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md := newMethodAndPrice(c.sha256, 1<<15, callflag.NoneFlag)
+	md := NewMethodAndPrice(c.sha256, 1<<15, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("ripemd160", smartcontract.ByteArrayType,
+	desc = NewDescriptor("ripemd160", smartcontract.ByteArrayType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(c.ripemd160, 1<<15, callflag.NoneFlag)
+	md = NewMethodAndPrice(c.ripemd160, 1<<15, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("murmur32", smartcontract.ByteArrayType,
+	desc = NewDescriptor("murmur32", smartcontract.ByteArrayType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType),
 		manifest.NewParameter("seed", smartcontract.IntegerType))
-	md = newMethodAndPrice(c.murmur32, 1<<13, callflag.NoneFlag)
+	md = NewMethodAndPrice(c.murmur32, 1<<13, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("verifyWithECDsa", smartcontract.BoolType,
+	desc = NewDescriptor("verifyWithECDsa", smartcontract.BoolType,
 		manifest.NewParameter("message", smartcontract.ByteArrayType),
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType),
 		manifest.NewParameter("curve", smartcontract.IntegerType))
-	md = newMethodAndPrice(c.verifyWithECDsaPreCockatrice, 1<<15, callflag.NoneFlag, config.HFDefault, config.HFCockatrice)
+	md = NewMethodAndPrice(c.verifyWithECDsaPreCockatrice, 1<<15, callflag.NoneFlag, config.HFDefault, config.HFCockatrice)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("verifyWithECDsa", smartcontract.BoolType,
+	desc = NewDescriptor("verifyWithECDsa", smartcontract.BoolType,
 		manifest.NewParameter("message", smartcontract.ByteArrayType),
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType),
 		manifest.NewParameter("curveHash", smartcontract.IntegerType))
-	md = newMethodAndPrice(c.verifyWithECDsa, 1<<15, callflag.NoneFlag, config.HFCockatrice)
+	md = NewMethodAndPrice(c.verifyWithECDsa, 1<<15, callflag.NoneFlag, config.HFCockatrice)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("bls12381Serialize", smartcontract.ByteArrayType,
+	desc = NewDescriptor("bls12381Serialize", smartcontract.ByteArrayType,
 		manifest.NewParameter("g", smartcontract.InteropInterfaceType))
-	md = newMethodAndPrice(c.bls12381Serialize, 1<<19, callflag.NoneFlag)
+	md = NewMethodAndPrice(c.bls12381Serialize, 1<<19, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("bls12381Deserialize", smartcontract.InteropInterfaceType,
+	desc = NewDescriptor("bls12381Deserialize", smartcontract.InteropInterfaceType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(c.bls12381Deserialize, 1<<19, callflag.NoneFlag)
+	md = NewMethodAndPrice(c.bls12381Deserialize, 1<<19, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("bls12381Equal", smartcontract.BoolType,
+	desc = NewDescriptor("bls12381Equal", smartcontract.BoolType,
 		manifest.NewParameter("x", smartcontract.InteropInterfaceType),
 		manifest.NewParameter("y", smartcontract.InteropInterfaceType))
-	md = newMethodAndPrice(c.bls12381Equal, 1<<5, callflag.NoneFlag)
+	md = NewMethodAndPrice(c.bls12381Equal, 1<<5, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("bls12381Add", smartcontract.InteropInterfaceType,
+	desc = NewDescriptor("bls12381Add", smartcontract.InteropInterfaceType,
 		manifest.NewParameter("x", smartcontract.InteropInterfaceType),
 		manifest.NewParameter("y", smartcontract.InteropInterfaceType))
-	md = newMethodAndPrice(c.bls12381Add, 1<<19, callflag.NoneFlag)
+	md = NewMethodAndPrice(c.bls12381Add, 1<<19, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("bls12381Mul", smartcontract.InteropInterfaceType,
+	desc = NewDescriptor("bls12381Mul", smartcontract.InteropInterfaceType,
 		manifest.NewParameter("x", smartcontract.InteropInterfaceType),
 		manifest.NewParameter("mul", smartcontract.ByteArrayType),
 		manifest.NewParameter("neg", smartcontract.BoolType))
-	md = newMethodAndPrice(c.bls12381Mul, 1<<21, callflag.NoneFlag)
+	md = NewMethodAndPrice(c.bls12381Mul, 1<<21, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("bls12381Pairing", smartcontract.InteropInterfaceType,
+	desc = NewDescriptor("bls12381Pairing", smartcontract.InteropInterfaceType,
 		manifest.NewParameter("g1", smartcontract.InteropInterfaceType),
 		manifest.NewParameter("g2", smartcontract.InteropInterfaceType))
-	md = newMethodAndPrice(c.bls12381Pairing, 1<<23, callflag.NoneFlag)
+	md = NewMethodAndPrice(c.bls12381Pairing, 1<<23, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("keccak256", smartcontract.ByteArrayType,
+	desc = NewDescriptor("keccak256", smartcontract.ByteArrayType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(c.keccak256, 1<<15, callflag.NoneFlag, config.HFCockatrice)
+	md = NewMethodAndPrice(c.keccak256, 1<<15, callflag.NoneFlag, config.HFCockatrice)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("verifyWithEd25519", smartcontract.BoolType,
+	desc = NewDescriptor("verifyWithEd25519", smartcontract.BoolType,
 		manifest.NewParameter("message", smartcontract.ByteArrayType),
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(c.verifyWithEd25519, 1<<15, callflag.NoneFlag, config.HFEchidna)
+	md = NewMethodAndPrice(c.verifyWithEd25519, 1<<15, callflag.NoneFlag, config.HFEchidna)
 	c.AddMethod(md, desc)
 
-	desc = newDescriptor("recoverSecp256K1", smartcontract.ByteArrayType,
+	desc = NewDescriptor("recoverSecp256K1", smartcontract.ByteArrayType,
 		manifest.NewParameter("messageHash", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(c.recoverSecp256K1, 1<<15, callflag.NoneFlag, config.HFEchidna)
+	md = NewMethodAndPrice(c.recoverSecp256K1, 1<<15, callflag.NoneFlag, config.HFEchidna)
 	c.AddMethod(md, desc)
 	return c
 }
