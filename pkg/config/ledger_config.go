@@ -51,6 +51,7 @@ type Blockchain struct {
 	Ledger
 	NeoFSBlockFetcher
 	NeoFSStateFetcher
+	MempoolSubscriptionsEnabled bool
 }
 
 // Validate checks Ledger for internal consistency and returns an error if any

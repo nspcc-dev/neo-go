@@ -161,6 +161,7 @@ type (
 		notificationSubs  int
 		transactionSubs   int
 		notaryRequestSubs int
+		mempoolEventSubs  int
 
 		blockCh           chan *block.Block
 		blockHeaderCh     chan *block.Header
@@ -168,6 +169,7 @@ type (
 		notificationCh    chan *state.ContainedNotificationEvent
 		transactionCh     chan *transaction.Transaction
 		notaryRequestCh   chan mempoolevent.Event
+		mempoolEventCh    chan mempoolevent.Event
 		subEventsToExitCh chan struct{}
 	}
 
@@ -383,6 +385,7 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		notificationCh:    make(chan *state.ContainedNotificationEvent),
 		transactionCh:     make(chan *transaction.Transaction),
 		notaryRequestCh:   make(chan mempoolevent.Event),
+		mempoolEventCh:    make(chan mempoolevent.Event),
 		blockHeaderCh:     make(chan *block.Header),
 		subEventsToExitCh: make(chan struct{}),
 	}
@@ -2895,6 +2898,13 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (any, *neor
 			flt := new(neorpc.ExecutionFilter)
 			err = jd.Decode(flt)
 			filter = *flt
+		case neorpc.MempoolEventID:
+			if !s.config.MempoolSubscriptionsEnabled {
+				return nil, neorpc.NewInternalServerError("mempool subscriptions are disabled")
+			}
+			flt := new(neorpc.MempoolEventFilter)
+			err = jd.Decode(flt)
+			filter = *flt
 		default:
 		}
 		if err != nil {
@@ -2970,6 +2980,11 @@ func (s *Server) subscribeToChannel(event neorpc.EventID) {
 			s.chain.SubscribeForHeadersOfAddedBlocks(s.blockHeaderCh)
 		}
 		s.blockHeaderSubs++
+	case neorpc.MempoolEventID:
+		if s.mempoolEventSubs == 0 {
+			s.chain.GetMemPool().SubscribeForTransactions(s.mempoolEventCh)
+		}
+		s.mempoolEventSubs++
 	default:
 	}
 }
@@ -3031,6 +3046,11 @@ func (s *Server) unsubscribeFromChannel(event neorpc.EventID) {
 		if s.blockHeaderSubs == 0 {
 			s.chain.UnsubscribeFromHeadersOfAddedBlocks(s.blockHeaderCh)
 		}
+	case neorpc.MempoolEventID:
+		s.mempoolEventSubs--
+		if s.mempoolEventSubs == 0 {
+			s.chain.GetMemPool().UnsubscribeFromTransactions(s.mempoolEventCh)
+		}
 	default:
 	}
 }
@@ -3084,6 +3104,12 @@ chloop:
 		case header := <-s.blockHeaderCh:
 			resp.Event = neorpc.HeaderOfAddedBlockEventID
 			resp.Payload[0] = header
+		case memEvent := <-s.mempoolEventCh:
+			resp.Event = neorpc.MempoolEventID
+			resp.Payload[0] = &result.MempoolEvent{
+				Type: memEvent.Type,
+				Tx:   memEvent.Tx,
+			}
 		}
 		s.subsLock.RLock()
 	subloop:
@@ -3137,6 +3163,7 @@ chloop:
 	s.chain.UnsubscribeFromNotifications(s.notificationCh)
 	s.chain.UnsubscribeFromExecutions(s.executionCh)
 	s.chain.UnsubscribeFromHeadersOfAddedBlocks(s.blockHeaderCh)
+	s.chain.GetMemPool().UnsubscribeFromTransactions(s.mempoolEventCh)
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.coreServer.UnsubscribeFromNotaryRequests(s.notaryRequestCh)
 	}
@@ -3150,6 +3177,7 @@ drainloop:
 		case <-s.transactionCh:
 		case <-s.notaryRequestCh:
 		case <-s.blockHeaderCh:
+		case <-s.mempoolEventCh:
 		default:
 			break drainloop
 		}
@@ -3162,6 +3190,7 @@ drainloop:
 	close(s.executionCh)
 	close(s.notaryRequestCh)
 	close(s.blockHeaderCh)
+	close(s.mempoolEventCh)
 	// notify Shutdown routine
 	close(s.subEventsToExitCh)
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -2150,23 +2151,27 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 
 	checkRelevant := func(t *testing.T, filtered bool) {
 		b, bNext, primary, sender, ntfName, st := getData(t)
+		typ := mempoolevent.TransactionAdded
 		var (
-			bID, txID, ntfID, aerID string
-			blockCh                 = make(chan *block.Block)
-			txCh                    = make(chan *transaction.Transaction)
-			ntfCh                   = make(chan *state.ContainedNotificationEvent)
-			aerCh                   = make(chan *state.AppExecResult)
-			bFlt                    *neorpc.BlockFilter
-			txFlt                   *neorpc.TxFilter
-			ntfFlt                  *neorpc.NotificationFilter
-			aerFlt                  *neorpc.ExecutionFilter
-			err                     error
+			bID, txID, ntfID, aerID, memID string
+			blockCh                        = make(chan *block.Block)
+			txCh                           = make(chan *transaction.Transaction)
+			ntfCh                          = make(chan *state.ContainedNotificationEvent)
+			aerCh                          = make(chan *state.AppExecResult)
+			memCh                          = make(chan *result.MempoolEvent)
+			bFlt                           *neorpc.BlockFilter
+			txFlt                          *neorpc.TxFilter
+			ntfFlt                         *neorpc.NotificationFilter
+			aerFlt                         *neorpc.ExecutionFilter
+			memFlt                         *neorpc.MempoolEventFilter
+			err                            error
 		)
 		if filtered {
 			bFlt = &neorpc.BlockFilter{Primary: &primary}
 			txFlt = &neorpc.TxFilter{Sender: &sender}
 			ntfFlt = &neorpc.NotificationFilter{Name: &ntfName}
 			aerFlt = &neorpc.ExecutionFilter{State: &st}
+			memFlt = &neorpc.MempoolEventFilter{Type: &typ}
 		}
 		bID, err = c.ReceiveBlocks(bFlt, blockCh)
 		require.NoError(t, err)
@@ -2175,6 +2180,8 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 		ntfID, err = c.ReceiveExecutionNotifications(ntfFlt, ntfCh)
 		require.NoError(t, err)
 		aerID, err = c.ReceiveExecutions(aerFlt, aerCh)
+		require.NoError(t, err)
+		memID, err = c.ReceiveMempoolEvents(memFlt, memCh)
 		require.NoError(t, err)
 
 		var (
@@ -2202,6 +2209,10 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 					lock.Lock()
 					received |= 1 << 3
 					lock.Unlock()
+				case <-memCh:
+					lock.Lock()
+					received |= 1 << 4
+					lock.Unlock()
 				case <-exitCh:
 					break dispatcher
 				}
@@ -2213,6 +2224,7 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 				case <-txCh:
 				case <-ntfCh:
 				case <-aerCh:
+				case <-memCh:
 				default:
 					break drainLoop
 				}
@@ -2221,6 +2233,7 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 			close(txCh)
 			close(ntfCh)
 			close(aerCh)
+			close(memCh)
 		}()
 
 		// Accept the next block and wait for events.
@@ -2229,17 +2242,24 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 		// we're ensuring that the previous block event receiving was successfully handled by Blockchain's
 		// notificationDispatcher loop. Once we're sure in that, we may start to check the actual notifications.
 		require.NoError(t, chain.AddBlock(bNext))
+		// Generate mempool event.
+		tx := &transaction.Transaction{
+			Signers: []transaction.Signer{{Account: sender}},
+			Script:  []byte{byte(opcode.PUSH1)},
+		}
+		require.NoError(t, chain.GetMemPool().Add(tx, &FeerStub{}))
 		assert.Eventually(t, func() bool {
 			lock.RLock()
 			defer lock.RUnlock()
 
-			return received == 1<<4-1
+			return received == 1<<5-1
 		}, time.Second, 100*time.Millisecond)
 
 		require.NoError(t, c.Unsubscribe(bID))
 		require.NoError(t, c.Unsubscribe(txID))
 		require.NoError(t, c.Unsubscribe(ntfID))
 		require.NoError(t, c.Unsubscribe(aerID))
+		require.NoError(t, c.Unsubscribe(memID))
 		exitCh <- struct{}{}
 	}
 	t.Run("relevant, filtered", func(t *testing.T) {

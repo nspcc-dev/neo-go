@@ -110,6 +110,24 @@ func Matches(f Comparator, r Container) bool {
 			}
 		}
 		return senderOk && signerOK && typeOk
+	case neorpc.MempoolEventID:
+		filt := filter.(neorpc.MempoolEventFilter)
+		memEvent := r.EventPayload().(*result.MempoolEvent)
+		if filt.Type != nil && memEvent.Type != *filt.Type {
+			return false
+		}
+		if filt.Sender != nil && !memEvent.Tx.Sender().Equals(*filt.Sender) {
+			return false
+		}
+		if filt.Signer != nil {
+			for _, signer := range memEvent.Tx.Signers {
+				if signer.Account.Equals(*filt.Signer) {
+					return true
+				}
+			}
+			return false
+		}
+		return true
 	default:
 		return false
 	}

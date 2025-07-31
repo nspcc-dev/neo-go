@@ -23,7 +23,12 @@ Currently supported events:
    Contents: application execution result. Filters: VM state, script container hash.
  * new/removed P2P notary request (if `P2PSigExtensions` are enabled)
 
-   Contents: P2P notary request. Filters: request sender and main tx signer.
+   Contents: P2P notary request. Filters: event type, request sender and main tx
+   signer.
+ * new/removed memory pool transaction (if `MempoolSubscriptionsEnabled` is enabled)
+
+   Contents: mempool event type along with the transaction.
+   Filters: event type, transaction sender, transaction signer.
 
 Filters use conjunctional logic.
 
@@ -49,6 +54,8 @@ Filters use conjunctional logic.
    Trigger for notary request notifications is notary request mempool content
    change, thus, notary request event is announced every time notary request
    enters or leaves notary pool.
+ * memory pool event announcements are not bound to the chain processing. Memory
+   pool events are triggered whenever a transaction enters or leaves the mempool.
  * unsubscription may not cancel pending, but not yet sent events
 
 ## Subscription management
@@ -105,6 +112,11 @@ Recognized stream names:
    Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for notary request's `Sender` and/or `signer` in the same
    format for one of main transaction's `Signers`. `type` field containing a
+   string with event type, which could be one of "added" or "removed".
+ * `mempool_event`
+   Filter: `sender` field containing a string with hex-encoded Uint160 (LE
+   representation) for transaction's `Sender` and/or `signer` in the same
+   format for one of transaction's `Signers` and/or `type` field containing a
    string with event type, which could be one of "added" or "removed".
 
 Response: returns subscription ID (string) as a result. This ID can be used to
@@ -588,6 +600,52 @@ Example:
             }
          },
          "type" : "added"
+      }
+   ]
+}
+```
+
+### `mempool_event` notification
+
+It contains two parameters: event type, which could be one of "added" or "removed",
+and transaction that was added to (or removed from) the node's memory pool. The
+transaction is converted to JSON, which is similar to a verbose `getrawtransaction`
+response, but with the following differences:
+* block's metadata is missing (`blockhash`, `confirmations`, `blocktime`)
+
+Example:
+
+```
+{
+   "jsonrpc" : "2.0",
+   "method" : "mempool_event",
+   "params" : [
+      {
+         "type": "added",
+         "transaction": {
+            "validuntilblock" : 1200,
+            "version" : 1,
+            "hash" : "0xe1cd5e57e721d2a2e05fb1f08721b12057b25ab1dd7fd0f33ee1639932fdfad7",
+            "witnesses" : [
+               {
+                  "invocation" : "0c4027727296b84853c5d9e07fb8a40e885246ae25641383b16eefbe92027ecb1635b794aacf6bbfc3e828c73829b14791c483d19eb758b57638e3191393dbf2d288",
+                  "verification" : "0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"
+               }
+            ],
+            "sysfee" : "0",
+            "sender" : "ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG",
+            "netfee" : "0.0037721",
+            "size" : 277,
+            "attributes" : [],
+            "script" : "01e8030c14316e851039019d39dfc2c37d6c3fee19fd5809870c14769162241eedf97c2481652adf1ba0f5bf57431b13c00c087472616e736665720c14769162241eedf97c2481652adf1ba0f5bf57431b41627d5b5238",
+            "nonce" : 9,
+            "signers" : [
+               {
+                  "account" : "0x870958fd19ee3f6c7dc3c2df399d013910856e31",
+                  "scopes" : 1
+               }
+            ]
+         }
       }
    ]
 }

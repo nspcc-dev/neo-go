@@ -50,12 +50,12 @@ func TestMatches(t *testing.T) {
 	sender := util.Uint160{1, 2, 3}
 	signer := util.Uint160{4, 5, 6}
 	contract := util.Uint160{7, 8, 9}
-	notaryType := mempoolevent.TransactionAdded
 	badUint160 := util.Uint160{9, 9, 9}
 	cnt := util.Uint256{1, 2, 3}
 	badUint256 := util.Uint256{9, 9, 9}
 	name := "ntf name"
 	badName := "bad name"
+	goodType := mempoolevent.TransactionAdded
 	badType := mempoolevent.TransactionRemoved
 	parameters, err := smartcontract.NewParametersFromValues(1, "2", []byte{3})
 	require.NoError(t, err)
@@ -99,11 +99,18 @@ func TestMatches(t *testing.T) {
 	ntrContainer := testContainer{
 		id: neorpc.NotaryRequestEventID,
 		pld: &result.NotaryRequestEvent{
-			Type: notaryType,
+			Type: goodType,
 			NotaryRequest: &payload.P2PNotaryRequest{
 				MainTransaction:     &transaction.Transaction{Signers: []transaction.Signer{{Account: signer}}},
 				FallbackTransaction: &transaction.Transaction{Signers: []transaction.Signer{{Account: util.Uint160{}}, {Account: sender}}},
 			},
+		},
+	}
+	mempoolContainer := testContainer{
+		id: neorpc.MempoolEventID,
+		pld: &result.MempoolEvent{
+			Type: goodType,
+			Tx:   &transaction.Transaction{Signers: []transaction.Signer{{Account: sender}, {Account: signer}}},
 		},
 	}
 	missedContainer := testContainer{
@@ -365,9 +372,51 @@ func TestMatches(t *testing.T) {
 			name: "notary request, filter match",
 			comparator: testComparator{
 				id:     neorpc.NotaryRequestEventID,
-				filter: neorpc.NotaryRequestFilter{Sender: &sender, Signer: &signer, Type: &notaryType},
+				filter: neorpc.NotaryRequestFilter{Sender: &sender, Signer: &signer, Type: &goodType},
 			},
 			container: ntrContainer,
+			expected:  true,
+		},
+		{
+			name:       "mempool event, no filter",
+			comparator: testComparator{id: neorpc.MempoolEventID},
+			container:  mempoolContainer,
+			expected:   true,
+		},
+		{
+			name: "mempool event, sender mismatch",
+			comparator: testComparator{
+				id:     neorpc.MempoolEventID,
+				filter: neorpc.MempoolEventFilter{Sender: &badUint160},
+			},
+			container: mempoolContainer,
+			expected:  false,
+		},
+		{
+			name: "mempool event, signer mismatch",
+			comparator: testComparator{
+				id:     neorpc.MempoolEventID,
+				filter: neorpc.MempoolEventFilter{Signer: &badUint160},
+			},
+			container: mempoolContainer,
+			expected:  false,
+		},
+		{
+			name: "mempool event, type mismatch",
+			comparator: testComparator{
+				id:     neorpc.MempoolEventID,
+				filter: neorpc.MempoolEventFilter{Type: &badType},
+			},
+			container: mempoolContainer,
+			expected:  false,
+		},
+		{
+			name: "mempool event, filter match",
+			comparator: testComparator{
+				id:     neorpc.MempoolEventID,
+				filter: neorpc.MempoolEventFilter{Sender: &sender, Signer: &signer, Type: &goodType},
+			},
+			container: mempoolContainer,
 			expected:  true,
 		},
 	}

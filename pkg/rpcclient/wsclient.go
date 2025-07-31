@@ -399,6 +399,53 @@ func (r *notaryRequestReceiver) Close() {
 	close(r.ch)
 }
 
+// mempoolEventReceiver stores information about mempool events subscriber.
+type mempoolEventReceiver struct {
+	filter *neorpc.MempoolEventFilter
+	ch     chan<- *result.MempoolEvent
+}
+
+// EventID implements neorpc.Comparator interface.
+func (r *mempoolEventReceiver) EventID() neorpc.EventID {
+	return neorpc.MempoolEventID
+}
+
+// Filter implements neorpc.Comparator interface.
+func (r *mempoolEventReceiver) Filter() neorpc.SubscriptionFilter {
+	if r.filter == nil {
+		return nil
+	}
+	return *r.filter
+}
+
+// Receiver implements notificationReceiver interface.
+func (r *mempoolEventReceiver) Receiver() any {
+	return r.ch
+}
+
+// TrySend implements notificationReceiver interface.
+func (r *mempoolEventReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
+	if rpcevent.Matches(r, ntf) {
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*result.MempoolEvent):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*result.MempoolEvent)
+		}
+
+		return true, false
+	}
+	return false, false
+}
+
+// Close implements notificationReceiver interface.
+func (r *mempoolEventReceiver) Close() {
+	close(r.ch)
+}
+
 // Notification represents a server-generated notification for client subscriptions.
 // Value can be one of *block.Block, *state.AppExecResult, *state.ContainedNotificationEvent
 // *transaction.Transaction or *subscriptions.NotaryRequestEvent based on Type.
@@ -580,6 +627,8 @@ readloop:
 					break readloop
 				}
 				ntf.Value = &block.New(sr).Header
+			case neorpc.MempoolEventID:
+				ntf.Value = new(result.MempoolEvent)
 			case neorpc.MissedEventID:
 				// No value.
 			default:
@@ -923,6 +972,28 @@ func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.NotaryRequestFilter, rcvr c
 		params = append(params, *flt)
 	}
 	r := &notaryRequestReceiver{
+		filter: flt,
+		ch:     rcvr,
+	}
+	return c.performSubscription(params, r)
+}
+
+// ReceiveMempoolEvents registers the provided channel as a receiver for mempool
+// transaction addition or removal events. Events can be filtered by the given
+// MempoolEventFilter where sender corresponds to the transaction’s sender, signer
+// corresponds to one of the transaction’s signers, and type corresponds to the
+// [mempoolevent.Type] and denotes whether the transaction was added to or removed
+// from the mempool. See WSClient comments for generic Receive* behaviour details.
+func (c *WSClient) ReceiveMempoolEvents(flt *neorpc.MempoolEventFilter, rcvr chan<- *result.MempoolEvent) (string, error) {
+	if rcvr == nil {
+		return "", ErrNilNotificationReceiver
+	}
+	params := []any{"mempool_event"}
+	if flt != nil {
+		flt = flt.Copy()
+		params = append(params, *flt)
+	}
+	r := &mempoolEventReceiver{
 		filter: flt,
 		ch:     rcvr,
 	}
