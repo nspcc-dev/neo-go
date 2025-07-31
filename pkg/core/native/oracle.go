@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -65,7 +66,6 @@ type OracleService interface {
 }
 
 const (
-	oracleContractID  = -9
 	maxURLLength      = 256
 	maxFilterLength   = 128
 	maxCallbackLength = 32
@@ -115,7 +115,7 @@ func copyOracleCache(src, dst *OracleCache) {
 
 func newOracle() *Oracle {
 	o := &Oracle{
-		ContractMD:  *interop.NewContractMD(nativenames.Oracle, oracleContractID),
+		ContractMD:  *interop.NewContractMD(nativenames.Oracle, nativeids.OracleContract),
 		newRequests: make(map[uint64]*state.OracleRequest),
 	}
 	defer o.BuildHFSpecificMD(o.ActiveIn())

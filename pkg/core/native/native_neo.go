@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -79,7 +80,6 @@ type NeoCache struct {
 }
 
 const (
-	neoContractID = -5
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
 	// DefaultRegisterPrice is the default price for candidate register.
@@ -170,7 +170,7 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	n := &NEO{}
 	defer n.BuildHFSpecificMD(n.ActiveIn())
 
-	nep17 := newNEP17Native(nativenames.Neo, neoContractID, func(m *manifest.Manifest, hf config.Hardfork) {
+	nep17 := newNEP17Native(nativenames.Neo, nativeids.NeoToken, func(m *manifest.Manifest, hf config.Hardfork) {
 		if hf.Cmp(config.HFEchidna) >= 0 {
 			m.SupportedStandards = append(m.SupportedStandards, manifest.NEP27StandardName)
 		}

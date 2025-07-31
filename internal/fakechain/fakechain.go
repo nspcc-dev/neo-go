@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -425,6 +426,16 @@ func (chain *FakeChain) UnsubscribeFromNotifications(ch chan *state.ContainedNot
 // UnsubscribeFromTransactions implements the Blockchainer interface.
 func (chain *FakeChain) UnsubscribeFromTransactions(ch chan *transaction.Transaction) {
 	panic("TODO")
+}
+
+// NativeManagementID implements the Blockchainer interface.
+func (chain *FakeChain) NativeManagementID() int32 {
+	return nativeids.ContractManagement
+}
+
+// NativePolicyID implements the Blockchainer interface.
+func (chain *FakeChain) NativePolicyID() int32 {
+	return nativeids.PolicyContract
 }
 
 // AddBlock implements the StateSync interface.

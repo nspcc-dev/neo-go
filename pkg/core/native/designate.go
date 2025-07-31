@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -66,8 +67,6 @@ type StateRootService interface {
 }
 
 const (
-	designateContractID = -8
-
 	// maxNodeCount is the maximum number of nodes to set the role for.
 	maxNodeCount = 32
 
@@ -103,7 +102,7 @@ func copyDesignationCache(src, dst *DesignationCache) {
 
 // NewDesignate creates a new RoleManagement contract.
 func NewDesignate(initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
-	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
+	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, nativeids.RoleManagement)}
 	defer s.BuildHFSpecificMD(s.ActiveIn())
 
 	s.initialNodeRoles = initialNodeRoles

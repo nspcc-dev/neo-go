@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -99,7 +100,7 @@ func MakeContractKey(h util.Uint160) []byte {
 // NewManagement creates a new Management native contract.
 func NewManagement() *Management {
 	var m = &Management{
-		ContractMD: *interop.NewContractMD(nativenames.Management, ManagementContractID),
+		ContractMD: *interop.NewContractMD(nativenames.Management, nativeids.ContractManagement),
 	}
 	defer m.BuildHFSpecificMD(m.ActiveIn())
 
@@ -288,7 +289,7 @@ func getLimitedSlice(arg stackitem.Item, maxLen int) ([]byte, error) {
 func (m *Management) getContractHashes(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	ctx, cancel := context.WithCancel(context.Background())
 	prefix := []byte{prefixContractHash}
-	seekres := ic.DAO.SeekAsync(ctx, ManagementContractID, storage.SeekRange{Prefix: prefix})
+	seekres := ic.DAO.SeekAsync(ctx, ic.Chain.NativeManagementID(), storage.SeekRange{Prefix: prefix})
 	filteredRes := make(chan storage.KeyValue)
 	go func() {
 	loop:
@@ -530,7 +531,7 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 	key := MakeContractKey(hash)
 	d.DeleteStorageItem(m.ID, key)
 	key = putHashKey(key, contract.ID)
-	d.DeleteStorageItem(ManagementContractID, key)
+	d.DeleteStorageItem(m.ID, key)
 
 	d.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
 		d.DeleteStorageItem(contract.ID, k)

@@ -807,7 +807,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		if bc.IsHardforkEnabled(&hf, p) {
 			// Native cache is not yet initialized, retrieve MaxTraceableBlocks from DAO directly using
 			// new storage prefix since we already have up-to-date storage.
-			mtb, err = bc.dao.GetInt(native.PolicyContractID, native.MaxTraceableBlocksKey)
+			mtb, err = bc.dao.GetInt(bc.policy.Metadata().ID, native.MaxTraceableBlocksKey)
 			if err != nil {
 				return fmt.Errorf("failed to get MaxTraceableBlocks from DAO: %w", err)
 			}
@@ -958,7 +958,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		)
 		if bc.IsHardforkEnabled(&hf, currHeight) {
 			// Cache isn't yet initialized, so retrieve MaxTraceableBlocks directly from DAO.
-			mtb, err = bc.dao.GetInt(native.PolicyContractID, native.MaxTraceableBlocksKey)
+			mtb, err = bc.dao.GetInt(bc.policy.Metadata().ID, native.MaxTraceableBlocksKey)
 			if err != nil {
 				return fmt.Errorf("failed to get MaxTraceableBlocks from DAO: %w", err)
 			}
@@ -2479,6 +2479,16 @@ func (bc *Blockchain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
 		return 0
 	}
 	return bc.notary.ExpirationOf(bc.dao, acc)
+}
+
+// NativePolicyID returns ID of native PolicyContract contract.
+func (bc *Blockchain) NativePolicyID() int32 {
+	return bc.policy.Metadata().ID
+}
+
+// NativeManagementID returns ID of native ContractManagement contract.
+func (bc *Blockchain) NativeManagementID() int32 {
+	return bc.management.Metadata().ID
 }
 
 // LastBatch returns last persisted storage batch.

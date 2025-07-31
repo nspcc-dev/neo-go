@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -25,12 +26,10 @@ type Ledger struct {
 	Policy IPolicy
 }
 
-const ledgerContractID = -4
-
 // NewLedger creates a new Ledger native contract.
 func NewLedger() *Ledger {
 	var l = &Ledger{
-		ContractMD: *interop.NewContractMD(nativenames.Ledger, ledgerContractID),
+		ContractMD: *interop.NewContractMD(nativenames.Ledger, nativeids.LedgerContract),
 	}
 	defer l.BuildHFSpecificMD(l.ActiveIn())
 
