@@ -46,6 +46,7 @@ type Ledger interface {
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetConfig() config.Blockchain
 	GetHeaderHash(uint32) util.Uint256
+	NativeManagementID() int32
 }
 
 // Context represents context in which interops are executed.

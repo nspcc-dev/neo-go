@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -23,9 +24,6 @@ import (
 )
 
 const (
-	// PolicyContractID is the ID of native Policy contract.
-	PolicyContractID = -7
-
 	defaultExecFeeFactor      = interop.DefaultBaseExecFee
 	defaultFeePerByte         = 1000
 	defaultMaxVerificationGas = 1_50000000
@@ -112,7 +110,7 @@ func copyPolicyCache(src, dst *PolicyCache) {
 
 // newPolicy returns Policy native contract.
 func newPolicy() *Policy {
-	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, PolicyContractID)}
+	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, nativeids.PolicyContract)}
 	defer p.BuildHFSpecificMD(p.ActiveIn())
 
 	desc := NewDescriptor("getFeePerByte", smartcontract.IntegerType)

@@ -56,7 +56,7 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("method not found")
 	}
 	reqFlags := m.RequiredFlags
-	if !ic.IsHardforkEnabled(config.HFAspidochelone) && meta.ID == ManagementContractID &&
+	if !ic.IsHardforkEnabled(config.HFAspidochelone) && meta.ID == ic.Chain.NativeManagementID() &&
 		(m.MD.Name == "deploy" || m.MD.Name == "update") {
 		reqFlags &= callflag.States | callflag.AllowNotify
 	}

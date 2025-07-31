@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	base58neogo "github.com/nspcc-dev/neo-go/pkg/encoding/base58"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -28,12 +29,8 @@ type Std struct {
 	interop.ContractMD
 }
 
-const (
-	stdContractID = -2
-
-	// stdMaxInputLength is the maximum input length for string-related methods.
-	stdMaxInputLength = 1024
-)
+// stdMaxInputLength is the maximum input length for string-related methods.
+const stdMaxInputLength = 1024
 
 var (
 	// ErrInvalidBase is returned when the base is invalid.
@@ -45,7 +42,7 @@ var (
 )
 
 func newStd() *Std {
-	s := &Std{ContractMD: *interop.NewContractMD(nativenames.StdLib, stdContractID)}
+	s := &Std{ContractMD: *interop.NewContractMD(nativenames.StdLib, nativeids.StdLib)}
 	defer s.BuildHFSpecificMD(s.ActiveIn())
 
 	desc := NewDescriptor("serialize", smartcontract.ByteArrayType,

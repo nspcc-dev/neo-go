@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -45,7 +46,6 @@ type NotaryService interface {
 }
 
 const (
-	notaryContractID = -10
 	// prefixDeposit is a prefix for storing Notary deposits.
 	prefixDeposit                 = 1
 	defaultDepositDeltaTill       = 5760
@@ -75,7 +75,7 @@ func copyNotaryCache(src, dst *NotaryCache) {
 
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
-	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary, notaryContractID, func(m *manifest.Manifest, hf config.Hardfork) {
+	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary, nativeids.Notary, func(m *manifest.Manifest, hf config.Hardfork) {
 		m.SupportedStandards = []string{manifest.NEP27StandardName}
 	})}
 	defer n.BuildHFSpecificMD(n.ActiveIn())
