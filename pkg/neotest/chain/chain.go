@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
@@ -74,6 +75,9 @@ type Options struct {
 	// If SkipRun is true, it is caller's responsibility to call Run before using
 	// the chain and to properly Close the chain when done.
 	SkipRun bool
+	// NewNatives (if set) creates a set of custom native contracts that will be used
+	// as a replacement of the default list of native contracts.
+	NewNatives func(cfg config.ProtocolConfiguration) []interop.Contract
 }
 
 func init() {
@@ -199,7 +203,7 @@ func NewSingleWithOptions(t testing.TB, options *Options) (*core.Blockchain, neo
 		logger = zaptest.NewLogger(t)
 	}
 
-	bc, err := core.NewBlockchain(store, cfg, logger)
+	bc, err := core.NewBlockchain(store, cfg, logger, options.NewNatives)
 	require.NoError(t, err)
 	if !options.SkipRun {
 		go bc.Run()

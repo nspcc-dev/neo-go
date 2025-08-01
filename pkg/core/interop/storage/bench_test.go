@@ -17,7 +17,7 @@ func BenchmarkStorageFind(b *testing.B) {
 	for count := 10; count <= 10000; count *= 10 {
 		b.Run(fmt.Sprintf("%dElements", count), func(b *testing.B) {
 			v, contractState, context, _ := createVMAndContractState(b)
-			require.NoError(b, native.PutContractState(context.DAO, contractState))
+			require.NoError(b, native.PutContractState(context.DAO, context.Chain.NativeManagementID(), contractState))
 
 			items := make(map[string]state.StorageItem)
 			for range count {
@@ -61,7 +61,7 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 			for name, last := range cases {
 				b.Run(name, func(b *testing.B) {
 					v, contractState, context, _ := createVMAndContractState(b)
-					require.NoError(b, native.PutContractState(context.DAO, contractState))
+					require.NoError(b, native.PutContractState(context.DAO, context.Chain.NativeManagementID(), contractState))
 
 					items := make(map[string]state.StorageItem)
 					for range count {

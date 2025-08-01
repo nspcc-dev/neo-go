@@ -997,7 +997,7 @@ func handleLoadDeployed(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
 		}
-		h, err = native.GetContractScriptHash(ic.DAO, int32(i))
+		h, err = native.GetContractScriptHash(ic.DAO, ic.Chain.NativeManagementID(), int32(i))
 		if err != nil {
 			return fmt.Errorf("failed to retrieve contract hash by ID: %w", err)
 		}

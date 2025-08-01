@@ -88,14 +88,16 @@ type Ledger interface {
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	GetHeaderHash(uint32) util.Uint256
 	HeaderHeight() uint32
+	NativePolicyID() int32
 }
 
 // Module represents state sync module and aimed to gather state-related data to
 // perform an atomic state jump.
 type Module struct {
-	lock sync.RWMutex
-	log  *zap.Logger
-	mode StorageSyncMode
+	lock     sync.RWMutex
+	log      *zap.Logger
+	mode     StorageSyncMode
+	policyID int32
 
 	// syncPoint is the state synchronisation point P we're currently working against.
 	syncPoint uint32
@@ -135,6 +137,7 @@ func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Si
 			bc:        bc,
 			stateMod:  stateMod,
 			syncStage: inactive,
+			policyID:  bc.NativePolicyID(),
 		}
 	}
 	mode := MPTBased
@@ -151,6 +154,7 @@ func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Si
 		syncStage:    none,
 		jumpCallback: jumpCallback,
 		mode:         mode,
+		policyID:     bc.NativePolicyID(),
 	}
 }
 
@@ -360,10 +364,9 @@ func (s *Module) getLatestSavedBlock(p uint32) uint32 {
 	)
 	if s.bc.IsHardforkEnabled(&hf, p) {
 		// Retrieve MaxTraceableBlocks from DAO directly using temporary storage prefix.
-		policyID := native.PolicyContractID
 		key := make([]byte, 1+4+1)
 		key[0] = byte(TemporaryPrefix(s.dao.Version.StoragePrefix))
-		binary.LittleEndian.PutUint32(key[1:], uint32(policyID))
+		binary.LittleEndian.PutUint32(key[1:], uint32(s.policyID))
 		copy(key[5:], native.MaxTraceableBlocksKey)
 		si, err := s.dao.Store.Get(key)
 		if err != nil {

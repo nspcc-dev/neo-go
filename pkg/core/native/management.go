@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -32,8 +33,8 @@ import (
 // Management is a contract-managing native contract.
 type Management struct {
 	interop.ContractMD
-	NEO    *NEO
-	Policy *Policy
+	NEO    INEO
+	Policy IPolicy
 }
 
 type ManagementCache struct {
@@ -45,8 +46,6 @@ type ManagementCache struct {
 }
 
 const (
-	ManagementContractID = -1
-
 	// PrefixContract is a prefix used to store contract states inside Management native contract.
 	PrefixContract     = 8
 	prefixContractHash = 12
@@ -96,89 +95,89 @@ func MakeContractKey(h util.Uint160) []byte {
 	return makeUint160Key(PrefixContract, h)
 }
 
-// newManagement creates a new Management native contract.
-func newManagement() *Management {
+// NewManagement creates a new Management native contract.
+func NewManagement() *Management {
 	var m = &Management{
-		ContractMD: *interop.NewContractMD(nativenames.Management, ManagementContractID),
+		ContractMD: *interop.NewContractMD(nativenames.Management, nativeids.ContractManagement),
 	}
 	defer m.BuildHFSpecificMD(m.ActiveIn())
 
-	desc := newDescriptor("getContract", smartcontract.ArrayType,
+	desc := NewDescriptor("getContract", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))
-	md := newMethodAndPrice(m.getContract, 1<<15, callflag.ReadStates)
+	md := NewMethodAndPrice(m.getContract, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("deploy", smartcontract.ArrayType,
+	desc = NewDescriptor("deploy", smartcontract.ArrayType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.deploy, 0, callflag.All)
+	md = NewMethodAndPrice(m.deploy, 0, callflag.All)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("deploy", smartcontract.ArrayType,
+	desc = NewDescriptor("deploy", smartcontract.ArrayType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md = newMethodAndPrice(m.deployWithData, 0, callflag.All)
+	md = NewMethodAndPrice(m.deployWithData, 0, callflag.All)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("update", smartcontract.VoidType,
+	desc = NewDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.update, 0, callflag.All)
+	md = NewMethodAndPrice(m.update, 0, callflag.All)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("update", smartcontract.VoidType,
+	desc = NewDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md = newMethodAndPrice(m.updateWithData, 0, callflag.All)
+	md = NewMethodAndPrice(m.updateWithData, 0, callflag.All)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("destroy", smartcontract.VoidType)
-	md = newMethodAndPrice(m.destroy, 1<<15, callflag.States|callflag.AllowNotify)
+	desc = NewDescriptor("destroy", smartcontract.VoidType)
+	md = NewMethodAndPrice(m.destroy, 1<<15, callflag.States|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
-	md = newMethodAndPrice(m.getMinimumDeploymentFee, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
+	md = NewMethodAndPrice(m.getMinimumDeploymentFee, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("setMinimumDeploymentFee", smartcontract.VoidType,
+	desc = NewDescriptor("setMinimumDeploymentFee", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(m.setMinimumDeploymentFee, 1<<15, callflag.States)
+	md = NewMethodAndPrice(m.setMinimumDeploymentFee, 1<<15, callflag.States)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("hasMethod", smartcontract.BoolType,
+	desc = NewDescriptor("hasMethod", smartcontract.BoolType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type),
 		manifest.NewParameter("method", smartcontract.StringType),
 		manifest.NewParameter("pcount", smartcontract.IntegerType))
-	md = newMethodAndPrice(m.hasMethod, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(m.hasMethod, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("getContractById", smartcontract.ArrayType,
+	desc = NewDescriptor("getContractById", smartcontract.ArrayType,
 		manifest.NewParameter("id", smartcontract.IntegerType))
-	md = newMethodAndPrice(m.getContractByID, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(m.getContractByID, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("getContractHashes", smartcontract.InteropInterfaceType)
-	md = newMethodAndPrice(m.getContractHashes, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getContractHashes", smartcontract.InteropInterfaceType)
+	md = NewMethodAndPrice(m.getContractHashes, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
 	hashParam := manifest.NewParameter("Hash", smartcontract.Hash160Type)
-	eDesc := newEventDescriptor(contractDeployNotificationName, hashParam)
-	eMD := newEvent(eDesc)
+	eDesc := NewEventDescriptor(contractDeployNotificationName, hashParam)
+	eMD := NewEvent(eDesc)
 	m.AddEvent(eMD)
 
-	eDesc = newEventDescriptor(contractUpdateNotificationName, hashParam)
-	eMD = newEvent(eDesc)
+	eDesc = NewEventDescriptor(contractUpdateNotificationName, hashParam)
+	eMD = NewEvent(eDesc)
 	m.AddEvent(eMD)
 
-	eDesc = newEventDescriptor(contractDestroyNotificationName, hashParam)
-	eMD = newEvent(eDesc)
+	eDesc = NewEventDescriptor(contractDestroyNotificationName, hashParam)
+	eMD = NewEvent(eDesc)
 	m.AddEvent(eMD)
 
-	desc = newDescriptor("isContract", smartcontract.BoolType,
+	desc = NewDescriptor("isContract", smartcontract.BoolType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))
-	md = newMethodAndPrice(m.isContract, 1<<14, callflag.ReadStates, config.HFEchidna)
+	md = NewMethodAndPrice(m.isContract, 1<<14, callflag.ReadStates, config.HFEchidna)
 	m.AddMethod(md, desc)
 
 	return m
@@ -200,7 +199,7 @@ func toHash160(si stackitem.Item) util.Uint160 {
 // VM protections, so it's OK for it to panic instead of returning errors.
 func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	hash := toHash160(args[0])
-	ctr, err := GetContract(ic.DAO, hash)
+	ctr, err := GetContract(ic.DAO, m.ID, hash)
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
 			return stackitem.Null{}
@@ -221,7 +220,7 @@ func (m *Management) getContractByID(ic *interop.Context, args []stackitem.Item)
 	if !idBig.IsInt64() || id < math.MinInt32 || id > math.MaxInt32 {
 		panic("id is not a correct int32")
 	}
-	ctr, err := GetContractByID(ic.DAO, int32(id))
+	ctr, err := GetContractByID(ic.DAO, m.ID, int32(id))
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
 			return stackitem.Null{}
@@ -232,8 +231,8 @@ func (m *Management) getContractByID(ic *interop.Context, args []stackitem.Item)
 }
 
 // GetContract returns a contract with the given hash from the given DAO.
-func GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
-	cache := d.GetROCache(ManagementContractID).(*ManagementCache)
+func GetContract(d *dao.Simple, managementID int32, hash util.Uint160) (*state.Contract, error) {
+	cache := d.GetROCache(managementID).(*ManagementCache)
 	return getContract(cache, hash)
 }
 
@@ -247,19 +246,19 @@ func getContract(cache *ManagementCache, hash util.Uint160) (*state.Contract, er
 }
 
 // GetContractByID returns a contract with the given ID from the given DAO.
-func GetContractByID(d *dao.Simple, id int32) (*state.Contract, error) {
-	hash, err := GetContractScriptHash(d, id)
+func GetContractByID(d *dao.Simple, managementID int32, id int32) (*state.Contract, error) {
+	hash, err := GetContractScriptHash(d, managementID, id)
 	if err != nil {
 		return nil, err
 	}
-	return GetContract(d, hash)
+	return GetContract(d, managementID, hash)
 }
 
 // GetContractScriptHash returns a contract hash associated with the given ID from the given DAO.
-func GetContractScriptHash(d *dao.Simple, id int32) (util.Uint160, error) {
+func GetContractScriptHash(d *dao.Simple, managementID int32, id int32) (util.Uint160, error) {
 	key := make([]byte, 5)
 	key = putHashKey(key, id)
-	si := d.GetStorageItem(ManagementContractID, key)
+	si := d.GetStorageItem(managementID, key)
 	if si == nil {
 		return util.Uint160{}, storage.ErrKeyNotFound
 	}
@@ -288,7 +287,7 @@ func getLimitedSlice(arg stackitem.Item, maxLen int) ([]byte, error) {
 func (m *Management) getContractHashes(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	ctx, cancel := context.WithCancel(context.Background())
 	prefix := []byte{prefixContractHash}
-	seekres := ic.DAO.SeekAsync(ctx, ManagementContractID, storage.SeekRange{Prefix: prefix})
+	seekres := ic.DAO.SeekAsync(ctx, ic.Chain.NativeManagementID(), storage.SeekRange{Prefix: prefix})
 	filteredRes := make(chan storage.KeyValue)
 	go func() {
 	loop:
@@ -390,8 +389,8 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 	return contractToStack(newcontract)
 }
 
-func markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Contract) {
-	cache := d.GetRWCache(ManagementContractID).(*ManagementCache)
+func markUpdated(d *dao.Simple, managementID int32, hash util.Uint160, cs *state.Contract) {
+	cache := d.GetRWCache(managementID).(*ManagementCache)
 	delete(cache.nep11, hash)
 	delete(cache.nep17, hash)
 	if cs == nil {
@@ -408,7 +407,7 @@ func (m *Management) Deploy(ic *interop.Context, sender util.Uint160, neff *nef.
 	if m.Policy.IsBlocked(ic.DAO, h) {
 		return nil, fmt.Errorf("the contract %s has been blocked", h.StringLE())
 	}
-	_, err := GetContract(ic.DAO, h)
+	_, err := GetContract(ic.DAO, m.ID, h)
 	if err == nil {
 		return nil, errors.New("contract already exists")
 	}
@@ -432,7 +431,7 @@ func (m *Management) Deploy(ic *interop.Context, sender util.Uint160, neff *nef.
 			Manifest: *manif,
 		},
 	}
-	err = PutContractState(ic.DAO, newcontract)
+	err = PutContractState(ic.DAO, m.ID, newcontract)
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +469,7 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	var contract state.Contract
 
-	oldcontract, err := GetContract(ic.DAO, hash)
+	oldcontract, err := GetContract(ic.DAO, m.ID, hash)
 	if err != nil {
 		return nil, errors.New("contract doesn't exist")
 	}
@@ -499,7 +498,7 @@ func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.Fi
 		return nil, err
 	}
 	contract.UpdateCounter++
-	err = PutContractState(ic.DAO, &contract)
+	err = PutContractState(ic.DAO, m.ID, &contract)
 	if err != nil {
 		return nil, err
 	}
@@ -523,21 +522,21 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 
 // Destroy drops the given contract from DAO along with its storage. It doesn't emit notification.
 func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
-	contract, err := GetContract(d, hash)
+	contract, err := GetContract(d, m.ID, hash)
 	if err != nil {
 		return err
 	}
 	key := MakeContractKey(hash)
 	d.DeleteStorageItem(m.ID, key)
 	key = putHashKey(key, contract.ID)
-	d.DeleteStorageItem(ManagementContractID, key)
+	d.DeleteStorageItem(m.ID, key)
 
 	d.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
 		d.DeleteStorageItem(contract.ID, k)
 		return true
 	})
-	m.Policy.blockAccountInternal(d, hash)
-	markUpdated(d, hash, nil)
+	m.Policy.BlockAccountInternal(d, hash)
+	markUpdated(d, m.ID, hash, nil)
 	return nil
 }
 
@@ -555,7 +554,7 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	if value.Sign() < 0 {
 		panic("MinimumDeploymentFee cannot be negative")
 	}
-	if !m.NEO.checkCommittee(ic) {
+	if !m.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	ic.DAO.PutStorageItem(m.ID, keyMinimumDeploymentFee, bigint.ToBytes(value))
@@ -588,7 +587,7 @@ func (m *Management) hasMethod(ic *interop.Context, args []stackitem.Item) stack
 		panic(err)
 	}
 	pcount := int(toInt64((args[2])))
-	cs, err := GetContract(ic.DAO, cHash)
+	cs, err := GetContract(ic.DAO, m.ID, cHash)
 	if err != nil {
 		return stackitem.NewBool(false)
 	}
@@ -597,7 +596,7 @@ func (m *Management) hasMethod(ic *interop.Context, args []stackitem.Item) stack
 
 func (m *Management) isContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	h := toHash160(args[0])
-	_, err := GetContract(ic.DAO, h)
+	_, err := GetContract(ic.DAO, m.ID, h)
 	return stackitem.NewBool(err == nil)
 }
 
@@ -681,7 +680,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 			contract.UpdateCounter++
 			cs = &contract
 		}
-		err := putContractState(ic.DAO, cs, false) // Perform cache update manually.
+		err := putContractState(ic.DAO, m.ID, cs, false) // Perform cache update manually.
 		if err != nil {
 			return fmt.Errorf("failed to put contract state: %w", err)
 		}
@@ -798,24 +797,24 @@ func (m *Management) ActiveIn() *config.Hardfork {
 }
 
 // PutContractState saves given contract state into given DAO.
-func PutContractState(d *dao.Simple, cs *state.Contract) error {
-	return putContractState(d, cs, true)
+func PutContractState(d *dao.Simple, managementID int32, cs *state.Contract) error {
+	return putContractState(d, managementID, cs, true)
 }
 
 // putContractState is an internal PutContractState representation.
-func putContractState(d *dao.Simple, cs *state.Contract, updateCache bool) error {
+func putContractState(d *dao.Simple, managementID int32, cs *state.Contract, updateCache bool) error {
 	key := MakeContractKey(cs.Hash)
-	if err := putConvertibleToDAO(ManagementContractID, d, key, cs); err != nil {
+	if err := putConvertibleToDAO(managementID, d, key, cs); err != nil {
 		return err
 	}
 	if updateCache {
-		markUpdated(d, cs.Hash, cs)
+		markUpdated(d, managementID, cs.Hash, cs)
 	}
 	if cs.UpdateCounter != 0 { // Update.
 		return nil
 	}
 	key = putHashKey(key, cs.ID)
-	d.PutStorageItem(ManagementContractID, key, cs.Hash.BytesBE())
+	d.PutStorageItem(managementID, key, cs.Hash.BytesBE())
 	return nil
 }
 

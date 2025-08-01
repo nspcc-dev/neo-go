@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -19,13 +20,11 @@ import (
 // GAS represents GAS native contract.
 type GAS struct {
 	nep17TokenNative
-	NEO    *NEO
-	Policy *Policy
+	NEO    INEO
+	Policy IPolicy
 
 	initialSupply int64
 }
-
-const gasContractID = -6
 
 // GASFactor is a divisor for finding GAS integral value.
 const GASFactor = NEOTotalSupply
@@ -37,7 +36,7 @@ func newGAS(init int64) *GAS {
 	}
 	defer g.BuildHFSpecificMD(g.ActiveIn())
 
-	nep17 := newNEP17Native(nativenames.Gas, gasContractID, nil)
+	nep17 := newNEP17Native(nativenames.Gas, nativeids.GasToken, nil)
 	nep17.symbol = "GAS"
 	nep17.decimals = 8
 	nep17.factor = GASFactor
@@ -97,7 +96,7 @@ func (g *GAS) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 	if err != nil {
 		return err
 	}
-	g.mint(ic, h, big.NewInt(g.initialSupply), false)
+	g.Mint(ic, h, big.NewInt(g.initialSupply), false)
 	return nil
 }
 
@@ -113,7 +112,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	}
 	for _, tx := range ic.Block.Transactions {
 		absAmount := big.NewInt(tx.SystemFee + tx.NetworkFee)
-		g.burn(ic, tx.Sender(), absAmount)
+		g.Burn(ic, tx.Sender(), absAmount)
 	}
 	validators := g.NEO.GetNextBlockValidatorsInternal(ic.DAO)
 	primary := validators[ic.Block.PrimaryIndex].GetScriptHash()
@@ -128,7 +127,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 			netFee -= (int64(na.NKeys) + 1) * g.Policy.GetAttributeFeeInternal(ic.DAO, transaction.NotaryAssistedT)
 		}
 	}
-	g.mint(ic, primary, big.NewInt(int64(netFee)), false)
+	g.Mint(ic, primary, big.NewInt(int64(netFee)), false)
 	return nil
 }
 
