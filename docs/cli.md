@@ -115,8 +115,8 @@ Once DB reset is finished, the node can be started in a regular manner.
 
 ## Smart contracts
 
-Use `contract` command to create/compile/deploy/invoke/debug smart contracts,
-see [compiler documentation](compiler.md).
+Use `contract` command to create/compile/deploy/invoke/debug/update/destroy smart
+contracts, see [compiler documentation](compiler.md).
 
 ## Wallet operations
 

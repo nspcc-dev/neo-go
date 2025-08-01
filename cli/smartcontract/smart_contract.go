@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
@@ -116,6 +117,18 @@ func NewCommands() []*cli.Command {
 			Action:   cmdargs.EnsureNotEmpty("manifest"),
 		},
 	}...)
+	updateFlags := append([]cli.Flag{
+		&cli.StringFlag{
+			Name:    "in",
+			Aliases: []string{"i"},
+			Usage:   "Input file for the smart contract (*.nef)",
+		},
+		&cli.StringFlag{
+			Name:    "manifest",
+			Aliases: []string{"m"},
+			Usage:   "Manifest input file (*.manifest.json)",
+		},
+	}, invokeFunctionFlags...)
 	manifestAddGroupFlags := append([]cli.Flag{
 		&flags.AddressFlag{
 			Name:     "sender",
@@ -228,6 +241,30 @@ func NewCommands() []*cli.Command {
 `,
 				Action: contractDeploy,
 				Flags:  deployFlags,
+			},
+			{
+				Name:      "update",
+				Usage:     "Update deployed contract on the blockchain",
+				UsageText: "neo-go contract update -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [--await] scripthash [data...] [--] [signers...]",
+				Description: `Updates deployed contract on the chain. The gas parameter is for additional
+   gas to be added as a network fee to prioritize the transaction. The data 
+   parameter is an optional parameter to be passed to '_deploy' method. When
+   --await flag is specified, it waits for the transaction to be included 
+   in a block.
+`,
+				Action: contractUpdate,
+				Flags:  updateFlags,
+			},
+			{
+				Name:      "destroy",
+				Usage:     "Destroy deployed smart contract",
+				UsageText: "neo-go contract destroy -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] [--out file] [--force] [--await] scripthash [--] [signers...]",
+				Description: `Destroys deployed contract. The gas parameter is for additional
+	gas to be added as a network fee to prioritize the transaction. When --await flag is
+	specified, it waits for the transaction to be included in a block.
+`,
+				Action: contractDestroy,
+				Flags:  invokeFunctionFlags,
 			},
 			generateWrapperCmd,
 			generateRPCWrapperCmd,
@@ -817,6 +854,144 @@ func contractDeploy(ctx *cli.Context) error {
 	hash := state.CreateContractHash(sender, nefFile.Checksum, m.Name)
 	fmt.Fprintf(ctx.App.Writer, "Contract: %s\n", hash.StringLE())
 	return nil
+}
+
+// contractUpdate updates an existing smart contract.
+func contractUpdate(ctx *cli.Context) error {
+	var (
+		paramsStart   = 0
+		args          []string
+		nefBytes      []byte
+		manifestBytes []byte
+	)
+	args = ctx.Args().Slice()
+	if len(args) < 1 {
+		return cli.Exit(errNoScriptHash, 1)
+	}
+	contractHash, err := flags.ParseAddress(args[0])
+	if err != nil {
+		return cli.Exit(fmt.Errorf("invalid contract hash '%s': %w", args[0], err), 1)
+	}
+	paramsStart++
+
+	if ctx.String("in") == "" && ctx.String("manifest") == "" {
+		return cli.Exit(fmt.Errorf("no manifest and nef files for an updatable smart contract"), 1)
+	}
+	if ctx.String("in") != "" {
+		_, nefBytes, err = readNEFFile(ctx.String("in"))
+		if err != nil {
+			return cli.Exit(fmt.Errorf("failed to read nef file: %w", err), 1)
+		}
+	} else {
+		nefBytes, err = getNEFFromRPC(ctx, contractHash)
+		if err != nil {
+			return cli.Exit(fmt.Errorf("can't get nef file: %w", err), 1)
+		}
+	}
+
+	if ctx.String("manifest") != "" {
+		_, manifestBytes, err = readManifest(ctx.String("manifest"), contractHash)
+		if err != nil {
+			return cli.Exit(fmt.Errorf("failed to read manifest file: %w", err), 1)
+		}
+	} else {
+		manifestBytes, err = getManifestFromRPC(ctx, contractHash)
+		if err != nil {
+			return cli.Exit(fmt.Errorf("can't get manifest file: %w", err), 1)
+		}
+	}
+
+	params := []any{nefBytes, manifestBytes}
+
+	signOffset, data, err := cmdargs.ParseParams(args[paramsStart:], true)
+	if err != nil {
+		return cli.Exit(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
+	}
+	if len(data) > 1 {
+		return cli.Exit("'data' should be represented as a single parameter", 1)
+	}
+	if len(data) != 0 {
+		params = append(params, data[0])
+	}
+
+	acc, w, err := options.GetAccFromContext(ctx)
+	if err != nil {
+		return cli.Exit(fmt.Errorf("can't get sender address: %w", err), 1)
+	}
+	defer w.Close()
+
+	cosigners, exitErr := cmdargs.GetSignersFromContext(ctx, paramsStart+signOffset)
+	if exitErr != nil {
+		return exitErr
+	}
+	if len(cosigners) == 0 {
+		cosigners = []transaction.Signer{{
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		}}
+	}
+
+	return invokeWithArgs(ctx, acc, w, contractHash, "update", params, cosigners)
+}
+
+func getNEFFromRPC(ctx *cli.Context, hash util.Uint160) ([]byte, error) {
+	rpcURL := ctx.String("rpc-endpoint")
+	client, err := rpcclient.New(ctx.Context, rpcURL, rpcclient.Options{})
+	if err != nil {
+		return nil, err
+	}
+	contract, err := client.GetContractStateByHash(hash)
+	if err != nil {
+		return nil, err
+	}
+	return contract.NEF.Bytes()
+}
+
+func getManifestFromRPC(ctx *cli.Context, hash util.Uint160) ([]byte, error) {
+	rpcURL := ctx.String("rpc-endpoint")
+	client, err := rpcclient.New(ctx.Context, rpcURL, rpcclient.Options{})
+	if err != nil {
+		return nil, err
+	}
+	contract, err := client.GetContractStateByHash(hash)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(contract.Manifest)
+}
+
+// contractDestroy destroys an existing smart contract.
+func contractDestroy(ctx *cli.Context) error {
+	var paramsStart = 0
+	args := ctx.Args().Slice()
+	if len(args) < 1 {
+		return cli.Exit(errNoScriptHash, 1)
+	}
+	contractHash, err := flags.ParseAddress(args[0])
+	if err != nil {
+		return cli.Exit(fmt.Errorf("invalid contract hash '%s': %w", ctx.Args().First(), err), 1)
+	}
+	paramsStart++
+
+	acc, w, err := options.GetAccFromContext(ctx)
+	if err != nil {
+		return cli.Exit(fmt.Errorf("can't get sender address: %w", err), 1)
+	}
+	defer w.Close()
+
+	cosigners, signErr := cmdargs.GetSignersFromContext(ctx, paramsStart)
+	if signErr != nil {
+		return cli.Exit(fmt.Errorf("invalid signers: %w", signErr), 1)
+	}
+	if len(cosigners) == 0 {
+		cosigners = []transaction.Signer{{
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		}}
+	}
+
+	extErr := invokeWithArgs(ctx, acc, w, contractHash, "destroy", nil, cosigners)
+	return extErr
 }
 
 // ParseContractConfig reads contract configuration file (.yaml) and returns unmarshalled ProjectConfig.
