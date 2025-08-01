@@ -48,8 +48,8 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 
 	cs, currCs := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
-	require.NoError(t, native.PutContractState(ic.DAO, cs))
-	require.NoError(t, native.PutContractState(ic.DAO, currCs))
+	require.NoError(t, native.PutContractState(ic.DAO, bc.NativeManagementID(), cs))
+	require.NoError(t, native.PutContractState(ic.DAO, bc.NativeManagementID(), currCs))
 
 	currScript := currCs.NEF.Script
 	h := cs.Hash
