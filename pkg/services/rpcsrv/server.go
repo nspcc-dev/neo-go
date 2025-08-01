@@ -100,6 +100,7 @@ type (
 		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
 		GetMillisecondsPerBlock() uint32
 		GetMaxValidUntilBlockIncrement() uint32
+		NativeManagementID() int32
 		P2PSigExtensionsEnabled() bool
 		SubscribeForBlocks(ch chan *block.Block)
 		SubscribeForHeadersOfAddedBlocks(ch chan *block.Header)
@@ -1859,7 +1860,7 @@ func (s *Server) getFindStorageParams(reqParams params.Params, root ...util.Uint
 }
 
 func (s *Server) getHistoricalContractState(root util.Uint256, csHash util.Uint160) (*state.Contract, *neorpc.Error) {
-	csKey := makeStorageKey(native.ManagementContractID, native.MakeContractKey(csHash))
+	csKey := makeStorageKey(s.chain.NativeManagementID(), native.MakeContractKey(csHash))
 	csBytes, err := s.chain.GetStateModule().GetState(root, csKey)
 	if err != nil {
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrUnknownContract, fmt.Sprintf("Failed to get historical contract state: %s", err.Error()))

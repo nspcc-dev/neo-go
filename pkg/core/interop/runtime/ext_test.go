@@ -318,7 +318,7 @@ func TestCheckWitness(t *testing.T) {
 							},
 						},
 					}
-					require.NoError(t, native.PutContractState(ic.DAO, contractState))
+					require.NoError(t, native.PutContractState(ic.DAO, ic.Chain.NativeManagementID(), contractState))
 					loadScriptWithHashAndFlags(ic, contractScript, contractScriptHash, callflag.All)
 					ic.Tx = tx
 					check(t, ic, targetHash.BytesBE(), false, true)
@@ -499,7 +499,7 @@ func TestGetInvocationCounter(t *testing.T) {
 	v, ic, _ := createVM(t)
 
 	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
-	require.NoError(t, native.PutContractState(ic.DAO, cs))
+	require.NoError(t, native.PutContractState(ic.DAO, ic.Chain.NativeManagementID(), cs))
 
 	ic.Invocations[hash.Hash160([]byte{2})] = 42
 

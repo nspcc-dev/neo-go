@@ -46,8 +46,6 @@ type ManagementCache struct {
 }
 
 const (
-	ManagementContractID = -1
-
 	// PrefixContract is a prefix used to store contract states inside Management native contract.
 	PrefixContract     = 8
 	prefixContractHash = 12
@@ -201,7 +199,7 @@ func toHash160(si stackitem.Item) util.Uint160 {
 // VM protections, so it's OK for it to panic instead of returning errors.
 func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	hash := toHash160(args[0])
-	ctr, err := GetContract(ic.DAO, hash)
+	ctr, err := GetContract(ic.DAO, m.ID, hash)
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
 			return stackitem.Null{}
@@ -222,7 +220,7 @@ func (m *Management) getContractByID(ic *interop.Context, args []stackitem.Item)
 	if !idBig.IsInt64() || id < math.MinInt32 || id > math.MaxInt32 {
 		panic("id is not a correct int32")
 	}
-	ctr, err := GetContractByID(ic.DAO, int32(id))
+	ctr, err := GetContractByID(ic.DAO, m.ID, int32(id))
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
 			return stackitem.Null{}
@@ -233,8 +231,8 @@ func (m *Management) getContractByID(ic *interop.Context, args []stackitem.Item)
 }
 
 // GetContract returns a contract with the given hash from the given DAO.
-func GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
-	cache := d.GetROCache(ManagementContractID).(*ManagementCache)
+func GetContract(d *dao.Simple, managementID int32, hash util.Uint160) (*state.Contract, error) {
+	cache := d.GetROCache(managementID).(*ManagementCache)
 	return getContract(cache, hash)
 }
 
@@ -248,19 +246,19 @@ func getContract(cache *ManagementCache, hash util.Uint160) (*state.Contract, er
 }
 
 // GetContractByID returns a contract with the given ID from the given DAO.
-func GetContractByID(d *dao.Simple, id int32) (*state.Contract, error) {
-	hash, err := GetContractScriptHash(d, id)
+func GetContractByID(d *dao.Simple, managementID int32, id int32) (*state.Contract, error) {
+	hash, err := GetContractScriptHash(d, managementID, id)
 	if err != nil {
 		return nil, err
 	}
-	return GetContract(d, hash)
+	return GetContract(d, managementID, hash)
 }
 
 // GetContractScriptHash returns a contract hash associated with the given ID from the given DAO.
-func GetContractScriptHash(d *dao.Simple, id int32) (util.Uint160, error) {
+func GetContractScriptHash(d *dao.Simple, managementID int32, id int32) (util.Uint160, error) {
 	key := make([]byte, 5)
 	key = putHashKey(key, id)
-	si := d.GetStorageItem(ManagementContractID, key)
+	si := d.GetStorageItem(managementID, key)
 	if si == nil {
 		return util.Uint160{}, storage.ErrKeyNotFound
 	}
@@ -391,8 +389,8 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 	return contractToStack(newcontract)
 }
 
-func markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Contract) {
-	cache := d.GetRWCache(ManagementContractID).(*ManagementCache)
+func markUpdated(d *dao.Simple, managementID int32, hash util.Uint160, cs *state.Contract) {
+	cache := d.GetRWCache(managementID).(*ManagementCache)
 	delete(cache.nep11, hash)
 	delete(cache.nep17, hash)
 	if cs == nil {
@@ -409,7 +407,7 @@ func (m *Management) Deploy(ic *interop.Context, sender util.Uint160, neff *nef.
 	if m.Policy.IsBlocked(ic.DAO, h) {
 		return nil, fmt.Errorf("the contract %s has been blocked", h.StringLE())
 	}
-	_, err := GetContract(ic.DAO, h)
+	_, err := GetContract(ic.DAO, m.ID, h)
 	if err == nil {
 		return nil, errors.New("contract already exists")
 	}
@@ -433,7 +431,7 @@ func (m *Management) Deploy(ic *interop.Context, sender util.Uint160, neff *nef.
 			Manifest: *manif,
 		},
 	}
-	err = PutContractState(ic.DAO, newcontract)
+	err = PutContractState(ic.DAO, m.ID, newcontract)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +469,7 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	var contract state.Contract
 
-	oldcontract, err := GetContract(ic.DAO, hash)
+	oldcontract, err := GetContract(ic.DAO, m.ID, hash)
 	if err != nil {
 		return nil, errors.New("contract doesn't exist")
 	}
@@ -500,7 +498,7 @@ func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.Fi
 		return nil, err
 	}
 	contract.UpdateCounter++
-	err = PutContractState(ic.DAO, &contract)
+	err = PutContractState(ic.DAO, m.ID, &contract)
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +522,7 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 
 // Destroy drops the given contract from DAO along with its storage. It doesn't emit notification.
 func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
-	contract, err := GetContract(d, hash)
+	contract, err := GetContract(d, m.ID, hash)
 	if err != nil {
 		return err
 	}
@@ -538,7 +536,7 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 		return true
 	})
 	m.Policy.BlockAccountInternal(d, hash)
-	markUpdated(d, hash, nil)
+	markUpdated(d, m.ID, hash, nil)
 	return nil
 }
 
@@ -589,7 +587,7 @@ func (m *Management) hasMethod(ic *interop.Context, args []stackitem.Item) stack
 		panic(err)
 	}
 	pcount := int(toInt64((args[2])))
-	cs, err := GetContract(ic.DAO, cHash)
+	cs, err := GetContract(ic.DAO, m.ID, cHash)
 	if err != nil {
 		return stackitem.NewBool(false)
 	}
@@ -598,7 +596,7 @@ func (m *Management) hasMethod(ic *interop.Context, args []stackitem.Item) stack
 
 func (m *Management) isContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	h := toHash160(args[0])
-	_, err := GetContract(ic.DAO, h)
+	_, err := GetContract(ic.DAO, m.ID, h)
 	return stackitem.NewBool(err == nil)
 }
 
@@ -682,7 +680,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 			contract.UpdateCounter++
 			cs = &contract
 		}
-		err := putContractState(ic.DAO, cs, false) // Perform cache update manually.
+		err := putContractState(ic.DAO, m.ID, cs, false) // Perform cache update manually.
 		if err != nil {
 			return fmt.Errorf("failed to put contract state: %w", err)
 		}
@@ -799,24 +797,24 @@ func (m *Management) ActiveIn() *config.Hardfork {
 }
 
 // PutContractState saves given contract state into given DAO.
-func PutContractState(d *dao.Simple, cs *state.Contract) error {
-	return putContractState(d, cs, true)
+func PutContractState(d *dao.Simple, managementID int32, cs *state.Contract) error {
+	return putContractState(d, managementID, cs, true)
 }
 
 // putContractState is an internal PutContractState representation.
-func putContractState(d *dao.Simple, cs *state.Contract, updateCache bool) error {
+func putContractState(d *dao.Simple, managementID int32, cs *state.Contract, updateCache bool) error {
 	key := MakeContractKey(cs.Hash)
-	if err := putConvertibleToDAO(ManagementContractID, d, key, cs); err != nil {
+	if err := putConvertibleToDAO(managementID, d, key, cs); err != nil {
 		return err
 	}
 	if updateCache {
-		markUpdated(d, cs.Hash, cs)
+		markUpdated(d, managementID, cs.Hash, cs)
 	}
 	if cs.UpdateCounter != 0 { // Update.
 		return nil
 	}
 	key = putHashKey(key, cs.ID)
-	d.PutStorageItem(ManagementContractID, key, cs.Hash.BytesBE())
+	d.PutStorageItem(managementID, key, cs.Hash.BytesBE())
 	return nil
 }
 
