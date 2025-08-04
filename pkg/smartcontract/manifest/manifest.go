@@ -34,6 +34,8 @@ const (
 	NEP26StandardName = "NEP-26"
 	// NEP27StandardName represents the name of NEP-27 smartcontract standard.
 	NEP27StandardName = "NEP-27"
+	// NEP31StandardName represents the name of NEP-31 smartcontract standard for destroyable contracts.
+	NEP31StandardName = "NEP-31"
 
 	emptyFeatures = "{}"
 )

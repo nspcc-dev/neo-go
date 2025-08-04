@@ -26,6 +26,7 @@ var checks = map[string][]*Standard{
 	manifest.NEP27StandardName: {Nep27},
 	manifest.NEP24StandardName: {Nep24},
 	manifest.NEP24Payable:      {Nep24Payable},
+	manifest.NEP31StandardName: {Nep31},
 }
 
 // Check checks if the manifest complies with all provided standards.

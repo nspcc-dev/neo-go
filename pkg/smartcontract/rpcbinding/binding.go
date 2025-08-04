@@ -161,6 +161,8 @@ type Actor interface {
 	nep17.Actor
 {{else if .IsNep22}}
 	nep22.Actor
+{{else if .IsNep31}}
+	nep31.Actor
 {{end}}
 {{- if len .Methods}}
 	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
@@ -199,6 +201,8 @@ type Contract struct {
 	{{if .IsNep17}}nep17.TokenWriter
 	{{end -}}
 	{{if .IsNep22}}nep22.Contract
+	{{end -}}
+	{{if .IsNep31}}nep31.Contract
 	{{end -}}
 	actor Actor
 	hash util.Uint160
@@ -243,6 +247,7 @@ func New(actor Actor{{- if not (len .Hash) -}}, hash util.Uint160{{- end -}}) *C
 		{{- if .IsNep11ND}}nep11ndt.BaseWriter, {{end -}}
 		{{- if .IsNep17}}nep17t.TokenWriter, {{end -}}
 		{{- if .IsNep22}}nep22.NewContract(actor, hash), {{end -}}
+		{{- if .IsNep31}}nep31.NewContract(actor, hash), {{end -}}
 		actor, hash}
 }
 {{end -}}
@@ -420,6 +425,7 @@ type (
 		IsNep22        bool
 		IsNep24        bool
 		IsNep24Payable bool
+		IsNep31        bool
 
 		HasReader   bool
 		HasWriter   bool
@@ -499,6 +505,11 @@ func Generate(cfg binding.Config) error {
 			if standard.ComplyABI(cfg.Manifest, standard.Nep24Payable) == nil {
 				ctr.IsNep24Payable = true
 			}
+		case manifest.NEP31StandardName:
+			if standard.ComplyABI(cfg.Manifest, standard.Nep31) == nil {
+				imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep31"] = struct{}{}
+				ctr.IsNep31 = true
+			}
 		}
 	}
 
@@ -524,6 +535,9 @@ func Generate(cfg binding.Config) error {
 	}
 	if ctr.IsNep24Payable {
 		mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep24Payable)
+	}
+	if ctr.IsNep31 {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep31)
 	}
 
 	// OnNepXXPayment handlers normally can't be called directly.
@@ -1134,7 +1148,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	if len(ctr.Methods) > 0 {
 		imports["github.com/nspcc-dev/neo-go/pkg/core/transaction"] = struct{}{}
 	}
-	if len(ctr.Methods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep22 {
+	if len(ctr.Methods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep22 || ctr.IsNep31 {
 		ctr.HasWriter = true
 	}
 	if len(ctr.SafeMethods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep24 {
