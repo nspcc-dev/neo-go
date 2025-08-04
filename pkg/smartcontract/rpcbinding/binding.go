@@ -159,6 +159,8 @@ type Actor interface {
 	nep11.Actor
 {{else if .IsNep17}}
 	nep17.Actor
+{{else if .IsNep22}}
+	nep22.Actor
 {{end}}
 {{- if len .Methods}}
 	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
@@ -195,6 +197,8 @@ type Contract struct {
 	{{if .IsNep11ND}}nep11.BaseWriter
 	{{end -}}
 	{{if .IsNep17}}nep17.TokenWriter
+	{{end -}}
+	{{if .IsNep22}}nep22.Contract
 	{{end -}}
 	actor Actor
 	hash util.Uint160
@@ -238,6 +242,7 @@ func New(actor Actor{{- if not (len .Hash) -}}, hash util.Uint160{{- end -}}) *C
 		{{- if .IsNep11D}}nep11dt.DivisibleWriter, {{end -}}
 		{{- if .IsNep11ND}}nep11ndt.BaseWriter, {{end -}}
 		{{- if .IsNep17}}nep17t.TokenWriter, {{end -}}
+		{{- if .IsNep22}}nep22.NewContract(actor, hash), {{end -}}
 		actor, hash}
 }
 {{end -}}
@@ -412,6 +417,7 @@ type (
 		IsNep11D       bool
 		IsNep11ND      bool
 		IsNep17        bool
+		IsNep22        bool
 		IsNep24        bool
 		IsNep24Payable bool
 
@@ -479,6 +485,11 @@ func Generate(cfg binding.Config) error {
 				imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"] = struct{}{}
 				ctr.IsNep17 = true
 			}
+		case manifest.NEP22StandardName:
+			if standard.ComplyABI(cfg.Manifest, standard.Nep22) == nil {
+				imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep22"] = struct{}{}
+				ctr.IsNep22 = true
+			}
 		case manifest.NEP24StandardName:
 			if standard.ComplyABI(cfg.Manifest, standard.Nep24) == nil {
 				imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep24"] = struct{}{}
@@ -503,6 +514,9 @@ func Generate(cfg binding.Config) error {
 	if ctr.IsNep17 {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17)
 		mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep17)
+	}
+	if ctr.IsNep22 {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep22)
 	}
 	if ctr.IsNep24 {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep24)
@@ -1120,7 +1134,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	if len(ctr.Methods) > 0 {
 		imports["github.com/nspcc-dev/neo-go/pkg/core/transaction"] = struct{}{}
 	}
-	if len(ctr.Methods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND {
+	if len(ctr.Methods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep22 {
 		ctr.HasWriter = true
 	}
 	if len(ctr.SafeMethods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep24 {

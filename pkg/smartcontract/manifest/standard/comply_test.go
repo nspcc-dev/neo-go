@@ -141,6 +141,15 @@ func TestCheck(t *testing.T) {
 	require.NoError(t, CheckABI(m, manifest.NEP17StandardName))
 }
 
+func TestCheck_NEP22(t *testing.T) {
+	m := manifest.NewManifest("Test")
+	require.Error(t, Check(m, manifest.NEP22StandardName))
+
+	m.ABI.Methods = append(m.ABI.Methods, Nep22.ABI.Methods...)
+	m.ABI.Events = append(m.ABI.Events, Nep22.ABI.Events...)
+	require.NoError(t, Check(m, manifest.NEP22StandardName))
+}
+
 func TestOptional(t *testing.T) {
 	var m Standard
 	m.Optional = []manifest.Method{{
