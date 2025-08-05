@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -29,10 +30,10 @@ import (
 // Notary represents Notary native contract.
 type Notary struct {
 	interop.ContractMD
-	GAS    *GAS
-	NEO    *NEO
-	Desig  *Designate
-	Policy *Policy
+	GAS    IGAS
+	NEO    INEO
+	Desig  IDesignate
+	Policy IPolicy
 }
 
 type NotaryCache struct {
@@ -45,7 +46,6 @@ type NotaryService interface {
 }
 
 const (
-	notaryContractID = -10
 	// prefixDeposit is a prefix for storing Notary deposits.
 	prefixDeposit                 = 1
 	defaultDepositDeltaTill       = 5760
@@ -75,52 +75,52 @@ func copyNotaryCache(src, dst *NotaryCache) {
 
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
-	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary, notaryContractID, func(m *manifest.Manifest, hf config.Hardfork) {
+	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary, nativeids.Notary, func(m *manifest.Manifest, hf config.Hardfork) {
 		m.SupportedStandards = []string{manifest.NEP27StandardName}
 	})}
 	defer n.BuildHFSpecificMD(n.ActiveIn())
 
-	desc := newDescriptor("onNEP17Payment", smartcontract.VoidType,
+	desc := NewDescriptor("onNEP17Payment", smartcontract.VoidType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md := newMethodAndPrice(n.onPayment, 1<<15, callflag.States)
+	md := NewMethodAndPrice(n.onPayment, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("lockDepositUntil", smartcontract.BoolType,
+	desc = NewDescriptor("lockDepositUntil", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("till", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.lockDepositUntil, 1<<15, callflag.States)
+	md = NewMethodAndPrice(n.lockDepositUntil, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("withdraw", smartcontract.BoolType,
+	desc = NewDescriptor("withdraw", smartcontract.BoolType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("to", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.withdraw, 1<<15, callflag.All)
+	md = NewMethodAndPrice(n.withdraw, 1<<15, callflag.All)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
+	desc = NewDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.balanceOf, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(n.balanceOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("expirationOf", smartcontract.IntegerType,
+	desc = NewDescriptor("expirationOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.expirationOf, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(n.expirationOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("verify", smartcontract.BoolType,
+	desc = NewDescriptor("verify", smartcontract.BoolType,
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.verify, nativeprices.NotaryVerificationPrice, callflag.ReadStates)
+	md = NewMethodAndPrice(n.verify, nativeprices.NotaryVerificationPrice, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getMaxNotValidBeforeDelta", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.getMaxNotValidBeforeDelta, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getMaxNotValidBeforeDelta", smartcontract.IntegerType)
+	md = NewMethodAndPrice(n.getMaxNotValidBeforeDelta, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxNotValidBeforeDelta", smartcontract.VoidType,
+	desc = NewDescriptor("setMaxNotValidBeforeDelta", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setMaxNotValidBeforeDelta, 1<<15, callflag.States)
+	md = NewMethodAndPrice(n.setMaxNotValidBeforeDelta, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
 	return n
@@ -199,7 +199,7 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 	feePerKey := n.Policy.GetAttributeFeeInternal(ic.DAO, transaction.NotaryAssistedT)
 	singleReward := calculateNotaryReward(nFees, feePerKey, len(notaries))
 	for _, notary := range notaries {
-		n.GAS.mint(ic, notary.GetScriptHash(), singleReward, false)
+		n.GAS.Mint(ic, notary.GetScriptHash(), singleReward, false)
 	}
 	return nil
 }
@@ -217,7 +217,7 @@ func (n *Notary) ActiveIn() *config.Hardfork {
 // onPayment records the deposited amount as belonging to "from" address with a lock
 // till the specified chain's height.
 func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	if h := ic.VM.GetCallingScriptHash(); h != n.GAS.Hash {
+	if h := ic.VM.GetCallingScriptHash(); h != n.GAS.Metadata().Hash {
 		panic(fmt.Errorf("only GAS can be accepted for deposit, got %s", h.StringBE()))
 	}
 	from := toUint160(args[0])
@@ -316,7 +316,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if ic.BlockHeight() < deposit.Till {
 		return stackitem.NewBool(false)
 	}
-	cs, err := ic.GetContract(n.GAS.Hash)
+	cs, err := ic.GetContract(n.GAS.Metadata().Hash)
 	if err != nil {
 		panic(fmt.Errorf("failed to get GAS contract state: %w", err))
 	}
@@ -434,7 +434,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.BlockHeight())) {
 		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.BlockHeight())))
 	}
-	if !n.NEO.checkCommittee(ic) {
+	if !n.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))

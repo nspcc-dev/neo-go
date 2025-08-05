@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
@@ -36,17 +37,17 @@ import (
 )
 
 func TestContractHashes(t *testing.T) {
-	cs := native.NewContracts(config.ProtocolConfiguration{})
-	require.Equalf(t, []byte(neo.Hash), cs.NEO.Hash.BytesBE(), "%q", string(cs.NEO.Hash.BytesBE()))
-	require.Equalf(t, []byte(gas.Hash), cs.GAS.Hash.BytesBE(), "%q", string(cs.GAS.Hash.BytesBE()))
-	require.Equalf(t, []byte(oracle.Hash), cs.Oracle.Hash.BytesBE(), "%q", string(cs.Oracle.Hash.BytesBE()))
-	require.Equalf(t, []byte(roles.Hash), cs.Designate.Hash.BytesBE(), "%q", string(cs.Designate.Hash.BytesBE()))
-	require.Equalf(t, []byte(policy.Hash), cs.Policy.Hash.BytesBE(), "%q", string(cs.Policy.Hash.BytesBE()))
-	require.Equalf(t, []byte(ledger.Hash), cs.Ledger.Hash.BytesBE(), "%q", string(cs.Ledger.Hash.BytesBE()))
-	require.Equalf(t, []byte(management.Hash), cs.Management.Hash.BytesBE(), "%q", string(cs.Management.Hash.BytesBE()))
-	require.Equalf(t, []byte(notary.Hash), cs.Notary.Hash.BytesBE(), "%q", string(cs.Notary.Hash.BytesBE()))
-	require.Equalf(t, []byte(crypto.Hash), cs.Crypto.Hash.BytesBE(), "%q", string(cs.Crypto.Hash.BytesBE()))
-	require.Equalf(t, []byte(std.Hash), cs.Std.Hash.BytesBE(), "%q", string(cs.Std.Hash.BytesBE()))
+	cs := native.NewContracts(native.NewDefaultContracts(config.ProtocolConfiguration{}))
+	require.Equalf(t, []byte(neo.Hash), cs.NEO().Metadata().Hash.BytesBE(), "%q", string(cs.NEO().Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(gas.Hash), cs.GAS().Metadata().Hash.BytesBE(), "%q", string(cs.GAS().Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(oracle.Hash), cs.Oracle().Metadata().Hash.BytesBE(), "%q", string(cs.Oracle().Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(roles.Hash), cs.Designate().Metadata().Hash.BytesBE(), "%q", string(cs.Designate().Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(policy.Hash), cs.Policy().Metadata().Hash.BytesBE(), "%q", string(cs.Policy().Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(ledger.Hash), cs.ByName(nativenames.Ledger).Metadata().Hash.BytesBE(), "%q", string(cs.ByName(nativenames.Ledger).Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(management.Hash), cs.Management().Metadata().Hash.BytesBE(), "%q", string(cs.Management().Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(notary.Hash), cs.Notary().Metadata().Hash.BytesBE(), "%q", string(cs.Notary().Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(crypto.Hash), cs.ByName(nativenames.CryptoLib).Metadata().Hash.BytesBE(), "%q", string(cs.ByName(nativenames.CryptoLib).Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(std.Hash), cs.ByName(nativenames.StdLib).Metadata().Hash.BytesBE(), "%q", string(cs.ByName(nativenames.StdLib).Metadata().Hash.BytesBE()))
 }
 
 func TestContractParameterTypes(t *testing.T) {
@@ -146,7 +147,7 @@ type nativeTestCase struct {
 
 // Here we test that corresponding method does exist, is invoked and correct value is returned.
 func TestNativeHelpersCompile(t *testing.T) {
-	cs := native.NewContracts(config.ProtocolConfiguration{})
+	cs := native.NewContracts(native.NewDefaultContracts(config.ProtocolConfiguration{}))
 	u160 := `interop.Hash160("aaaaaaaaaaaaaaaaaaaa")`
 	u256 := `interop.Hash256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
 	pub := `interop.PublicKey("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
@@ -158,7 +159,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"totalSupply", nil},
 		{"transfer", []string{u160, u160, "123", "nil"}},
 	}
-	runNativeTestCases(t, cs.NEO.ContractMD, "neo", append([]nativeTestCase{
+	runNativeTestCases(t, *cs.NEO().Metadata(), "neo", append([]nativeTestCase{
 		{"getCandidates", nil},
 		{"getAllCandidates", nil},
 		{"getCandidateVote", []string{pub}},
@@ -175,17 +176,17 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"unregisterCandidate", []string{pub}},
 		{"getAccountState", []string{u160}},
 	}, nep17TestCases...))
-	runNativeTestCases(t, cs.GAS.ContractMD, "gas", nep17TestCases)
-	runNativeTestCases(t, cs.Oracle.ContractMD, "oracle", []nativeTestCase{
+	runNativeTestCases(t, *cs.GAS().Metadata(), "gas", nep17TestCases)
+	runNativeTestCases(t, *cs.ByName(nativenames.Oracle).Metadata(), "oracle", []nativeTestCase{
 		{"getPrice", nil},
 		{"request", []string{`"url"`, "nil", `"callback"`, "nil", "123"}},
 		{"setPrice", []string{"10"}},
 	})
-	runNativeTestCases(t, cs.Designate.ContractMD, "roles", []nativeTestCase{
+	runNativeTestCases(t, *cs.Designate().Metadata(), "roles", []nativeTestCase{
 		{"designateAsRole", []string{"1", "[]interop.PublicKey{}"}},
 		{"getDesignatedByRole", []string{"1", "1000"}},
 	})
-	runNativeTestCases(t, cs.Policy.ContractMD, "policy", []nativeTestCase{
+	runNativeTestCases(t, *cs.Policy().Metadata(), "policy", []nativeTestCase{
 		{"blockAccount", []string{u160}},
 		{"getExecFeeFactor", nil},
 		{"getFeePerByte", nil},
@@ -202,7 +203,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"getMillisecondsPerBlock", nil},
 		{"setMillisecondsPerBlock", []string{"10"}},
 	})
-	runNativeTestCases(t, cs.Ledger.ContractMD, "ledger", []nativeTestCase{
+	runNativeTestCases(t, *cs.ByName(nativenames.Ledger).Metadata(), "ledger", []nativeTestCase{
 		{"currentHash", nil},
 		{"currentIndex", nil},
 		{"getBlock", []string{"1"}},
@@ -212,7 +213,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"getTransactionSigners", []string{u256}},
 		{"getTransactionVMState", []string{u256}},
 	})
-	runNativeTestCases(t, cs.Notary.ContractMD, "notary", []nativeTestCase{
+	runNativeTestCases(t, *cs.Notary().Metadata(), "notary", []nativeTestCase{
 		{"lockDepositUntil", []string{u160, "123"}},
 		{"withdraw", []string{u160, u160}},
 		{"balanceOf", []string{u160}},
@@ -220,7 +221,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"getMaxNotValidBeforeDelta", nil},
 		{"setMaxNotValidBeforeDelta", []string{"42"}},
 	})
-	runNativeTestCases(t, cs.Management.ContractMD, "management", []nativeTestCase{
+	runNativeTestCases(t, *cs.Management().Metadata(), "management", []nativeTestCase{
 		{"deploy", []string{"nil", "nil"}},
 		{"deployWithData", []string{"nil", "nil", "123"}},
 		{"destroy", nil},
@@ -234,7 +235,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"updateWithData", []string{"nil", "nil", "123"}},
 		{"isContract", []string{u160}},
 	})
-	runNativeTestCases(t, cs.Crypto.ContractMD, "crypto", []nativeTestCase{
+	runNativeTestCases(t, *cs.ByName(nativenames.CryptoLib).Metadata(), "crypto", []nativeTestCase{
 		{"sha256", []string{"[]byte{1, 2, 3}"}},
 		{"ripemd160", []string{"[]byte{1, 2, 3}"}},
 		{"murmur32", []string{"[]byte{1, 2, 3}", "123"}},
@@ -249,7 +250,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"bls12381Pairing", []string{"crypto.Bls12381Point{}", "crypto.Bls12381Point{}"}},
 		{"keccak256", []string{"[]byte{1, 2, 3}"}},
 	})
-	runNativeTestCases(t, cs.Std.ContractMD, "std", []nativeTestCase{
+	runNativeTestCases(t, *cs.ByName(nativenames.StdLib).Metadata(), "std", []nativeTestCase{
 		{"serialize", []string{"[]byte{1, 2, 3}"}},
 		{"deserialize", []string{"[]byte{1, 2, 3}"}},
 		{"jsonSerialize", []string{"[]byte{1, 2, 3}"}},

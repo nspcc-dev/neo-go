@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -34,8 +35,8 @@ import (
 // NEO represents NEO native contract.
 type NEO struct {
 	nep17TokenNative
-	GAS    *GAS
-	Policy *Policy
+	GAS    IGAS
+	Policy IPolicy
 
 	// Configuration and standby keys are set in constructor and then
 	// only read from.
@@ -79,7 +80,6 @@ type NeoCache struct {
 }
 
 const (
-	neoContractID = -5
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
 	// DefaultRegisterPrice is the default price for candidate register.
@@ -170,7 +170,7 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	n := &NEO{}
 	defer n.BuildHFSpecificMD(n.ActiveIn())
 
-	nep17 := newNEP17Native(nativenames.Neo, neoContractID, func(m *manifest.Manifest, hf config.Hardfork) {
+	nep17 := newNEP17Native(nativenames.Neo, nativeids.NeoToken, func(m *manifest.Manifest, hf config.Hardfork) {
 		if hf.Cmp(config.HFEchidna) >= 0 {
 			m.SupportedStandards = append(m.SupportedStandards, manifest.NEP27StandardName)
 		}
@@ -188,114 +188,114 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 		panic(fmt.Errorf("failed to initialize NEO config cache: %w", err))
 	}
 
-	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
+	desc := NewDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("end", smartcontract.IntegerType))
-	md := newMethodAndPrice(n.unclaimedGas, 1<<17, callflag.ReadStates)
+	md := NewMethodAndPrice(n.unclaimedGas, 1<<17, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
+	desc = NewDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.registerCandidate, 0, callflag.States, config.HFDefault, config.HFEchidna)
+	md = NewMethodAndPrice(n.registerCandidate, 0, callflag.States, config.HFDefault, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	md = newMethodAndPrice(n.registerCandidate, 0, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(n.registerCandidate, 0, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,
+	desc = NewDescriptor("unregisterCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
+	md = NewMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("onNEP17Payment", smartcontract.VoidType,
+	desc = NewDescriptor("onNEP17Payment", smartcontract.VoidType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md = newMethodAndPrice(n.onNEP17Payment, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(n.onNEP17Payment, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("vote", smartcontract.BoolType,
+	desc = NewDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("voteTo", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.vote, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
+	md = NewMethodAndPrice(n.vote, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	md = newMethodAndPrice(n.vote, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(n.vote, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getCandidatesCall, 1<<22, callflag.ReadStates)
+	desc = NewDescriptor("getCandidates", smartcontract.ArrayType)
+	md = NewMethodAndPrice(n.getCandidatesCall, 1<<22, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getAllCandidates", smartcontract.InteropInterfaceType)
-	md = newMethodAndPrice(n.getAllCandidatesCall, 1<<22, callflag.ReadStates)
+	desc = NewDescriptor("getAllCandidates", smartcontract.InteropInterfaceType)
+	md = NewMethodAndPrice(n.getAllCandidatesCall, 1<<22, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getCandidateVote", smartcontract.IntegerType,
+	desc = NewDescriptor("getCandidateVote", smartcontract.IntegerType,
 		manifest.NewParameter("pubKey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.getCandidateVoteCall, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(n.getCandidateVoteCall, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getAccountState", smartcontract.ArrayType,
+	desc = NewDescriptor("getAccountState", smartcontract.ArrayType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.getAccountState, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(n.getAccountState, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getCommittee", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getCommittee, 1<<16, callflag.ReadStates)
+	desc = NewDescriptor("getCommittee", smartcontract.ArrayType)
+	md = NewMethodAndPrice(n.getCommittee, 1<<16, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getCommitteeAddress", smartcontract.Hash160Type)
-	md = newMethodAndPrice(n.getCommitteeAddress, 1<<16, callflag.ReadStates, config.HFCockatrice)
+	desc = NewDescriptor("getCommitteeAddress", smartcontract.Hash160Type)
+	md = NewMethodAndPrice(n.getCommitteeAddress, 1<<16, callflag.ReadStates, config.HFCockatrice)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getNextBlockValidators, 1<<16, callflag.ReadStates)
+	desc = NewDescriptor("getNextBlockValidators", smartcontract.ArrayType)
+	md = NewMethodAndPrice(n.getNextBlockValidators, 1<<16, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getGasPerBlock", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.getGASPerBlock, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getGasPerBlock", smartcontract.IntegerType)
+	md = NewMethodAndPrice(n.getGASPerBlock, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("setGasPerBlock", smartcontract.VoidType,
+	desc = NewDescriptor("setGasPerBlock", smartcontract.VoidType,
 		manifest.NewParameter("gasPerBlock", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setGASPerBlock, 1<<15, callflag.States)
+	md = NewMethodAndPrice(n.setGASPerBlock, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getRegisterPrice", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.getRegisterPrice, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getRegisterPrice", smartcontract.IntegerType)
+	md = NewMethodAndPrice(n.getRegisterPrice, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("setRegisterPrice", smartcontract.VoidType,
+	desc = NewDescriptor("setRegisterPrice", smartcontract.VoidType,
 		manifest.NewParameter("registerPrice", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setRegisterPrice, 1<<15, callflag.States)
+	md = NewMethodAndPrice(n.setRegisterPrice, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
-	eDesc := newEventDescriptor("CandidateStateChanged",
+	eDesc := NewEventDescriptor("CandidateStateChanged",
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType),
 		manifest.NewParameter("registered", smartcontract.BoolType),
 		manifest.NewParameter("votes", smartcontract.IntegerType),
 	)
-	eMD := newEvent(eDesc)
+	eMD := NewEvent(eDesc)
 	n.AddEvent(eMD)
 
-	eDesc = newEventDescriptor("Vote",
+	eDesc = NewEventDescriptor("Vote",
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("from", smartcontract.PublicKeyType),
 		manifest.NewParameter("to", smartcontract.PublicKeyType),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 	)
-	eMD = newEvent(eDesc)
+	eMD = NewEvent(eDesc)
 	n.AddEvent(eMD)
 
-	eDesc = newEventDescriptor("CommitteeChanged",
+	eDesc = NewEventDescriptor("CommitteeChanged",
 		manifest.NewParameter("old", smartcontract.ArrayType),
 		manifest.NewParameter("new", smartcontract.ArrayType),
 	)
-	eMD = newEvent(eDesc, config.HFCockatrice)
+	eMD = NewEvent(eDesc, config.HFCockatrice)
 	n.AddEvent(eMD)
 
 	return n
@@ -337,7 +337,7 @@ func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 	if err != nil {
 		return err
 	}
-	n.mint(ic, h, big.NewInt(NEOTotalSupply), false)
+	n.Mint(ic, h, big.NewInt(NEOTotalSupply), false)
 
 	var index uint32
 	value := big.NewInt(5 * GASFactor)
@@ -500,7 +500,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 	committeeSize := n.cfg.GetCommitteeSize(ic.Block.Index)
 	index := int(ic.Block.Index) % committeeSize
 	committeeReward := new(big.Int).Mul(gas, bigCommitteeRewardRatio)
-	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false)
+	n.GAS.Mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false)
 
 	var isCacheRW bool
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
@@ -595,7 +595,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		return nil, err
 	}
 	if newGas != nil { // Can be if it was already distributed in the same block.
-		postF = func() { n.GAS.mint(ic, h, newGas, true) }
+		postF = func() { n.GAS.Mint(ic, h, newGas, true) }
 	}
 	if amount.Sign() == 0 {
 		*si = acc.Bytes(ic.DAO.GetItemCtx())
@@ -689,7 +689,7 @@ func (n *NEO) GetCommitteeAddress(d *dao.Simple) util.Uint160 {
 	return cache.committeeHash
 }
 
-func (n *NEO) checkCommittee(ic *interop.Context) bool {
+func (n *NEO) CheckCommittee(ic *interop.Context) bool {
 	ok, err := runtime.CheckHashedWitness(ic, n.GetCommitteeAddress(ic.DAO))
 	if err != nil {
 		panic(err)
@@ -711,7 +711,7 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) er
 	if gas.Sign() == -1 || gas.Cmp(big.NewInt(10*GASFactor)) == 1 {
 		return errors.New("invalid value for GASPerBlock")
 	}
-	if !n.checkCommittee(ic) {
+	if !n.CheckCommittee(ic) {
 		return errors.New("invalid committee signature")
 	}
 	n.putGASRecord(ic.DAO, index, gas)
@@ -737,7 +737,7 @@ func (n *NEO) setRegisterPrice(ic *interop.Context, args []stackitem.Item) stack
 	if price.Sign() <= 0 || !price.IsInt64() {
 		panic("invalid register price")
 	}
-	if !n.checkCommittee(ic) {
+	if !n.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 
@@ -874,7 +874,7 @@ func (n *NEO) onNEP17Payment(ic *interop.Context, args []stackitem.Item) stackit
 		regPrice = n.getRegisterPriceInternal(ic.DAO)
 	)
 
-	if caller != n.GAS.Hash {
+	if caller != n.GAS.Metadata().Hash {
 		panic("only GAS is accepted")
 	}
 	if !amount.IsInt64() || amount.Int64() != regPrice {
@@ -884,7 +884,7 @@ func (n *NEO) onNEP17Payment(ic *interop.Context, args []stackitem.Item) stackit
 	if err != nil {
 		panic(err)
 	}
-	n.GAS.burn(ic, n.Hash, amount)
+	n.GAS.Burn(ic, n.Hash, amount)
 	return stackitem.Null{}
 }
 
@@ -1058,7 +1058,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	}
 
 	if newGas != nil { // Can be if it was already distributed in the same block.
-		n.GAS.mint(ic, h, newGas, true)
+		n.GAS.Mint(ic, h, newGas, true)
 	}
 	return nil
 }

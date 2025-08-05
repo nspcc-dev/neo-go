@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -23,9 +24,6 @@ import (
 )
 
 const (
-	// PolicyContractID is the ID of native Policy contract.
-	PolicyContractID = -7
-
 	defaultExecFeeFactor      = interop.DefaultBaseExecFee
 	defaultFeePerByte         = 1000
 	defaultMaxVerificationGas = 1_50000000
@@ -77,7 +75,7 @@ var (
 // Policy represents Policy native contract.
 type Policy struct {
 	interop.ContractMD
-	NEO *NEO
+	NEO INEO
 }
 
 type PolicyCache struct {
@@ -112,105 +110,105 @@ func copyPolicyCache(src, dst *PolicyCache) {
 
 // newPolicy returns Policy native contract.
 func newPolicy() *Policy {
-	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, PolicyContractID)}
+	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, nativeids.PolicyContract)}
 	defer p.BuildHFSpecificMD(p.ActiveIn())
 
-	desc := newDescriptor("getFeePerByte", smartcontract.IntegerType)
-	md := newMethodAndPrice(p.getFeePerByte, 1<<15, callflag.ReadStates)
+	desc := NewDescriptor("getFeePerByte", smartcontract.IntegerType)
+	md := NewMethodAndPrice(p.getFeePerByte, 1<<15, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("isBlocked", smartcontract.BoolType,
+	desc = NewDescriptor("isBlocked", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.isBlocked, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(p.isBlocked, 1<<15, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getExecFeeFactor", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getExecFeeFactor, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getExecFeeFactor", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getExecFeeFactor, 1<<15, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setExecFeeFactor", smartcontract.VoidType,
+	desc = NewDescriptor("setExecFeeFactor", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setExecFeeFactor, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.setExecFeeFactor, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getStoragePrice", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getStoragePrice, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getStoragePrice", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getStoragePrice, 1<<15, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setStoragePrice", smartcontract.VoidType,
+	desc = NewDescriptor("setStoragePrice", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setStoragePrice, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.setStoragePrice, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getAttributeFee", smartcontract.IntegerType,
+	desc = NewDescriptor("getAttributeFee", smartcontract.IntegerType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.getAttributeFeeV0, 1<<15, callflag.ReadStates, config.HFDefault, transaction.NotaryAssistedActivation)
+	md = NewMethodAndPrice(p.getAttributeFeeV0, 1<<15, callflag.ReadStates, config.HFDefault, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getAttributeFee", smartcontract.IntegerType,
+	desc = NewDescriptor("getAttributeFee", smartcontract.IntegerType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.getAttributeFeeV1, 1<<15, callflag.ReadStates, transaction.NotaryAssistedActivation)
+	md = NewMethodAndPrice(p.getAttributeFeeV1, 1<<15, callflag.ReadStates, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setAttributeFee", smartcontract.VoidType,
+	desc = NewDescriptor("setAttributeFee", smartcontract.VoidType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType),
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setAttributeFeeV0, 1<<15, callflag.States, config.HFDefault, transaction.NotaryAssistedActivation)
+	md = NewMethodAndPrice(p.setAttributeFeeV0, 1<<15, callflag.States, config.HFDefault, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setAttributeFee", smartcontract.VoidType,
+	desc = NewDescriptor("setAttributeFee", smartcontract.VoidType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType),
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setAttributeFeeV1, 1<<15, callflag.States, transaction.NotaryAssistedActivation)
+	md = NewMethodAndPrice(p.setAttributeFeeV1, 1<<15, callflag.States, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setFeePerByte", smartcontract.VoidType,
+	desc = NewDescriptor("setFeePerByte", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setFeePerByte, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.setFeePerByte, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("blockAccount", smartcontract.BoolType,
+	desc = NewDescriptor("blockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.blockAccount, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("unblockAccount", smartcontract.BoolType,
+	desc = NewDescriptor("unblockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.unblockAccount, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.unblockAccount, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getMaxValidUntilBlockIncrement", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getMaxValidUntilBlockIncrement, 1<<15, callflag.ReadStates, config.HFEchidna)
+	desc = NewDescriptor("getMaxValidUntilBlockIncrement", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getMaxValidUntilBlockIncrement, 1<<15, callflag.ReadStates, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxValidUntilBlockIncrement", smartcontract.VoidType,
+	desc = NewDescriptor("setMaxValidUntilBlockIncrement", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMaxValidUntilBlockIncrement, 1<<15, callflag.States, config.HFEchidna)
+	md = NewMethodAndPrice(p.setMaxValidUntilBlockIncrement, 1<<15, callflag.States, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("getMillisecondsPerBlock", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getMillisecondsPerBlock, 1<<15, callflag.ReadStates, config.HFEchidna)
+	desc = NewDescriptor("getMillisecondsPerBlock", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getMillisecondsPerBlock, 1<<15, callflag.ReadStates, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMillisecondsPerBlock", smartcontract.VoidType,
+	desc = NewDescriptor("setMillisecondsPerBlock", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMillisecondsPerBlock, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPrice(p.setMillisecondsPerBlock, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	eDesc := newEventDescriptor("MillisecondsPerBlockChanged",
+	eDesc := NewEventDescriptor("MillisecondsPerBlockChanged",
 		manifest.NewParameter("old", smartcontract.IntegerType),
 		manifest.NewParameter("new", smartcontract.IntegerType),
 	)
-	eMD := newEvent(eDesc, config.HFEchidna)
+	eMD := NewEvent(eDesc, config.HFEchidna)
 	p.AddEvent(eMD)
 
-	desc = newDescriptor("getMaxTraceableBlocks", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getMaxTraceableBlocks, 1<<15, callflag.ReadStates, config.HFEchidna)
+	desc = NewDescriptor("getMaxTraceableBlocks", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getMaxTraceableBlocks, 1<<15, callflag.ReadStates, config.HFEchidna)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxTraceableBlocks", smartcontract.VoidType,
+	desc = NewDescriptor("setMaxTraceableBlocks", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMaxTraceableBlocks, 1<<15, callflag.States, config.HFEchidna)
+	md = NewMethodAndPrice(p.setMaxTraceableBlocks, 1<<15, callflag.States, config.HFEchidna)
 	p.AddMethod(md, desc)
 
 	return p
@@ -369,7 +367,7 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 	if value <= 0 || maxExecFeeFactor < value {
 		panic(fmt.Errorf("ExecFeeFactor must be between 1 and %d", maxExecFeeFactor))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, int64(value))
@@ -421,7 +419,7 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	if value <= 0 || maxStoragePrice < value {
 		panic(fmt.Errorf("StoragePrice must be between 1 and %d", maxStoragePrice))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, storagePriceKey, int64(value))
@@ -476,7 +474,7 @@ func (p *Policy) setAttributeFeeGeneric(ic *interop.Context, args []stackitem.It
 	if value > maxAttributeFee {
 		panic(fmt.Errorf("attribute value is out of range: %d", value))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(t)}, int64(value))
@@ -491,7 +489,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	if value < 0 || value > maxFeePerByte {
 		panic(fmt.Errorf("FeePerByte shouldn't be negative or greater than %d", maxFeePerByte))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, feePerByteKey, value)
@@ -503,7 +501,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 // blockAccount is a Policy contract method that adds the given account hash to the list
 // of blocked accounts.
 func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	hash := toUint160(args[0])
@@ -512,9 +510,10 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 			panic("cannot block native contract")
 		}
 	}
-	return stackitem.NewBool(p.blockAccountInternal(ic.DAO, hash))
+	return stackitem.NewBool(p.BlockAccountInternal(ic.DAO, hash))
 }
-func (p *Policy) blockAccountInternal(d *dao.Simple, hash util.Uint160) bool {
+
+func (p *Policy) BlockAccountInternal(d *dao.Simple, hash util.Uint160) bool {
 	i, blocked := p.isBlockedInternal(d.GetROCache(p.ID).(*PolicyCache), hash)
 	if blocked {
 		return false
@@ -534,7 +533,7 @@ func (p *Policy) blockAccountInternal(d *dao.Simple, hash util.Uint160) bool {
 // unblockAccount is a Policy contract method that removes the given account hash from
 // the list of blocked accounts.
 func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	hash := toUint160(args[0])
@@ -579,7 +578,7 @@ func (p *Policy) setMaxValidUntilBlockIncrement(ic *interop.Context, args []stac
 	if value >= mtb {
 		panic(fmt.Errorf("MaxValidUntilBlockIncrement should be less than MaxTraceableBlocks %d, got %d", mtb, value))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, maxVUBIncrementKey, int64(value))
@@ -604,7 +603,7 @@ func (p *Policy) setMillisecondsPerBlock(ic *interop.Context, args []stackitem.I
 	if value <= 0 || maxMillisecondsPerBlock < value {
 		panic(fmt.Errorf("MillisecondsPerBlock should be positive and not greater than %d, got %d", maxMillisecondsPerBlock, value))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, msPerBlockKey, int64(value))
@@ -646,7 +645,7 @@ func (p *Policy) setMaxTraceableBlocks(ic *interop.Context, args []stackitem.Ite
 	if value <= maxVUBInc {
 		panic(fmt.Errorf("MaxTraceableBlocks should be larger than MaxValidUntilBlockIncrement %d, got %d", maxVUBInc, value))
 	}
-	if !p.NEO.checkCommittee(ic) {
+	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 

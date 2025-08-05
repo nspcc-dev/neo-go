@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	base58neogo "github.com/nspcc-dev/neo-go/pkg/encoding/base58"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -28,12 +29,8 @@ type Std struct {
 	interop.ContractMD
 }
 
-const (
-	stdContractID = -2
-
-	// stdMaxInputLength is the maximum input length for string-related methods.
-	stdMaxInputLength = 1024
-)
+// stdMaxInputLength is the maximum input length for string-related methods.
+const stdMaxInputLength = 1024
 
 var (
 	// ErrInvalidBase is returned when the base is invalid.
@@ -45,134 +42,134 @@ var (
 )
 
 func newStd() *Std {
-	s := &Std{ContractMD: *interop.NewContractMD(nativenames.StdLib, stdContractID)}
+	s := &Std{ContractMD: *interop.NewContractMD(nativenames.StdLib, nativeids.StdLib)}
 	defer s.BuildHFSpecificMD(s.ActiveIn())
 
-	desc := newDescriptor("serialize", smartcontract.ByteArrayType,
+	desc := NewDescriptor("serialize", smartcontract.ByteArrayType,
 		manifest.NewParameter("item", smartcontract.AnyType))
-	md := newMethodAndPrice(s.serialize, 1<<12, callflag.NoneFlag)
+	md := NewMethodAndPrice(s.serialize, 1<<12, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("deserialize", smartcontract.AnyType,
+	desc = NewDescriptor("deserialize", smartcontract.AnyType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(s.deserialize, 1<<14, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.deserialize, 1<<14, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("jsonSerialize", smartcontract.ByteArrayType,
+	desc = NewDescriptor("jsonSerialize", smartcontract.ByteArrayType,
 		manifest.NewParameter("item", smartcontract.AnyType))
-	md = newMethodAndPrice(s.jsonSerialize, 1<<12, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.jsonSerialize, 1<<12, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("jsonDeserialize", smartcontract.AnyType,
+	desc = NewDescriptor("jsonDeserialize", smartcontract.AnyType,
 		manifest.NewParameter("json", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(s.jsonDeserialize, 1<<14, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.jsonDeserialize, 1<<14, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("itoa", smartcontract.StringType,
+	desc = NewDescriptor("itoa", smartcontract.StringType,
 		manifest.NewParameter("value", smartcontract.IntegerType),
 		manifest.NewParameter("base", smartcontract.IntegerType))
-	md = newMethodAndPrice(s.itoa, 1<<12, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.itoa, 1<<12, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("itoa", smartcontract.StringType,
+	desc = NewDescriptor("itoa", smartcontract.StringType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(s.itoa10, 1<<12, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.itoa10, 1<<12, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("atoi", smartcontract.IntegerType,
+	desc = NewDescriptor("atoi", smartcontract.IntegerType,
 		manifest.NewParameter("value", smartcontract.StringType),
 		manifest.NewParameter("base", smartcontract.IntegerType))
-	md = newMethodAndPrice(s.atoi, 1<<6, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.atoi, 1<<6, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("atoi", smartcontract.IntegerType,
+	desc = NewDescriptor("atoi", smartcontract.IntegerType,
 		manifest.NewParameter("value", smartcontract.StringType))
-	md = newMethodAndPrice(s.atoi10, 1<<6, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.atoi10, 1<<6, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("base64Encode", smartcontract.StringType,
+	desc = NewDescriptor("base64Encode", smartcontract.StringType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(s.base64Encode, 1<<5, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.base64Encode, 1<<5, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("base64Decode", smartcontract.ByteArrayType,
+	desc = NewDescriptor("base64Decode", smartcontract.ByteArrayType,
 		manifest.NewParameter("s", smartcontract.StringType))
-	md = newMethodAndPrice(s.base64Decode, 1<<5, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.base64Decode, 1<<5, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("base64UrlEncode", smartcontract.StringType,
+	desc = NewDescriptor("base64UrlEncode", smartcontract.StringType,
 		manifest.NewParameter("data", smartcontract.StringType))
-	md = newMethodAndPrice(s.base64UrlEncode, 1<<5, callflag.NoneFlag, config.HFEchidna)
+	md = NewMethodAndPrice(s.base64UrlEncode, 1<<5, callflag.NoneFlag, config.HFEchidna)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("base64UrlDecode", smartcontract.StringType,
+	desc = NewDescriptor("base64UrlDecode", smartcontract.StringType,
 		manifest.NewParameter("s", smartcontract.StringType))
-	md = newMethodAndPrice(s.base64UrlDecode, 1<<5, callflag.NoneFlag, config.HFEchidna)
+	md = NewMethodAndPrice(s.base64UrlDecode, 1<<5, callflag.NoneFlag, config.HFEchidna)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("base58Encode", smartcontract.StringType,
+	desc = NewDescriptor("base58Encode", smartcontract.StringType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(s.base58Encode, 1<<13, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.base58Encode, 1<<13, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("base58Decode", smartcontract.ByteArrayType,
+	desc = NewDescriptor("base58Decode", smartcontract.ByteArrayType,
 		manifest.NewParameter("s", smartcontract.StringType))
-	md = newMethodAndPrice(s.base58Decode, 1<<10, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.base58Decode, 1<<10, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("base58CheckEncode", smartcontract.StringType,
+	desc = NewDescriptor("base58CheckEncode", smartcontract.StringType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(s.base58CheckEncode, 1<<16, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.base58CheckEncode, 1<<16, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("base58CheckDecode", smartcontract.ByteArrayType,
+	desc = NewDescriptor("base58CheckDecode", smartcontract.ByteArrayType,
 		manifest.NewParameter("s", smartcontract.StringType))
-	md = newMethodAndPrice(s.base58CheckDecode, 1<<16, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.base58CheckDecode, 1<<16, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("memoryCompare", smartcontract.IntegerType,
+	desc = NewDescriptor("memoryCompare", smartcontract.IntegerType,
 		manifest.NewParameter("str1", smartcontract.ByteArrayType),
 		manifest.NewParameter("str2", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(s.memoryCompare, 1<<5, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.memoryCompare, 1<<5, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("memorySearch", smartcontract.IntegerType,
+	desc = NewDescriptor("memorySearch", smartcontract.IntegerType,
 		manifest.NewParameter("mem", smartcontract.ByteArrayType),
 		manifest.NewParameter("value", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(s.memorySearch2, 1<<6, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.memorySearch2, 1<<6, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("memorySearch", smartcontract.IntegerType,
+	desc = NewDescriptor("memorySearch", smartcontract.IntegerType,
 		manifest.NewParameter("mem", smartcontract.ByteArrayType),
 		manifest.NewParameter("value", smartcontract.ByteArrayType),
 		manifest.NewParameter("start", smartcontract.IntegerType))
-	md = newMethodAndPrice(s.memorySearch3, 1<<6, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.memorySearch3, 1<<6, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("memorySearch", smartcontract.IntegerType,
+	desc = NewDescriptor("memorySearch", smartcontract.IntegerType,
 		manifest.NewParameter("mem", smartcontract.ByteArrayType),
 		manifest.NewParameter("value", smartcontract.ByteArrayType),
 		manifest.NewParameter("start", smartcontract.IntegerType),
 		manifest.NewParameter("backward", smartcontract.BoolType))
-	md = newMethodAndPrice(s.memorySearch4, 1<<6, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.memorySearch4, 1<<6, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("stringSplit", smartcontract.ArrayType,
+	desc = NewDescriptor("stringSplit", smartcontract.ArrayType,
 		manifest.NewParameter("str", smartcontract.StringType),
 		manifest.NewParameter("separator", smartcontract.StringType))
-	md = newMethodAndPrice(s.stringSplit2, 1<<8, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.stringSplit2, 1<<8, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("stringSplit", smartcontract.ArrayType,
+	desc = NewDescriptor("stringSplit", smartcontract.ArrayType,
 		manifest.NewParameter("str", smartcontract.StringType),
 		manifest.NewParameter("separator", smartcontract.StringType),
 		manifest.NewParameter("removeEmptyEntries", smartcontract.BoolType))
-	md = newMethodAndPrice(s.stringSplit3, 1<<8, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.stringSplit3, 1<<8, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("strLen", smartcontract.IntegerType,
+	desc = NewDescriptor("strLen", smartcontract.IntegerType,
 		manifest.NewParameter("str", smartcontract.StringType))
-	md = newMethodAndPrice(s.strLen, 1<<8, callflag.NoneFlag)
+	md = NewMethodAndPrice(s.strLen, 1<<8, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	return s

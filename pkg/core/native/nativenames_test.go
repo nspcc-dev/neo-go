@@ -10,8 +10,8 @@ import (
 )
 
 func TestNativenamesIsValid(t *testing.T) {
-	contracts := NewContracts(config.ProtocolConfiguration{})
-	for _, c := range contracts.Contracts {
+	contracts := NewDefaultContracts(config.ProtocolConfiguration{})
+	for _, c := range contracts {
 		require.True(t, nativenames.IsValid(c.Metadata().Name), fmt.Errorf("add %s to nativenames.IsValid(...)", c))
 	}
 

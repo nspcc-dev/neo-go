@@ -27,7 +27,7 @@ import (
 func TestPut(t *testing.T) {
 	_, cs, ic, _ := createVMAndContractState(t)
 
-	require.NoError(t, native.PutContractState(ic.DAO, cs))
+	require.NoError(t, native.PutContractState(ic.DAO, ic.Chain.NativeManagementID(), cs))
 
 	initVM := func(t *testing.T, key, value []byte, gas int64) {
 		v := ic.SpawnVM()
@@ -84,7 +84,7 @@ func TestPut(t *testing.T) {
 func TestDelete(t *testing.T) {
 	v, cs, ic, _ := createVMAndContractState(t)
 
-	require.NoError(t, native.PutContractState(ic.DAO, cs))
+	require.NoError(t, native.PutContractState(ic.DAO, ic.Chain.NativeManagementID(), cs))
 	v.LoadScriptWithHash(cs.NEF.Script, cs.Hash, callflag.All)
 	put := func(key, value string, flag int) {
 		v.Estack().PushVal(value)
@@ -146,7 +146,7 @@ func TestFind(t *testing.T) {
 		[]byte{222},
 	}
 
-	require.NoError(t, native.PutContractState(context.DAO, contractState))
+	require.NoError(t, native.PutContractState(context.DAO, context.Chain.NativeManagementID(), contractState))
 
 	id := contractState.ID
 

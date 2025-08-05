@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -32,10 +33,10 @@ import (
 // Oracle represents Oracle native contract.
 type Oracle struct {
 	interop.ContractMD
-	GAS *GAS
-	NEO *NEO
+	GAS   IGAS
+	NEO   INEO
+	Desig IDesignate
 
-	Desig        *Designate
 	oracleScript []byte
 
 	// Module is an oracle module capable of talking with the external world.
@@ -65,7 +66,6 @@ type OracleService interface {
 }
 
 const (
-	oracleContractID  = -9
 	maxURLLength      = 256
 	maxFilterLength   = 128
 	maxCallbackLength = 32
@@ -115,49 +115,49 @@ func copyOracleCache(src, dst *OracleCache) {
 
 func newOracle() *Oracle {
 	o := &Oracle{
-		ContractMD:  *interop.NewContractMD(nativenames.Oracle, oracleContractID),
+		ContractMD:  *interop.NewContractMD(nativenames.Oracle, nativeids.OracleContract),
 		newRequests: make(map[uint64]*state.OracleRequest),
 	}
 	defer o.BuildHFSpecificMD(o.ActiveIn())
 
 	o.oracleScript = CreateOracleResponseScript(o.Hash)
 
-	desc := newDescriptor("request", smartcontract.VoidType,
+	desc := NewDescriptor("request", smartcontract.VoidType,
 		manifest.NewParameter("url", smartcontract.StringType),
 		manifest.NewParameter("filter", smartcontract.StringType),
 		manifest.NewParameter("callback", smartcontract.StringType),
 		manifest.NewParameter("userData", smartcontract.AnyType),
 		manifest.NewParameter("gasForResponse", smartcontract.IntegerType))
-	md := newMethodAndPrice(o.request, 0, callflag.States|callflag.AllowNotify)
+	md := NewMethodAndPrice(o.request, 0, callflag.States|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
-	desc = newDescriptor("finish", smartcontract.VoidType)
-	md = newMethodAndPrice(o.finish, 0, callflag.States|callflag.AllowCall|callflag.AllowNotify)
+	desc = NewDescriptor("finish", smartcontract.VoidType)
+	md = NewMethodAndPrice(o.finish, 0, callflag.States|callflag.AllowCall|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
-	desc = newDescriptor("verify", smartcontract.BoolType)
-	md = newMethodAndPrice(o.verify, 1<<15, callflag.NoneFlag)
+	desc = NewDescriptor("verify", smartcontract.BoolType)
+	md = NewMethodAndPrice(o.verify, 1<<15, callflag.NoneFlag)
 	o.AddMethod(md, desc)
 
-	eDesc := newEventDescriptor("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
+	eDesc := NewEventDescriptor("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("RequestContract", smartcontract.Hash160Type),
 		manifest.NewParameter("Url", smartcontract.StringType),
 		manifest.NewParameter("Filter", smartcontract.StringType))
-	eMD := newEvent(eDesc)
+	eMD := NewEvent(eDesc)
 	o.AddEvent(eMD)
 
-	eDesc = newEventDescriptor("OracleResponse", manifest.NewParameter("Id", smartcontract.IntegerType),
+	eDesc = NewEventDescriptor("OracleResponse", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("OriginalTx", smartcontract.Hash256Type))
-	eMD = newEvent(eDesc)
+	eMD = NewEvent(eDesc)
 	o.AddEvent(eMD)
 
-	desc = newDescriptor("getPrice", smartcontract.IntegerType)
-	md = newMethodAndPrice(o.getPrice, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("getPrice", smartcontract.IntegerType)
+	md = NewMethodAndPrice(o.getPrice, 1<<15, callflag.ReadStates)
 	o.AddMethod(md, desc)
 
-	desc = newDescriptor("setPrice", smartcontract.VoidType,
+	desc = NewDescriptor("setPrice", smartcontract.VoidType,
 		manifest.NewParameter("price", smartcontract.IntegerType))
-	md = newMethodAndPrice(o.setPrice, 1<<15, callflag.States)
+	md = NewMethodAndPrice(o.setPrice, 1<<15, callflag.States)
 	o.AddMethod(md, desc)
 
 	return o
@@ -231,7 +231,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 	}
 	for i := range reward {
-		o.GAS.mint(ic, nodes[i].GetScriptHash(), &reward[i], false)
+		o.GAS.Mint(ic, nodes[i].GetScriptHash(), &reward[i], false)
 	}
 
 	if len(removedIDs) != 0 {
@@ -281,6 +281,11 @@ func (o *Oracle) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32
 // ActiveIn implements the Contract interface.
 func (o *Oracle) ActiveIn() *config.Hardfork {
 	return nil
+}
+
+// SetService implements IOracle interface.
+func (o *Oracle) SetService(s OracleService) {
+	o.Module.Store(&s)
 }
 
 func getResponse(tx *transaction.Transaction) *transaction.OracleResponse {
@@ -397,7 +402,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return ErrNotEnoughGas
 	}
 	callingHash := ic.VM.GetCallingScriptHash()
-	o.GAS.mint(ic, o.Hash, gas, false)
+	o.GAS.Mint(ic, o.Hash, gas, false)
 	si := ic.DAO.GetStorageItem(o.ID, prefixRequestID)
 	itemID := bigint.FromBytes(si)
 	id := itemID.Uint64()
@@ -513,7 +518,7 @@ func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.
 	if price.Sign() <= 0 || !price.IsInt64() {
 		panic("invalid register price")
 	}
-	if !o.NEO.checkCommittee(ic) {
+	if !o.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64())

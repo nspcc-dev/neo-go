@@ -53,21 +53,21 @@ func newNEP17Native(name string, id int32, onManifestConstruction func(m *manife
 		}
 	})}
 
-	desc := newDescriptor("symbol", smartcontract.StringType)
-	md := newMethodAndPrice(n.Symbol, 0, callflag.NoneFlag)
+	desc := NewDescriptor("symbol", smartcontract.StringType)
+	md := NewMethodAndPrice(n.Symbol, 0, callflag.NoneFlag)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("decimals", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.Decimals, 0, callflag.NoneFlag)
+	desc = NewDescriptor("decimals", smartcontract.IntegerType)
+	md = NewMethodAndPrice(n.Decimals, 0, callflag.NoneFlag)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.TotalSupply, 1<<15, callflag.ReadStates)
+	desc = NewDescriptor("totalSupply", smartcontract.IntegerType)
+	md = NewMethodAndPrice(n.TotalSupply, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
+	desc = NewDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.balanceOf, 1<<15, callflag.ReadStates)
+	md = NewMethodAndPrice(n.balanceOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	transferParams := []manifest.Parameter{
@@ -75,15 +75,15 @@ func newNEP17Native(name string, id int32, onManifestConstruction func(m *manife
 		manifest.NewParameter("to", smartcontract.Hash160Type),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 	}
-	desc = newDescriptor("transfer", smartcontract.BoolType,
+	desc = NewDescriptor("transfer", smartcontract.BoolType,
 		append(transferParams, manifest.NewParameter("data", smartcontract.AnyType))...,
 	)
-	md = newMethodAndPrice(n.Transfer, 1<<17, callflag.States|callflag.AllowCall|callflag.AllowNotify)
+	md = NewMethodAndPrice(n.Transfer, 1<<17, callflag.States|callflag.AllowCall|callflag.AllowNotify)
 	md.StorageFee = 50
 	n.AddMethod(md, desc)
 
-	eDesc := newEventDescriptor("Transfer", transferParams...)
-	eMD := newEvent(eDesc)
+	eDesc := NewEventDescriptor("Transfer", transferParams...)
+	eMD := NewEvent(eDesc)
 	n.AddEvent(eMD)
 
 	return n
@@ -275,7 +275,7 @@ func (c *nep17TokenNative) balanceOfInternal(d *dao.Simple, h util.Uint160) *big
 	return balance
 }
 
-func (c *nep17TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool) {
+func (c *nep17TokenNative) Mint(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool) {
 	if amount.Sign() == 0 {
 		return
 	}
@@ -283,7 +283,7 @@ func (c *nep17TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big
 	c.postTransfer(ic, nil, &h, amount, stackitem.Null{}, callOnPayment, postF)
 }
 
-func (c *nep17TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big.Int) {
+func (c *nep17TokenNative) Burn(ic *interop.Context, h util.Uint160, amount *big.Int) {
 	if amount.Sign() == 0 {
 		return
 	}
@@ -319,7 +319,7 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	return postF
 }
 
-func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Parameter) *manifest.Method {
+func NewDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Parameter) *manifest.Method {
 	if len(ps) == 0 {
 		ps = []manifest.Parameter{}
 	}
@@ -330,10 +330,10 @@ func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Para
 	}
 }
 
-// newMethodAndPrice builds method with the provided descriptor and ActiveFrom/ActiveTill hardfork
+// NewMethodAndPrice builds method with the provided descriptor and ActiveFrom/ActiveTill hardfork
 // values consequently specified via activations. [config.HFDefault] specfied as ActiveFrom is treated
 // as active starting from the genesis block.
-func newMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag, activations ...config.Hardfork) *interop.MethodAndPrice {
+func NewMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag, activations ...config.Hardfork) *interop.MethodAndPrice {
 	md := &interop.MethodAndPrice{
 		HFSpecificMethodAndPrice: interop.HFSpecificMethodAndPrice{
 			Func:          f,
@@ -352,7 +352,7 @@ func newMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag, 
 	return md
 }
 
-func newEventDescriptor(name string, ps ...manifest.Parameter) *manifest.Event {
+func NewEventDescriptor(name string, ps ...manifest.Parameter) *manifest.Event {
 	if len(ps) == 0 {
 		ps = []manifest.Parameter{}
 	}
@@ -364,7 +364,7 @@ func newEventDescriptor(name string, ps ...manifest.Parameter) *manifest.Event {
 
 // newEvent builds event with the provided descriptor and ActiveFrom/ActiveTill hardfork
 // values consequently specified via activations.
-func newEvent(desc *manifest.Event, activations ...config.Hardfork) interop.Event {
+func NewEvent(desc *manifest.Event, activations ...config.Hardfork) interop.Event {
 	md := interop.Event{
 		HFSpecificEvent: interop.HFSpecificEvent{
 			MD: desc,

@@ -17,7 +17,7 @@ import (
 )
 
 func TestDeployGetUpdateDestroyContract(t *testing.T) {
-	mgmt := newManagement()
+	mgmt := NewManagement()
 	mgmt.Policy = newPolicy()
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
 	ic := &interop.Context{DAO: d}
@@ -59,11 +59,11 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	require.Equal(t, ne, &contract2.NEF)
 	require.Equal(t, *manif, contract2.Manifest)
 
-	refContract, err := GetContract(d, h)
+	refContract, err := GetContract(d, mgmt.ID, h)
 	require.NoError(t, err)
 	require.Equal(t, contract, refContract)
 
-	refContract, err = GetContractByID(d, contract.ID)
+	refContract, err = GetContractByID(d, mgmt.ID, contract.ID)
 	require.NoError(t, err)
 	require.Equal(t, contract, refContract)
 
@@ -74,28 +74,28 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 
 	err = mgmt.Destroy(d, h)
 	require.NoError(t, err)
-	_, err = GetContract(d, h)
+	_, err = GetContract(d, mgmt.ID, h)
 	require.Error(t, err)
-	_, err = GetContractByID(d, contract.ID)
+	_, err = GetContractByID(d, mgmt.ID, contract.ID)
 	require.Error(t, err)
 }
 
 func TestManagement_Initialize(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		d := dao.NewSimple(storage.NewMemoryStore(), false)
-		mgmt := newManagement()
+		mgmt := NewManagement()
 		require.NoError(t, mgmt.InitializeCache(func(hf *config.Hardfork, blockHeight uint32) bool { return false }, 0, d))
 	})
 	t.Run("invalid contract state", func(t *testing.T) {
 		d := dao.NewSimple(storage.NewMemoryStore(), false)
-		mgmt := newManagement()
-		d.PutStorageItem(mgmt.ID, []byte{PrefixContract}, state.StorageItem{0xFF})
+		mgmt := NewManagement()
+		d.PutStorageItem(mgmt.Metadata().ID, []byte{PrefixContract}, state.StorageItem{0xFF})
 		require.Error(t, mgmt.InitializeCache(func(hf *config.Hardfork, blockHeight uint32) bool { return false }, 0, d))
 	})
 }
 
 func TestManagement_GetNEP17Contracts(t *testing.T) {
-	mgmt := newManagement()
+	mgmt := NewManagement()
 	mgmt.Policy = newPolicy()
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
 	err := mgmt.Initialize(&interop.Context{DAO: d}, nil, nil)
@@ -147,11 +147,11 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 
 	// No changes expected in lower store.
 	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(d))
-	c1Lower, err := GetContract(d, c1.Hash)
+	c1Lower, err := GetContract(d, mgmt.ID, c1.Hash)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(c1Lower.Manifest.ABI.Methods))
 	require.Equal(t, []util.Uint160{c1Updated.Hash}, mgmt.GetNEP17Contracts(private))
-	c1Upper, err := GetContract(private, c1Updated.Hash)
+	c1Upper, err := GetContract(private, mgmt.ID, c1Updated.Hash)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(c1Upper.Manifest.ABI.Methods))
 
@@ -159,7 +159,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	_, err = private.Persist()
 	require.NoError(t, err)
 	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(d))
-	c1Lower, err = GetContract(d, c1.Hash)
+	c1Lower, err = GetContract(d, mgmt.ID, c1.Hash)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(c1Lower.Manifest.ABI.Methods))
 }

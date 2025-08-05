@@ -13,9 +13,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
-	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -30,17 +30,18 @@ import (
 // Designate represents a designation contract.
 type Designate struct {
 	interop.ContractMD
-	NEO *NEO
+	NEO INEO
 
 	// initialNodeRoles defines a set of node roles that should be defined at the contract
 	// deployment (initialization).
 	initialNodeRoles map[noderoles.Role]keys.PublicKeys
 
+	// OracleService represents an Oracle node module.
 	OracleService atomic.Value
 	// NotaryService represents a Notary node module.
 	NotaryService atomic.Value
 	// StateRootService represents a StateRoot node module.
-	StateRootService *stateroot.Module
+	StateRootService atomic.Value
 }
 
 type roleData struct {
@@ -59,9 +60,13 @@ type DesignationCache struct {
 	notaries         roleData
 }
 
-const (
-	designateContractID = -8
+// StateRootService specifies state root module interface.
+type StateRootService interface {
+	// UpdateStateValidators updates state validator nodes.
+	UpdateStateValidators(uint32, keys.PublicKeys)
+}
 
+const (
 	// maxNodeCount is the maximum number of nodes to set the role for.
 	maxNodeCount = 32
 
@@ -95,36 +100,37 @@ func copyDesignationCache(src, dst *DesignationCache) {
 	*dst = *src
 }
 
-func newDesignate(initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
-	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
+// NewDesignate creates a new RoleManagement contract.
+func NewDesignate(initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
+	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, nativeids.RoleManagement)}
 	defer s.BuildHFSpecificMD(s.ActiveIn())
 
 	s.initialNodeRoles = initialNodeRoles
 
-	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,
+	desc := NewDescriptor("getDesignatedByRole", smartcontract.ArrayType,
 		manifest.NewParameter("role", smartcontract.IntegerType),
 		manifest.NewParameter("index", smartcontract.IntegerType))
-	md := newMethodAndPrice(s.getDesignatedByRole, 1<<15, callflag.ReadStates)
+	md := NewMethodAndPrice(s.getDesignatedByRole, 1<<15, callflag.ReadStates)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("designateAsRole", smartcontract.VoidType,
+	desc = NewDescriptor("designateAsRole", smartcontract.VoidType,
 		manifest.NewParameter("role", smartcontract.IntegerType),
 		manifest.NewParameter("nodes", smartcontract.ArrayType))
-	md = newMethodAndPrice(s.designateAsRole, 1<<15, callflag.States|callflag.AllowNotify)
+	md = NewMethodAndPrice(s.designateAsRole, 1<<15, callflag.States|callflag.AllowNotify)
 	s.AddMethod(md, desc)
 
-	eDesc := newEventDescriptor(DesignationEventName,
+	eDesc := NewEventDescriptor(DesignationEventName,
 		manifest.NewParameter("Role", smartcontract.IntegerType),
 		manifest.NewParameter("BlockIndex", smartcontract.IntegerType))
-	eMD := newEvent(eDesc, config.HFDefault, config.HFEchidna)
+	eMD := NewEvent(eDesc, config.HFDefault, config.HFEchidna)
 	s.AddEvent(eMD)
 
-	eDesc = newEventDescriptor(DesignationEventName,
+	eDesc = NewEventDescriptor(DesignationEventName,
 		manifest.NewParameter("Role", smartcontract.IntegerType),
 		manifest.NewParameter("BlockIndex", smartcontract.IntegerType),
 		manifest.NewParameter("Old", smartcontract.ArrayType),
 		manifest.NewParameter("New", smartcontract.ArrayType))
-	eMD = newEvent(eDesc, config.HFEchidna)
+	eMD = NewEvent(eDesc, config.HFEchidna)
 	s.AddEvent(eMD)
 
 	return s
@@ -202,6 +208,21 @@ func (s *Designate) ActiveIn() *config.Hardfork {
 	return nil
 }
 
+// SetOracleService implements IDesignate interface.
+func (s *Designate) SetOracleService(o OracleService) {
+	s.OracleService.Store(&o)
+}
+
+// SetNotaryService implements IDesignate interface.
+func (s *Designate) SetNotaryService(n NotaryService) {
+	s.NotaryService.Store(&n)
+}
+
+// SetStateRootService implements IDesignate interface.
+func (s *Designate) SetStateRootService(sr StateRootService) {
+	s.StateRootService.Store(&sr)
+}
+
 func (s *Designate) getDesignatedByRole(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	r, ok := s.getRole(args[0])
 	if !ok {
@@ -272,8 +293,8 @@ func (s *Designate) notifyRoleChanged(v *roleData, r noderoles.Role) {
 			(*ntr).UpdateNotaryNodes(v.nodes.Copy())
 		}
 	case noderoles.StateValidator:
-		if s.StateRootService != nil {
-			s.StateRootService.UpdateStateValidators(v.height, v.nodes.Copy())
+		if sr, _ := s.StateRootService.Load().(*StateRootService); sr != nil && *sr != nil {
+			(*sr).UpdateStateValidators(v.height, v.nodes.Copy())
 		}
 	default:
 	}
