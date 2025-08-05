@@ -49,6 +49,18 @@ var (
 		Aliases: []string{addressFlagAlias},
 		Usage:   "Address to use as transaction signee (and gas source)",
 	}
+	inFlag = &cli.StringFlag{
+		Name:    "in",
+		Aliases: []string{"i"},
+		Usage:   "Input file for the smart contract (*.nef)",
+		Action:  cmdargs.EnsureNotEmpty("in"),
+	}
+	manifestFlag = &cli.StringFlag{
+		Name:    "manifest",
+		Aliases: []string{"m"},
+		Usage:   "Manifest input file (*.manifest.json)",
+		Action:  cmdargs.EnsureNotEmpty("manifest"),
+	}
 )
 
 // ModVersion contains `pkg/interop` module version
@@ -100,22 +112,18 @@ func NewCommands() []*cli.Command {
 	}
 	invokeFunctionFlags = append(invokeFunctionFlags, options.Wallet...)
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
-	deployFlags := append(invokeFunctionFlags, []cli.Flag{
-		&cli.StringFlag{
-			Name:     "in",
-			Aliases:  []string{"i"},
-			Required: true,
-			Usage:    "Input file for the smart contract (*.nef)",
-			Action:   cmdargs.EnsureNotEmpty("in"),
+	deployFlags := append(invokeFunctionFlags,
+		cloneFlag(inFlag, true),
+		cloneFlag(manifestFlag, true),
+	)
+	updateFlags := append([]cli.Flag{
+		cloneFlag(inFlag, false),
+		cloneFlag(manifestFlag, false),
+		&cli.BoolFlag{
+			Name:  "strict",
+			Usage: "Fail immediately on NEP-22 nil-data call failure (skip 2-param fallback attempt)",
 		},
-		&cli.StringFlag{
-			Name:     "manifest",
-			Aliases:  []string{"m"},
-			Required: true,
-			Usage:    "Manifest input file (*.manifest.json)",
-			Action:   cmdargs.EnsureNotEmpty("manifest"),
-		},
-	}...)
+	}, invokeFunctionFlags...)
 	manifestAddGroupFlags := append([]cli.Flag{
 		&flags.AddressFlag{
 			Name:     "sender",
@@ -228,6 +236,19 @@ func NewCommands() []*cli.Command {
 `,
 				Action: contractDeploy,
 				Flags:  deployFlags,
+			},
+			{
+				Name:      "update",
+				Usage:     "Update deployed smart contract on the blockchain",
+				UsageText: "neo-go contract update -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [--await] [--strict] scripthash [data...] [--] [signers...]",
+				Description: `Updates deployed contract on the chain. The gas parameter is for additional
+   gas to be added as a network fee to prioritize the transaction. The data 
+   parameter is an optional parameter to be passed to '_deploy' method. When
+   --await flag is specified, it waits for the transaction to be included 
+   in a block.
+`,
+				Action: contractUpdate,
+				Flags:  updateFlags,
 			},
 			generateWrapperCmd,
 			generateRPCWrapperCmd,
@@ -819,6 +840,89 @@ func contractDeploy(ctx *cli.Context) error {
 	return nil
 }
 
+// contractUpdate updates an existing smart contract.
+func contractUpdate(ctx *cli.Context) error {
+	var (
+		paramsStart   = 0
+		args          []string
+		nefBytes      []byte
+		manifestBytes []byte
+		nefParam      any
+		manifestParam any
+	)
+	args = ctx.Args().Slice()
+	if len(args) < 1 {
+		return cli.Exit(errNoScriptHash, 1)
+	}
+	contractHash, err := flags.ParseAddress(args[0])
+	if err != nil {
+		return cli.Exit(fmt.Errorf("invalid contract hash '%s': %w", args[0], err), 1)
+	}
+	paramsStart++
+
+	if ctx.String("in") != "" {
+		_, nefBytes, err = readNEFFile(ctx.String("in"))
+		if err != nil {
+			return cli.Exit(fmt.Errorf("failed to read .nef file: %w", err), 1)
+		}
+		nefParam = nefBytes
+	}
+	if ctx.String("manifest") != "" {
+		_, manifestBytes, err = readManifest(ctx.String("manifest"), contractHash)
+		if err != nil {
+			return cli.Exit(fmt.Errorf("failed to read manifest file: %w", err), 1)
+		}
+		manifestParam = manifestBytes
+	}
+	if nefBytes == nil && manifestBytes == nil {
+		return cli.Exit(fmt.Errorf("either manifest or .nef required"), 1)
+	}
+
+	params := []any{nefParam, manifestParam}
+
+	signOffset, data, err := cmdargs.ParseParams(args[paramsStart:], true)
+	if err != nil {
+		return cli.Exit(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
+	}
+	if len(data) > 1 {
+		return cli.Exit("'data' should be represented as a single parameter", 1)
+	}
+
+	acc, w, err := options.GetAccFromContext(ctx)
+	if err != nil {
+		return cli.Exit(fmt.Errorf("can't get sender address: %w", err), 1)
+	}
+	defer w.Close()
+
+	cosigners, exitErr := cmdargs.GetSignersFromContext(ctx, paramsStart+signOffset)
+	if exitErr != nil {
+		return exitErr
+	}
+	if len(cosigners) == 0 {
+		cosigners = []transaction.Signer{{
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		}}
+	}
+	if len(data) != 0 {
+		params = append(params, data[0])
+		return invokeWithArgs(ctx, acc, w, contractHash, "update", params, cosigners)
+	}
+
+	// First, try the NEP-22-style update (script, manifest, data)
+	// (or pass nil as “data” for NEP-22 compatibility).
+	params = append(params, nil)
+	err = invokeWithArgs(ctx, acc, w, contractHash, "update", params, cosigners)
+	// If that fails (and --strict isn’t set), fallback to the original format
+	// which expects only (script, manifest) with no extra data.
+	if err == nil || ctx.Bool("strict") ||
+		!strings.Contains(err.Error(), "System.Contract.Call failed: method not found: update/3.") &&
+			!strings.Contains(err.Error(), `Method "update" with 3 parameter(s) doesn't exist in the contract`) {
+		return err
+	}
+	return invokeWithArgs(ctx, acc, w, contractHash, "update", params[:2], cosigners)
+}
+
 // ParseContractConfig reads contract configuration file (.yaml) and returns unmarshalled ProjectConfig.
 func ParseContractConfig(confFile string) (ProjectConfig, error) {
 	conf := ProjectConfig{}
@@ -832,4 +936,10 @@ func ParseContractConfig(confFile string) (ProjectConfig, error) {
 		return conf, cli.Exit(fmt.Errorf("bad config: %w", err), 1)
 	}
 	return conf, nil
+}
+
+func cloneFlag(p *cli.StringFlag, required bool) *cli.StringFlag {
+	f := *p
+	f.Required = required
+	return &f
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/internal/versionutil"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -533,6 +535,167 @@ func TestDeployWithSigners(t *testing.T) {
 	require.Equal(t, transaction.Global, tx.Signers[0].Scopes)
 }
 
+func TestContractUpdate(t *testing.T) {
+	tmp := t.TempDir()
+	nefA := filepath.Join(tmp, "a.nef")
+	mfA := filepath.Join(tmp, "a.manifest.json")
+	nefB := filepath.Join(tmp, "b.nef")
+	mfB := filepath.Join(tmp, "b.manifest.json")
+
+	e := testcli.NewExecutor(t, true)
+	e.Run(t, "neo-go", "contract", "compile",
+		"--in", "testdata/deploy/main.go",
+		"--config", "testdata/deploy/neo-go.yml",
+		"--out", nefA, "--manifest", mfA)
+
+	e.Run(t, "neo-go", "contract", "compile",
+		"--in", "testdata/deploy/updated.go",
+		"--config", "testdata/deploy/neo-go.yml",
+		"--out", nefB, "--manifest", mfB)
+
+	e.In.WriteString(testcli.ValidatorPass + "\r")
+	e.Run(t, "neo-go", "contract", "deploy",
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+		"--wallet", testcli.ValidatorWallet,
+		"--address", testcli.ValidatorAddr,
+		"--in", nefA, "--manifest", mfA,
+		"--force", "--await",
+	)
+	_, _ = e.CheckAwaitableTxPersisted(t)
+	line, err := e.Out.ReadString('\n')
+	require.NoError(t, err)
+	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
+	hash, err := util.Uint160DecodeStringLE(line)
+	require.NoError(t, err)
+
+	e.Run(t, "neo-go", "contract", "testinvokefunction",
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+		hash.StringLE(),
+		"getValue",
+	)
+	res := new(result.Invoke)
+	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+	require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
+	require.Len(t, res.Stack, 1)
+	require.Equal(t, string(res.Stack[0].Value().([]byte)), "on create|sub create")
+
+	t.Run("missing hash", func(t *testing.T) {
+		e.RunWithErrorCheckExit(t, "no smart contract hash was provided, specify one as the first argument",
+			"neo-go", "contract", "update",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--in", nefA, "--manifest", mfA,
+		)
+	})
+
+	t.Run("invalid hash", func(t *testing.T) {
+		e.RunWithErrorCheckExit(t, "invalid contract hash",
+			"neo-go", "contract", "update",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--in", nefA, "--manifest", mfA,
+			"badhex",
+		)
+	})
+
+	t.Run("missing nef and manifest files", func(t *testing.T) {
+		e.RunWithErrorCheckExit(t, "either manifest or .nef required",
+			"neo-go", "contract", "update",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
+		)
+	})
+
+	t.Run("malformed data param", func(t *testing.T) {
+		e.RunWithErrorCheckExit(t, "unable to parse 'data' parameter: ",
+			"neo-go", "contract", "update",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--in", nefA, "--manifest", mfA,
+			testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
+			"[",
+		)
+	})
+
+	t.Run("too many data params", func(t *testing.T) {
+		e.RunWithErrorCheckExit(t, "'data' should be represented as a single parameter",
+			"neo-go", "contract", "update",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--in", nefA, "--manifest", mfA,
+			testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
+			"one", "two",
+		)
+	})
+
+	t.Run("missing wallet", func(t *testing.T) {
+		e.RunWithErrorCheckExit(t, "can't get sender address: ",
+			"neo-go", "contract", "update",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--in", nefA, "--manifest", mfA,
+			testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
+		)
+	})
+
+	t.Run("invalid signer", func(t *testing.T) {
+		e.In.WriteString(testcli.ValidatorPass + "\r")
+		e.RunWithErrorCheckExit(t, "failed to parse signer",
+			"neo-go", "contract", "update",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", testcli.ValidatorWallet,
+			"--in", nefB, "--manifest", mfB,
+			"--force", "--await",
+			hash.StringLE(),
+			"--", "badSigner",
+		)
+	})
+
+	t.Run("good with only manifest", func(t *testing.T) {
+		e.In.WriteString(testcli.ValidatorPass + "\r")
+		e.Run(t, "neo-go", "contract", "update",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", testcli.ValidatorWallet,
+			"--manifest", "testdata/deploy/update.manifest.json",
+			"--force", "--await",
+			hash.StringLE(),
+		)
+		_, _ = e.CheckAwaitableTxPersisted(t)
+
+		e.Run(t, "neo-go", "contract", "testinvokefunction",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			hash.StringLE(),
+			"getValueUpdated",
+		)
+		res2 := new(result.Invoke)
+		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res2))
+		require.Equal(t, vmstate.Halt.String(), res2.State, res2.FaultException)
+		require.Len(t, res2.Stack, 1)
+		require.Equal(t,
+			"on update|sub update",
+			string(res2.Stack[0].Value().([]byte)),
+		)
+	})
+
+	t.Run("good", func(t *testing.T) {
+		e.In.WriteString(testcli.ValidatorPass + "\r")
+		e.Run(t, "neo-go", "contract", "update",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", testcli.ValidatorWallet,
+			"--in", nefB, "--manifest", mfB,
+			"--force", "--await",
+			hash.StringLE(),
+		)
+		_, _ = e.CheckAwaitableTxPersisted(t)
+		require.NoError(t, err)
+
+		e.Run(t, "neo-go", "contract", "testinvokefunction",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			hash.StringLE(),
+			"newMethod",
+		)
+		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+		require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
+		require.Len(t, res.Stack, 1)
+		require.Equal(t, int64(42), res.Stack[0].Value().(*big.Int).Int64())
+	})
+}
+
 func TestContractManifestGroups(t *testing.T) {
 	e := testcli.NewExecutor(t, true)
 	tmpDir := t.TempDir()
@@ -993,6 +1156,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			h.StringLE(), "update",
 			"bytes:"+hex.EncodeToString(rawNef),
 			"bytes:"+hex.EncodeToString(rawManifest),
+			"",
 		)
 		e.CheckTxPersisted(t, "Sent invocation transaction ")
 
