@@ -80,7 +80,7 @@ jobs:
     needs: build_cli
     name: Build and push docker image
     runs-on: ubuntu-22.04
-
+    if: ${{ github.event_name != 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -124,7 +124,7 @@ jobs:
     needs: build_cli
     name: Build and push docker image (Windows Server Core)
     runs-on: windows-2022
-
+    if: ${{ github.event_name != 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
         with:
