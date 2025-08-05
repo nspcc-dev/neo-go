@@ -1,6 +1,6 @@
 name: "NameService"
 sourceurl: https://github.com/nspcc-dev/neo-go/
-supportedstandards: ["NEP-11"]
+supportedstandards: ["NEP-11", "NEP-22"]
 safemethods: ["balanceOf", "decimals", "symbol", "totalSupply", "tokensOf", "ownerOf",
               "tokens", "properties", "roots", "getPrice", "isAvailable", "getRecord",
               "resolve", "getAllRecords"]

@@ -268,11 +268,11 @@ func Destroy() {
 }
 
 // Update updates the contract, only its owner can do that.
-func Update(nef, manifest []byte) {
+func Update(nef, manifest []byte, data any) {
 	if !Verify() {
 		panic("only owner can update")
 	}
-	management.Update(nef, manifest)
+	management.UpdateWithData(nef, manifest, data)
 }
 
 // Properties returns properties of the given NFT.

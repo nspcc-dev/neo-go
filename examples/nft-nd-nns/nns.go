@@ -73,9 +73,9 @@ type RecordState struct {
 }
 
 // Update updates NameService contract.
-func Update(nef []byte, manifest string) {
+func Update(nef []byte, manifest []byte, data any) {
 	checkCommittee()
-	management.Update(nef, []byte(manifest))
+	management.UpdateWithData(nef, []byte(manifest), data)
 }
 
 // _deploy initializes defaults (total supply and registration price) on contract deploy.

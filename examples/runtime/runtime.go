@@ -73,9 +73,9 @@ func Destroy() {
 
 // Update updates the contract, only the owner can do that. _deploy will be called
 // after update.
-func Update(nef, manifest []byte) {
+func Update(nef, manifest []byte, data any) {
 	if !CheckWitness() {
 		panic("only owner can update")
 	}
-	management.Update(nef, manifest)
+	management.UpdateWithData(nef, manifest, data)
 }
