@@ -49,10 +49,10 @@ func CheckSenderWitness() {
 }
 
 // Update updates the contract with a new one.
-func Update(script, manifest []byte) {
+func Update(script, manifest []byte, data any) {
 	ctx := storage.GetReadOnlyContext()
 	mgmt := storage.Get(ctx, mgmtKey).(interop.Hash160)
-	contract.Call(mgmt, "update", contract.All, script, manifest)
+	contract.Call(mgmt, "update", contract.All, script, manifest, data)
 }
 
 // GetValue returns the stored value.
