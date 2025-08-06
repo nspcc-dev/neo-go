@@ -38,3 +38,11 @@ RPC server configuration setting SessionExpirationTime of `int` type has been
 replaced by SessionLifetime of `Duration` type.
 
 Removal of SessionExpirationTime is scheduled for 0.113.0 release.
+
+## Candidate registration via Neo.RegisterCandidate
+
+The original candidate registration command using the `Neo.RegisterCandidate`
+method has been superseded by the GAS transfer approach (`--useNEP17Transfer`).
+
+Removal of `Neo.RegisterCandidate`–based registration is scheduled for 0.115.0
+release.
