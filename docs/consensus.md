@@ -91,9 +91,9 @@ started at the previous step. We'll assume that you run the next command on
 the same node in default configuration with RPC interface available at port
 10332.
 
-Candidate registration is performed via NEO contract invocation that costs
-1000 GAS, so your account must have enough of it to pay. You need to provide
-your wallet and address to neo-go command:
+Candidate registration is performed via GAS transfer to native NeoToken contract
+that costs 1000 GAS by default. You need to provide your wallet and address to
+neo-go command:
 ```
 $ neo-go wallet candidate register -a NiKEkwz6i9q6gqfCizztDoHQh9r9BtdCNa -w wallet.json -r http://localhost:10332
 ```
@@ -106,6 +106,13 @@ you should then wait for it to settle in a block. If all goes well, it'll end
 with "HALT" state and your registration will be completed. You can use
 `query tx` command to see transaction status or `query candidates` to see if
 your candidate has been added.
+
+Candidate registration via call to `registerCandidate` method of native NeoToken
+contract is deprecated starting from Echidna hardfork. To enforce using the
+deprecated registration behaviour specify `--useRegisterCall` flag.
+```
+$ neo-go wallet candidate register -a NiKEkwz6i9q6gqfCizztDoHQh9r9BtdCNa -w wallet.json -r http://localhost:10332 --useRegisterCall
+```
 
 ### Voting
 
