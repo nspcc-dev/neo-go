@@ -781,18 +781,17 @@ func (c *WSClient) getResponseChannel(id uint64) chan *neorpc.Response {
 	return c.respChannels[id]
 }
 
-// closeErrOrConnLost returns the error that may occur either in wsReader or wsWriter.
-// If wsReader or wsWriter do not set the error, it returns ErrWSConnLost.
-func (c *WSClient) closeErrOrConnLost() (err error) {
-	err = ErrWSConnLost
-	if closeErr := c.getErrorOrClosedByUser(); closeErr != nil {
-		if errors.Is(closeErr, ErrConnClosedByUser) {
-			err = fmt.Errorf("%w: %w", err, closeErr)
-		} else {
-			err = closeErr
-		}
+// closeErrOrConnLost returns ErrWSConnLost with details (set by wsReader or
+// wsWriter) if available.
+func (c *WSClient) closeErrOrConnLost() error {
+	var (
+		err      = ErrWSConnLost
+		closeErr = c.getErrorOrClosedByUser()
+	)
+	if closeErr != nil {
+		err = fmt.Errorf("%w: %w", err, closeErr)
 	}
-	return
+	return err
 }
 
 func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
