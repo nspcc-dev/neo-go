@@ -801,26 +801,26 @@ func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
 	select {
 	case <-c.readerDone:
 		c.respLock.Unlock()
-		return nil, fmt.Errorf("%w: before registering response channel", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("before registering response channel: %w", c.closeErrOrConnLost())
 	default:
 		c.respChannels[r.ID] = ch
 		c.respLock.Unlock()
 	}
 	select {
 	case <-c.readerDone:
-		return nil, fmt.Errorf("%w: before sending the request", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("before sending the request: %w", c.closeErrOrConnLost())
 	case <-c.writerDone:
-		return nil, fmt.Errorf("%w: before sending the request", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("before sending the request: %w", c.closeErrOrConnLost())
 	case c.requests <- r:
 	}
 	select {
 	case <-c.readerDone:
-		return nil, fmt.Errorf("%w: while waiting for the response", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("waiting for the response: %w", c.closeErrOrConnLost())
 	case <-c.writerDone:
-		return nil, fmt.Errorf("%w: while waiting for the response", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("waiting for the response: %w", c.closeErrOrConnLost())
 	case resp, ok := <-ch:
 		if !ok {
-			return nil, fmt.Errorf("%w: while waiting for the response", c.closeErrOrConnLost())
+			return nil, fmt.Errorf("waiting for the response: %w", c.closeErrOrConnLost())
 		}
 		c.unregisterRespChannel(r.ID)
 		return resp, nil
