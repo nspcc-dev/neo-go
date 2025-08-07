@@ -23,6 +23,8 @@ const (
 	NEP11StandardName = "NEP-11"
 	// NEP17StandardName represents the name of NEP-17 smartcontract standard.
 	NEP17StandardName = "NEP-17"
+	// NEP22StandardName represents the name of NEP-22 smartcontract standard for upgradeable contracts.
+	NEP22StandardName = "NEP-22"
 	// NEP24StandardName represents the name of the NEP-24 smart contract standard for NFT royalties.
 	NEP24StandardName = "NEP-24"
 	// NEP24Payable represents the name of the contract interface for handling royalty payments in accordance
@@ -32,6 +34,8 @@ const (
 	NEP26StandardName = "NEP-26"
 	// NEP27StandardName represents the name of NEP-27 smartcontract standard.
 	NEP27StandardName = "NEP-27"
+	// NEP31StandardName represents the name of NEP-31 smartcontract standard for destroyable contracts.
+	NEP31StandardName = "NEP-31"
 
 	emptyFeatures = "{}"
 )

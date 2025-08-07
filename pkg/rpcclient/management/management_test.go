@@ -2,6 +2,7 @@ package management
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -371,4 +372,58 @@ func TestItemsToIDHashesErrors(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
+}
+
+func TestEvent_FromStackItem(t *testing.T) {
+	tests := []struct {
+		name        string
+		items       []stackitem.Item
+		expectedErr error
+		expected    Event
+	}{
+		{
+			name:        "wrong number of params",
+			items:       []stackitem.Item{},
+			expectedErr: fmt.Errorf("wrong number of event parameters"),
+		},
+		{
+			name:        "invalid hash",
+			items:       []stackitem.Item{stackitem.Make([]byte{0xFF, 0xEE})},
+			expectedErr: fmt.Errorf("invalid hash"),
+		},
+		{
+			name:     "success",
+			items:    []stackitem.Item{stackitem.Make(util.Uint160{1, 2, 3})},
+			expected: Event{Hash: util.Uint160{1, 2, 3}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var event Event
+			err := event.FromStackItem(stackitem.NewArray(tc.items))
+			if tc.expectedErr != nil {
+				require.ErrorContains(t, err, tc.expectedErr.Error())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, event)
+			}
+		})
+	}
+}
+
+func TestEvent_ToStackItem(t *testing.T) {
+	hash := util.Uint160{1, 2, 3}
+	e := Event{Hash: hash}
+
+	item, err := e.ToStackItem()
+	require.NoError(t, err)
+
+	arr, ok := item.(*stackitem.Array).Value().([]stackitem.Item)
+	require.True(t, ok)
+	require.Len(t, arr, 1)
+
+	b, err := arr[0].TryBytes()
+	require.NoError(t, err)
+	require.Equal(t, hash.BytesBE(), b)
 }

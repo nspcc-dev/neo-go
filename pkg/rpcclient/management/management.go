@@ -9,6 +9,7 @@ package management
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -310,4 +311,40 @@ func (c *Contract) SetMinimumDeploymentFeeTransaction(value *big.Int) (*transact
 // signed.
 func (c *Contract) SetMinimumDeploymentFeeUnsigned(value *big.Int) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, setMinFeeMethod, nil, value)
+}
+
+// FromStackItem converts provided [stackitem.Array] to Event or returns an
+// error if it's not possible to do to so.
+func (e *Event) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return errors.New("wrong number of event parameters")
+	}
+
+	b, err := arr[0].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid hash: %w", err)
+	}
+
+	e.Hash, err = util.Uint160DecodeBytesBE(b)
+	if err != nil {
+		return fmt.Errorf("invalid hash: %w", err)
+	}
+
+	return nil
+}
+
+// ToStackItem creates [stackitem.Item] representing Event. It never returns an
+// error.
+func (e *Event) ToStackItem() (stackitem.Item, error) {
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.Make(e.Hash),
+	}), nil
 }
