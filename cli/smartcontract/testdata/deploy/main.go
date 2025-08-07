@@ -82,3 +82,10 @@ func TestFind(f storage.FindFlags) []any {
 	}
 	return result
 }
+
+// Destroy destroys the contract.
+func Destroy() {
+	ctx := storage.GetReadOnlyContext()
+	mgmt := storage.Get(ctx, mgmtKey).(interop.Hash160)
+	contract.Call(mgmt, "destroy", contract.All)
+}

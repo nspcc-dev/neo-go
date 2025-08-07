@@ -250,6 +250,17 @@ func NewCommands() []*cli.Command {
 				Action: contractUpdate,
 				Flags:  updateFlags,
 			},
+			{
+				Name:      "destroy",
+				Usage:     "Destroy deployed smart contract",
+				UsageText: "neo-go contract destroy -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] [--out file] [--force] [--await] scripthash [--] [signers...]",
+				Description: `Destroys deployed contract. The gas parameter is for additional
+   gas to be added as a network fee to prioritize the transaction. When --await flag is
+   specified, it waits for the transaction to be included in a block.
+`,
+				Action: contractDestroy,
+				Flags:  invokeFunctionFlags,
+			},
 			generateWrapperCmd,
 			generateRPCWrapperCmd,
 			{
@@ -921,6 +932,43 @@ func contractUpdate(ctx *cli.Context) error {
 		return err
 	}
 	return invokeWithArgs(ctx, acc, w, contractHash, "update", params[:2], cosigners)
+}
+
+// contractDestroy destroys an existing smart contract.
+func contractDestroy(ctx *cli.Context) error {
+	var (
+		signOffset  = 1
+		paramsStart = 0
+		args        []string
+	)
+	args = ctx.Args().Slice()
+	if len(args) < 1 {
+		return cli.Exit(errNoScriptHash, 1)
+	}
+	contractHash, err := flags.ParseAddress(args[0])
+	if err != nil {
+		return cli.Exit(fmt.Errorf("invalid contract hash '%s': %w", args[0], err), 1)
+	}
+	paramsStart++
+
+	acc, w, err := options.GetAccFromContext(ctx)
+	if err != nil {
+		return cli.Exit(fmt.Errorf("can't get sender address: %w", err), 1)
+	}
+	defer w.Close()
+
+	cosigners, exitErr := cmdargs.GetSignersFromContext(ctx, paramsStart+signOffset)
+	if exitErr != nil {
+		return exitErr
+	}
+	if len(cosigners) == 0 {
+		cosigners = []transaction.Signer{{
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		}}
+	}
+
+	return invokeWithArgs(ctx, acc, w, contractHash, "destroy", nil, cosigners)
 }
 
 // ParseContractConfig reads contract configuration file (.yaml) and returns unmarshalled ProjectConfig.

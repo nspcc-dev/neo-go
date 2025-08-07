@@ -696,6 +696,107 @@ func TestContractUpdate(t *testing.T) {
 	})
 }
 
+func TestContractDestroy(t *testing.T) {
+	e := testcli.NewExecutor(t, true)
+	tmpDir := t.TempDir()
+
+	nefName := filepath.Join(tmpDir, "destroy.nef")
+	manifestName := filepath.Join(tmpDir, "destroy.manifest.json")
+
+	e.Run(t, "neo-go", "contract", "compile",
+		"--in", "testdata/deploy/main.go",
+		"--config", "testdata/deploy/neo-go.yml",
+		"--out", nefName, "--manifest", manifestName,
+	)
+
+	e.In.WriteString(testcli.ValidatorPass + "\r")
+	e.Run(t, "neo-go", "contract", "deploy",
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+		"--wallet", testcli.ValidatorWallet,
+		"--address", testcli.ValidatorAddr,
+		"--in", nefName, "--manifest", manifestName,
+		"--force", "--await",
+	)
+	_, _ = e.CheckAwaitableTxPersisted(t)
+
+	line, err := e.Out.ReadString('\n')
+	require.NoError(t, err)
+	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
+	hash, err := util.Uint160DecodeStringLE(line)
+	require.NoError(t, err)
+
+	e.Run(t, "neo-go", "contract", "testinvokefunction",
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+		hash.StringLE(),
+		"getValue",
+	)
+	res := new(result.Invoke)
+	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+	require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
+	require.Len(t, res.Stack, 1)
+	require.Equal(t, string(res.Stack[0].Value().([]byte)), "on create|sub create")
+
+	t.Run("missing hash", func(t *testing.T) {
+		e.RunWithErrorCheckExit(t,
+			"no smart contract hash was provided, specify one as the first argument",
+			"neo-go", "contract", "destroy",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+		)
+	})
+
+	t.Run("invalid hash", func(t *testing.T) {
+		e.RunWithErrorCheckExit(t,
+			"invalid contract hash",
+			"neo-go", "contract", "destroy",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"badhex",
+		)
+	})
+
+	t.Run("missing wallet", func(t *testing.T) {
+		e.RunWithErrorCheckExit(t,
+			"can't get sender address:",
+			"neo-go", "contract", "destroy",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
+		)
+	})
+
+	t.Run("invalid signer", func(t *testing.T) {
+		e.In.WriteString(testcli.ValidatorPass + "\r")
+		e.RunWithErrorCheckExit(t,
+			"failed to parse signer",
+			"neo-go", "contract", "destroy",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
+			"--force",
+			testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
+			"--",
+			"badSigner",
+		)
+	})
+
+	t.Run("good", func(t *testing.T) {
+		e.In.WriteString(testcli.ValidatorPass + "\r")
+		e.Run(t, "neo-go", "contract", "destroy",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", testcli.ValidatorWallet,
+			"--force", "--await",
+			hash.StringLE(),
+		)
+
+		_, _ = e.CheckAwaitableTxPersisted(t)
+		require.NoError(t, err)
+
+		e.RunWithErrorCheckExit(t,
+			fmt.Sprintf("System.Contract.Call failed: called contract %s not found: key not found", hash.StringLE()),
+			"neo-go", "contract", "testinvokefunction",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			hash.StringLE(), "getValue",
+		)
+	})
+}
+
 func TestContractManifestGroups(t *testing.T) {
 	e := testcli.NewExecutor(t, true)
 	tmpDir := t.TempDir()
