@@ -101,8 +101,13 @@ where `NiKEkwz6i9q6gqfCizztDoHQh9r9BtdCNa` is your address, `wallet.json` is a
 path to NEP-6 wallet file and `http://localhost:10332` is an RPC node to
 use.
 
-This command will create and send appropriate transaction to the network and
-you should then wait for it to settle in a block. If all goes well, it'll end
+You can now also register via a simple GAS transfer using the NEP-17 callback.
+Instead of invoking the RegisterCandidate method pass the `--useNEP17Transfer` flag.
+```
+$ neo-go wallet candidate register -a NiKEkwz6i9q6gqfCizztDoHQh9r9BtdCNa -w wallet.json -r http://localhost:10332 --useNEP17Transfer
+```
+Each of these commands will create and send appropriate transaction to the network
+and you should then wait for it to settle in a block. If all goes well, it'll end
 with "HALT" state and your registration will be completed. You can use
 `query tx` command to see transaction status or `query candidates` to see if
 your candidate has been added.
