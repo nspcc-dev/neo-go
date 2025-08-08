@@ -277,6 +277,18 @@ func restoreDB(ctx *cli.Context) error {
 	if reader.Err != nil {
 		return cli.Exit(err, 1)
 	}
+
+	if skip+count > allBlocks && !ctx.Bool("incremental") {
+		start = allBlocks
+		allBlocks = reader.ReadU32LE()
+		if reader.Err != nil {
+			return cli.Exit(err, 1)
+		}
+		if chain.BlockHeight() != 0 {
+			skip = chain.BlockHeight() + 1 - start
+		}
+	}
+
 	if skip+count > allBlocks {
 		return cli.Exit(fmt.Errorf("input file has only %d blocks, can't read %d starting from %d", allBlocks, count, skip), 1)
 	}
