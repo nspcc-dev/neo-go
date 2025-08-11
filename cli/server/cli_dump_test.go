@@ -154,5 +154,5 @@ func TestDBDumpRestoreIncremental(t *testing.T) {
 	e.Run(t, append(restoreBaseArgs, "--in", nonincDump)...)
 
 	// Restore second 15 blocks from incremental dump.
-	e.Run(t, append(restoreBaseArgs, "--in", incDump, "-n", "--count", "15")...)
+	e.Run(t, append(restoreBaseArgs, "--in", incDump, "--count", "15")...)
 }

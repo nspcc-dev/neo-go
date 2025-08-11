@@ -1,9 +1,12 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	stdio "io"
 	"os"
 	"os/signal"
 	"slices"
@@ -70,11 +73,6 @@ func NewCommands() []*cli.Command {
 			Name:  "dump",
 			Usage: "Directory for storing JSON dumps",
 		},
-		&cli.BoolFlag{
-			Name:    "incremental",
-			Aliases: []string{"n"},
-			Usage:   "Use if dump is incremental",
-		},
 	)
 	var cfgHeightFlags = slices.Clone(cfgFlags)
 	cfgHeightFlags = append(cfgHeightFlags, &cli.UintFlag{
@@ -111,7 +109,7 @@ func NewCommands() []*cli.Command {
 				{
 					Name:      "restore",
 					Usage:     "Restore blocks from the file",
-					UsageText: "neo-go db restore [-i file] [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t] [--config-file file] [--force-timestamp-logs]",
+					UsageText: "neo-go db restore [-i file] [--dump] [-c count] [--config-path path] [-p/-m/-t] [--config-file file] [--force-timestamp-logs]",
 					Action:    restoreDB,
 					Flags:     cfgCountInFlags,
 				},
@@ -259,13 +257,35 @@ func restoreDB(ctx *cli.Context) error {
 		chain.Close()
 	}()
 
-	var start uint32
-	if ctx.Bool("incremental") {
-		start = reader.ReadU32LE()
-		if chain.BlockHeight()+1 < start {
-			return cli.Exit(fmt.Errorf("expected height: %d, dump starts at %d",
-				chain.BlockHeight()+1, start), 1)
-		}
+	var start = reader.ReadU32LE()
+	if reader.Err != nil {
+		return cli.Exit(err, 1)
+	}
+	var allBlocks = reader.ReadU32LE()
+	if reader.Err != nil {
+		return cli.Exit(err, 1)
+	}
+	var versionOrLen = reader.ReadU32LE()
+	if reader.Err != nil {
+		return cli.Exit(err, 1)
+	}
+
+	var buf []byte
+	if versionOrLen == block.VersionInitial {
+		// Block length > 0 => we read block version, so we have ordinary chain dump.
+		buf = binary.LittleEndian.AppendUint32(buf, allBlocks)
+		allBlocks = start
+		start = 0
+	}
+	buf = binary.LittleEndian.AppendUint32(buf, versionOrLen)
+	reader = io.NewBinReaderFromIO(stdio.MultiReader(
+		bytes.NewReader(buf),
+		inStream,
+	))
+
+	if chain.BlockHeight()+1 < start {
+		return cli.Exit(fmt.Errorf("expected height: %d, dump starts at %d",
+			chain.BlockHeight()+1, start), 1)
 	}
 
 	var skip uint32
@@ -273,10 +293,6 @@ func restoreDB(ctx *cli.Context) error {
 		skip = chain.BlockHeight() + 1 - start
 	}
 
-	var allBlocks = reader.ReadU32LE()
-	if reader.Err != nil {
-		return cli.Exit(err, 1)
-	}
 	if skip+count > allBlocks {
 		return cli.Exit(fmt.Errorf("input file has only %d blocks, can't read %d starting from %d", allBlocks, count, skip), 1)
 	}
