@@ -781,18 +781,17 @@ func (c *WSClient) getResponseChannel(id uint64) chan *neorpc.Response {
 	return c.respChannels[id]
 }
 
-// closeErrOrConnLost returns the error that may occur either in wsReader or wsWriter.
-// If wsReader or wsWriter do not set the error, it returns ErrWSConnLost.
-func (c *WSClient) closeErrOrConnLost() (err error) {
-	err = ErrWSConnLost
-	if closeErr := c.getErrorOrClosedByUser(); closeErr != nil {
-		if errors.Is(closeErr, ErrConnClosedByUser) {
-			err = fmt.Errorf("%w: %w", err, closeErr)
-		} else {
-			err = closeErr
-		}
+// closeErrOrConnLost returns ErrWSConnLost with details (set by wsReader or
+// wsWriter) if available.
+func (c *WSClient) closeErrOrConnLost() error {
+	var (
+		err      = ErrWSConnLost
+		closeErr = c.getErrorOrClosedByUser()
+	)
+	if closeErr != nil {
+		err = fmt.Errorf("%w: %w", err, closeErr)
 	}
-	return
+	return err
 }
 
 func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
@@ -801,26 +800,26 @@ func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
 	select {
 	case <-c.readerDone:
 		c.respLock.Unlock()
-		return nil, fmt.Errorf("%w: before registering response channel", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("before registering response channel: %w", c.closeErrOrConnLost())
 	default:
 		c.respChannels[r.ID] = ch
 		c.respLock.Unlock()
 	}
 	select {
 	case <-c.readerDone:
-		return nil, fmt.Errorf("%w: before sending the request", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("before sending the request: %w", c.closeErrOrConnLost())
 	case <-c.writerDone:
-		return nil, fmt.Errorf("%w: before sending the request", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("before sending the request: %w", c.closeErrOrConnLost())
 	case c.requests <- r:
 	}
 	select {
 	case <-c.readerDone:
-		return nil, fmt.Errorf("%w: while waiting for the response", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("waiting for the response: %w", c.closeErrOrConnLost())
 	case <-c.writerDone:
-		return nil, fmt.Errorf("%w: while waiting for the response", c.closeErrOrConnLost())
+		return nil, fmt.Errorf("waiting for the response: %w", c.closeErrOrConnLost())
 	case resp, ok := <-ch:
 		if !ok {
-			return nil, fmt.Errorf("%w: while waiting for the response", c.closeErrOrConnLost())
+			return nil, fmt.Errorf("waiting for the response: %w", c.closeErrOrConnLost())
 		}
 		c.unregisterRespChannel(r.ID)
 		return resp, nil
