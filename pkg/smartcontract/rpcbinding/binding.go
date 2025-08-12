@@ -425,6 +425,7 @@ type (
 		IsNep22        bool
 		IsNep24        bool
 		IsNep24Payable bool
+		IsNep30        bool
 		IsNep31        bool
 
 		HasReader   bool
@@ -505,6 +506,10 @@ func Generate(cfg binding.Config) error {
 			if standard.ComplyABI(cfg.Manifest, standard.Nep24Payable) == nil {
 				ctr.IsNep24Payable = true
 			}
+		case manifest.NEP30StandardName:
+			if standard.ComplyABI(cfg.Manifest, standard.Nep30) == nil {
+				ctr.IsNep30 = true
+			}
 		case manifest.NEP31StandardName:
 			if standard.ComplyABI(cfg.Manifest, standard.Nep31) == nil {
 				imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep31"] = struct{}{}
@@ -535,6 +540,9 @@ func Generate(cfg binding.Config) error {
 	}
 	if ctr.IsNep24Payable {
 		mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep24Payable)
+	}
+	if ctr.IsNep30 {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep30)
 	}
 	if ctr.IsNep31 {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep31)
