@@ -259,6 +259,32 @@ Deployment works via an RPC server, an address of which is passed via `-r`
 option, and should be signed using a wallet from `-w` option. More details can
 be found in `deploy` command help.
 
+### Updating
+
+Updating a deployed smart contract on the blockchain requires the updated NEF file,
+the manifest, and the target contract hash. Either NEF file or the manifest
+may be omitted, but not both. Additional data parameter may be specified.
+
+```
+$ ./bin/neo-go contract update -i contract.nef -m contract.manifest.json -r http://localhost:20331 -w wallet.json 0x4bfd65abeac8f85931f2d85cfdbc61de3dd03b94
+```
+
+Updating works via an RPC server, an address of which is passed via `-r`
+option, and should be signed using a wallet from `-w` option. More details can
+be found in `update` command help.
+
+### Destroying
+
+Destroying a deployed smart contract. Requires the contract hash.
+
+```bash
+$ ./bin/neo-go contract destroy -r http://localhost:20331 -w wallet.json 0x4bfd65abeac8f85931f2d85cfdbc61de3dd03b94
+```
+
+Destroying works via an RPC server, an address of which is passed via `-r`
+option, and should be signed using a wallet from `-w` option. More details can
+be found in `destroy` command help.
+
 #### Config file
 Configuration file contains following options:
 
