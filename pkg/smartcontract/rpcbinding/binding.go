@@ -473,8 +473,11 @@ func Generate(cfg binding.Config) error {
 	mfst.ABI.Methods = slices.Clone(mfst.ABI.Methods)
 	cfg.Manifest = &mfst
 
-	var imports = make(map[string]struct{})
-	var ctr ContractTmpl
+	var (
+		imports = make(map[string]struct{})
+		ctr     ContractTmpl
+		isNep30 bool
+	)
 
 	// Strip standard methods from NEP-XX packages.
 	for _, std := range cfg.Manifest.SupportedStandards {
@@ -504,6 +507,10 @@ func Generate(cfg binding.Config) error {
 		case manifest.NEP24Payable:
 			if standard.ComplyABI(cfg.Manifest, standard.Nep24Payable) == nil {
 				ctr.IsNep24Payable = true
+			}
+		case manifest.NEP30StandardName:
+			if standard.ComplyABI(cfg.Manifest, standard.Nep30) == nil {
+				isNep30 = true
 			}
 		case manifest.NEP31StandardName:
 			if standard.ComplyABI(cfg.Manifest, standard.Nep31) == nil {
@@ -535,6 +542,9 @@ func Generate(cfg binding.Config) error {
 	}
 	if ctr.IsNep24Payable {
 		mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep24Payable)
+	}
+	if isNep30 {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep30)
 	}
 	if ctr.IsNep31 {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep31)
