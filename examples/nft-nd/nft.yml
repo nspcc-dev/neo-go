@@ -1,7 +1,7 @@
 name: "HASHY NFT"
 sourceurl: https://github.com/nspcc-dev/neo-go/
-supportedstandards: ["NEP-11", "NEP-22", "NEP-24", "NEP-27", "NEP-31"]
-safemethods: ["balanceOf", "decimals", "symbol", "totalSupply", "tokensOf", "ownerOf", "tokens", "properties", "royaltyInfo"]
+supportedstandards: ["NEP-11", "NEP-22", "NEP-24", "NEP-27", "NEP-30", "NEP-31"]
+safemethods: ["balanceOf", "decimals", "symbol", "totalSupply", "tokensOf", "ownerOf", "tokens", "properties", "royaltyInfo", "verify"]
 events:
   - name: Transfer
     parameters:
