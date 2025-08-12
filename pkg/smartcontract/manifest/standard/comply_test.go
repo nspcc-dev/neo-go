@@ -150,6 +150,14 @@ func TestCheck_NEP22(t *testing.T) {
 	require.NoError(t, Check(m, manifest.NEP22StandardName))
 }
 
+func TestCheck_NEP29(t *testing.T) {
+	m := manifest.NewManifest("Test")
+	require.Error(t, Check(m, manifest.NEP29StandardName))
+
+	m.ABI.Methods = append(m.ABI.Methods, Nep29.ABI.Methods...)
+	require.NoError(t, Check(m, manifest.NEP29StandardName))
+}
+
 func TestCheck_NEP31(t *testing.T) {
 	m := manifest.NewManifest("Test")
 	require.Error(t, Check(m, manifest.NEP31StandardName))
