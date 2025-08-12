@@ -1,6 +1,7 @@
 name: "Runtime example"
 sourceurl: https://github.com/nspcc-dev/neo-go/
-supportedstandards: ["NEP-22", "NEP-31"]
+supportedstandards: ["NEP-22", "NEP-29", "NEP-30", "NEP-31"]
+safemethods: ["verify"]
 events:
   - name: Event
     parameters:

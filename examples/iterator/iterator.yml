@@ -1,6 +1,6 @@
 name: "Iterator example"
 sourceurl: https://github.com/nspcc-dev/neo-go/
-supportedstandards: []
+supportedstandards: ["NEP-29"]
 events:
   - name: Key-Value
     parameters:
