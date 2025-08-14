@@ -38,3 +38,15 @@ RPC server configuration setting SessionExpirationTime of `int` type has been
 replaced by SessionLifetime of `Duration` type.
 
 Removal of SessionExpirationTime is scheduled for 0.113.0 release.
+
+## Candidate registration via `registerCandidate` method of native NeoToken contract
+
+The original way of Neo candidate registration via `wallet candidate register` CLI
+command using `registerCandidate` method of native NeoToken contract is deprecated
+and has been superseded by the GAS transfer approach. Deprecated candidate
+registration way via `registerCandidate` method call is supported via
+`--useRegisterCall` flag.
+
+Removal of `registerCandidate`–based support of candidate registration will be
+done once `registerCandidate` method is officially deprecated and removed from
+the NeoToken manifest with the subsequent hardfork.

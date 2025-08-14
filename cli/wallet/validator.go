@@ -2,14 +2,18 @@ package wallet
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/txctx"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli/v2"
@@ -35,6 +39,10 @@ func newValidatorCommands() []*cli.Command {
 					Aliases:  []string{"a"},
 					Required: true,
 					Usage:    "Address to register",
+				},
+				&cli.BoolFlag{
+					Name:  "useRegisterCall",
+					Usage: "Use a call to registerCandidate method instead of NEP-17 GAS transfer",
 				},
 			}, options.RPC...),
 		},
@@ -93,8 +101,22 @@ func newValidatorCommands() []*cli.Command {
 }
 
 func handleRegister(ctx *cli.Context) error {
-	return handleNeoAction(ctx, func(contract *neo.Contract, _ util.Uint160, acc *wallet.Account) (*transaction.Transaction, error) {
-		return contract.RegisterCandidateUnsigned(acc.PublicKey())
+	if ctx.Bool("useRegisterCall") {
+		return handleNeoAction(ctx, func(contract *neo.Contract, _ util.Uint160, acc *wallet.Account) (*transaction.Transaction, error) {
+			return contract.RegisterCandidateUnsigned(acc.PublicKey())
+		})
+	}
+	return handleGasAction(ctx, func(nc *neo.Contract, gasT *nep17.Token, _ util.Uint160, acc *wallet.Account) (*transaction.Transaction, error) {
+		regPrice, err := nc.GetRegisterPrice()
+		if err != nil {
+			return nil, err
+		}
+		return gasT.TransferUnsigned(
+			acc.ScriptHash(),
+			nativehashes.NeoToken,
+			big.NewInt(regPrice),
+			acc.PublicKey().Bytes(),
+		)
 	})
 }
 
@@ -105,6 +127,20 @@ func handleUnregister(ctx *cli.Context) error {
 }
 
 func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *wallet.Account) (*transaction.Transaction, error)) error {
+	return handleTokenAction(ctx, func(nc *neo.Contract, _ *nep17.Token, addr util.Uint160, acc *wallet.Account) (*transaction.Transaction, error) {
+		return mkTx(nc, addr, acc)
+	}, transaction.CalledByEntry)
+}
+
+func handleGasAction(ctx *cli.Context, mkTx func(*neo.Contract, *nep17.Token, util.Uint160, *wallet.Account) (*transaction.Transaction, error)) error {
+	return handleTokenAction(ctx, mkTx, transaction.Global)
+}
+
+func handleTokenAction(
+	ctx *cli.Context,
+	mkTx func(nc *neo.Contract, gasT *nep17.Token, addr util.Uint160, acc *wallet.Account) (*transaction.Transaction, error),
+	scope transaction.WitnessScope,
+) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
@@ -124,7 +160,7 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	signers, err := cmdargs.GetSignersAccounts(acc, wall, nil, transaction.CalledByEntry)
+	signers, err := cmdargs.GetSignersAccounts(acc, wall, nil, scope)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("invalid signers: %w", err), 1)
 	}
@@ -133,8 +169,9 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 		return exitErr
 	}
 
-	contract := neo.New(act)
-	tx, err := mkTx(contract, addr, acc)
+	neoT := neo.New(act)
+	gasT := gas.New(act)
+	tx, err := mkTx(neoT, gasT, addr, acc)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
