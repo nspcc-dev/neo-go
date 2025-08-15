@@ -600,7 +600,12 @@ func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) 
 		return slices.ContainsFunc(manifested, func(e manifest.Method) bool {
 			return 0 == cmp.Or(
 				cmp.Compare(m.Name, e.Name),
-				cmp.Compare(len(m.Parameters), len(e.Parameters)),
+				func() int {
+					if e.Parameters == nil {
+						return 0
+					}
+					return cmp.Compare(len(m.Parameters), len(e.Parameters))
+				}(),
 			)
 		})
 	})
