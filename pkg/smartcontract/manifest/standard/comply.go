@@ -31,7 +31,9 @@ var checks = map[string][]*Standard{
 }
 
 // Check checks if the manifest complies with all provided standards.
-// Currently, only NEP-17 is supported.
+// If the standard method's parameters slice is nil, no parameters check is
+// conducted. To enforce zero parameters check, the standard method's parameters
+// slice must be set to an empty list.
 func Check(m *manifest.Manifest, standards ...string) error {
 	return check(m, true, standards...)
 }
@@ -61,6 +63,9 @@ func check(m *manifest.Manifest, checkNames bool, standards ...string) error {
 
 // Comply if m has all methods and event from st manifest and they have the same signature.
 // Parameter names are checked to exactly match the ones in the given standard.
+// If the standard method's parameters slice is nil, no parameters check is
+// conducted. To enforce zero parameters check, the standard method's parameters
+// slice must be set to an empty list.
 func Comply(m *manifest.Manifest, st *Standard) error {
 	return comply(m, true, st)
 }
@@ -114,9 +119,19 @@ func comply(m *manifest.Manifest, checkNames bool, st *Standard) error {
 	return nil
 }
 
+// checkMethod checks whether the method with the specified parameters count is
+// included into manifest and matches the expected signature. It returns an error
+// in case if the method is missing and allowMissing is not set or in case if
+// parameter names don't match the expected ones and checkNames is set. If expected
+// parameters slice is nil, no parameters check is conducted. Set expected
+// parameters slice to an empty list to enforce zero parameters check.
 func checkMethod(m *manifest.Manifest, expected *manifest.Method,
 	allowMissing bool, checkNames bool) error {
-	actual := m.ABI.GetMethod(expected.Name, len(expected.Parameters))
+	var expectedParamsLen = -1
+	if expected.Parameters != nil {
+		expectedParamsLen = len(expected.Parameters)
+	}
+	actual := m.ABI.GetMethod(expected.Name, expectedParamsLen)
 	if actual == nil {
 		if allowMissing {
 			return nil

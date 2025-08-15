@@ -61,6 +61,7 @@ var Nep11Base = &Standard{
 		},
 		{
 			Name:       "tokens",
+			Parameters: []manifest.Parameter{}, // nil value implies no parameters check.
 			ReturnType: smartcontract.InteropInterfaceType,
 			Safe:       true,
 		},
