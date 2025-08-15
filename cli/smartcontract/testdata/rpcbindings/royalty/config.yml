@@ -1,6 +1,7 @@
 name: Test royalty
 sourceurl: https://github.com/nspcc-dev/neo-go/
-supportedstandards: ["NEP-24-Payable"]
+supportedstandards: ["NEP-24-Payable", "NEP-30"]
+safemethods: ["verify"]
 events:
   - name: RoyaltiesTransferred
     parameters:

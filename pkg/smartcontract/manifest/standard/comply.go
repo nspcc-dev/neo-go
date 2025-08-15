@@ -26,6 +26,8 @@ var checks = map[string][]*Standard{
 	manifest.NEP27StandardName: {Nep27},
 	manifest.NEP24StandardName: {Nep24},
 	manifest.NEP24Payable:      {Nep24Payable},
+	manifest.NEP29StandardName: {Nep29},
+	manifest.NEP30StandardName: {Nep30},
 	manifest.NEP31StandardName: {Nep31},
 }
 
@@ -115,7 +117,11 @@ func comply(m *manifest.Manifest, checkNames bool, st *Standard) error {
 
 func checkMethod(m *manifest.Manifest, expected *manifest.Method,
 	allowMissing bool, checkNames bool) error {
-	actual := m.ABI.GetMethod(expected.Name, len(expected.Parameters))
+	var expectedParamsLen = -1
+	if expected.Parameters != nil {
+		expectedParamsLen = len(expected.Parameters)
+	}
+	actual := m.ABI.GetMethod(expected.Name, expectedParamsLen)
 	if actual == nil {
 		if allowMissing {
 			return nil

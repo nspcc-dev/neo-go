@@ -11,3 +11,8 @@ import (
 func RoyaltiesTransferred(royaltyToken, royaltyRecipient, buyer interop.Hash160, tokenId []byte, amount int) {
 	runtime.Notify("RoyaltiesTransferred", royaltyToken, royaltyRecipient, buyer, std.Deserialize(tokenId), amount)
 }
+
+// Verify implements the NEP-30 standard
+func Verify(flag bool) bool {
+	return flag
+}

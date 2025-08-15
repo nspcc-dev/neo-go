@@ -61,6 +61,7 @@ var Nep11Base = &Standard{
 		},
 		{
 			Name:       "tokens",
+			Parameters: []manifest.Parameter{},
 			ReturnType: smartcontract.InteropInterfaceType,
 			Safe:       true,
 		},
