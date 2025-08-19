@@ -31,11 +31,13 @@ func Abs(a int) int {
 }
 
 // Max returns the maximum of a, b.
+// Deprecated: Use max instead.
 func Max(a, b int) int {
 	return neogointernal.Opcode2("MAX", a, b).(int)
 }
 
 // Min returns the minimum of a, b.
+// Deprecated: Use min instead.
 func Min(a, b int) int {
 	return neogointernal.Opcode2("MIN", a, b).(int)
 }

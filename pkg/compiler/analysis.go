@@ -26,7 +26,7 @@ var (
 
 var (
 	// Go language builtin functions.
-	goBuiltins = []string{"len", "append", "panic", "make", "copy", "recover", "delete"}
+	goBuiltins = []string{"len", "append", "panic", "make", "copy", "recover", "delete", "min", "max"}
 	// Custom builtin utility functions that contain some meaningful code inside and
 	// require code generation using standard rules, but sometimes (depending on
 	// the expression usage condition) may be optimized at compile time.
