@@ -1970,6 +1970,46 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		bytes := uint160.BytesBE()
 		emit.Bytes(c.prog.BinWriter, bytes)
 		c.emitConvert(stackitem.BufferT)
+	case "min":
+		for i, arg := range expr.Args {
+			typ, ok := c.typeOf(arg).(*types.Basic)
+			if !ok {
+				c.prog.Err = fmt.Errorf("only integer types are supported by min")
+				return
+			}
+			switch typ.Kind() {
+			case types.Int, types.Int8, types.Int16, types.Int32, types.Int64,
+				types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64,
+				types.UntypedInt:
+			default:
+				c.prog.Err = fmt.Errorf("only integer types are supported by min, "+
+					"got %s at %d", typ, i+1)
+				return
+			}
+		}
+		for range len(expr.Args) - 1 {
+			emit.Opcodes(c.prog.BinWriter, opcode.MIN)
+		}
+	case "max":
+		for i, arg := range expr.Args {
+			typ, ok := c.typeOf(arg).(*types.Basic)
+			if !ok {
+				c.prog.Err = fmt.Errorf("only integer types are supported by max")
+				return
+			}
+			switch typ.Kind() {
+			case types.Int, types.Int8, types.Int16, types.Int32, types.Int64,
+				types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64,
+				types.UntypedInt:
+			default:
+				c.prog.Err = fmt.Errorf("only integer types are supported by max, "+
+					"got %s at %d", typ, i+1)
+				return
+			}
+		}
+		for range len(expr.Args) - 1 {
+			emit.Opcodes(c.prog.BinWriter, opcode.MAX)
+		}
 	}
 }
 

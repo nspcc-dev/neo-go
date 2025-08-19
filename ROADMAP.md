@@ -50,3 +50,10 @@ registration way via `registerCandidate` method call is supported via
 Removal of `registerCandidate`–based support of candidate registration will be
 done once `registerCandidate` method is officially deprecated and removed from
 the NeoToken manifest with the subsequent hardfork.
+
+## math.Max and math.Min interop functions
+
+Interop functions `math.Min` and `math.Max` have been replaced by built-in `min`
+and `max` functions.
+
+The old functions are deprecated and their removal is scheduled for 0.113.0 release.
