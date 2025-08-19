@@ -676,3 +676,163 @@ func Verify(a []byte, b []byte, s string, n int) bool {
 		})
 	}
 }
+
+func TestMapOKFlag_Basic(t *testing.T) {
+	tests := []struct {
+		name        string
+		srcTemplate string
+	}{
+		{
+			name: "int value",
+			srcTemplate: `
+				package foo
+				func Main() bool {
+					var m = map[string]int{
+						"key": 1,
+					}
+					%s
+					return ok1 && !ok2 && v1 == 1 && v2 == 0
+				}
+			`,
+		},
+		{
+			name: "bool value",
+			srcTemplate: `
+				package foo
+				func Main() bool {
+					var m = map[string]bool{
+						"key": true,
+					}
+					%s
+					return ok1 && !ok2 && v1 && !v2
+				}
+			`,
+		},
+		{
+			name: "string value",
+			srcTemplate: `
+				package foo
+				func Main() bool {
+					var m = map[string]string{
+						"key": "val",
+					}
+					%s
+					return ok1 && !ok2 && v1 == "val" && v2 == ""
+				}
+			`,
+		},
+		{
+			name: "slice value",
+			srcTemplate: `
+				package foo
+				func Main() bool {
+					var m = map[string][]int{
+						"key": []int{0, 1, 2},
+					}
+					%s
+					for i := 0; i < len(v1); i++ {
+						if v1[i] != i {
+							return false
+						}
+					}
+					return ok1 && !ok2 && v2 == nil
+				}
+			`,
+		},
+		{
+			name: "map value",
+			srcTemplate: `
+				package foo
+				func Main() bool {
+					var m = map[string]map[string]int{
+						"key": {
+							"key": 42,
+						},
+					}
+					%s
+					return ok1 && !ok2 && v1["key"] == 42 && v2 == nil
+				}
+			`,
+		},
+		{
+			name: "struct value",
+			srcTemplate: `
+				package foo
+				type S struct {
+					A int
+				}
+				func Main() bool {
+					var m = map[string]S{
+						"key": {
+							A: 1,
+						},
+					}
+					%s
+					return ok1 && !ok2 && v1.A == 1 && v2.A == 0
+				}
+			`,
+		},
+	}
+	decls := []string{
+		"v1, ok1 := m[\"key\"]\n" +
+			"v2, ok2 := m[\"unknown\"]\n",
+
+		"var (\n" +
+			"	v1, ok1 = m[\"key\"]\n" +
+			"	v2, ok2 = m[\"unknown\"]\n" +
+			")\n",
+	}
+	for _, decl := range decls {
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				eval(t, fmt.Sprintf(tc.srcTemplate, decl), true)
+			})
+		}
+	}
+}
+
+func TestMapOkFlag_SpecificCases(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "if short-declaration",
+			src: `
+				package foo
+				func Main() bool {
+					var m = map[string]int{
+						"key": 1,
+					}
+					if v, ok := m["key"]; !ok || v != 1{
+						return false
+					}
+					if _, ok := m["unknown"]; ok {
+						return false
+					}
+					return true
+				}
+			`,
+		},
+		{
+			name: "map returned from function",
+			src: `
+				package foo
+				func Get() map[string]int {
+					return map[string]int{"key": 1}
+				}
+				func Main() bool {
+					v1, ok1 := Get()["key"]
+					v2, ok2 := Get()["unknown"]
+					return ok1 && !ok2 && v1 == 1 && v2 == 0
+				}
+			`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			eval(t, tc.src, true)
+		})
+	}
+}
