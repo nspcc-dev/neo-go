@@ -676,3 +676,59 @@ func Verify(a []byte, b []byte, s string, n int) bool {
 		})
 	}
 }
+
+func TestFromUintToBEBytes(t *testing.T) {
+	tests := []uint64{
+		0,
+		1,
+		127,
+		128,
+		255,
+		256,
+		1024,
+		1<<32 - 1,
+	}
+
+	for _, tc := range tests {
+		src := fmt.Sprintf(`package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+	
+		func Main() uint {
+			var data = convert.FromUintToBEBytes(%d)
+			return convert.FromBEBytesToUint(data)
+		}`, tc)
+		eval(t, src, big.NewInt(0).SetUint64(tc))
+	}
+}
+
+func TestFromIntToBEBytes(t *testing.T) {
+	tests := []int64{
+		1,
+		-1,
+		127,
+		-127,
+		128,
+		-129,
+		255,
+		-255,
+		256,
+		-256,
+		1024,
+		-1024,
+		1<<31 - 1,
+		-1 << 31,
+		1<<63 - 1,
+		-1<<63 + 1,
+	}
+
+	for _, tc := range tests {
+		src := fmt.Sprintf(`package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+	
+		func Main() int {
+			var data = convert.FromIntToBEBytes(%d)
+			return convert.FromBEBytesToInt(data)
+		}`, tc)
+		eval(t, src, big.NewInt(tc))
+	}
+}
