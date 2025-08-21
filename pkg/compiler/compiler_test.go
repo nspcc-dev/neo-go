@@ -2,9 +2,12 @@ package compiler_test
 
 import (
 	"fmt"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/interop/convert"
 	"math/big"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -637,4 +640,80 @@ func TestReturnValuesCountCheck(t *testing.T) {
 			require.NoError(t, err) // OK for unexported function to have multiple return values as it won't be included into manifest
 		})
 	})
+}
+
+func TestFromUint64ToBEBytes(t *testing.T) {
+	tests := []uint64{
+		0,
+		1,
+		127,
+		128,
+		255,
+		256,
+		1024,
+		1<<32 - 1,
+		1<<63 - 1,
+	}
+
+	for _, tc := range tests {
+		got := convert.FromUint64ToBEBytes(tc)
+
+		want := bigint.ToPreallocatedBytes(new(big.Int).SetUint64(tc), nil)
+		slices.Reverse(want)
+
+		if !slices.Equal(got, want) {
+			t.Errorf("FromUint64ToBEBytes(%d) = %v, want %v", tc, got, want)
+		}
+
+		if convert.FromBEBytesToUint64(got) != tc {
+			t.Errorf("FromBEBytesToUint64 = %d, want %d", convert.FromBEBytesToUint64(got), tc)
+		}
+	}
+}
+
+func TestFromInt64ToBEBytes(t *testing.T) {
+	tests := []int64{
+		1,
+		-1,
+		127,
+		-127,
+		128,
+		-129,
+		255,
+		-255,
+		256,
+		-256,
+		1024,
+		-1024,
+		1<<31 - 1,
+		-1 << 31,
+		1<<63 - 1,
+		-1<<63 + 1,
+	}
+
+	for _, tc := range tests {
+		got := convert.FromInt64ToBEBytes(tc)
+
+		want := bigint.ToPreallocatedBytes(big.NewInt(tc), nil)
+		slices.Reverse(want)
+
+		if !slices.Equal(got, want) {
+			t.Errorf("FromInt64ToBEBytes(%d) = %v, want %v", tc, got, want)
+		}
+
+		if convert.FromBEBytesToInt64(got) != tc {
+			t.Errorf("FromBEBytesToInt64 = %d, want %d", convert.FromBEBytesToInt64(got), tc)
+		}
+	}
+}
+
+func TestBEHelpers(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+
+	func Main() int64 {
+		var data = convert.FromInt64ToBEBytes(-129)
+		return convert.FromBEBytesToInt64(data)
+	}`
+	eval(t, src, big.NewInt(-129))
 }
