@@ -20,6 +20,13 @@ type Context struct{}
 // FindFlags represents parameters to `Find` iterator.
 type FindFlags byte
 
+// KeyValue represents a key-value pair that may be used to cast values returned
+// by [iterator.Value] method for cases when it returns key-value pairs.
+type KeyValue struct {
+	Key   []byte
+	Value []byte
+}
+
 const (
 	// None is default option. Iterator values are key-value pairs.
 	None FindFlags = 0

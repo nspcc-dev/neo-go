@@ -24,6 +24,8 @@ func Next(it Iterator) bool {
 // For slices, the result is just value.
 // For maps, the result can be cast to a slice of 2 elements: a key and a value.
 // For storage iterators, refer to `storage.FindFlags` documentation.
+// If the iterator is configured to return key-value pairs, the result can be
+// directly type-asserted to [storage.KeyValue] type.
 func Value(it Iterator) any {
 	return neogointernal.Syscall1("System.Iterator.Value", it)
 }

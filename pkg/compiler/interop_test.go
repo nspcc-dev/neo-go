@@ -765,3 +765,37 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 		checkSingleType(t, methodWithoutEllipsis, smartcontract.PublicKeyType, stackitem.IntegerT, true)
 	})
 }
+
+// TestStorageIterator_Value checks that iterator.Value can be
+// type-asserted to storage.KeyValue inside a contract.
+func TestStorageIterator_Value(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package foo
+
+import (
+	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+)
+
+func Main() int {
+	ctx := storage.GetContext()
+	storage.Put(ctx, []byte{1}, []byte{1})
+	storage.Put(ctx, []byte{2}, []byte{2})
+
+	it := storage.Find(ctx, []byte{}, storage.None)
+	sum := 0
+	for iterator.Next(it) {
+		kv := iterator.Value(it).(storage.KeyValue)
+		sum += int(kv.Value[0])
+	}
+	return sum
+}
+`
+	ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{Name: "KVIter"})
+	e.DeployContract(t, ctr, nil)
+	c := e.CommitteeInvoker(ctr.Hash)
+
+	c.Invoke(t, big.NewInt(3), "main")
+}
