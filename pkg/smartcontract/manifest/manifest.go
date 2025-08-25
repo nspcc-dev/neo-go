@@ -34,6 +34,10 @@ const (
 	NEP26StandardName = "NEP-26"
 	// NEP27StandardName represents the name of NEP-27 smartcontract standard.
 	NEP27StandardName = "NEP-27"
+	// NEP29StandardName represents the name of NEP-29 smartcontract standard describing _deploy method specification.
+	NEP29StandardName = "NEP-29"
+	// NEP30StandardName represents the name of NEP-30 smartcontract standard describing verify method specification.
+	NEP30StandardName = "NEP-30"
 	// NEP31StandardName represents the name of NEP-31 smartcontract standard for destroyable contracts.
 	NEP31StandardName = "NEP-31"
 

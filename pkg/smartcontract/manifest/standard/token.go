@@ -12,16 +12,19 @@ var DecimalTokenBase = &Standard{
 			Methods: []manifest.Method{
 				{
 					Name:       "decimals",
+					Parameters: []manifest.Parameter{}, // nil value implies no parameters check.
 					ReturnType: smartcontract.IntegerType,
 					Safe:       true,
 				},
 				{
 					Name:       "symbol",
+					Parameters: []manifest.Parameter{}, // nil value implies no parameters check.
 					ReturnType: smartcontract.StringType,
 					Safe:       true,
 				},
 				{
 					Name:       "totalSupply",
+					Parameters: []manifest.Parameter{}, // nil value implies no parameters check.
 					ReturnType: smartcontract.IntegerType,
 					Safe:       true,
 				},

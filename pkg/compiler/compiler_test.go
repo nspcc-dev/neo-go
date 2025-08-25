@@ -638,3 +638,41 @@ func TestReturnValuesCountCheck(t *testing.T) {
 		})
 	})
 }
+
+func TestCompileAndSafe_StandardsCheck(t *testing.T) {
+	tmpDir := t.TempDir()
+	tests := map[string]string{
+		"verify_no_args": `package testcase
+
+func Verify() bool {
+	return true
+}
+`,
+		"verify_many_args": `package testcase
+
+func Verify(a []byte, b []byte, s string, n int) bool {
+	_ = a; _ = b; _ = s; _ = n
+	return true
+}
+`,
+	}
+
+	for name, src := range tests {
+		t.Run(name, func(t *testing.T) {
+			srcPath := filepath.Join(tmpDir, name+".go")
+			require.NoError(t, os.WriteFile(srcPath, []byte(src), os.ModePerm))
+
+			manifestPath := filepath.Join(tmpDir, name+".manifest.json")
+
+			opts := &compiler.Options{
+				ContractSupportedStandards: []string{manifest.NEP30StandardName},
+				SafeMethods:                []string{manifest.MethodVerify},
+				ManifestFile:               manifestPath,
+				Name:                       src,
+			}
+
+			_, err := compiler.CompileAndSave(srcPath, opts)
+			require.NoError(t, err)
+		})
+	}
+}
