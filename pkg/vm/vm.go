@@ -1638,8 +1638,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		panic("ABORT")
 
 	case opcode.ABORTMSG:
-		msg := v.estack.Pop().Bytes()
-		panic(fmt.Sprintf("%s is executed. Reason: %s", op, string(msg)))
+		msg := v.estack.Pop().String()
+		panic(fmt.Sprintf("%s is executed. Reason: %s", op, msg))
 
 	case opcode.ASSERT:
 		if !v.estack.Pop().Bool() {
@@ -1647,7 +1647,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.ASSERTMSG:
-		msg := v.estack.Pop().Bytes()
+		msg := v.estack.Pop().String()
 		if !v.estack.Pop().Bool() {
 			panic(fmt.Sprintf("%s is executed with false result. Reason: %s", op, msg))
 		}

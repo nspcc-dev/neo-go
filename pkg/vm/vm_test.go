@@ -137,8 +137,12 @@ func runVM(t *testing.T, vm *VM) {
 }
 
 func checkVMFailed(t *testing.T, vm *VM) {
+	checkVMFailedWithError(t, vm, "")
+}
+
+func checkVMFailedWithError(t *testing.T, vm *VM, expectedErr string) {
 	err := vm.Run()
-	require.Error(t, err)
+	require.ErrorContains(t, err, expectedErr)
 	assert.Equal(t, true, vm.HasFailed())
 }
 
@@ -1149,6 +1153,52 @@ func TestTRY(t *testing.T) {
 		require.Equal(t, big.NewInt(4), v.Estack().Pop().Value())  // outer FINALLY
 		require.Equal(t, big.NewInt(2), v.Estack().Pop().Value())  // inner FINALLY
 		require.Equal(t, big.NewInt(23), v.Estack().Pop().Value()) // inner THROW + CATCH
+	})
+}
+
+func TestABORTMSG(t *testing.T) {
+	t.Run("good", func(t *testing.T) {
+		vm := load([]byte{
+			byte(opcode.PUSHDATA1), 3, 1, 2, 3,
+			byte(opcode.ABORTMSG)},
+		)
+		checkVMFailedWithError(t, vm, string([]byte{1, 2, 3}))
+	})
+	t.Run("non utf-8 message", func(t *testing.T) {
+		vm := load([]byte{
+			byte(opcode.PUSHDATA1), 1, 0xC0,
+			byte(opcode.ABORTMSG)},
+		)
+		checkVMFailedWithError(t, vm, "at instruction 3 (ABORTMSG): invalid value: not UTF-8")
+	})
+	// Ref. #3986.
+	t.Run("compat", func(t *testing.T) {
+		msg, err := hex.DecodeString("5570646174653a20436865636b5769746e657373206661696c65642c206f776e65722d11b224c06ccbb449f7e645a66a2fd9e3a5e88862")
+		require.NoError(t, err)
+		vm := load(append(append([]byte{
+			byte(opcode.PUSHDATA1), byte(len(msg))}, msg...),
+			byte(opcode.ABORTMSG)),
+		)
+		checkVMFailedWithError(t, vm, "(ABORTMSG): invalid value: not UTF-8")
+	})
+}
+
+func TestASSERTMSG(t *testing.T) {
+	t.Run("good", func(t *testing.T) {
+		vm := load([]byte{
+			byte(opcode.PUSHF),
+			byte(opcode.PUSHDATA1), 3, 1, 2, 3,
+			byte(opcode.ASSERTMSG)},
+		)
+		checkVMFailedWithError(t, vm, string([]byte{1, 2, 3}))
+	})
+	t.Run("non utf-8 message", func(t *testing.T) {
+		vm := load([]byte{
+			byte(opcode.PUSHF),
+			byte(opcode.PUSHDATA1), 1, 0xC0,
+			byte(opcode.ASSERTMSG)},
+		)
+		checkVMFailedWithError(t, vm, "at instruction 4 (ASSERTMSG): invalid value: not UTF-8")
 	})
 }
 
