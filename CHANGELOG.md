@@ -2,6 +2,55 @@
 
 This document outlines major changes between releases.
 
+## 0.112.0 "Hibernation" (29 Aug 2025)
+
+This version fixes state difference at block 8813651 of testnet caused by
+improper `ABORTMSG` and `AASSERTMSG` arguments handling. It also introduces
+support for a set of newly-added NEPs and ability to customize the list of
+native contracts.
+
+DB resynchronisation (or state reset to block 8813650 for full nodes) is
+required on testnet nodes upgrade. `SessionExpirationTime` RPC server setting is
+deprecated and replaced by `SessionLifetime` of `Duration` type, consider
+upgrading the node's config. `math.Min` and `math.Max` interop utilities are
+deprecated and replaced by Go built-in `min` and `max` functions, consider
+upgrading affected smart contracts. Also, some deprecated functionality has been
+removed according to the schedule.
+
+New features:
+ * customizable native contracts (#3966)
+ * NEP-22/NEP-31 (contract update and destroy functionality) support in CLI,
+   `smartcontract` package and compiler (#3968, #3971)
+ * NEP-29/NEP-30 (contract `_deploy` and `verify` methods) support in
+   `smartcontract` package and compiler (#3978)
+ * NEP-32 support for `db restore` CLI command (unified chain dump format)
+   (#3974)
+ * mempool events RPC web-socket subscription (#3967)
+
+Behavior changes:
+ * `wallet candidate register` CLI command is migrated onto GAS transfer (#3973)
+ * `SessionExpirationTime` RPC server setting is deprecated and replaced by
+   `SessionLifetime` (#3953)
+ * `math.Min` and `math.Max` interop helpers are deprecated and replaced with
+   Go built-in min/max (#3984)
+ * deprecated functionality removal (`GetBlockHeader` and
+   `GetBlockHeaderVerbose` methods of RPC client) (#3995)
+ * RPC client's `Waiter.Wait()` is extended with context parameter (#3959)
+
+Improvements:
+ * `storage.KeyValue` interop type (#3982)
+ * `util convert` CLI command is extended with Base64 public key convertor
+ * stackitem conversion is supported for `rolemgmt.DesignationEvent` native
+   RoleManagement RPC binding (#3956)
+ * `getversion` RPC response is extended with `SaveInvocations`,
+   `KeepOnlyLatestState` and `RemoveUntraceableBlocks` settings (#3954)
+ * Go built-in min/max support in compiler (#3984)
+ * web-socket client connection errors improvement (#3975)
+
+Bugs fixed:
+ * panic on public key comparison with infinite operand (#3961)
+ * missing strict UTF-8 check for `ABORTMSG` and `ASSERTMSG` arguments (#3988)
+
 ## 0.111.0 "Facilitation" (18 Jul 2025)
 
 We've decided to release one more v3.8.0-compatible version since the current
