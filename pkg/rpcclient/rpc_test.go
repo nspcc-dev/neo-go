@@ -244,7 +244,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				return c.GetBlockHeader(hash)
+				return c.GetBlockHeaderByHash(hash)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + base64Header1 + `"}`,
 			result: func(c *Client) any {
