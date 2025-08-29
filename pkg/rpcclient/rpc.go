@@ -151,14 +151,6 @@ func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 	return resp, nil
 }
 
-// GetBlockHeader returns the corresponding block header information from
-// a serialized base64 string according to the specified script hash. In-header
-// stateroot option must be initialized with Init before calling this method.
-// Deprecated: Use GetBlockHeaderByHash instead.
-func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
-	return c.GetBlockHeaderByHash(hash)
-}
-
 // GetBlockHeaderByHash returns the corresponding block header information from
 // a serialized base64 string according to the specified script hash. In-header
 // stateroot option must be initialized with Init before calling this method.
@@ -203,14 +195,6 @@ func (c *Client) GetBlockHeaderCount() (uint32, error) {
 		return resp, err
 	}
 	return resp, nil
-}
-
-// GetBlockHeaderVerbose returns the corresponding block header information from
-// a JSON format string according to the specified script hash. In-header
-// stateroot option must be initialized with Init before calling this method.
-// Deprecated: Use GetBlockHeaderByHashVerbose instead.
-func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error) {
-	return c.GetBlockHeaderByHashVerbose(hash)
 }
 
 // GetBlockHeaderByHashVerbose returns the corresponding block header information from
