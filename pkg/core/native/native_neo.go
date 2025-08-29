@@ -840,14 +840,6 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 
 func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	pub := toPublicKey(args[0])
-	if !ic.IsHardforkEnabled(config.HFEchidna) {
-		ok, err := runtime.CheckKeyedWitness(ic, pub)
-		if err != nil {
-			panic(err)
-		} else if !ok {
-			return stackitem.NewBool(false)
-		}
-	}
 	if !ic.VM.AddGas(n.getRegisterPriceInternal(ic.DAO)) {
 		panic("insufficient gas")
 	}
