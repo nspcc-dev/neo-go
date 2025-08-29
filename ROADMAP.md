@@ -7,9 +7,10 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.112.0 (~Aug 2025)
+## Version 0.113.0 (~Sept 2025)
  * protocol updates
  * bug fixes
+ * StateRootInHeader protocol extension
 
 ## Version 1.0 (2025, TBD)
  * stable version
