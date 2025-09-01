@@ -56,7 +56,7 @@ type (
 
 		SeedList         []string `yaml:"SeedList"`
 		StandbyCommittee []string `yaml:"StandbyCommittee"`
-		// StateRooInHeader enables storing state root in block header.
+		// StateRootInHeader enables storing state root in block header.
 		StateRootInHeader bool `yaml:"StateRootInHeader"`
 		// StateSyncInterval is the number of blocks between state heights available for MPT state data synchronization.
 		// It is valid only if P2PStateExchangeExtensions are enabled.
