@@ -266,6 +266,7 @@ func TestRestoreDB(t *testing.T) {
 	cfgPath := set.String("config-path", goodCfg, "")
 	set.Bool("privnet", true, "")
 	set.Bool("debug", true, "")
+	set.Bool("non-incremental", true, "")
 	set.Int("start", 0, "")
 	set.Int("count", 1, "")
 	set.String("out", testDump, "")
