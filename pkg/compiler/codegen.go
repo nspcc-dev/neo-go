@@ -830,6 +830,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SwitchStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
+		if n.Init != nil {
+			ast.Walk(c, n.Init)
+		}
+
 		eqOpcode := opcode.EQUAL
 		if n.Tag != nil {
 			ast.Walk(c, n.Tag)
