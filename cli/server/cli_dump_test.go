@@ -58,6 +58,7 @@ func TestDBRestoreDump(t *testing.T) {
 
 	// Dump and compare.
 	dumpPath := filepath.Join(tmpDir, "testdump.acc")
+	incDumpPath := filepath.Join(tmpDir, "testincdump.acc")
 
 	t.Run("missing config", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "db", "dump", "--privnet",
@@ -104,13 +105,17 @@ func TestDBRestoreDump(t *testing.T) {
 		e.RunWithError(t, append(baseCmd, "something")...)
 	})
 
-	e.Run(t, baseCmd...)
+	e.Run(t, append(baseCmd, "--non-incremental", "--out", dumpPath)...)
+	e.Run(t, append(baseCmd, "--out", incDumpPath)...)
 
 	d1, err := os.ReadFile(inDump)
 	require.NoError(t, err)
 	d2, err := os.ReadFile(dumpPath)
 	require.NoError(t, err)
 	require.Equal(t, d1, d2, "dumps differ")
+	d3, err := os.ReadFile(incDumpPath)
+	require.NoError(t, err)
+	require.Equal(t, append([]byte{0, 0, 0, 0}, d1...), d3, "dumps differ")
 }
 
 func TestDBDumpRestoreIncremental(t *testing.T) {

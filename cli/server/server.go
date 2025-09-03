@@ -97,7 +97,12 @@ func NewCommands() []*cli.Command {
 					Usage:     "Dump blocks (starting with the genesis or specified block) to the file",
 					UsageText: "neo-go db dump [-o file] [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file] [--force-timestamp-logs]",
 					Action:    dumpDB,
-					Flags:     cfgCountOutFlags,
+					Flags: append(cfgCountOutFlags,
+						&cli.BoolFlag{
+							Name:  "non-incremental",
+							Usage: "Force legacy (non-incremental) dump output",
+						},
+					),
 				},
 				{
 					Name:      "dump-bin",
@@ -204,7 +209,7 @@ func dumpDB(ctx *cli.Context) error {
 	if count == 0 {
 		count = chainCount - start
 	}
-	if start != 0 {
+	if start != 0 || !ctx.Bool("non-incremental") {
 		writer.WriteU32LE(start)
 	}
 	writer.WriteU32LE(count)
