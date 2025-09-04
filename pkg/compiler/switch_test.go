@@ -259,6 +259,115 @@ var switchTestCases = []testCase{
 		`,
 		big.NewInt(6),
 	},
+	{
+		"init assignment",
+		`func F%d() int {
+			var n int
+			switch n = 1; {
+			}
+			return n
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"init short decl with shadowing",
+		`func F%d() int {
+			n := 10
+			switch n := 1; {
+			default:
+				if n != 1 {
+					return -1
+				}
+			}
+			return n
+		}
+		`,
+		big.NewInt(10),
+	},
+	{
+		"init with multiple assignment",
+		`func F%d() int {
+			var a, b int
+			switch a, b = 2, 3; {
+			default:
+				return a+b
+			}
+		}
+		`,
+		big.NewInt(5),
+	},
+	{
+		"init with multiple assignment, without shadowing",
+		`func F%d() int {
+			switch a, b := 2, 3; {
+			default:
+				return a+b
+			}
+		}
+		`,
+		big.NewInt(5),
+	},
+	{
+		"init with function call",
+		`var g int
+		func set(v int) int { g = v; return v }
+		func F%d() int {
+			g = 0
+			switch x := set(7); x {
+			case 7:
+				return g
+			default:
+				return -1
+			}
+		}
+		`,
+		big.NewInt(7),
+	},
+	{
+		"init evaluation order",
+		`var order []int
+		func add(v int) int { order = append(order, v); return v }
+		func F%d() int {
+			order = nil
+			switch add(1); add(2) {
+			case 2:
+				if len(order) == 2 && order[0] == 1 && order[1] == 2 {
+					return 42
+				}
+			}
+			return -1
+		}
+		`,
+		big.NewInt(42),
+	},
+	{
+		"init without tag",
+		`func F%d() int {
+			var x int
+			switch x = 7; {
+			case x == 7:
+				return x
+			default:
+				return -1
+			}
+		}
+		`,
+		big.NewInt(7),
+	},
+	{
+		"init short decl with multi shadowing",
+		`func F%d() int {
+			a, b := 0, 0
+			switch a, b := 3, 4; {
+			default:
+				return a+b
+			}
+			return a+b
+		}
+		`,
+		big.NewInt(7),
+	},
 }
 
 func TestSwitch(t *testing.T) {
