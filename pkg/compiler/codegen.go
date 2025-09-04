@@ -608,13 +608,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
-				// Filter out type assertion with two return values: var i, ok = v.(int)
+				var isKeyCheck bool
+				// Handle comma-ok form with two return values (type assertion or map index expression).
 				if len(t.Names) == 2 && len(t.Values) == 1 && n.Tok == token.VAR {
 					err := checkTypeAssertWithOK(t.Values[0])
 					if err != nil {
 						c.prog.Err = err
 						return nil
 					}
+					isKeyCheck = c.checkGetMapValueWithOKFlag(t.Values[0])
 				}
 				multiRet := n.Tok == token.VAR && len(t.Values) != 0 && len(t.Names) != len(t.Values)
 				for _, id := range t.Names {
@@ -632,18 +634,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 				for i, id := range t.Names {
 					if id.Name != "_" {
-						if len(t.Values) != 0 {
-							if i == 0 || !multiRet {
+						if !isKeyCheck {
+							if len(t.Values) == 0 {
+								c.emitDefault(c.typeOf(t.Type))
+							} else if i == 0 || !multiRet {
 								ast.Walk(c, t.Values[i])
 							}
-						} else {
-							c.emitDefault(c.typeOf(t.Type))
 						}
 						c.emitStoreVar("", t.Names[i].Name)
 						continue
 					}
 					// If var decl contains call then the code should be emitted for it, otherwise - do not evaluate.
-					if len(t.Values) == 0 {
+					if len(t.Values) == 0 || isKeyCheck {
 						continue
 					}
 					var hasCall bool
@@ -662,6 +664,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.AssignStmt:
+		var isKeyCheck bool
 		// Filter out type assertion with two return values: i, ok = v.(int)
 		if len(n.Lhs) == 2 && len(n.Rhs) == 1 && (n.Tok == token.DEFINE || n.Tok == token.ASSIGN) {
 			err := checkTypeAssertWithOK(n.Rhs[0])
@@ -669,6 +672,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.prog.Err = err
 				return nil
 			}
+			isKeyCheck = c.checkGetMapValueWithOKFlag(n.Rhs[0])
 		}
 		multiRet := len(n.Rhs) != len(n.Lhs)
 		c.saveSequencePoint(n)
@@ -691,13 +695,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						c.scope.newLocal(t.Name)
 					}
 				}
-				if !isAssignOp && (i == 0 || !multiRet) {
+				if !isAssignOp && !isKeyCheck && (i == 0 || !multiRet) {
 					ast.Walk(c, n.Rhs[i])
 				}
 				c.emitStoreVar("", t.Name)
 
 			case *ast.SelectorExpr:
-				if !isAssignOp {
+				if !isAssignOp && !isKeyCheck {
 					ast.Walk(c, n.Rhs[i])
 				}
 				typ := c.typeOf(t.X)
@@ -718,7 +722,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Assignments to index expressions.
 			// slice[0] = 10
 			case *ast.IndexExpr:
-				if !isAssignOp {
+				if !isAssignOp && !isKeyCheck {
 					ast.Walk(c, n.Rhs[i])
 				}
 				ast.Walk(c, t.X)
@@ -2052,6 +2056,33 @@ func (c *codegen) emitConvert(typ stackitem.Type) {
 		emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 2}) // After CONVERT.
 		emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 	}
+}
+
+func (c *codegen) checkGetMapValueWithOKFlag(expr ast.Expr) bool {
+	var isKeyCheck bool
+	if idxExpr, ok := expr.(*ast.IndexExpr); ok {
+		var typ *types.Map
+		if typ, isKeyCheck = c.typeOf(idxExpr.X).Underlying().(*types.Map); isKeyCheck {
+			ast.Walk(c, idxExpr.X)
+			emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+			ast.Walk(c, idxExpr.Index)
+			emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.ROT,
+				opcode.SWAP, opcode.HASKEY,
+			)
+			lNotHasKey := c.newLabel()
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, lNotHasKey)
+			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.DROP,
+				opcode.PUSHF,
+			)
+			c.emitDefault(typ.Elem())
+			emit.Instruction(c.prog.BinWriter, opcode.JMP, []byte{5})
+			c.setLabel(lNotHasKey)
+			emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM, opcode.PUSHT,
+				opcode.SWAP,
+			)
+		}
+	}
+	return isKeyCheck
 }
 
 func (c *codegen) convertByteArray(elems []ast.Expr) {
