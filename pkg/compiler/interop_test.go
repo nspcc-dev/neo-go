@@ -799,3 +799,72 @@ func Main() int {
 
 	c.Invoke(t, big.NewInt(3), "main")
 }
+
+func TestUint64Convertors(t *testing.T) {
+	tests := []uint64{
+		0,
+		1,
+		127,
+		128,
+		255,
+		256,
+		1024,
+		1<<32 - 1,
+		1 << 32,
+	}
+
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+	
+		func Main(args []any) uint64 {
+			var data = convert.Uint64ToBytes%sE(args[0].(uint64))
+			return convert.Bytes%sEToUint64(data)
+		}
+	`
+
+	for _, tc := range tests {
+		for range []string{"L", "B"} {
+			evalWithArgs(t, fmt.Sprintf(src, "B", "B"), nil,
+				[]stackitem.Item{stackitem.Make(tc)}, big.NewInt(0).SetUint64(tc),
+			)
+		}
+	}
+}
+
+func TestInt64Convertors(t *testing.T) {
+	tests := []int64{
+		1,
+		-1,
+		127,
+		-127,
+		128,
+		-129,
+		255,
+		-255,
+		256,
+		-256,
+		1024,
+		-1024,
+		1<<31 - 1,
+		-1 << 31,
+		1<<63 - 1,
+		-1<<63 + 1,
+	}
+
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+	
+		func Main(args []any) int64 {
+			var data =convert.Int64ToBytes%sE(args[0].(int64))
+			return convert.Bytes%sEToInt64(data)
+		}
+	`
+
+	for _, tc := range tests {
+		for _, endian := range []string{"L", "B"} {
+			evalWithArgs(t, fmt.Sprintf(src, endian, endian), nil,
+				[]stackitem.Item{stackitem.Make(tc)}, big.NewInt(tc),
+			)
+		}
+	}
+}
