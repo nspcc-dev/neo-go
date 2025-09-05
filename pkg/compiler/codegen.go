@@ -316,6 +316,10 @@ func (c *codegen) emitStoreVar(pkg string, name string) {
 		return
 	}
 	vi := c.getVarIndex(pkg, name)
+	if vi.index == unspecifiedVarIndex && vi.ctx != nil {
+		c.scope.newLocal(name)
+		vi = c.getVarIndex(pkg, name)
+	}
 	c.emitStoreByIndex(vi.refType, vi.index)
 }
 
