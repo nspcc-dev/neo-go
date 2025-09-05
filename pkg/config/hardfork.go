@@ -52,7 +52,7 @@ const (
 	HFEchidna // Echidna
 	// HFFaun represents hard-fork introduced in #3931, it's currently
 	// under development and doesn't introduce any new functionality yet.
-	HFFaun
+	HFFaun // Faun
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
 	hfLast
