@@ -23,7 +23,7 @@ const (
 	_Hardfork_name_1 = "Cockatrice"
 	_Hardfork_name_2 = "Domovoi"
 	_Hardfork_name_3 = "Echidna"
-	_Hardfork_name_4 = "HFFaun"
+	_Hardfork_name_4 = "Faun"
 	_Hardfork_name_5 = "hfLast"
 )
 
