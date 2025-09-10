@@ -3,12 +3,12 @@ package native_test
 import (
 	"bytes"
 	"fmt"
-	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
