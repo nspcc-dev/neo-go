@@ -51,7 +51,8 @@ const (
 	// https://github.com/neo-project/neo/pull/3175).
 	HFEchidna // Echidna
 	// HFFaun represents hard-fork introduced in #3931, #4004 (ported from
-	// https://github.com/neo-project/neo/pull/4147).
+	// https://github.com/neo-project/neo/pull/4147,
+	// https://github.com/neo-project/neo/pull/4150).
 	HFFaun // Faun
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
