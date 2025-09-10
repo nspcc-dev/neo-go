@@ -7,6 +7,7 @@ package policy
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
@@ -90,4 +91,10 @@ func GetMillisecondsPerBlock() int {
 // Note that this method is available starting from [config.HFEchidna] hardfork.
 func SetMillisecondsPerBlock(value int) {
 	neogointernal.CallWithTokenNoRet(Hash, "setMillisecondsPerBlock", int(contract.States|contract.AllowNotify), value)
+}
+
+// GetBlockedAccounts represents `getBlockedAccounts` method of Policy native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func GetBlockedAccounts() iterator.Iterator {
+	return neogointernal.CallWithToken(Hash, "getBlockedAccounts", int(contract.ReadStates)).(iterator.Iterator)
 }
