@@ -176,7 +176,7 @@ func (t *Trie) addToBranch(b *BranchNode, kv []keyValue, inTrie bool) (Node, int
 	return nd, n, err
 }
 
-// stripsBranch strips the branch node after incomplete batch put.
+// stripBranch strips the branch node after incomplete batch put.
 // It assumes there is no reference to b in the trie.
 func (t *Trie) stripBranch(b *BranchNode) (Node, error) {
 	var n int

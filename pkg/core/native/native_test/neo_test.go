@@ -378,7 +378,7 @@ func TestNEO_Vote(t *testing.T) {
 	require.Equal(t, uint64(0), stateAfterUnvote.LastGasPerVote.Uint64())
 }
 
-// TestNEO_RecursiveDistribution is a test for https://github.com/nspcc-dev/neo-go/pull/2181.
+// TestNEO_RecursiveGASMint is a test for https://github.com/nspcc-dev/neo-go/pull/2181.
 func TestNEO_RecursiveGASMint(t *testing.T) {
 	neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000)
 	neoValidatorInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
