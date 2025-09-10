@@ -164,7 +164,14 @@ func TestClientRoleManagement(t *testing.T) {
 }
 
 func TestClientPolicyContract(t *testing.T) {
-	chain, _, httpSrv := initServerWithInMemoryChain(t)
+	chain, _, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
+		cfg.ProtocolConfiguration.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
+	for _, b := range getTestBlocks(t) {
+		require.NoError(t, chain.AddBlock(b))
+	}
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -221,14 +228,19 @@ func TestClientPolicyContract(t *testing.T) {
 	txattr, err := polis.SetAttributeFeeUnsigned(transaction.NotaryAssistedT, 100500)
 	require.NoError(t, err)
 
-	txblock, err := polis.BlockAccountUnsigned(util.Uint160{1, 2, 3})
+	blocked := []util.Uint160{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}
+	txblock1, err := polis.BlockAccountUnsigned(blocked[0])
+	require.NoError(t, err)
+	txblock2, err := polis.BlockAccountUnsigned(blocked[1])
+	require.NoError(t, err)
+	txblock3, err := polis.BlockAccountUnsigned(blocked[2])
 	require.NoError(t, err)
 
-	for _, tx := range []*transaction.Transaction{txattr, txblock, txstorage, txnetfee, txexec} {
+	for _, tx := range []*transaction.Transaction{txattr, txblock1, txblock2, txblock3, txstorage, txnetfee, txexec} {
 		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
 	}
 
-	bl := testchain.NewBlock(t, chain, 1, 0, txattr, txblock, txstorage, txnetfee, txexec)
+	bl := testchain.NewBlock(t, chain, 1, 0, txattr, txblock1, txblock2, txblock3, txstorage, txnetfee, txexec)
 	_, err = c.SubmitBlock(*bl)
 	require.NoError(t, err)
 
@@ -251,6 +263,19 @@ func TestClientPolicyContract(t *testing.T) {
 	ret, err = polizei.IsBlocked(util.Uint160{1, 2, 3})
 	require.NoError(t, err)
 	require.True(t, ret)
+
+	all, err := polizei.GetBlockedAccountsExpanded(100)
+	require.NoError(t, err)
+	slices.SortFunc(blocked, func(a, b util.Uint160) int {
+		return bytes.Compare(a[:], b[:])
+	})
+	require.Equal(t, blocked, all)
+
+	it, err := polizei.GetBlockedAccounts()
+	require.NoError(t, err)
+	all, err = it.Next(100)
+	require.NoError(t, err)
+	require.Equal(t, blocked, all)
 }
 
 func TestClientManagementContract(t *testing.T) {

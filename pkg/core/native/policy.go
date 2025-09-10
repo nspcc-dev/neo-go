@@ -211,6 +211,10 @@ func newPolicy() *Policy {
 	md = NewMethodAndPrice(p.setMaxTraceableBlocks, 1<<15, callflag.States, config.HFEchidna)
 	p.AddMethod(md, desc)
 
+	desc = NewDescriptor("getBlockedAccounts", smartcontract.InteropInterfaceType)
+	md = NewMethodAndPrice(p.getBlockedAccounts, 1<<15, callflag.ReadStates, config.HFFaun)
+	p.AddMethod(md, desc)
+
 	return p
 }
 
@@ -445,6 +449,12 @@ func (p *Policy) getAttributeFeeGeneric(ic *interop.Context, args []stackitem.It
 	return stackitem.NewBigInteger(big.NewInt(p.GetAttributeFeeInternal(ic.DAO, t)))
 }
 
+func (p *Policy) getBlockedAccounts(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	cache := ic.DAO.GetROCache(p.ID).(*PolicyCache)
+	cloned := slices.Clone(cache.blockedAccounts)
+	return stackitem.NewInterop(&iterator{keys: cloned})
+}
+
 // GetAttributeFeeInternal returns required transaction's attribute fee.
 func (p *Policy) GetAttributeFeeInternal(d *dao.Simple, t transaction.AttrType) int64 {
 	cache := d.GetROCache(p.ID).(*PolicyCache)
@@ -667,4 +677,28 @@ func (p *Policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error {
 		}
 	}
 	return nil
+}
+
+// iterator provides an iterator over a slice of keys.
+type iterator struct {
+	keys []util.Uint160
+	next bool
+}
+
+// Next advances the iterator and returns true if Value can be called at the
+// current position.
+func (i *iterator) Next() bool {
+	if i.next {
+		i.keys = i.keys[1:]
+	}
+	i.next = len(i.keys) > 0
+	return i.next
+}
+
+// Value returns current iterators value.
+func (i *iterator) Value() stackitem.Item {
+	if !i.next {
+		panic("iterator index out of range")
+	}
+	return stackitem.Make(i.keys[0])
 }
