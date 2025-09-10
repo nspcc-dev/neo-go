@@ -362,7 +362,7 @@ func NewEventDescriptor(name string, ps ...manifest.Parameter) *manifest.Event {
 	}
 }
 
-// newEvent builds event with the provided descriptor and ActiveFrom/ActiveTill hardfork
+// NewEvent builds event with the provided descriptor and ActiveFrom/ActiveTill hardfork
 // values consequently specified via activations.
 func NewEvent(desc *manifest.Event, activations ...config.Hardfork) interop.Event {
 	md := interop.Event{
