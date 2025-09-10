@@ -177,6 +177,10 @@ func newPolicy() *Policy {
 	md = NewMethodAndPrice(p.unblockAccount, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
+	desc = NewDescriptor("getBlockedAccounts", smartcontract.ArrayType)
+	md = NewMethodAndPrice(p.getBlockedAccounts, 1<<15, callflag.ReadStates, config.HFFaun)
+	p.AddMethod(md, desc)
+
 	desc = NewDescriptor("getMaxValidUntilBlockIncrement", smartcontract.IntegerType)
 	md = NewMethodAndPrice(p.getMaxValidUntilBlockIncrement, 1<<15, callflag.ReadStates, config.HFEchidna)
 	p.AddMethod(md, desc)
@@ -443,6 +447,23 @@ func (p *Policy) getAttributeFeeGeneric(ic *interop.Context, args []stackitem.It
 		panic(fmt.Errorf("invalid attribute type: %d", t))
 	}
 	return stackitem.NewBigInteger(big.NewInt(p.GetAttributeFeeInternal(ic.DAO, t)))
+}
+
+func (p *Policy) getBlockedAccounts(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	if cache, ok := ic.DAO.GetROCache(p.ID).(*PolicyCache); ok && cache != nil {
+		res := make([]stackitem.Item, 0, len(cache.blockedAccounts))
+		for _, h := range cache.blockedAccounts {
+			res = append(res, stackitem.NewByteArray(h.BytesBE()))
+		}
+		return stackitem.NewArray(res)
+	}
+
+	var res []stackitem.Item
+	ic.DAO.Seek(p.ID, storage.SeekRange{Prefix: []byte{blockedAccountPrefix}}, func(k, _ []byte) bool {
+		res = append(res, stackitem.NewByteArray(k))
+		return true
+	})
+	return stackitem.NewArray(res)
 }
 
 // GetAttributeFeeInternal returns required transaction's attribute fee.
