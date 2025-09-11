@@ -338,6 +338,63 @@ var sliceTestCases = []testCase{
 		`,
 		[]byte("str"),
 	},
+	{
+		"swap two elements",
+		`func F%d() []int {
+			arr := []int{1, 0}
+			arr[0], arr[1] = arr[1], arr[0]
+			return arr
+		}
+		`,
+		[]stackitem.Item{stackitem.Make(0), stackitem.Make(1)},
+	},
+	{
+		"swap three elements",
+		`func F%d() []int {
+			arr := []int{1, 2, 0}
+			arr[0], arr[1], arr[2] = arr[2], arr[0], arr[1]
+			return arr
+		}
+		`,
+		[]stackitem.Item{stackitem.Make(0), stackitem.Make(1), stackitem.Make(2)},
+	},
+	/*{
+		"swap with side effects",
+		`var i int
+			func mdfySlice(s []int) []int {
+				s[i] += s[i]
+				i++
+				return s
+			}
+			func F%d() []int {
+				s := []int{3, 5, 2}
+				s[2], s[0] = mdfySlice(s)[1], mdfySlice(s)[2]
+				return s
+			}
+			`,
+		[]stackitem.Item{stackitem.Make(2), stackitem.Make(10), stackitem.Make(10)},
+	},
+	{
+		"swap with side effects",
+		`func F%d() []int {
+				i = 0
+				s := []int{3, 5, 2}
+				s[2], s[0], s[1] = mdfySlice(s)[1], mdfySlice(s)[2], mdfySlice(s)[0]
+				return s
+			}
+			`,
+		[]stackitem.Item{stackitem.Make(4), stackitem.Make(6), stackitem.Make(10)},
+	},*/
+	{
+		"assigment with another operator",
+		`func F%d() []int {
+				a := []int{1, 2}
+				a[0], a[1] = a[1], a[0] + 10
+				return a
+			}
+			`,
+		[]stackitem.Item{stackitem.Make(2), stackitem.Make(11)},
+	},
 }
 
 func TestSliceOperations(t *testing.T) {

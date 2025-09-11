@@ -431,6 +431,35 @@ var structTestCases = []testCase{
 		`,
 		big.NewInt(2),
 	},
+	{
+		"swap elements",
+		`type S11 struct { X, Y int }
+		func F%d() S11 {
+			s := S11{1,2}
+			s.X, s.Y = s.Y, s.X
+			return s
+		}
+		`,
+		[]stackitem.Item{
+			stackitem.Make(2),
+			stackitem.Make(1),
+		},
+	},
+	/*{
+		"swap with side effects",
+		`func mdfyStruct(t *T) *T {
+			t.A = t.A + 1
+			t.B = t.B + t.A
+			return t
+		}
+		func F%() *T {
+			t := &T{1, 2}
+			t.A, t.B = mdfyStruct(t).B, mdfyStruct(t).A
+			return t
+		}
+		`,
+		[]stackitem.Item{stackitem.Make(7), stackitem.Make(3)},
+	},*/
 }
 
 func TestStructs(t *testing.T) {
