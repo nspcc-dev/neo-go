@@ -2017,6 +2017,29 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		for range len(expr.Args) - 1 {
 			emit.Opcodes(c.prog.BinWriter, opcode.MAX)
 		}
+	case "clear":
+		switch typ := c.typeOf(expr.Args[0]).(type) {
+		case *types.Map:
+			emit.Opcodes(c.prog.BinWriter, opcode.CLEARITEMS)
+		case *types.Slice:
+			emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.SIZE, opcode.OVER,
+				opcode.CLEARITEMS,
+			)
+			clearItemsBegin := c.newLabel()
+			c.setLabel(clearItemsBegin)
+			emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.PUSH0)
+			clearItemsEnd := c.newLabel()
+			emit.Jmp(c.prog.BinWriter, opcode.JMPLEL, clearItemsEnd)
+			emit.Opcodes(c.prog.BinWriter, opcode.DEC, opcode.OVER)
+			c.emitDefault(typ.Elem())
+			emit.Opcodes(c.prog.BinWriter, opcode.APPEND)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, clearItemsBegin)
+			c.setLabel(clearItemsEnd)
+			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.DROP)
+		default:
+			c.prog.Err = fmt.Errorf("only map or slice are supported by clear, got: %s", typ)
+			return
+		}
 	}
 }
 

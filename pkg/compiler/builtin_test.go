@@ -105,3 +105,194 @@ func TestMaxMin(t *testing.T) {
 		}
 	}
 }
+
+func TestClear(t *testing.T) {
+	tests := []struct {
+		name        string
+		src         string
+		expectedErr string
+		expected    any
+	}{
+		{
+			name: "invalid type array",
+			src: `package foo
+				func Main() [42]int {
+					var m = [42]int{}
+					clear(m)
+					return m
+				}`,
+			expectedErr: "invalid argument: cannot clear m (variable of type [42]int): " +
+				"argument must be (or constrained by) map or slice",
+		},
+		{
+			name: "map",
+			src: `package foo
+				func Main() map[string]int {
+					var m = map[string]int{
+						"one": 1,
+						"two": 2,
+					}
+					clear(m)
+					return m
+				}`,
+			expected: []stackitem.MapElement{},
+		},
+		{
+			name: "slice of integers",
+			src: `package foo
+				func Main() []int {
+					var s = []int{1, 2, 3}
+					clear(s)
+					return s
+				}`,
+			expected: []stackitem.Item{stackitem.Make(0), stackitem.Make(0), stackitem.Make(0)},
+		},
+		{
+			name: "slice of strings",
+			src: `package foo
+				func Main() []string {
+					var s = []string{"one", "two", "three"}
+					clear(s)
+					return s
+				}`,
+			expected: []stackitem.Item{stackitem.Make(""), stackitem.Make(""), stackitem.Make("")},
+		},
+		{
+			name: "slice of structs",
+			src: `package foo
+				type S2 struct {
+					A int
+					B string
+					C bool
+				}
+					
+				type S1 struct {
+					S S2
+				}
+				
+				func Main() []S1 {
+					var s = []S1 {
+						{
+							S: S2 {
+								A: 42,
+								B: "first",
+								C: true,
+							},
+						},
+						{
+							S: S2 {
+								A: 24,
+								B: "second",
+								C: true,
+							},
+						},
+					}
+					clear(s)
+					return s
+				}`,
+			expected: []stackitem.Item{
+				stackitem.NewStruct([]stackitem.Item{
+					stackitem.NewStruct([]stackitem.Item{
+						stackitem.Make(0),
+						stackitem.Make(""),
+						stackitem.Make(false),
+					}),
+				}),
+				stackitem.NewStruct([]stackitem.Item{
+					stackitem.NewStruct([]stackitem.Item{
+						stackitem.Make(0),
+						stackitem.Make(""),
+						stackitem.Make(false),
+					}),
+				}),
+			},
+		},
+		{
+			name: "slice of slices",
+			src: `package foo
+				func Main() [][]int {
+					var s = [][]int{{1, 2, 3}, {4, 5, 6}, {7, 8}}
+					clear(s)
+					return s
+				}`,
+			expected: []stackitem.Item{stackitem.Null{}, stackitem.Null{}, stackitem.Null{}},
+		},
+		{
+			name: "slice of maps",
+			src: `package foo
+				func Main() []map[string]string {
+					var s = []map[string]string{
+						{
+							"key": "val",
+						},
+						{
+							"key": "val",
+						},
+					}
+					clear(s)
+					return s
+				}`,
+			expected: []stackitem.Item{stackitem.Null{}, stackitem.Null{}},
+		},
+		{
+			name: "empty slice",
+			src: `package foo
+				func Main() []any {
+					var s = []any{}
+					clear(s)
+					return s
+				}`,
+			expected: []stackitem.Item{},
+		},
+		{
+			name: "empty map",
+			src: `package foo
+				func Main() map[any]any {
+					var m = map[any]any{}
+					clear(m)
+					return m
+				}`,
+			expected: []stackitem.MapElement{},
+		},
+		{
+			name: "slice of simple structs",
+			src: `package foo
+				type S struct {
+					A int
+				}
+				
+				func Main() []S {
+					var s = []S {
+						{
+							A: 1,	
+						},
+						{
+							A: 2,
+						},
+					}
+					clear(s)
+					s[0].A = 42
+					return s
+				}`,
+			expected: []stackitem.Item{
+				stackitem.NewStruct([]stackitem.Item{
+					stackitem.Make(42),
+				}),
+				stackitem.NewStruct([]stackitem.Item{
+					stackitem.Make(0),
+				}),
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectedErr != "" {
+				_, _, err := compiler.CompileWithOptions("main.go", strings.NewReader(tc.src), nil)
+				require.ErrorContains(t, err, tc.expectedErr)
+			} else {
+				eval(t, tc.src, tc.expected)
+			}
+		})
+	}
+}
