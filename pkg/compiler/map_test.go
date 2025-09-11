@@ -3,6 +3,8 @@ package compiler_test
 import (
 	"math/big"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 var mapTestCases = []testCase{
@@ -74,6 +76,26 @@ var mapTestCases = []testCase{
 			return len(m)
 		}`,
 		big.NewInt(1),
+	},
+	{
+		"swap map elements",
+		`package foo
+		func Main() map[string]int {
+			m := map[string]int{"a":1, "b":2}
+			m["a"], m["b"] = m["b"], m["a"]
+			return m
+		}
+		`,
+		[]stackitem.MapElement{
+			{
+				Key:   stackitem.Make("a"),
+				Value: stackitem.Make(2),
+			},
+			{
+				Key:   stackitem.Make("b"),
+				Value: stackitem.Make(1),
+			},
+		},
 	},
 }
 

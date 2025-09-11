@@ -680,7 +680,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Rhs[0])
 			c.emitToken(n.Tok, c.typeOf(n.Rhs[0]))
 		}
-		for i := range n.Lhs {
+		if !isAssignOp {
+			for i := range n.Rhs {
+				ast.Walk(c, n.Rhs[i])
+			}
+			if multiRet {
+				emit.Int(c.prog.BinWriter, int64(len(n.Lhs)))
+				emit.Opcodes(c.prog.BinWriter, opcode.REVERSEN)
+			}
+		}
+		for i := len(n.Lhs) - 1; i >= 0; i-- {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
 				if n.Tok == token.DEFINE {
@@ -691,15 +700,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						c.scope.newLocal(t.Name)
 					}
 				}
-				if !isAssignOp && (i == 0 || !multiRet) {
-					ast.Walk(c, n.Rhs[i])
-				}
 				c.emitStoreVar("", t.Name)
 
 			case *ast.SelectorExpr:
-				if !isAssignOp {
-					ast.Walk(c, n.Rhs[i])
-				}
 				typ := c.typeOf(t.X)
 				if c.isInvalidType(typ) {
 					// Store to other package global variable.
@@ -718,9 +721,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Assignments to index expressions.
 			// slice[0] = 10
 			case *ast.IndexExpr:
-				if !isAssignOp {
-					ast.Walk(c, n.Rhs[i])
-				}
 				ast.Walk(c, t.X)
 				ast.Walk(c, t.Index)
 				emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.SETITEM)
