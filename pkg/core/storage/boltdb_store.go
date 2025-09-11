@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/nspcc-dev/bbolt"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"go.etcd.io/bbolt"
 )
 
 // Bucket represents bucket used in boltdb to store all the data.

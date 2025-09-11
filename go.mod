@@ -2,8 +2,6 @@ module github.com/nspcc-dev/neo-go
 
 go 1.23
 
-replace go.etcd.io/bbolt v1.4.0 => github.com/nspcc-dev/bbolt v0.0.0-20250612101626-5df2544a4a22
-
 require (
 	github.com/chzyer/readline v1.5.1
 	github.com/consensys/gnark v0.12.0
@@ -16,6 +14,7 @@ require (
 	github.com/holiman/uint256 v1.3.2
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mr-tron/base58 v1.2.0
+	github.com/nspcc-dev/bbolt v0.0.0-20250911202005-807225ebb0c8
 	github.com/nspcc-dev/dbft v0.4.0
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20250226190835-fb3f82b1f468
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250827092051-0d90ffc70f57
@@ -27,7 +26,6 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	github.com/twmb/murmur3 v1.1.8
 	github.com/urfave/cli/v2 v2.27.6
-	go.etcd.io/bbolt v1.4.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.33.0
 	golang.org/x/term v0.29.0
