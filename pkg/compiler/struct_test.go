@@ -431,6 +431,20 @@ var structTestCases = []testCase{
 		`,
 		big.NewInt(2),
 	},
+	{
+		"swap elements",
+		`type S11 struct { X, Y int }
+		func F%d() S11 {
+			s := S11{1,2}
+			s.X, s.Y = s.Y, s.X
+			return s
+		}
+		`,
+		[]stackitem.Item{
+			stackitem.Make(2),
+			stackitem.Make(1),
+		},
+	},
 }
 
 func TestStructs(t *testing.T) {

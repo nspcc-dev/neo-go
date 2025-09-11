@@ -338,6 +338,36 @@ var sliceTestCases = []testCase{
 		`,
 		[]byte("str"),
 	},
+	{
+		"swap two elements",
+		`func F%d() []byte {
+			arr := []byte{1, 0}
+			arr[0], arr[1] = arr[1], arr[0]
+			return arr
+		}
+		`,
+		[]byte{0, 1},
+	},
+	{
+		"swap three elements",
+		`func F%d() []int {
+			arr := []int{1, 2, 0}
+			arr[0], arr[1], arr[2] = arr[2], arr[0], arr[1]
+			return arr
+		}
+		`,
+		[]stackitem.Item{stackitem.Make(0), stackitem.Make(1), stackitem.Make(2)},
+	},
+	{
+		"assigment with another operator",
+		`func F%d() []int {
+				a := []int{1, 2}
+				a[0], a[1] = a[1], a[0] + 10
+				return a
+			}
+			`,
+		[]stackitem.Item{stackitem.Make(2), stackitem.Make(11)},
+	},
 }
 
 func TestSliceOperations(t *testing.T) {
