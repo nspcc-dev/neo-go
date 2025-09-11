@@ -414,3 +414,18 @@ func TestUnnamedMethodReceiver(t *testing.T) {
 	}`
 	eval(t, src, big.NewInt(2))
 }
+
+func TestEvaluationOrder(t *testing.T) {
+	src := `package foo
+	var i int
+	func f() int {
+		i += 1
+		return i
+	}
+	func Main() int {
+		a, _ := f(), f()
+		return a
+	}
+	`
+	eval(t, src, big.NewInt(1))
+}
