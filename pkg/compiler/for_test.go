@@ -740,6 +740,63 @@ var forLoopTestCases = []testCase{
 		`,
 		big.NewInt(10),
 	},
+	{
+		"range, int",
+		`func F%d() int {
+			var (
+				sum int
+				arr = []int{1, 2, 3}
+			)
+			for i := range 3 {
+				sum += arr[i]
+			}
+			return sum
+		}
+		`,
+		big.NewInt(6),
+	},
+	{
+		"range, int",
+		`func F%d() int {
+			var (
+				sum int
+				arr = []int{1, 2, 3}
+			)
+			for i := range 2 {
+				sum += arr[i]
+			}
+			return sum
+		}
+		`,
+		big.NewInt(3),
+	},
+	{
+		"range, no key int",
+		`func F%d() int {
+			var sum int
+			for range 3 {
+				sum += 1
+			}
+			return sum
+		}
+		`,
+		big.NewInt(3),
+	},
+	{
+		"range, over func result",
+		`func F%d() int {
+			getInt := func(i int) int {
+				return i
+			}
+			var sum int
+			for i := range getInt(5) {
+				sum += i
+			}
+			return sum
+		}
+		`,
+		big.NewInt(10),
+	},
 }
 
 func TestForLoop(t *testing.T) {

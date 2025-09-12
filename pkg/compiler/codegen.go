@@ -1317,19 +1317,35 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		ast.Walk(c, n.X)
 
-		// Implementation is a bit different for slices and maps:
+		// Implementation is a bit different for integers, slices and maps:
+		// For integers, we iterate through indices from 0 to len-1, storing integer and index on stack.
 		// For slices, we iterate through indices from 0 to len-1, storing array, len and index on stack.
 		// For maps, we iterate through indices from 0 to len-1, storing map, keyarray, size and index on stack.
-		_, isMap := c.typeOf(n.X).Underlying().(*types.Map)
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-		if isMap {
-			emit.Opcodes(c.prog.BinWriter, opcode.KEYS, opcode.DUP)
+		var (
+			isMap     bool
+			isInteger bool
+		)
+		switch typ := c.typeOf(n.X).Underlying().(type) {
+		case *types.Map:
+			isMap = true
+		case *types.Basic:
+			isInteger = typ.Info()&types.IsInteger != 0
 		}
-		emit.Opcodes(c.prog.BinWriter, opcode.SIZE, opcode.PUSH0)
+		if !isInteger {
+			emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+			if isMap {
+				emit.Opcodes(c.prog.BinWriter, opcode.KEYS, opcode.DUP)
+			}
+			emit.Opcodes(c.prog.BinWriter, opcode.SIZE)
+		}
+		emit.Opcodes(c.prog.BinWriter, opcode.PUSH0)
 
 		stackSize := 3 // slice, len(slice), index
 		if isMap {
 			stackSize++ // map, keys, len(keys), index in keys
+		}
+		if isInteger {
+			stackSize-- // integer, index
 		}
 		c.pushStackLabel(label, stackSize)
 		c.setLabel(start)
