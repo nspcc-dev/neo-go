@@ -2,7 +2,9 @@ package compiler_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
 	"strings"
 	"testing"
@@ -235,4 +237,120 @@ func TestInterfaceTypeConversion(t *testing.T) {
 		return b
 	}`
 	eval(t, src, big.NewInt(1))
+}
+
+func TestConvert_Uint(t *testing.T) {
+	nums := []uint64{
+		0,
+		1,
+		127,
+		128,
+		255,
+		256,
+		1024,
+		1<<16 - 1,
+		1 << 16,
+		1<<32 - 1,
+		1 << 32,
+		1<<64 - 1,
+	}
+
+	testCases := []struct {
+		nums       []uint64
+		offset     int
+		typ        string
+		helperType string
+		endians    map[string]func([]byte, uint64)
+	}{
+		{
+			nums:       nums,
+			typ:        "uint64",
+			helperType: "Uint64",
+			endians: map[string]func([]byte, uint64){
+				"LE": binary.LittleEndian.PutUint64,
+				"BE": binary.BigEndian.PutUint64,
+			},
+		},
+		{
+			nums:       nums[:len(nums)-2],
+			offset:     4,
+			typ:        "uint32",
+			helperType: "Uint32",
+			endians: map[string]func([]byte, uint64){
+				"LE": binary.LittleEndian.PutUint64,
+				"BE": binary.BigEndian.PutUint64,
+			},
+		},
+		{
+			nums:       nums[:len(nums)-4],
+			offset:     6,
+			typ:        "uint16",
+			helperType: "Uint16",
+			endians: map[string]func([]byte, uint64){
+				"LE": binary.LittleEndian.PutUint64,
+				"BE": binary.BigEndian.PutUint64,
+			},
+		},
+		{
+			nums:       nums[:5],
+			offset:     7,
+			typ:        "uint8",
+			helperType: "Uint8",
+			endians: map[string]func([]byte, uint64){
+				"": binary.LittleEndian.PutUint64,
+			},
+		},
+	}
+
+	srcToBytesTmpl := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+	
+		func Main(args []any) []byte {
+			return convert.%sToBytes%s(args[0].(%s))
+		}
+	`
+
+	srcFromBytesTmpl := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+	
+		func Main(args []any) %s {
+			return convert.Bytes%sTo%s(args[0].([]byte))
+		}
+	`
+
+	srcCompatibilityCheckTmpl := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+
+		func Main(args []any) %s {
+			data := convert.%sToBytes%s(args[0].(%s))
+			return convert.Bytes%sTo%s(data)
+		}
+	`
+
+	for _, tc := range testCases {
+		for endian, convertFunc := range tc.endians {
+			srcToBytes := fmt.Sprintf(srcToBytesTmpl, tc.helperType, endian, tc.typ)
+			srcFromBytes := fmt.Sprintf(srcFromBytesTmpl, tc.typ, endian, tc.helperType)
+			srcCompatibilityCheck := fmt.Sprintf(srcCompatibilityCheckTmpl,
+				tc.typ, tc.helperType, endian, tc.typ, endian, tc.helperType,
+			)
+
+			buf := make([]byte, 8)
+			data := buf[:8-tc.offset]
+			if endian == "BE" {
+				data = buf[tc.offset:]
+			}
+
+			for _, num := range tc.nums {
+				convertFunc(buf, num)
+				evalWithArgs(t, srcToBytes, nil, []stackitem.Item{stackitem.Make(num)}, data)
+				evalWithArgs(t, srcFromBytes, nil, []stackitem.Item{stackitem.Make(data)},
+					big.NewInt(0).SetUint64(num),
+				)
+				evalWithArgs(t, srcCompatibilityCheck, nil, []stackitem.Item{stackitem.Make(num)},
+					big.NewInt(0).SetUint64(num),
+				)
+			}
+		}
+	}
 }
