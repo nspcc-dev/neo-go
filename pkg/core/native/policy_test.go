@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -115,4 +116,23 @@ func TestPolicy_SetNotaryFeePerKey(t *testing.T) {
 
 	// Invoke after Echidna should return the default value.
 	p.Invoke(t, nil, "setAttributeFee", int64(transaction.NotaryAssistedT), 510_0000)
+}
+
+func TestPolicy_GetBlockedAccounts(t *testing.T) {
+	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, validators, committee)
+
+	policyHash := e.NativeHash(t, nativenames.Policy)
+
+	policySuperInvoker := e.NewInvoker(policyHash, validators, committee)
+	unlucky := e.NewAccount(t, 5_0000_0000)
+
+	policySuperInvoker.Invoke(t, true, "blockAccount", unlucky.ScriptHash())
+	policySuperInvoker.Invoke(t, stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(unlucky.ScriptHash().BytesBE()),
+	}), "getBlockedAccounts")
 }
