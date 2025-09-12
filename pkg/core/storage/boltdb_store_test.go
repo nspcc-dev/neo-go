@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/bbolt"
+	"github.com/nspcc-dev/bbolt/errors"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/bbolt"
-	"go.etcd.io/bbolt/errors"
 )
 
 func newBoltStoreForTesting(t testing.TB) Store {
