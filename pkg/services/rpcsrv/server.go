@@ -2328,7 +2328,7 @@ func (s *Server) fakeBlockFromParam(p *params.Param) (*block.Block, *neorpc.Erro
 		if !h.NextConsensus.Equals(util.Uint160{}) {
 			base.NextConsensus = h.NextConsensus
 		}
-		if base.StateRootEnabled && !h.PrevStateRoot.Equals(util.Uint256{}) {
+		if base.Version == block.VersionFaun {
 			base.PrevStateRoot = h.PrevStateRoot
 		}
 	}
@@ -2750,7 +2750,7 @@ func (s *Server) submitBlock(reqParams params.Params) (any, *neorpc.Error) {
 	if err != nil {
 		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("missing parameter or not a base64: %s", err))
 	}
-	b := block.New(s.stateRootEnabled)
+	b := &block.Block{}
 	r := io.NewBinReaderFromBuf(blockBytes)
 	b.DecodeBinary(r)
 	if r.Err != nil {

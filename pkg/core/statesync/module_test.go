@@ -55,7 +55,7 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 		syncPoint:    1000500,
 		syncStage:    headersSynced,
 		syncInterval: 100500,
-		dao:          dao.NewSimple(actualStorage, true),
+		dao:          dao.NewSimple(actualStorage),
 		mptpool:      NewPool(),
 		bc:           fakechain.NewFakeChain(),
 	}

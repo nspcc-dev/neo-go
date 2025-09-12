@@ -88,6 +88,7 @@ func init() {
 		hardforks[i.String()] = i
 	}
 	StableHardforks = Hardforks[:stableIndex]
+
 }
 
 // Cmp returns the result of hardforks comparison. It returns:
