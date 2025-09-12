@@ -68,7 +68,9 @@ changes have been introduced: starting from this version,
 hence, should be removed from the node's configuration file in favour of
 `RemoveUntraceableBlocks`. Also, `SessionExpirationTime` RPC server
 configuration setting is replaced with `SessionLifetime` setting of type
-`Duration`, please, upgrade your configuration accordingly.
+`Duration`; `SkipIndexFilesSearch`, `IndexFileSize` and `IndexFileAttribute`
+settings of NeoFSBlockFetcher service were dropped since index files are not
+supported anymore. Please, upgrade your configuration accordingly.
 
 New features:
  * `util audit-bin` CLI command for NeoFS block storage audit (#3943, #3945,
