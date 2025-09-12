@@ -3,7 +3,7 @@ module github.com/nspcc-dev/neo-go/examples/nft-nd-nns
 go 1.23
 
 require (
-	github.com/nspcc-dev/neo-go v0.111.1-0.20250827092541-c2c87fec531a
+	github.com/nspcc-dev/neo-go v0.112.1-0.20250912125548-aa0fd566622b
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250827092051-0d90ffc70f57
 	github.com/stretchr/testify v1.10.0
 )
@@ -27,6 +27,7 @@ require (
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/nspcc-dev/bbolt v0.0.0-20250911202005-807225ebb0c8 // indirect
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20250226190835-fb3f82b1f468 // indirect
 	github.com/nspcc-dev/hrw/v2 v2.0.3 // indirect
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.13.0.20250411071756-31796f64ee16 // indirect
@@ -44,7 +45,6 @@ require (
 	github.com/twmb/murmur3 v1.1.8 // indirect
 	github.com/urfave/cli/v2 v2.27.6 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	go.etcd.io/bbolt v1.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
