@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"slices"
@@ -471,7 +472,9 @@ func (s *service) OnPayload(cp *npayload.Extensible) error {
 	p := s.payloadFromExtensible(cp)
 	// decode payload data into message
 	if err := p.decodeData(); err != nil {
-		log.Info("can't decode payload data", zap.Error(err))
+		log.Info("can't decode payload data", zap.Error(err),
+			zap.String("type", p.Type().String()),
+			zap.String("payload", hex.EncodeToString(p.Extensible.Data)))
 		return nil
 	}
 
@@ -600,7 +603,7 @@ func (s *service) verifyRequest(p dbft.ConsensusPayload[util.Uint256]) error {
 		expectedVersion = coreb.VersionFaun
 	}
 	if req.version != expectedVersion {
-		return fmt.Errorf("%w: expected %d, got %d", errInvalidVersion, expectedVersion, req.version)
+		return fmt.Errorf("%w: expected %d, got %d, %s", errInvalidVersion, expectedVersion, req.version, req.stateRoot.StringLE())
 	}
 	if req.version == coreb.VersionFaun {
 		sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
