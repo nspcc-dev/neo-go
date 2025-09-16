@@ -445,6 +445,55 @@ var structTestCases = []testCase{
 			stackitem.Make(1),
 		},
 	},
+	{
+		"increment field, simple",
+		`type test struct { t int }
+		func F%d() int {
+			var myStruct test
+			myStruct.t++
+			return myStruct.t
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"increment field, nested",
+		`type nested struct { t int }
+		type external struct { n nested }
+		func F%d() int {
+			var myStruct external
+			myStruct.n.t++
+			return myStruct.n.t
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"increment field, selector chain",
+		`type C struct { v int }
+		type B struct { c C }
+		type A struct { b B }
+		func F%d() int {
+			var a A
+			a.b.c.v++
+			return a.b.c.v
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"incremental field, func call",
+		`func f(t *test) *test {
+			return t
+		}
+		func F%d() int {
+			var myStruct = &test{}
+			f(myStruct).t++
+			return myStruct.t
+		}
+		`,
+		big.NewInt(1),
+	},
 }
 
 func TestStructs(t *testing.T) {
