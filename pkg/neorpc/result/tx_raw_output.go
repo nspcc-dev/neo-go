@@ -36,6 +36,10 @@ func (t TransactionOutputRaw) MarshalJSON() ([]byte, error) {
 
 	// We have to keep both transaction.Transaction and tranactionOutputRaw at the same level in json
 	// in order to match C# API, so there's no way to marshall Tx correctly with standard json.Marshaller tool.
+	if string(output) == "{}" {
+		// Empty meta -> return tx data.
+		return txBytes, nil
+	}
 	if output[len(output)-1] != '}' || txBytes[0] != '{' {
 		return nil, errors.New("can't merge internal jsons")
 	}

@@ -172,7 +172,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	// Stitch them together.
+	// Stitch them together. Both are never empty.
 	if baseBytes[len(baseBytes)-1] != '}' || auxb[0] != '{' {
 		return nil, errors.New("can't merge internal jsons")
 	}

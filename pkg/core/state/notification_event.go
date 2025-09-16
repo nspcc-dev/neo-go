@@ -205,6 +205,7 @@ func (aer *AppExecResult) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal execution: %w", err)
 	}
 
+	// Both are never empty.
 	if h[len(h)-1] != '}' || exec[0] != '{' {
 		return nil, errors.New("can't merge internal jsons")
 	}
@@ -338,6 +339,7 @@ func (ne *ContainedNotificationEvent) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal execution: %w", err)
 	}
 
+	// Both are never empty.
 	if h[len(h)-1] != '}' || exec[0] != '{' {
 		return nil, errors.New("can't merge internal jsons")
 	}
