@@ -56,8 +56,7 @@ func FromString(s string) (st State, err error) {
 		return None, nil
 	}
 
-	ss := strings.Split(s, ",")
-	for _, state := range ss {
+	for state := range strings.SplitSeq(s, ",") {
 		switch state = strings.TrimSpace(state); state {
 		case "HALT":
 			st |= Halt

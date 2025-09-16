@@ -441,10 +441,9 @@ func (s *Std) stringSplit3(_ *interop.Context, args []stackitem.Item) stackitem.
 func (s *Std) stringSplitAux(str, sep string, removeEmpty bool) []stackitem.Item {
 	var result []stackitem.Item
 
-	arr := strings.Split(str, sep)
-	for i := range arr {
-		if !removeEmpty || len(arr[i]) != 0 {
-			result = append(result, stackitem.Make(arr[i]))
+	for s := range strings.SplitSeq(str, sep) {
+		if !removeEmpty || len(s) != 0 {
+			result = append(result, stackitem.Make(s))
 		}
 	}
 
