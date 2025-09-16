@@ -160,8 +160,8 @@ github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250827092051-0d90ffc70f57 h1:xg
 github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250827092051-0d90ffc70f57/go.mod h1:3byneDNT60tiD8MSyGSyjpI1uVp9v+coySegJoQPF8c=
 github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.14 h1:Q0Zbu91VXckoaeNyIrQh3r/9xNnBneqBeID5FPXLmJo=
 github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.14/go.mod h1:j/NUu5iOGFkOVYM42XoC1X9DZD0/y89Pws++w5vxtQk=
-github.com/nspcc-dev/rfc6979 v0.2.3 h1:QNVykGZ3XjFwM/88rGfV3oj4rKNBy+nYI6jM7q19hDI=
-github.com/nspcc-dev/rfc6979 v0.2.3/go.mod h1:q3sCL1Ed7homjqYK8KmFSzEmm+7Ngyo7PePbZanhaDE=
+github.com/nspcc-dev/rfc6979 v0.2.4 h1:NBgsdCjhLpEPJZqmC9rciMZDcSY297po2smeaRjw57k=
+github.com/nspcc-dev/rfc6979 v0.2.4/go.mod h1:86ylDw6Kss+P6v4QAJqo1Sp3mC0/Zr9G97xSjQ9TuFg=
 github.com/nspcc-dev/tzhash v1.8.2 h1:ebRCbPoEuoqrhC6sSZmrT/jI3h1SzCWakxxV6gp5QAg=
 github.com/nspcc-dev/tzhash v1.8.2/go.mod h1:SFwvvB1KyKm45vdWpcOCFpklkUEsXtddnHsk+zq298g=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
