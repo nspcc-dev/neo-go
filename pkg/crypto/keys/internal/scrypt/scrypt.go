@@ -8,12 +8,11 @@
 package scrypt
 
 import (
+	"crypto/pbkdf2"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"math/bits"
-
-	"golang.org/x/crypto/pbkdf2"
 )
 
 const maxInt = int(^uint(0) >> 1)
@@ -202,11 +201,14 @@ func Key(password, salt []byte, N, r, p, keyLen int) ([]byte, error) {
 
 	xy := make([]uint32, 64*r)
 	v := make([]uint32, 32*N*r)
-	b := pbkdf2.Key(password, salt, 1, p*128*r, sha256.New)
+	b, err := pbkdf2.Key(sha256.New, string(password), salt, 1, p*128*r)
+	if err != nil {
+		return nil, err
+	}
 
 	for i := 0; i < p; i++ {
 		smix(b[i*128*r:], r, N, v, xy)
 	}
 
-	return pbkdf2.Key(password, b, 1, keyLen, sha256.New), nil
+	return pbkdf2.Key(sha256.New, string(password), b, 1, keyLen)
 }
