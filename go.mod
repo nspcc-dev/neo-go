@@ -16,7 +16,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/bbolt v0.0.0-20250911202005-807225ebb0c8
 	github.com/nspcc-dev/dbft v0.4.0
-	github.com/nspcc-dev/go-ordered-json v0.0.0-20250226190835-fb3f82b1f468
+	github.com/nspcc-dev/go-ordered-json v0.0.0-20250911084817-6fb4472993d1
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250827092051-0d90ffc70f57
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.13.0.20250411071756-31796f64ee16
 	github.com/nspcc-dev/rfc6979 v0.2.3
