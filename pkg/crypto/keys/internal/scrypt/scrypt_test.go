@@ -156,7 +156,7 @@ func TestKey(t *testing.T) {
 var sink []byte
 
 func BenchmarkKey(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		sink, _ = Key([]byte("password"), []byte("salt"), 1<<15, 8, 1, 64)
 	}
 }

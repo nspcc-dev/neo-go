@@ -148,7 +148,7 @@ func smix(b []byte, r, N int, v, xy []uint32) {
 	y := xy[R:]
 
 	j := 0
-	for i := 0; i < R; i++ {
+	for i := range R {
 		x[i] = binary.LittleEndian.Uint32(b[j:])
 		j += 4
 	}
@@ -206,7 +206,7 @@ func Key(password, salt []byte, N, r, p, keyLen int) ([]byte, error) {
 		return nil, err
 	}
 
-	for i := 0; i < p; i++ {
+	for i := range p {
 		smix(b[i*128*r:], r, N, v, xy)
 	}
 
