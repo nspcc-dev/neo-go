@@ -246,7 +246,7 @@ func BenchmarkPublicEqual(t *testing.B) {
 	k12 := getPubKey(t)
 	k2, err := NewPublicKeyFromString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
 	require.NoError(t, err)
-	for range t.N {
+	for t.Loop() {
 		_ = k11.Equal(k12)
 		_ = k11.Equal(k2)
 	}
@@ -254,14 +254,14 @@ func BenchmarkPublicEqual(t *testing.B) {
 
 func BenchmarkPublicBytes(t *testing.B) {
 	k := getPubKey(t)
-	for range t.N {
+	for t.Loop() {
 		_ = k.Bytes()
 	}
 }
 
 func BenchmarkPublicUncompressedBytes(t *testing.B) {
 	k := getPubKey(t)
-	for range t.N {
+	for t.Loop() {
 		_ = k.Bytes()
 	}
 }
@@ -270,7 +270,7 @@ func BenchmarkPublicDecodeBytes(t *testing.B) {
 	keyBytes, err := hex.DecodeString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
 	require.NoError(t, err)
 	k := new(PublicKey)
-	for range t.N {
+	for t.Loop() {
 		require.NoError(t, k.DecodeBytes(keyBytes))
 	}
 }

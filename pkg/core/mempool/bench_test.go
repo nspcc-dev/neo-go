@@ -48,8 +48,7 @@ func BenchmarkPool(b *testing.B) {
 	for name, txes := range senders {
 		b.Run(name, func(b *testing.B) {
 			p := New(poolSize, 0, false, nil)
-			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				for j := range txes {
 					if p.Add(txes[j], fe) != nil {
 						b.Fail()

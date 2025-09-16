@@ -267,8 +267,7 @@ func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCoun
 	require.NoError(t, err)
 
 	t.ReportAllocs()
-	t.ResetTimer()
-	for range t.N {
+	for t.Loop() {
 		ts.Seek(SeekRange{Prefix: searchPrefix}, func(k, v []byte) bool { return true })
 	}
 	t.StopTimer()

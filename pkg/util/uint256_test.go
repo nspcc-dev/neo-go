@@ -123,9 +123,8 @@ func TestUint256_Serializable(t *testing.T) {
 func BenchmarkUint256DecodeStringLE(b *testing.B) {
 	a := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		_, err := util.Uint256DecodeStringLE(a)
 		if err != nil {
 			b.FailNow()

@@ -32,7 +32,7 @@ func init() {
 }
 
 func BenchmarkDecodeBinary(t *testing.B) {
-	for range t.N {
+	for t.Loop() {
 		r := io.NewBinReaderFromBuf(benchTx)
 		tx := &Transaction{}
 		tx.DecodeBinary(r)
@@ -41,14 +41,14 @@ func BenchmarkDecodeBinary(t *testing.B) {
 }
 
 func BenchmarkDecodeJSON(t *testing.B) {
-	for range t.N {
+	for t.Loop() {
 		tx := &Transaction{}
 		require.NoError(t, tx.UnmarshalJSON(benchTxJSON))
 	}
 }
 
 func BenchmarkDecodeFromBytes(t *testing.B) {
-	for range t.N {
+	for t.Loop() {
 		_, err := NewTransactionFromBytes(benchTx)
 		require.NoError(t, err)
 	}
@@ -58,9 +58,7 @@ func BenchmarkTransaction_Bytes(b *testing.B) {
 	tx, err := NewTransactionFromBytes(benchTx)
 	require.NoError(b, err)
 
-	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_ = tx.Bytes()
 	}
 }
@@ -69,9 +67,8 @@ func BenchmarkGetVarSize(b *testing.B) {
 	tx, err := NewTransactionFromBytes(benchTx)
 	require.NoError(b, err)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		_ = io.GetVarSize(tx)
 	}
 }

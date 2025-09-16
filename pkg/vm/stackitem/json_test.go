@@ -229,9 +229,8 @@ func getBigArray(depth int) *Array {
 func BenchmarkToJSON(b *testing.B) {
 	arr := getBigArray(15)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		_, err := ToJSON(arr)
 		if err != nil {
 			b.FailNow()

@@ -26,8 +26,7 @@ func BenchmarkBlockchain_VerifyWitness(t *testing.B) {
 	e := neotest.NewExecutor(t, bc, acc, acc)
 	tx := e.NewTx(t, []neotest.Signer{acc}, e.NativeHash(t, nativenames.Gas), "transfer", acc.ScriptHash(), acc.Script(), 1, nil)
 
-	t.ResetTimer()
-	for range t.N {
+	for t.Loop() {
 		_, err := bc.VerifyWitness(tx.Signers[0].Account, tx, &tx.Scripts[0], 100000000)
 		require.NoError(t, err)
 	}
@@ -116,10 +115,9 @@ func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBloc
 	require.NoError(t, err)
 	oldestTimestamp := oldestB.Timestamp
 
-	t.ResetTimer()
 	t.ReportAllocs()
 	t.StartTimer()
-	for range t.N {
+	for t.Loop() {
 		require.NoError(t, bc.ForEachNEP17Transfer(acc, newestTimestamp, func(t *state.NEP17Transfer) (bool, error) {
 			if t.Timestamp < oldestTimestamp {
 				// iterating from newest to oldest, already have reached the needed height
@@ -208,10 +206,9 @@ func benchmarkGasPerVote(t *testing.B, ps storage.Store, nRewardRecords int, rew
 	e.GenerateNewBlocks(t, rewardDistance)
 	end := bc.BlockHeight()
 
-	t.ResetTimer()
 	t.ReportAllocs()
 	t.StartTimer()
-	for range t.N {
+	for t.Loop() {
 		_, err := bc.CalculateClaimable(to, end)
 		require.NoError(t, err)
 	}

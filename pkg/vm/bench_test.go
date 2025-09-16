@@ -10,7 +10,7 @@ import (
 )
 
 func benchScript(t *testing.B, script []byte) {
-	for range t.N {
+	for t.Loop() {
 		t.StopTimer()
 		vm := load(script)
 		t.StartTimer()
@@ -53,7 +53,7 @@ func BenchmarkIsSignatureContract(t *testing.B) {
 	b64script := "DCED2eixa9myLTNF1tTN4xvhw+HRYVMuPQzOy5Xs4utYM25BVuezJw=="
 	script, err := base64.StdEncoding.DecodeString(b64script)
 	require.NoError(t, err)
-	for range t.N {
+	for t.Loop() {
 		_ = IsSignatureContract(script)
 	}
 }

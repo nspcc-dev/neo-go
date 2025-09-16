@@ -64,8 +64,7 @@ func BenchmarkRefCounter_Add(b *testing.B) {
 	a := stackitem.NewArray(nil)
 	rc := newRefCounter()
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		rc.Add(a)
 	}
 }
@@ -74,8 +73,7 @@ func BenchmarkRefCounter_AddRemove(b *testing.B) {
 	a := stackitem.NewArray([]stackitem.Item{})
 	rc := newRefCounter()
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		rc.Add(a)
 		rc.Remove(a)
 	}

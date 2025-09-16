@@ -305,9 +305,8 @@ func BenchmarkEncodeBinary(b *testing.B) {
 
 	w := io.NewBufBinWriter()
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		w.Reset()
 		EncodeBinary(arr, w.BinWriter)
 		if w.Err != nil {
@@ -320,7 +319,7 @@ func BenchmarkSerializeSimple(b *testing.B) {
 	s := NewStruct(nil)
 	s.Append(Make(100500))
 	s.Append(Make("1aada0032aba1ef6d1f0")) // Mimicking uint160.
-	for range b.N {
+	for b.Loop() {
 		_, err := Serialize(s)
 		if err != nil {
 			b.FailNow()
