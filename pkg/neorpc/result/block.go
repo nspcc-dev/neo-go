@@ -20,7 +20,7 @@ type (
 	// block.Block.
 	BlockMetadata struct {
 		Size          int           `json:"size"`
-		NextBlockHash *util.Uint256 `json:"nextblockhash,omitempty"`
+		NextBlockHash *util.Uint256 `json:"nextblockhash,omitzero"`
 		Confirmations uint32        `json:"confirmations"`
 	}
 )

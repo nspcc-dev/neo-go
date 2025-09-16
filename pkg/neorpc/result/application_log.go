@@ -19,8 +19,8 @@ type ApplicationLog struct {
 
 // applicationLogAux is an auxiliary struct for ApplicationLog JSON marshalling.
 type applicationLogAux struct {
-	TxHash     *util.Uint256     `json:"txid,omitempty"`
-	BlockHash  *util.Uint256     `json:"blockhash,omitempty"`
+	TxHash     *util.Uint256     `json:"txid,omitzero"`
+	BlockHash  *util.Uint256     `json:"blockhash,omitzero"`
 	Executions []json.RawMessage `json:"executions"`
 }
 

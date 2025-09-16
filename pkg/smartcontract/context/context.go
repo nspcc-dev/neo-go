@@ -42,7 +42,7 @@ type ParameterContext struct {
 type paramContext struct {
 	Type  string                     `json:"type"`
 	Net   uint32                     `json:"network"`
-	Hash  util.Uint256               `json:"hash,omitempty"`
+	Hash  util.Uint256               `json:"hash,omitzero"`
 	Data  []byte                     `json:"data"`
 	Items map[string]json.RawMessage `json:"items"`
 }

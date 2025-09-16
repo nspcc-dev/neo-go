@@ -17,10 +17,10 @@ type TransactionOutputRaw struct {
 
 // TransactionMetadata is an auxiliary struct for proper TransactionOutputRaw marshaling.
 type TransactionMetadata struct {
-	Blockhash     util.Uint256 `json:"blockhash,omitempty"`
-	Confirmations int          `json:"confirmations,omitempty"`
-	Timestamp     uint64       `json:"blocktime,omitempty"`
-	VMState       string       `json:"vmstate,omitempty"`
+	Blockhash     util.Uint256 `json:"blockhash,omitzero"`
+	Confirmations int          `json:"confirmations,omitzero"`
+	Timestamp     uint64       `json:"blocktime,omitzero"`
+	VMState       string       `json:"vmstate,omitzero"`
 }
 
 // MarshalJSON implements the json.Marshaler interface.

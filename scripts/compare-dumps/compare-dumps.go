@@ -29,7 +29,7 @@ type blockDump struct {
 type storageOp struct {
 	State string `json:"state"`
 	Key   string `json:"key"`
-	Value string `json:"value,omitempty"`
+	Value string `json:"value,omitzero"`
 }
 
 func readFile(path string) (dump, error) {

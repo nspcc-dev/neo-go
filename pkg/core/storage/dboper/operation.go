@@ -9,5 +9,5 @@ type Operation struct {
 	// State can be Added, Changed or Deleted.
 	State string `json:"state"`
 	Key   []byte `json:"key"`
-	Value []byte `json:"value,omitempty"`
+	Value []byte `json:"value,omitzero"`
 }

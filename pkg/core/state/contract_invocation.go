@@ -28,7 +28,7 @@ type ContractInvocation struct {
 type contractInvocationAux struct {
 	Hash           util.Uint160    `json:"hash"`
 	Method         string          `json:"method"`
-	Arguments      json.RawMessage `json:"arguments,omitempty"`
+	Arguments      json.RawMessage `json:"arguments,omitzero"`
 	ArgumentsCount uint32          `json:"argumentscount"`
 	Truncated      bool            `json:"truncated"`
 }

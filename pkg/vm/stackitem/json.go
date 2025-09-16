@@ -439,7 +439,7 @@ func toJSONWithTypes(data []byte, item Item, seen map[Item]sliceNoPointer) ([]by
 type (
 	rawItem struct {
 		Type  string          `json:"type"`
-		Value json.RawMessage `json:"value,omitempty"`
+		Value json.RawMessage `json:"value,omitzero"`
 	}
 
 	rawMapElement struct {
