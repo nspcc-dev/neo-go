@@ -299,27 +299,28 @@ func setup(t *testing.T, ccs constraint.ConstraintSystem, phase1ResponsePath str
 	if len(coef_g1) < int(2*outN-1) {
 		t.Fatalf("number of circuit constraints is too large for the provided response file: nbConstraints is %d, required at least %d powers to be computed", numConstraints, outN)
 	}
-	srs1 := mpcsetup.Phase1{}
-	srs1.Parameters.G1.Tau = coef_g1[:2*outN-1]        // outN + (outN-1)
-	srs1.Parameters.G2.Tau = coef_g2[:outN]            // outN
-	srs1.Parameters.G1.AlphaTau = alpha_coef_g1[:outN] // outN
-	srs1.Parameters.G1.BetaTau = beta_coef_g1[:outN]   // outN
-	srs1.Parameters.G2.Beta = *beta_g2                 // 1
+	srs1 := mpcsetup.SrsCommons{}
+	srs1.G1.Tau = coef_g1[:2*outN-1]        // outN + (outN-1)
+	srs1.G2.Tau = coef_g2[:outN]            // outN
+	srs1.G1.AlphaTau = alpha_coef_g1[:outN] // outN
+	srs1.G1.BetaTau = beta_coef_g1[:outN]   // outN
+	srs1.G2.Beta = *beta_g2                 // 1
 
 	// Prepare for phase-2
-	var evals mpcsetup.Phase2Evaluations
-	r1cs := ccs.(*cs.R1CS)
-	srs2, evals := mpcsetup.InitPhase2(r1cs, &srs1)
+	var (
+		ph2   mpcsetup.Phase2
+		r1cs  = ccs.(*cs.R1CS)
+		evals = ph2.Initialize(r1cs, &srs1)
+	)
 
 	// Make some dummy contributions for phase2. In practice, participant will
 	// receive a []byte, deserialize it, add his contribution and send back to
 	// coordinator, like it is done in https://github.com/bnb-chain/zkbnb-setup
 	// for BN254 elliptic curve.
 	for range nContributionsPhase2 {
-		srs2.Contribute()
+		ph2.Contribute()
 	}
 
 	// Extract the proving and verifying keys
-	pk, vk := mpcsetup.ExtractKeys(&srs1, &srs2, &evals, ccs.GetNbConstraints())
-	return &pk, &vk
+	return ph2.Seal(&srs1, &evals, nil)
 }
