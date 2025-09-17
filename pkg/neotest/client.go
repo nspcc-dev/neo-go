@@ -74,11 +74,15 @@ func (c *ContractInvoker) TestInvokeScript(t testing.TB, script []byte, signers 
 
 // TestInvoke creates test VM and invokes the method with the args.
 func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...any) (*vm.Stack, error) {
+	res, _, err := c.TestInvokeInfo(t, method, args...)
+	return res, err
+}
+func (c *ContractInvoker) TestInvokeInfo(t testing.TB, method string, args ...any) (*vm.Stack, int64, error) {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
 	b := c.NewUnsignedBlock(t, tx)
 	ic, err := c.Chain.GetTestVM(trigger.Application, tx, b)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	t.Cleanup(ic.Finalize)
 
@@ -88,7 +92,7 @@ func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...any) (
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
 	err = ic.VM.Run()
-	return ic.VM.Estack(), err
+	return ic.VM.Estack(), ic.VM.GasConsumed(), err
 }
 
 // WithSigners creates a new client with the provided signer.

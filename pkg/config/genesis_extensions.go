@@ -24,6 +24,7 @@ type Genesis struct {
 	// starting from HFEchidna to initialize MaxValidUntilBlockIncrement value
 	// of native Policy contract.
 	MaxValidUntilBlockIncrement uint32
+	MaxVerificationGas          int64
 	// Roles contains the set of roles that should be designated during native
 	// Designation contract initialization. It is NeoGo extension and must be
 	// disabled on the public Neo N3 networks.

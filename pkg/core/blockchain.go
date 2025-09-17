@@ -32,6 +32,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -3273,7 +3274,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 	err := interopCtx.Exec()
 	if vm.HasFailed() {
-		return 0, fmt.Errorf("%w: vm execution has failed: %w", ErrVerificationFailed, err)
+		return 0, fmt.Errorf("%w: vm execution has failed: %w, gas consumed: %d, gas limit: %d", ErrVerificationFailed, err, vm.GasConsumed(), vm.GasLimit)
 	}
 	estack := vm.Estack()
 	if estack.Len() > 0 {
@@ -3310,11 +3311,11 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	} else {
 		gasLimit = verificationFee[0]
 	}
-	for i := range t.Signers {
+	for i, s := range t.Signers {
 		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
 		if err != nil &&
 			!(i == 0 && isPartialTx && errors.Is(err, ErrInvalidSignature)) { // it's OK for partially-filled transaction with dummy first witness.
-			return fmt.Errorf("witness #%d: %w", i, err)
+			return fmt.Errorf("witness #%d (signer %s/%s, netfee %d): %w", i, s.Account.StringLE(), address.Uint160ToString(s.Account), t.NetworkFee, err)
 		}
 		gasLimit -= gasConsumed
 	}

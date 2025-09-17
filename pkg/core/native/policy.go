@@ -228,10 +228,14 @@ func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 		setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
 		setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
 
+		g := ic.Chain.GetConfig().Genesis.MaxVerificationGas
+		if g == 0 {
+			g = defaultMaxVerificationGas
+		}
 		cache := &PolicyCache{
 			execFeeFactor:      defaultExecFeeFactor,
 			feePerByte:         defaultFeePerByte,
-			maxVerificationGas: defaultMaxVerificationGas,
+			maxVerificationGas: int64(g),
 			storagePrice:       DefaultStoragePrice,
 			attributeFee:       map[transaction.AttrType]uint32{},
 			blockedAccounts:    make([]util.Uint160, 0),

@@ -1012,7 +1012,7 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 		}
 		gasConsumed, err := s.chain.VerifyWitness(signer.Account, tx, &w, gasLimit)
 		if err != nil && !errors.Is(err, core.ErrInvalidSignature) {
-			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSignature, fmt.Sprintf("witness %d: %s", i, err))
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSignature, fmt.Sprintf("witness %d: %s, used: %d, limit: %d", i, err, gasConsumed, gasLimit))
 		}
 		gasLimit -= gasConsumed
 		netFee += gasConsumed
