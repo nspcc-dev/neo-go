@@ -29,7 +29,7 @@ type FakeChain struct {
 	*mempool.Pool
 	blocksCh                []chan *block.Block
 	Blockheight             atomic.Uint32
-	PoolTxF                 func(*transaction.Transaction) error
+	PoolTxF                 atomic.Value
 	poolTxWithData          func(*transaction.Transaction, any, *mempool.Pool) error
 	blocks                  map[util.Uint256]*block.Block
 	hdrHashes               map[uint32]util.Uint256
@@ -81,15 +81,16 @@ func NewFakeChainWithCustomCfg(protocolCfg func(c *config.Blockchain)) *FakeChai
 	if protocolCfg != nil {
 		protocolCfg(&cfg)
 	}
-	return &FakeChain{
+	var fc = &FakeChain{
 		Pool:           mempool.New(10, 0, false, nil),
-		PoolTxF:        func(*transaction.Transaction) error { return nil },
 		poolTxWithData: func(*transaction.Transaction, any, *mempool.Pool) error { return nil },
 		blocks:         make(map[util.Uint256]*block.Block),
 		hdrHashes:      make(map[uint32]util.Uint256),
 		txs:            make(map[util.Uint256]*transaction.Transaction),
 		Blockchain:     cfg,
 	}
+	fc.PoolTxF.Store(func(*transaction.Transaction) error { return nil })
+	return fc
 }
 
 // PutBlock implements the Blockchainer interface.
@@ -365,7 +366,8 @@ func (chain *FakeChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 
 // PoolTx implements the Blockchainer interface.
 func (chain *FakeChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) error {
-	return chain.PoolTxF(tx)
+	txf := chain.PoolTxF.Load().(func(*transaction.Transaction) error)
+	return txf(tx)
 }
 
 // SubscribeForBlocks implements the Blockchainer interface.
