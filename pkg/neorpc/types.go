@@ -52,14 +52,14 @@ type (
 	// to construct type-specific responses.
 	HeaderAndError struct {
 		Header
-		Error *Error `json:"error,omitempty"`
+		Error *Error `json:"error,omitzero"`
 	}
 
 	// Response represents a standard raw JSON-RPC 2.0
 	// response: http://www.jsonrpc.org/specification#response_object.
 	Response struct {
 		HeaderAndError
-		Result json.RawMessage `json:"result,omitempty"`
+		Result json.RawMessage `json:"result,omitzero"`
 	}
 
 	// Notification is a type used to represent wire format of events, they're
@@ -83,11 +83,11 @@ type (
 type signerWithWitnessAux struct {
 	Account            string                    `json:"account"`
 	Scopes             json.RawMessage           `json:"scopes"`
-	AllowedContracts   []util.Uint160            `json:"allowedcontracts,omitempty"`
-	AllowedGroups      []*keys.PublicKey         `json:"allowedgroups,omitempty"`
-	Rules              []transaction.WitnessRule `json:"rules,omitempty"`
-	InvocationScript   []byte                    `json:"invocation,omitempty"`
-	VerificationScript []byte                    `json:"verification,omitempty"`
+	AllowedContracts   []util.Uint160            `json:"allowedcontracts,omitzero"`
+	AllowedGroups      []*keys.PublicKey         `json:"allowedgroups,omitzero"`
+	Rules              []transaction.WitnessRule `json:"rules,omitzero"`
+	InvocationScript   []byte                    `json:"invocation,omitzero"`
+	VerificationScript []byte                    `json:"verification,omitzero"`
 }
 
 // MarshalJSON implements the json.Marshaler interface.

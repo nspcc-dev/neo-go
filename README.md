@@ -51,7 +51,9 @@ NeoGo, `:latest` points to the latest release) or build yourself.
 
 ### Building
 
-Building NeoGo requires Go 1.23+ and `make`:
+Building NeoGo requires modern Go (any officially supported version, see
+[NeoSPCC Go policy](https://github.com/nspcc-dev/.github/blob/master/go.md)
+for how we manage Go updates) + and `make`:
 
 ```
 make

@@ -29,8 +29,7 @@ func BenchmarkMemorySeek(t *testing.B) {
 			require.NoError(t, err)
 
 			t.ReportAllocs()
-			t.ResetTimer()
-			for range t.N {
+			for t.Loop() {
 				ms.Seek(SeekRange{Prefix: searchPrefix}, func(k, v []byte) bool { return false })
 			}
 		})

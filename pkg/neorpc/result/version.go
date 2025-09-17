@@ -16,11 +16,11 @@ type (
 	// info.
 	Version struct {
 		TCPPort     uint16      `json:"tcpport"`
-		WSPort      uint16      `json:"wsport,omitempty"`
+		WSPort      uint16      `json:"wsport,omitzero"`
 		Nonce       uint32      `json:"nonce"`
 		UserAgent   string      `json:"useragent"`
 		Protocol    Protocol    `json:"protocol"`
-		Application Application `json:"application,omitempty"`
+		Application Application `json:"application,omitzero"`
 		RPC         RPC         `json:"rpc"`
 	}
 
@@ -33,7 +33,7 @@ type (
 		// returned by the server in case they're enabled.
 
 		// SessionExpansionEnabled is true if the server supports iterator expansion.
-		SessionExpansionEnabled bool `json:"sessionexpansionenabled,omitempty"`
+		SessionExpansionEnabled bool `json:"sessionexpansionenabled,omitzero"`
 	}
 
 	// Protocol represents network-dependent parameters.
@@ -71,13 +71,13 @@ type (
 	// is enabled.
 	Application struct {
 		// SaveInvocations enables smart contract invocation data saving.
-		SaveInvocations bool `json:"saveinvocations,omitempty"`
+		SaveInvocations bool `json:"saveinvocations,omitzero"`
 		// KeepOnlyLatestState specifies if MPT should only store the latest state.
-		KeepOnlyLatestState bool `json:"keeponlylateststate,omitempty"`
+		KeepOnlyLatestState bool `json:"keeponlylateststate,omitzero"`
 		// RemoveUntraceableBlocks specifies if old data (blocks, headers,
 		// transactions, execution results, transfer logs and MPT data) should be
 		// removed.
-		RemoveUntraceableBlocks bool `json:"removeuntraceableblocks,omitempty"`
+		RemoveUntraceableBlocks bool `json:"removeuntraceableblocks,omitzero"`
 	}
 
 	// protocolMarshallerAux is an auxiliary struct used for Protocol JSON marshalling.
@@ -95,10 +95,10 @@ type (
 		StandbyCommittee            []string      `json:"standbycommittee"`
 		SeedList                    []string      `json:"seedlist"`
 
-		CommitteeHistory  map[uint32]uint32 `json:"committeehistory,omitempty"`
-		P2PSigExtensions  bool              `json:"p2psigextensions,omitempty"`
-		StateRootInHeader bool              `json:"staterootinheader,omitempty"`
-		ValidatorsHistory map[uint32]uint32 `json:"validatorshistory,omitempty"`
+		CommitteeHistory  map[uint32]uint32 `json:"committeehistory,omitzero"`
+		P2PSigExtensions  bool              `json:"p2psigextensions,omitzero"`
+		StateRootInHeader bool              `json:"staterootinheader,omitzero"`
+		ValidatorsHistory map[uint32]uint32 `json:"validatorshistory,omitzero"`
 	}
 
 	// hardforkAux is an auxiliary struct used for Hardfork JSON marshalling.

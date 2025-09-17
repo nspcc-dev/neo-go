@@ -19,8 +19,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 		b.ReportAllocs()
 		b.Run("unmarshal", func(b *testing.B) {
 			b.ReportAllocs()
-			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				b.StopTimer()
 				in := new(In)
 				b.StartTimer()
@@ -32,8 +31,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 		})
 		b.Run("decode data", func(b *testing.B) {
 			b.ReportAllocs()
-			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				b.StopTimer()
 				r := NewRequest()
 				r.In = new(In)

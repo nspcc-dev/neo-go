@@ -28,8 +28,8 @@ type Request struct {
 type In struct {
 	JSONRPC   string          `json:"jsonrpc"`
 	Method    string          `json:"method"`
-	RawParams []Param         `json:"params,omitempty"`
-	RawID     json.RawMessage `json:"id,omitempty"`
+	RawParams []Param         `json:"params,omitzero"`
+	RawID     json.RawMessage `json:"id,omitzero"`
 }
 
 // Batch represents a standard JSON-RPC 2.0

@@ -2,8 +2,8 @@ package result
 
 type FindStates struct {
 	Results    []KeyValue    `json:"results"`
-	FirstProof *ProofWithKey `json:"firstProof,omitempty"`
-	LastProof  *ProofWithKey `json:"lastProof,omitempty"`
+	FirstProof *ProofWithKey `json:"firstProof,omitzero"`
+	LastProof  *ProofWithKey `json:"lastProof,omitzero"`
 	Truncated  bool          `json:"truncated"`
 }
 

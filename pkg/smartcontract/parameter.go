@@ -50,7 +50,7 @@ func NewParameter(t ParamType) Parameter {
 
 type rawParameter struct {
 	Type  ParamType       `json:"type"`
-	Value json.RawMessage `json:"value,omitempty"`
+	Value json.RawMessage `json:"value,omitzero"`
 }
 
 // MarshalJSON implements the Marshaler interface.

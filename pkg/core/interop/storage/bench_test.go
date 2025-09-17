@@ -31,9 +31,8 @@ func BenchmarkStorageFind(b *testing.B) {
 			require.NoError(b, err)
 			require.NotEqual(b, 0, changes)
 
-			b.ResetTimer()
 			b.ReportAllocs()
-			for range b.N {
+			for b.Loop() {
 				b.StopTimer()
 				v.Estack().PushVal(istorage.FindDefault)
 				v.Estack().PushVal("abc")
@@ -75,8 +74,7 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 					require.NoError(b, err)
 					require.NotEqual(b, 0, changes)
 					b.ReportAllocs()
-					b.ResetTimer()
-					for range b.N {
+					for b.Loop() {
 						b.StopTimer()
 						v.Estack().PushVal(istorage.FindDefault)
 						v.Estack().PushVal("abc")

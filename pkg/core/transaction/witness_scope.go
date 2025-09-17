@@ -49,10 +49,6 @@ func ScopesFromByte(b byte) (WitnessScope, error) {
 // returned.
 func ScopesFromString(s string) (WitnessScope, error) {
 	var result WitnessScope
-	scopes := strings.Split(s, ",")
-	for i, scope := range scopes {
-		scopes[i] = strings.TrimSpace(scope)
-	}
 	dict := map[string]WitnessScope{
 		Global.String():          Global,
 		CalledByEntry.String():   CalledByEntry,
@@ -62,7 +58,9 @@ func ScopesFromString(s string) (WitnessScope, error) {
 		None.String():            None,
 	}
 	var isGlobal bool
-	for _, scopeStr := range scopes {
+	for scopeStr := range strings.SplitSeq(s, ",") {
+		scopeStr = strings.TrimSpace(scopeStr)
+
 		scope, ok := dict[scopeStr]
 		if !ok {
 			return result, fmt.Errorf("invalid witness scope: %v", scopeStr)

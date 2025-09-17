@@ -16,16 +16,14 @@ func BenchmarkMerkle(t *testing.B) {
 	}
 
 	t.Run("NewMerkleTree", func(t *testing.B) {
-		t.ResetTimer()
-		for range t.N {
+		for t.Loop() {
 			tr, err := hash.NewMerkleTree(hashes)
 			require.NoError(t, err)
 			_ = tr.Root()
 		}
 	})
 	t.Run("CalcMerkleRoot", func(t *testing.B) {
-		t.ResetTimer()
-		for range t.N {
+		for t.Loop() {
 			_ = hash.CalcMerkleRoot(hashes)
 		}
 	})

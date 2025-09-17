@@ -1243,10 +1243,9 @@ func ToParameterBindingName(paramName string) string {
 // converts it to pascal case using space as delimiter.
 func toPascalCase(s string) string {
 	var res string
-	ss := strings.Split(s, " ")
-	for i := range ss { // TODO: use DecodeRuneInString instead.
+	for w := range strings.SplitSeq(s, " ") { // TODO: use DecodeRuneInString instead.
 		var word string
-		for _, ch := range ss[i] {
+		for _, ch := range w {
 			var ok bool
 			if len(res) == 0 && len(word) == 0 {
 				ok = unicode.IsLetter(ch)

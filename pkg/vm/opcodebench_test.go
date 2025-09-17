@@ -11,8 +11,7 @@ import (
 )
 
 func benchOpcodeInt(t *testing.B, f func() *VM, fail bool) {
-	t.ResetTimer()
-	for range t.N {
+	for t.Loop() {
 		t.StopTimer()
 		v := f()
 		t.StartTimer()

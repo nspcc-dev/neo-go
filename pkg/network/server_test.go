@@ -517,7 +517,7 @@ func TestTransaction(t *testing.T) {
 	t.Run("bad", func(t *testing.T) {
 		tx := newDummyTx()
 		s.RequestTx(tx.Hash())
-		s.chain.(*fakechain.FakeChain).PoolTxF = func(*transaction.Transaction) error { return core.ErrInsufficientFunds }
+		s.chain.(*fakechain.FakeChain).PoolTxF.Store(func(*transaction.Transaction) error { return core.ErrInsufficientFunds })
 		s.testHandleMessage(t, nil, CMDTX, tx)
 		require.Eventually(t, func() bool {
 			var fake = s.services["fake"].(*fakeConsensus)

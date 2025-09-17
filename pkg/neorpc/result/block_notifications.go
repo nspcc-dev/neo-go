@@ -8,9 +8,9 @@ import (
 // trigger type.
 type BlockNotifications struct {
 	// Block-level execution _before_ any transactions.
-	OnPersist []state.ContainedNotificationEvent `json:"onpersist,omitempty"`
+	OnPersist []state.ContainedNotificationEvent `json:"onpersist,omitzero"`
 	// Transaction execution.
-	Application []state.ContainedNotificationEvent `json:"application,omitempty"`
+	Application []state.ContainedNotificationEvent `json:"application,omitzero"`
 	// Block-level execution _after_ all transactions.
-	PostPersist []state.ContainedNotificationEvent `json:"postpersist,omitempty"`
+	PostPersist []state.ContainedNotificationEvent `json:"postpersist,omitzero"`
 }

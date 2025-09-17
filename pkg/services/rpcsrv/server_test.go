@@ -4408,8 +4408,7 @@ func BenchmarkHandleIn(b *testing.B) {
 
 	do := func(b *testing.B, req []byte) {
 		b.ReportAllocs()
-		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			b.StopTimer()
 			in := new(params.In)
 			b.StartTimer()

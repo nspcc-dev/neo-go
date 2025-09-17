@@ -24,16 +24,16 @@ type (
 	// since/till the specified index inclusively). nil value treated as missing
 	// filter.
 	BlockFilter struct {
-		Primary *byte   `json:"primary,omitempty"`
-		Since   *uint32 `json:"since,omitempty"`
-		Till    *uint32 `json:"till,omitempty"`
+		Primary *byte   `json:"primary,omitzero"`
+		Since   *uint32 `json:"since,omitzero"`
+		Till    *uint32 `json:"till,omitzero"`
 	}
 	// TxFilter is a wrapper structure for the transaction event filter. It
 	// allows to filter transactions by senders and/or signers. nil value treated
 	// as missing filter.
 	TxFilter struct {
-		Sender *util.Uint160 `json:"sender,omitempty"`
-		Signer *util.Uint160 `json:"signer,omitempty"`
+		Sender *util.Uint160 `json:"sender,omitzero"`
+		Signer *util.Uint160 `json:"signer,omitzero"`
 	}
 	// NotificationFilter is a wrapper structure representing a filter used for
 	// notifications generated during transaction execution. Notifications can
@@ -54,9 +54,9 @@ type (
 	// - [smartcontract.SignatureType]
 	// nil value treated as missing filter.
 	NotificationFilter struct {
-		Contract        *util.Uint160             `json:"contract,omitempty"`
-		Name            *string                   `json:"name,omitempty"`
-		Parameters      []smartcontract.Parameter `json:"parameters,omitempty"`
+		Contract        *util.Uint160             `json:"contract,omitzero"`
+		Name            *string                   `json:"name,omitzero"`
+		Parameters      []smartcontract.Parameter `json:"parameters,omitzero"`
 		parametersCache []stackitem.Item
 	}
 	// ExecutionFilter is a wrapper structure used for transaction and persisting
@@ -65,24 +65,24 @@ type (
 	// choose execution event with the specified container. nil value treated as
 	// missing filter.
 	ExecutionFilter struct {
-		State     *string       `json:"state,omitempty"`
-		Container *util.Uint256 `json:"container,omitempty"`
+		State     *string       `json:"state,omitzero"`
+		Container *util.Uint256 `json:"container,omitzero"`
 	}
 	// NotaryRequestFilter is a wrapper structure used for notary request events.
 	// It allows to choose notary request events with the specified request sender,
 	// main transaction signer and/or type. nil value treated as missing filter.
 	NotaryRequestFilter struct {
-		Sender *util.Uint160      `json:"sender,omitempty"`
-		Signer *util.Uint160      `json:"signer,omitempty"`
-		Type   *mempoolevent.Type `json:"type,omitempty"`
+		Sender *util.Uint160      `json:"sender,omitzero"`
+		Signer *util.Uint160      `json:"signer,omitzero"`
+		Type   *mempoolevent.Type `json:"type,omitzero"`
 	}
 	// MempoolEventFilter is a wrapper structure used for filtering mempool events.
 	// It allows to filter mempool events by transaction sender, signer, and/or
 	// event type. nil value treated as missing filter.
 	MempoolEventFilter struct {
-		Sender *util.Uint160      `json:"sender,omitempty"`
-		Signer *util.Uint160      `json:"signer,omitempty"`
-		Type   *mempoolevent.Type `json:"type,omitempty"`
+		Sender *util.Uint160      `json:"sender,omitzero"`
+		Signer *util.Uint160      `json:"signer,omitzero"`
+		Type   *mempoolevent.Type `json:"type,omitzero"`
 	}
 )
 

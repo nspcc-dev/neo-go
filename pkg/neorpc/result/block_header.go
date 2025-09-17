@@ -30,6 +30,7 @@ func (h Header) MarshalJSON() ([]byte, error) {
 	// We have to keep both "fields" at the same level in json in order to
 	// match C# API, so there's no way to marshall Block correctly with
 	// standard json.Marshaller tool.
+	// Both are never empty.
 	if output[len(output)-1] != '}' || baseBytes[0] != '{' {
 		return nil, errors.New("can't merge internal jsons")
 	}

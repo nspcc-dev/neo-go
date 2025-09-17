@@ -119,8 +119,7 @@ func TestServerStart(t *testing.T) {
 				}
 				return err == nil
 			}, 2*time.Second, 100*time.Millisecond)
-			lines := strings.Split(server.Logo(), "\n")
-			for _, expected := range lines {
+			for expected := range strings.SplitSeq(server.Logo(), "\n") {
 				// It should be regexp, so escape all backslashes.
 				expected = strings.ReplaceAll(expected, `\`, `\\`)
 				e.CheckLine(t, line, expected)

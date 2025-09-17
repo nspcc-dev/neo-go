@@ -22,8 +22,8 @@ type (
 	Peer struct {
 		Address         string `json:"address"`
 		Port            uint16 `json:"port"`
-		UserAgent       string `json:"useragent,omitempty"`
-		LastKnownHeight uint32 `json:"lastknownheight,omitempty"`
+		UserAgent       string `json:"useragent,omitzero"`
+		LastKnownHeight uint32 `json:"lastknownheight,omitzero"`
 	}
 )
 

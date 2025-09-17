@@ -17,10 +17,10 @@ type TransactionOutputRaw struct {
 
 // TransactionMetadata is an auxiliary struct for proper TransactionOutputRaw marshaling.
 type TransactionMetadata struct {
-	Blockhash     util.Uint256 `json:"blockhash,omitempty"`
-	Confirmations int          `json:"confirmations,omitempty"`
-	Timestamp     uint64       `json:"blocktime,omitempty"`
-	VMState       string       `json:"vmstate,omitempty"`
+	Blockhash     util.Uint256 `json:"blockhash,omitzero"`
+	Confirmations int          `json:"confirmations,omitzero"`
+	Timestamp     uint64       `json:"blocktime,omitzero"`
+	VMState       string       `json:"vmstate,omitzero"`
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -36,6 +36,10 @@ func (t TransactionOutputRaw) MarshalJSON() ([]byte, error) {
 
 	// We have to keep both transaction.Transaction and tranactionOutputRaw at the same level in json
 	// in order to match C# API, so there's no way to marshall Tx correctly with standard json.Marshaller tool.
+	if string(output) == "{}" {
+		// Empty meta -> return tx data.
+		return txBytes, nil
+	}
 	if output[len(output)-1] != '}' || txBytes[0] != '{' {
 		return nil, errors.New("can't merge internal jsons")
 	}

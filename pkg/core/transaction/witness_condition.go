@@ -95,10 +95,10 @@ type (
 
 // conditionAux is used for JSON marshaling/unmarshaling.
 type conditionAux struct {
-	Expression  json.RawMessage   `json:"expression,omitempty"` // Can be either boolean or conditionAux.
-	Expressions []json.RawMessage `json:"expressions,omitempty"`
-	Group       *keys.PublicKey   `json:"group,omitempty"`
-	Hash        *util.Uint160     `json:"hash,omitempty"`
+	Expression  json.RawMessage   `json:"expression,omitzero"` // Can be either boolean or conditionAux.
+	Expressions []json.RawMessage `json:"expressions,omitzero"`
+	Group       *keys.PublicKey   `json:"group,omitzero"`
+	Hash        *util.Uint160     `json:"hash,omitzero"`
 	Type        string            `json:"type"`
 }
 

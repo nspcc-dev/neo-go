@@ -39,9 +39,9 @@ type invokeAux struct {
 	Stack          json.RawMessage           `json:"stack"`
 	FaultException *string                   `json:"exception"`
 	Notifications  []state.NotificationEvent `json:"notifications"`
-	Transaction    []byte                    `json:"tx,omitempty"`
-	Diagnostics    *InvokeDiag               `json:"diagnostics,omitempty"`
-	Session        string                    `json:"session,omitempty"`
+	Transaction    []byte                    `json:"tx,omitzero"`
+	Diagnostics    *InvokeDiag               `json:"diagnostics,omitzero"`
+	Session        string                    `json:"session,omitzero"`
 }
 
 // iteratorInterfaceName is a string used to mark Iterator inside the InteropInterface.
@@ -49,10 +49,10 @@ const iteratorInterfaceName = "IIterator"
 
 type iteratorAux struct {
 	Type      string            `json:"type"`
-	Interface string            `json:"interface,omitempty"`
-	ID        string            `json:"id,omitempty"`
-	Value     []json.RawMessage `json:"iterator,omitempty"`
-	Truncated bool              `json:"truncated,omitempty"`
+	Interface string            `json:"interface,omitzero"`
+	ID        string            `json:"id,omitzero"`
+	Value     []json.RawMessage `json:"iterator,omitzero"`
+	Truncated bool              `json:"truncated,omitzero"`
 }
 
 // Iterator represents a VM iterator identifier. It can be in one of three

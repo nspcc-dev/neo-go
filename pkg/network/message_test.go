@@ -98,8 +98,7 @@ func BenchmarkMessageBytes(b *testing.B) {
 	msg := NewMessage(CMDExtensible, ep)
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := msg.Bytes()
 		if err != nil {
 			b.FailNow()

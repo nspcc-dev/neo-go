@@ -92,10 +92,8 @@ func main() {
 		txs := make([]*transaction.Transaction, txNum)
 		for j := range txNum {
 			nonce++
-			_, err = rand.Read(key)
-			handleError("can't get random data for key", err)
-			_, err = rand.Read(value)
-			handleError("can't get random data for value", err)
+			_, _ = rand.Read(key)
+			_, _ = rand.Read(value)
 
 			script, err := smartcontract.CreateCallScript(contractHash, "put", key, value)
 			handleError("can't create transaction", err)

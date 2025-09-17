@@ -32,8 +32,7 @@ func BenchmarkAppExecResult_EncodeBinary(b *testing.B) {
 
 	w := io.NewBufBinWriter()
 	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		w.Reset()
 		aer.EncodeBinary(w.BinWriter)
 	}

@@ -17,7 +17,7 @@ type RawNotaryPool struct {
 
 // rawNotaryPoolAux is an auxiliary struct for RawNotaryPool JSON marshalling.
 type rawNotaryPoolAux struct {
-	Hashes map[string][]util.Uint256 `json:"hashes,omitempty"`
+	Hashes map[string][]util.Uint256 `json:"hashes,omitzero"`
 }
 
 // MarshalJSON implements the json.Marshaler interface.

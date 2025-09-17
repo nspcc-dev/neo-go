@@ -9,7 +9,7 @@ import (
 type Error struct {
 	Code    int64  `json:"code"`
 	Message string `json:"message"`
-	Data    string `json:"data,omitempty"`
+	Data    string `json:"data,omitzero"`
 }
 
 // Standard RPC error codes defined by the JSON-RPC 2.0 specification.

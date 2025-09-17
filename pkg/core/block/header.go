@@ -77,7 +77,7 @@ type baseAux struct {
 	Index         uint32                `json:"index"`
 	NextConsensus string                `json:"nextconsensus"`
 	PrimaryIndex  byte                  `json:"primary"`
-	PrevStateRoot *util.Uint256         `json:"previousstateroot,omitempty"`
+	PrevStateRoot *util.Uint256         `json:"previousstateroot,omitzero"`
 	Witnesses     []transaction.Witness `json:"witnesses"`
 }
 

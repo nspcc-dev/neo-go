@@ -470,7 +470,7 @@ func (n Notification) EventPayload() any {
 type requestResponse struct {
 	neorpc.Response
 	Method    string            `json:"method"`
-	RawParams []json.RawMessage `json:"params,omitempty"`
+	RawParams []json.RawMessage `json:"params,omitzero"`
 }
 
 const (

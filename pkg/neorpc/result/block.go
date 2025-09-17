@@ -20,7 +20,7 @@ type (
 	// block.Block.
 	BlockMetadata struct {
 		Size          int           `json:"size"`
-		NextBlockHash *util.Uint256 `json:"nextblockhash,omitempty"`
+		NextBlockHash *util.Uint256 `json:"nextblockhash,omitzero"`
 		Confirmations uint32        `json:"confirmations"`
 	}
 )
@@ -39,6 +39,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 	// We have to keep both "fields" at the same level in json in order to
 	// match C# API, so there's no way to marshall Block correctly with
 	// the standard json.Marshaller tool.
+	// Both are never empty.
 	if output[len(output)-1] != '}' || baseBytes[0] != '{' {
 		return nil, errors.New("can't merge internal jsons")
 	}

@@ -16,8 +16,7 @@ func FuzzFromBytes(f *testing.F) {
 	for range 50 {
 		for j := 1; j < MaxBytesLen; j++ {
 			b := make([]byte, j)
-			_, err := rand.Read(b)
-			require.NoError(f, err)
+			_, _ = rand.Read(b)
 			f.Add(b)
 		}
 	}

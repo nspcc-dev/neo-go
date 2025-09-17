@@ -53,7 +53,7 @@ type NEP11Transfers struct {
 type NEP11Transfer struct {
 	Timestamp   uint64       `json:"timestamp"`
 	Asset       util.Uint160 `json:"assethash"`
-	Address     string       `json:"transferaddress,omitempty"`
+	Address     string       `json:"transferaddress,omitzero"`
 	ID          string       `json:"tokenid"`
 	Amount      string       `json:"amount"`
 	Index       uint32       `json:"blockindex"`
@@ -72,7 +72,7 @@ type NEP17Transfers struct {
 type NEP17Transfer struct {
 	Timestamp   uint64       `json:"timestamp"`
 	Asset       util.Uint160 `json:"assethash"`
-	Address     string       `json:"transferaddress,omitempty"`
+	Address     string       `json:"transferaddress,omitzero"`
 	Amount      string       `json:"amount"`
 	Index       uint32       `json:"blockindex"`
 	NotifyIndex uint32       `json:"transfernotifyindex"`

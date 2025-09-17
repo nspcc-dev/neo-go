@@ -393,9 +393,8 @@ func BenchmarkStoreAsTransaction(b *testing.B) {
 		},
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		err := dao.StoreAsTransaction(tx, 1, aer)
 		if err != nil {
 			b.FailNow()

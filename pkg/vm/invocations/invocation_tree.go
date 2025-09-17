@@ -8,5 +8,5 @@ import (
 // you can see how contracts called each other.
 type Tree struct {
 	Current util.Uint160 `json:"hash"`
-	Calls   []*Tree      `json:"call,omitempty"`
+	Calls   []*Tree      `json:"call,omitzero"`
 }
