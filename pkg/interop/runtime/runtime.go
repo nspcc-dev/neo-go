@@ -109,6 +109,10 @@ func GasLeft() int {
 	return neogointernal.Syscall0("System.Runtime.GasLeft").(int)
 }
 
+func GasUsed() int {
+	return neogointernal.Syscall0("System.Runtime.GasUsed").(int)
+}
+
 // GetNotifications returns notifications emitted by contract h.
 // 'nil' literal means no filtering. It returns slice consisting of following elements:
 // [  scripthash of notification's contract  ,  emitted item  ].

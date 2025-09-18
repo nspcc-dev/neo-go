@@ -16,6 +16,12 @@ import (
 	"github.com/twmb/murmur3"
 )
 
+func GasUsed(ic *interop.Context) error {
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(ic.VM.GasConsumed())))
+
+	return nil
+}
+
 // GasLeft returns the remaining amount of GAS.
 func GasLeft(ic *interop.Context) error {
 	if ic.VM.GasLimit == -1 {

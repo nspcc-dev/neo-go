@@ -17,6 +17,7 @@ const (
 	SystemRuntimeCheckWitness           = "System.Runtime.CheckWitness"
 	SystemRuntimeCurrentSigners         = "System.Runtime.CurrentSigners"
 	SystemRuntimeGasLeft                = "System.Runtime.GasLeft"
+	SystemRuntimeGasUsed                = "System.Runtime.GasUsed"
 	SystemRuntimeGetAddressVersion      = "System.Runtime.GetAddressVersion"
 	SystemRuntimeGetCallingScriptHash   = "System.Runtime.GetCallingScriptHash"
 	SystemRuntimeGetEntryScriptHash     = "System.Runtime.GetEntryScriptHash"
