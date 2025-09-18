@@ -3944,22 +3944,16 @@ func checkNep11TransfersAux(t *testing.T, e *executor, acc any, sent, rcvd []int
 
 	arr := make([]result.NEP11Transfer, 0, len(expected.Sent))
 	for i := range expected.Sent {
-		for _, j := range sent {
-			if i == j {
-				arr = append(arr, expected.Sent[i])
-				break
-			}
+		if slices.Contains(sent, i) {
+			arr = append(arr, expected.Sent[i])
 		}
 	}
 	require.Equal(t, arr, res.Sent)
 
 	arr = arr[:0]
 	for i := range expected.Received {
-		for _, j := range rcvd {
-			if i == j {
-				arr = append(arr, expected.Received[i])
-				break
-			}
+		if slices.Contains(rcvd, i) {
+			arr = append(arr, expected.Received[i])
 		}
 	}
 	require.Equal(t, arr, res.Received)
@@ -4369,22 +4363,16 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc any, sent, rcvd []int
 
 	arr := make([]result.NEP17Transfer, 0, len(expected.Sent))
 	for i := range expected.Sent {
-		for _, j := range sent {
-			if i == j {
-				arr = append(arr, expected.Sent[i])
-				break
-			}
+		if slices.Contains(sent, i) {
+			arr = append(arr, expected.Sent[i])
 		}
 	}
 	require.Equal(t, arr, res.Sent)
 
 	arr = arr[:0]
 	for i := range expected.Received {
-		for _, j := range rcvd {
-			if i == j {
-				arr = append(arr, expected.Received[i])
-				break
-			}
+		if slices.Contains(rcvd, i) {
+			arr = append(arr, expected.Received[i])
 		}
 	}
 	require.Equal(t, arr, res.Received)

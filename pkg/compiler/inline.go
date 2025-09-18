@@ -277,10 +277,8 @@ func (c *codegen) processContractCall(f *funcScope, args []ast.Expr) {
 
 func (c *codegen) appendInvokedContract(u util.Uint160, method string, flag uint64) {
 	currLst := c.invokedContracts[u]
-	for _, m := range currLst {
-		if m == method {
-			return
-		}
+	if slices.Contains(currLst, method) {
+		return
 	}
 
 	if flag&uint64(callflag.WriteStates|callflag.AllowNotify) != 0 {
