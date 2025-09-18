@@ -202,6 +202,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"setMaxValidUntilBlockIncrement", []string{"10"}},
 		{"getMillisecondsPerBlock", nil},
 		{"setMillisecondsPerBlock", []string{"10"}},
+		{"getBlockedAccounts", nil},
 	})
 	runNativeTestCases(t, *cs.ByName(nativenames.Ledger).Metadata(), "ledger", []nativeTestCase{
 		{"currentHash", nil},

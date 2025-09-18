@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -419,4 +421,40 @@ func TestPolicy_GetBlockedAccounts(t *testing.T) {
 	checkGetBlockedAccounts(t, expected)
 	p.Invoke(t, true, "unblockAccount", expected[0])
 	checkGetBlockedAccounts(t, expected[1:])
+}
+
+func TestPolicy_GetBlockedAccountsInteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	p := e.CommitteeInvoker(nativehashes.PolicyContract)
+
+	unlucky := e.NewAccount(t, 0)
+	p.Invoke(t, true, "blockAccount", unlucky.ScriptHash())
+
+	src := `package testpolicy
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+			"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+		)
+		func GetBlockedAccounts() []interop.Hash160 {
+			i := policy.GetBlockedAccounts()
+			var res []interop.Hash160
+			for iterator.Next(i) {
+				res = append(res, iterator.Value(i).(interop.Hash160))
+			}
+			return res
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "testpolicy_contract",
+	})
+	e.DeployContract(t, ctr, nil)
+
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+	ctrInvoker.Invoke(t, []stackitem.Item{stackitem.NewBuffer(unlucky.ScriptHash().BytesBE())}, "getBlockedAccounts")
 }
