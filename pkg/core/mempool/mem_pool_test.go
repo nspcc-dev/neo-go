@@ -241,12 +241,7 @@ func TestRemoveStale(t *testing.T) {
 	}
 	require.Equal(t, mempoolSize, mp.Count())
 	mp.RemoveStale(func(t *transaction.Transaction) bool {
-		for _, tx := range txes2 {
-			if tx == t {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(txes2, t)
 	}, &FeerStub{})
 	require.Equal(t, mempoolSize/2, mp.Count())
 	verTxes := mp.GetVerifiedTransactions()

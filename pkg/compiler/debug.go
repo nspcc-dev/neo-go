@@ -585,12 +585,7 @@ func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 	for _, method := range di.Methods {
 		if method.IsExported && method.IsFunction && method.Name.Namespace == di.MainPkg {
 			mMethod := method.ToManifestMethod()
-			for i := range o.SafeMethods {
-				if mMethod.Name == o.SafeMethods[i] {
-					mMethod.Safe = true
-					break
-				}
-			}
+			mMethod.Safe = slices.Contains(o.SafeMethods, mMethod.Name)
 			methods = append(methods, mMethod)
 		}
 	}
@@ -634,12 +629,7 @@ func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 		}
 		m.Name = emitName
 		// Check the resulting name against set of safe methods.
-		for i := range o.SafeMethods {
-			if m.Name == o.SafeMethods[i] {
-				m.Safe = true
-				break
-			}
-		}
+		m.Safe = slices.Contains(o.SafeMethods, m.Name)
 	}
 	return result, nil
 }

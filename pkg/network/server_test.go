@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -195,12 +196,7 @@ func TestServerRegisterPeer(t *testing.T) {
 	s.unregister <- peerDrop{ps[index], errIdenticalID}
 	require.Eventually(t, func() bool {
 		bad := s.BadPeers()
-		for i := range bad {
-			if bad[i] == ps[index].PeerAddr().String() {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(bad, ps[index].PeerAddr().String())
 	}, time.Second, time.Millisecond*50)
 }
 
@@ -506,12 +502,7 @@ func TestTransaction(t *testing.T) {
 			var fake = s.services["fake"].(*fakeConsensus)
 			fake.txlock.Lock()
 			defer fake.txlock.Unlock()
-			for _, t := range fake.txs {
-				if t == tx {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(fake.txs, tx)
 		}, 2*time.Second, time.Millisecond*500)
 	})
 	t.Run("bad", func(t *testing.T) {
@@ -523,12 +514,7 @@ func TestTransaction(t *testing.T) {
 			var fake = s.services["fake"].(*fakeConsensus)
 			fake.txlock.Lock()
 			defer fake.txlock.Unlock()
-			for _, t := range fake.txs {
-				if t == tx {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(fake.txs, tx)
 		}, 2*time.Second, time.Millisecond*500)
 	})
 }

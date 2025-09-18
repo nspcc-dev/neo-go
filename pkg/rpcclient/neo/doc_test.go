@@ -44,11 +44,8 @@ func ExampleContractReader() {
 
 	// Check if the vote is made for a committee member.
 	var votedForCommitteeMember bool
-	for i := range comm {
-		if bNeo.VoteTo.Equal(comm[i]) {
-			votedForCommitteeMember = true
-			break
-		}
+	if slices.ContainsFunc(comm, bNeo.VoteTo.Equal) {
+		votedForCommitteeMember = true
 	}
 	_ = votedForCommitteeMember
 }

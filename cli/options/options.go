@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -115,10 +116,8 @@ var NeoFSRPC = []cli.Flag{&cli.StringSliceFlag{
 	Usage:    "List of NeoFS storage node RPC addresses (comma-separated or multiple --fs-rpc-endpoint flags)",
 	Required: true,
 	Action: func(ctx *cli.Context, fsRpcEndpoints []string) error {
-		for _, endpoint := range fsRpcEndpoints {
-			if endpoint == "" {
-				return cli.Exit("NeoFS RPC endpoint cannot contain empty values", 1)
-			}
+		if slices.Contains(fsRpcEndpoints, "") {
+			return cli.Exit("NeoFS RPC endpoint cannot contain empty values", 1)
 		}
 		return nil
 	},

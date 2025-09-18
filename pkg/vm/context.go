@@ -264,12 +264,7 @@ func (c *Context) NumOfReturnVals() int {
 }
 
 func (c *Context) atBreakPoint() bool {
-	for _, n := range c.sc.breakPoints {
-		if n == c.nextip {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.sc.breakPoints, c.nextip)
 }
 
 // IsDeployed returns whether this context contains a deployed contract.
