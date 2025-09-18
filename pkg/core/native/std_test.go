@@ -639,3 +639,51 @@ func TestStd_StrLen(t *testing.T) {
 	check(t, 1, bad)
 	check(t, 3, bad+"ab")
 }
+
+func TestStd_HexEncodeDecode(t *testing.T) {
+	s := newStd()
+	var actual stackitem.Item
+
+	original := []byte("abc")
+	hexStr := hex.EncodeToString(original)
+
+	t.Run("hexEncode positive", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.hexEncode(nil, []stackitem.Item{stackitem.Make(original)})
+		})
+		require.Equal(t, stackitem.Make(hexStr), actual)
+	})
+
+	t.Run("hexEncode error big input", func(t *testing.T) {
+		bigBytes := make([]byte, stdMaxInputLength+1)
+		require.PanicsWithError(t, ErrTooBigInput.Error(), func() {
+			_ = s.hexEncode(nil, []stackitem.Item{stackitem.Make(bigBytes)})
+		})
+	})
+
+	t.Run("hexDecode positive", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.hexDecode(nil, []stackitem.Item{stackitem.Make(hexStr)})
+		})
+		require.Equal(t, stackitem.Make(original), actual)
+	})
+
+	t.Run("hexDecode error invalid chars", func(t *testing.T) {
+		require.Panics(t, func() {
+			_ = s.hexDecode(nil, []stackitem.Item{stackitem.Make("zz")})
+		})
+	})
+
+	t.Run("hexDecode error invalid conversion", func(t *testing.T) {
+		require.Panics(t, func() {
+			_ = s.hexDecode(nil, []stackitem.Item{stackitem.NewMap()})
+		})
+	})
+
+	t.Run("hexDecode error big input", func(t *testing.T) {
+		bigBytes := []stackitem.Item{stackitem.NewByteArray(make([]byte, stdMaxInputLength+1))}
+		require.PanicsWithError(t, ErrTooBigInput.Error(), func() {
+			_ = s.hexDecode(nil, bigBytes)
+		})
+	})
+}
