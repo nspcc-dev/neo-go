@@ -74,9 +74,6 @@ func init() {
 		if _, ok := cockatriceCSS[k]; !ok {
 			cockatriceCSS[k] = v
 		}
-		if _, ok := echidnaCSS[k]; !ok {
-			echidnaCSS[k] = cockatriceCSS[k]
-		}
 	}
 	for k, v := range cockatriceCSS {
 		if _, ok := echidnaCSS[k]; !ok {
