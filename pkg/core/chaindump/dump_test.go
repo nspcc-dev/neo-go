@@ -16,13 +16,13 @@ import (
 
 func TestBlockchain_DumpAndRestore(t *testing.T) {
 	t.Run("no state root", func(t *testing.T) {
-		testDumpAndRestore(t, func(c *config.Blockchain) {
-			c.StateRootInHeader = false
-		}, nil)
+		testDumpAndRestore(t, func(c *config.Blockchain) {}, nil)
 	})
 	t.Run("with state root", func(t *testing.T) {
 		testDumpAndRestore(t, func(c *config.Blockchain) {
-			c.StateRootInHeader = true
+			c.Hardforks = map[string]uint32{
+				config.HFFaun.String(): 0,
+			}
 		}, nil)
 	})
 	t.Run("remove untraceable", func(t *testing.T) {

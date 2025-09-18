@@ -29,6 +29,15 @@ var messageTypes = []messageType{
 	recoveryMessageType,
 }
 
+func TestS(t *testing.T) {
+	r, err := hex.DecodeString("200500000000010100000057c0ea7af7e29732601f0e6b3dcfcebc6ea14fbc7c76ef518422c1bd936876a80d62b6529901000070fcd170f97f23b6c4592bdfa0d9d00ddd9a72dff83f1d1e497e485085944b61406e906ae7a44abe02e4d50d5bb984281ec86497bb125ce7d19b26bf7edd72f55e2030f70d3d4f57b8339ba2203b389e85b0e603d7d627fbb8685882c311ea54b47a45a22e3d1bf842")
+	require.NoError(t, err)
+	br := io.NewBinReaderFromBuf(r)
+	var m message
+	m.DecodeBinary(br)
+	require.NoError(t, br.Err)
+}
+
 func TestConsensusPayload_Getters(t *testing.T) {
 	var p = &Payload{
 		Extensible: npayload.Extensible{},
@@ -280,7 +289,7 @@ func TestPayload_DecodeFromPrivnet(t *testing.T) {
 	require.NoError(t, err)
 
 	buf := io.NewBinReaderFromBuf(data)
-	p := NewPayload(netmode.PrivNet, false)
+	p := NewPayload(netmode.PrivNet)
 	p.DecodeBinary(buf)
 	require.NoError(t, buf.Err)
 	require.Equal(t, dbft.CommitType, p.Type())
