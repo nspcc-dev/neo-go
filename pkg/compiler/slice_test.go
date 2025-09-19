@@ -338,6 +338,60 @@ var sliceTestCases = []testCase{
 		`,
 		[]byte("str"),
 	},
+	{
+		"increment elem, alias",
+		`func F%d() int {
+			s := []int{0}
+			t := s
+			t[0]++
+			return s[0]
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"increment elem, struct",
+		`type T struct { V int }
+		func F%d() int {
+			s := []T{{0}}
+			s[0].V++
+			return s[0].V
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"increment elem, pointer",
+		`func F%d() int {
+			t := &T{0}
+			s := []*T{t}
+			s[0].V++
+			return t.V
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"increment elem, 2d slice",
+		`func F%d() int {
+			s := [][]int{{0}}
+			s[0][0]++
+			return s[0][0]
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"increment elem, func call",
+		`func f(s []int) []int { return s }
+		func F%d() int {
+			var s = []int{0}
+			f(s)[0]++
+			return s[0]
+		}
+		`,
+		big.NewInt(1),
+	},
 }
 
 func TestSliceOperations(t *testing.T) {
