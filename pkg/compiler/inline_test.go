@@ -454,3 +454,47 @@ func TestInlineForeignType(t *testing.T) {
 		}`
 	eval(t, src, big.NewInt(29))
 }
+
+func TestInlineModifyArg(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline/d"
+
+		func Main() int {
+			return d.Negate(-42)
+		}`
+	eval(t, src, big.NewInt(42))
+}
+
+func TestInlineMixedArgs(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline/d"
+
+		func someCall() int { return 7 }
+
+		func Main() int {
+			return d.AddNeg(-3, someCall())
+		}`
+	eval(t, src, big.NewInt(-4))
+}
+
+func TestInlineChain(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline/d"
+
+		func Main() int {
+			return d.Wrap2(-2)
+		}`
+	eval(t, src, big.NewInt(2))
+}
+
+func TestInlineSlice(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline/d"
+
+		func Main() int {
+			s := make([]int, 1)
+			d.SetOneFirstElem(s)
+			return s[0]
+		}`
+	eval(t, src, big.NewInt(1))
+}
