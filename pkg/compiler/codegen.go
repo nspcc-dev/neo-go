@@ -238,6 +238,33 @@ func (c *codegen) emitStoreStructField(i int) {
 	emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.SETITEM)
 }
 
+// emitStoreSelectorExpr stores RHS into a selector expression (x.f).
+// Assumes the RHS is already on the stack before this call.
+func (c *codegen) emitStoreSelectorExpr(n *ast.SelectorExpr) {
+	typ := c.typeOf(n.X)
+	if c.isInvalidType(typ) {
+		// Store to other package global variable.
+		c.emitStoreVar(n.X.(*ast.Ident).Name, n.Sel.Name)
+		return
+	}
+	strct, ok := c.getStruct(typ)
+	if !ok {
+		c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
+		return
+	}
+	ast.Walk(c, n.X)                      // load the struct
+	i := indexOfStruct(strct, n.Sel.Name) // get the index of the field
+	c.emitStoreStructField(i)             // store the field
+}
+
+// emitStoreIndexExpr emits code to store into an index expression (container[index]).
+// Assumes the RHS is already on the stack before calling.
+func (c *codegen) emitStoreIndexExpr(n *ast.IndexExpr) {
+	ast.Walk(c, n.X)
+	ast.Walk(c, n.Index)
+	emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.SETITEM)
+}
+
 // getVarIndex returns variable type and position in the corresponding slot,
 // according to the current scope.
 func (c *codegen) getVarIndex(pkg string, name string) *varInfo {
@@ -719,27 +746,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitStoreVar("", t.Name)
 
 			case *ast.SelectorExpr:
-				typ := c.typeOf(t.X)
-				if c.isInvalidType(typ) {
-					// Store to other package global variable.
-					c.emitStoreVar(t.X.(*ast.Ident).Name, t.Sel.Name)
-					return nil
-				}
-				strct, ok := c.getStruct(typ)
-				if !ok {
-					c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
-					return nil
-				}
-				ast.Walk(c, t.X)                      // load the struct
-				i := indexOfStruct(strct, t.Sel.Name) // get the index of the field
-				c.emitStoreStructField(i)             // store the field
+				c.emitStoreSelectorExpr(t) // store the field
 
 			// Assignments to index expressions.
 			// slice[0] = 10
 			case *ast.IndexExpr:
-				ast.Walk(c, t.X)
-				ast.Walk(c, t.Index)
-				emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.SETITEM)
+				c.emitStoreIndexExpr(t)
 			}
 		}
 		return nil
@@ -1212,11 +1224,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		ast.Walk(c, n.X)
 		c.emitToken(n.Tok, c.typeOf(n.X))
 
-		// For now, only identifiers are supported for (post) for stmts.
-		// for i := 0; i < 10; i++ {}
-		// Where the post stmt is ( i++ )
-		if ident, ok := n.X.(*ast.Ident); ok {
-			c.emitStoreVar("", ident.Name)
+		switch t := n.X.(type) {
+		case *ast.Ident:
+			// Identifiers are supported for (post) for stmts.
+			// for i := 0; i < 10; i++ {}
+			// Where the post stmt is ( i++ )
+			c.emitStoreVar("", t.Name)
+
+		case *ast.SelectorExpr:
+			// Struct field selectors are supported, e.g. myStruct.t++ or p.field++.
+			c.emitStoreSelectorExpr(t)
+
+		case *ast.IndexExpr:
+			// Index expressions are supported for arrays/slices/maps, e.g. s[0]++, m["k"]++.
+			c.emitStoreIndexExpr(t)
 		}
 		return nil
 
