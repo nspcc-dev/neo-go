@@ -255,6 +255,26 @@ var mapTestCases = []testCase{
 		}`,
 		big.NewInt(5),
 	},
+	{
+		"swap map elements",
+		`package foo
+		func Main() map[string]int {
+			m := map[string]int{"a":1, "b":2}
+			m["a"], m["b"] = m["b"], m["a"]
+			return m
+		}
+		`,
+		[]stackitem.MapElement{
+			{
+				Key:   stackitem.Make("a"),
+				Value: stackitem.Make(2),
+			},
+			{
+				Key:   stackitem.Make("b"),
+				Value: stackitem.Make(1),
+			},
+		},
+	},
 }
 
 func TestMaps(t *testing.T) {
