@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -39,6 +40,15 @@ func (t *testAct) MakeUnsignedRun(script []byte, attrs []transaction.Attribute) 
 }
 func (t *testAct) SendRun(script []byte) (util.Uint256, uint32, error) {
 	return t.txh, t.vub, t.err
+}
+func (t *testAct) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error) {
+	return t.res, t.err
+}
+func (t *testAct) TerminateSession(sessionID uuid.UUID) error {
+	return t.err
+}
+func (t *testAct) TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error) {
+	return t.res.Stack, t.err
 }
 
 func TestReader(t *testing.T) {
@@ -87,6 +97,91 @@ func TestReader(t *testing.T) {
 	val, err := pc.IsBlocked(util.Uint160{1, 2, 3})
 	require.NoError(t, err)
 	require.True(t, val)
+}
+
+func TestGetBlockedAccounts(t *testing.T) {
+	ta := &testAct{}
+	man := NewReader(ta)
+
+	ta.err = errors.New("")
+	_, err := man.GetBlockedAccounts()
+	require.Error(t, err)
+	_, err = man.GetBlockedAccountsExpanded(5)
+	require.Error(t, err)
+
+	ta.err = nil
+	iid := uuid.New()
+	ta.res = &result.Invoke{
+		State: "HALT",
+		Stack: []stackitem.Item{
+			stackitem.NewInterop(result.Iterator{
+				ID: &iid,
+			}),
+		},
+	}
+	_, err = man.GetBlockedAccounts()
+	require.Error(t, err)
+
+	sid := uuid.New()
+	ta.res = &result.Invoke{
+		Session: sid,
+		State:   "HALT",
+		Stack: []stackitem.Item{
+			stackitem.NewInterop(result.Iterator{
+				ID: &iid,
+			}),
+		},
+	}
+	iter, err := man.GetBlockedAccounts()
+	require.NoError(t, err)
+
+	ta.res = &result.Invoke{
+		Stack: []stackitem.Item{
+			stackitem.Make(util.Uint160{1, 2, 3}),
+		},
+	}
+	vals, err := iter.Next(10)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(vals))
+	require.Equal(t, util.Uint160{1, 2, 3}, vals[0])
+
+	ta.err = errors.New("")
+	_, err = iter.Next(1)
+	require.Error(t, err)
+	err = iter.Terminate()
+	require.Error(t, err)
+
+	ta.err = nil
+	ta.res = &result.Invoke{
+		State: "HALT",
+		Stack: []stackitem.Item{
+			stackitem.NewInterop(result.Iterator{
+				Values: []stackitem.Item{
+					stackitem.Make(util.Uint160{1, 2, 3}),
+				},
+			}),
+		},
+	}
+	iter, err = man.GetBlockedAccounts()
+	require.NoError(t, err)
+
+	ta.err = errors.New("")
+	err = iter.Terminate()
+	require.NoError(t, err)
+
+	ta.err = nil
+	ta.res = &result.Invoke{
+		State: "HALT",
+		Stack: []stackitem.Item{
+			stackitem.Make([]stackitem.Item{
+				stackitem.Make(util.Uint160{1, 2, 3}.BytesBE()),
+			}),
+		},
+	}
+	expandedVals, err := man.GetBlockedAccountsExpanded(5)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(expandedVals))
+	require.Equal(t, util.Uint160{1, 2, 3}, expandedVals[0])
 }
 
 func TestIntSetters(t *testing.T) {

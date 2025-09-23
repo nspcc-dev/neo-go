@@ -7,17 +7,24 @@ various methods to perform PolicyContract state-changing calls.
 package policy
 
 import (
+	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Invoker is used by ContractReader to call various methods.
 type Invoker interface {
 	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
+	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error)
+	TerminateSession(sessionID uuid.UUID) error
+	TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error)
 }
 
 // Actor is used by Contract to create and send transactions.
@@ -56,6 +63,13 @@ type Contract struct {
 	ContractReader
 
 	actor Actor
+}
+
+// BlockedAccountsIterator is used for iterating over GetBlockedAccounts results.
+type BlockedAccountsIterator struct {
+	client   Invoker
+	session  uuid.UUID
+	iterator result.Iterator
 }
 
 // NewReader creates an instance of ContractReader that can be used to read
@@ -106,6 +120,62 @@ func (c *ContractReader) GetMaxValidUntilBlockIncrement() (int64, error) {
 // that this method is available starting from Echidna hardfork.
 func (c *ContractReader) GetMillisecondsPerBlock() (int64, error) {
 	return unwrap.Int64(c.invoker.Call(Hash, "getMillisecondsPerBlock"))
+}
+
+// GetBlockedAccounts returns current blocked accounts. Note that this method is
+// available starting from [config.HFFaun] hardfork.
+func (c *ContractReader) GetBlockedAccounts() (*BlockedAccountsIterator, error) {
+	sess, iter, err := unwrap.SessionIterator(c.invoker.Call(Hash, "getBlockedAccounts"))
+	if err != nil {
+		return nil, err
+	}
+
+	return &BlockedAccountsIterator{
+		client:   c.invoker,
+		iterator: iter,
+		session:  sess,
+	}, nil
+}
+
+// GetBlockedAccountsExpanded is similar to GetBlockedAccounts (uses the same
+// contract method), but can be useful if the server used doesn't support
+// sessions and doesn't expand iterators. It creates a script that will get num
+// of result items from the iterator right in the VM and return them to you. It's
+// only limited by VM stack and GAS available for RPC invocations.
+func (c *ContractReader) GetBlockedAccountsExpanded(num int) ([]util.Uint160, error) {
+	return unwrap.ArrayOfUint160(c.invoker.CallAndExpandIterator(Hash, "getBlockedAccounts", num))
+}
+
+// Next returns the next set of elements from the iterator (up to num of them).
+// It can return less than num elements in case iterator doesn't have that many
+// or zero elements if the iterator has no more elements or the session is
+// expired.
+func (b *BlockedAccountsIterator) Next(num int) ([]util.Uint160, error) {
+	items, err := b.client.TraverseIterator(b.session, &b.iterator, num)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]util.Uint160, len(items))
+	for i, itm := range items {
+		hb, err := itm.TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("item #%d has wrong hash: %w", i, err)
+		}
+		res[i], err = util.Uint160DecodeBytesBE(hb)
+		if err != nil {
+			return nil, fmt.Errorf("item #%d has wrong hash: %w", i, err)
+		}
+	}
+	return res, nil
+}
+
+// Terminate closes the iterator session used by BlockedAccountsIterator (if it's
+// session-based).
+func (b *BlockedAccountsIterator) Terminate() error {
+	if b.iterator.ID == nil {
+		return nil
+	}
+	return b.client.TerminateSession(b.session)
 }
 
 // IsBlocked checks if the given account is blocked in the PolicyContract.

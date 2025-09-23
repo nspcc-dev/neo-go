@@ -180,3 +180,19 @@ func StrLen(s string) int {
 	return neogointernal.CallWithToken(Hash, "strLen", int(contract.NoneFlag),
 		s).(int)
 }
+
+// HexEncode encodes a given byte slice into a hex string and returns it.
+// It uses `hexEncode` method of StdLib native contract. Note that this method is
+// available starting from [config.HFFaun] hardfork.
+func HexEncode(b []byte) string {
+	return neogointernal.CallWithToken(Hash, "hexEncode", int(contract.NoneFlag),
+		b).(string)
+}
+
+// HexDecode decodes a given hex string into a byte slice and returns it.
+// It uses `hexDecode` method of StdLib native contract. Note that this method is
+// available starting from [config.HFFaun] hardfork.
+func HexDecode(s string) []byte {
+	return neogointernal.CallWithToken(Hash, "hexDecode", int(contract.NoneFlag),
+		s).([]byte)
+}

@@ -202,6 +202,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"setMaxValidUntilBlockIncrement", []string{"10"}},
 		{"getMillisecondsPerBlock", nil},
 		{"setMillisecondsPerBlock", []string{"10"}},
+		{"getBlockedAccounts", nil},
 	})
 	runNativeTestCases(t, *cs.ByName(nativenames.Ledger).Metadata(), "ledger", []nativeTestCase{
 		{"currentHash", nil},
@@ -271,6 +272,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"memorySearchLastIndex", []string{"[]byte{1}", "[]byte{2}", "3"}},
 		{"stringSplit", []string{`"a,b"`, `","`}},
 		{"stringSplitNonEmpty", []string{`"a,b"`, `","`}},
+		{"hexEncode", []string{"[]byte{0, 1, 2, 3}"}},
+		{"hexDecode", []string{`"00010203"`}},
 	})
 }
 
