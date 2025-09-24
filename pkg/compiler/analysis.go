@@ -95,7 +95,7 @@ func (c *codegen) traverseGlobals() bool {
 	}
 
 	if n > 255 {
-		c.prog.BinWriter.Err = errors.New("too many global variables")
+		c.prog.Err = errors.New("too many global variables")
 		return hasDeploy
 	}
 

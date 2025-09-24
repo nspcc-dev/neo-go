@@ -633,7 +633,7 @@ func dropManifestEvents(events []manifest.Event, manifested []manifest.Event) []
 }
 
 func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.Method {
-	meths = dropManifestMethods(meths, std.Manifest.ABI.Methods)
+	meths = dropManifestMethods(meths, std.ABI.Methods)
 	if std.Optional != nil {
 		meths = dropManifestMethods(meths, std.Optional)
 	}
@@ -644,7 +644,7 @@ func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.
 }
 
 func dropStdEvents(events []manifest.Event, std *standard.Standard) []manifest.Event {
-	events = dropManifestEvents(events, std.Manifest.ABI.Events)
+	events = dropManifestEvents(events, std.ABI.Events)
 	if std.Base != nil {
 		return dropStdEvents(events, std.Base)
 	}
@@ -659,8 +659,8 @@ func dropNep24Types(cfg binding.Config) binding.Config {
 	if royaltyInfo, ok := cfg.Types[standard.MethodRoyaltyInfo]; ok && royaltyInfo.Value != nil {
 		returnType, exists := cfg.NamedTypes[royaltyInfo.Value.Name]
 		if !exists || returnType.Fields == nil || len(returnType.Fields) != 2 ||
-			returnType.Fields[0].ExtendedType.Base != smartcontract.Hash160Type ||
-			returnType.Fields[1].ExtendedType.Base != smartcontract.IntegerType {
+			returnType.Fields[0].Base != smartcontract.Hash160Type ||
+			returnType.Fields[1].Base != smartcontract.IntegerType {
 			return cfg
 		}
 		targetTypeName = royaltyInfo.Value.Name

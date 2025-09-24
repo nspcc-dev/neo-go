@@ -88,7 +88,7 @@ func (g *GAS) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 	if err := g.nep17TokenNative.Initialize(ic); err != nil {
 		return err
 	}
-	_, totalSupply := g.nep17TokenNative.getTotalSupply(ic.DAO)
+	_, totalSupply := g.getTotalSupply(ic.DAO)
 	if totalSupply.Sign() != 0 {
 		return errors.New("already initialized")
 	}

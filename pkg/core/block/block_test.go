@@ -102,7 +102,7 @@ func newDumbBlock() *Block {
 func TestHashBlockEqualsHashHeader(t *testing.T) {
 	block := newDumbBlock()
 
-	assert.Equal(t, block.Hash(), block.Header.Hash())
+	assert.Equal(t, block.Hash(), block.Hash())
 }
 
 func TestBinBlockDecodeEncode(t *testing.T) {

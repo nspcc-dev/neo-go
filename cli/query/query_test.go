@@ -120,7 +120,7 @@ func compareQueryTxVerbose(t *testing.T, e *testcli.Executor, tx *transaction.Tr
 	e.CheckNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(height).StringLE())
 
 	res, _ := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
-	e.CheckNextLine(t, fmt.Sprintf(`Success:\s+%t`, res[0].Execution.VMState == vmstate.Halt))
+	e.CheckNextLine(t, fmt.Sprintf(`Success:\s+%t`, res[0].VMState == vmstate.Halt))
 	for _, s := range tx.Signers {
 		e.CheckNextLine(t, fmt.Sprintf(`Signer:\s+%s\s*\(%s\)`, address.Uint160ToString(s.Account), s.Scopes.String()))
 	}
@@ -135,8 +135,8 @@ func compareQueryTxVerbose(t *testing.T, e *testcli.Executor, tx *transaction.Tr
 	}
 	e.CheckScriptDump(t, n)
 
-	if res[0].Execution.VMState != vmstate.Halt {
-		e.CheckNextLine(t, `Exception:\s+`+regexp.QuoteMeta(res[0].Execution.FaultException))
+	if res[0].VMState != vmstate.Halt {
+		e.CheckNextLine(t, `Exception:\s+`+regexp.QuoteMeta(res[0].FaultException))
 	}
 	e.CheckEOF(t)
 }

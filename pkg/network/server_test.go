@@ -69,9 +69,9 @@ func TestNewServer(t *testing.T) {
 		s = newTestServer(t, ServerConfig{MinPeers: -1})
 
 		require.True(t, s.ID() != 0)
-		require.Equal(t, defaultMinPeers, s.ServerConfig.MinPeers)
-		require.Equal(t, defaultMaxPeers, s.ServerConfig.MaxPeers)
-		require.Equal(t, defaultAttemptConnPeers, s.ServerConfig.AttemptConnPeers)
+		require.Equal(t, defaultMinPeers, s.MinPeers)
+		require.Equal(t, defaultMaxPeers, s.MaxPeers)
+		require.Equal(t, defaultAttemptConnPeers, s.AttemptConnPeers)
 	})
 	t.Run("don't defaults", func(t *testing.T) {
 		cfg := ServerConfig{
@@ -82,9 +82,9 @@ func TestNewServer(t *testing.T) {
 		s = newTestServer(t, cfg)
 
 		require.True(t, s.ID() != 0)
-		require.Equal(t, 1, s.ServerConfig.MinPeers)
-		require.Equal(t, 2, s.ServerConfig.MaxPeers)
-		require.Equal(t, 3, s.ServerConfig.AttemptConnPeers)
+		require.Equal(t, 1, s.MinPeers)
+		require.Equal(t, 2, s.MaxPeers)
+		require.Equal(t, 3, s.AttemptConnPeers)
 	})
 }
 
@@ -829,7 +829,7 @@ func TestHandleGetMPTData(t *testing.T) {
 	t.Run("KeepOnlyLatestState on", func(t *testing.T) {
 		s := startTestServer(t, func(c *config.Blockchain) {
 			c.P2PStateExchangeExtensions = true
-			c.Ledger.KeepOnlyLatestState = true
+			c.KeepOnlyLatestState = true
 		})
 		check(t, s)
 	})
@@ -1037,7 +1037,7 @@ func TestMemPool(t *testing.T) {
 	expected := make([]util.Uint256, 4)
 	for i := range expected {
 		tx := newDummyTx()
-		require.NoError(t, bc.Pool.Add(tx, &feerStub{blockHeight: 10}))
+		require.NoError(t, bc.Add(tx, &feerStub{blockHeight: 10}))
 		expected[i] = tx.Hash()
 	}
 

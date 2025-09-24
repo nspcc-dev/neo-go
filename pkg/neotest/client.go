@@ -100,12 +100,12 @@ func (c *ContractInvoker) WithSigners(signers ...Signer) *ContractInvoker {
 
 // PrepareInvoke creates a new invocation transaction.
 func (c *ContractInvoker) PrepareInvoke(t testing.TB, method string, args ...any) *transaction.Transaction {
-	return c.Executor.NewTx(t, c.Signers, c.Hash, method, args...)
+	return c.NewTx(t, c.Signers, c.Hash, method, args...)
 }
 
 // PrepareInvokeNoSign creates a new unsigned invocation transaction.
 func (c *ContractInvoker) PrepareInvokeNoSign(t testing.TB, method string, args ...any) *transaction.Transaction {
-	return c.Executor.NewUnsignedTx(t, c.Hash, method, args...)
+	return c.NewUnsignedTx(t, c.Hash, method, args...)
 }
 
 // Invoke invokes the method with the args, persists the transaction and checks the result.
@@ -120,7 +120,7 @@ func (c *ContractInvoker) Invoke(t testing.TB, result any, method string, args .
 // InvokeWithFee is like Invoke but sets the custom system fee for the transaction.
 func (c *ContractInvoker) InvokeWithFee(t testing.TB, result any, sysFee int64, method string, args ...any) util.Uint256 {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
-	c.Executor.SignTx(t, tx, sysFee, c.Signers...)
+	c.SignTx(t, tx, sysFee, c.Signers...)
 	c.AddNewBlock(t, tx)
 	c.CheckHalt(t, tx.Hash(), stackitem.Make(result))
 	return tx.Hash()
@@ -143,7 +143,7 @@ func (c *ContractInvoker) InvokeAndCheck(t testing.TB, checkResult func(t testin
 // InvokeWithFeeFail is like InvokeFail but sets the custom system fee for the transaction.
 func (c *ContractInvoker) InvokeWithFeeFail(t testing.TB, message string, sysFee int64, method string, args ...any) util.Uint256 {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
-	c.Executor.SignTx(t, tx, sysFee, c.Signers...)
+	c.SignTx(t, tx, sysFee, c.Signers...)
 	c.AddNewBlock(t, tx)
 	c.CheckFault(t, tx.Hash(), message)
 	return tx.Hash()

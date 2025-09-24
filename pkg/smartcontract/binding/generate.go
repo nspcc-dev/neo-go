@@ -348,7 +348,7 @@ func (e *ExtendedType) Equals(other *ExtendedType) bool {
 		if e.Fields[i].Field != other.Fields[i].Field {
 			return false
 		}
-		if !e.Fields[i].ExtendedType.Equals(&other.Fields[i].ExtendedType) {
+		if !e.Fields[i].Equals(&other.Fields[i].ExtendedType) {
 			return false
 		}
 	}

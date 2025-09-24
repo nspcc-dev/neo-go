@@ -233,7 +233,7 @@ func TestWSWaiter_Wait(t *testing.T) {
 	}
 
 	// AER received after the subscription.
-	c.RPCClient.appLog = nil
+	c.appLog = nil
 	go func() {
 		aer, err = w.Wait(c.Context(), h, bCount-1, nil)
 		require.NoError(t, err)

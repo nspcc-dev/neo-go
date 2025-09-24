@@ -1115,7 +1115,7 @@ contract_loop:
 		lub, ok := lastUpdated[cs.ID]
 		if !ok {
 			cfg := s.chain.GetConfig()
-			if !cfg.P2PStateExchangeExtensions && cfg.Ledger.RemoveUntraceableBlocks {
+			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
 				return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token: internal database inconsistency", cs.Hash.StringLE()))
 			}
 			lub = stateSyncPoint
@@ -1237,7 +1237,7 @@ func (s *Server) getNEP17Balances(ps params.Params) (any, *neorpc.Error) {
 		lub, ok := lastUpdated[cs.ID]
 		if !ok {
 			cfg := s.chain.GetConfig()
-			if !cfg.P2PStateExchangeExtensions && cfg.Ledger.RemoveUntraceableBlocks {
+			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
 				return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token: internal database inconsistency", cs.Hash.StringLE()))
 			}
 			lub = stateSyncPoint
@@ -1581,7 +1581,7 @@ func makeStorageKey(id int32, key []byte) []byte {
 var errKeepOnlyLatestState = errors.New("'KeepOnlyLatestState' setting is enabled")
 
 func (s *Server) getProof(ps params.Params) (any, *neorpc.Error) {
-	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
+	if s.chain.GetConfig().KeepOnlyLatestState {
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("'getproof' is not supported: %s", errKeepOnlyLatestState))
 	}
 	root, err := ps.Value(0).GetUint256()
@@ -1615,7 +1615,7 @@ func (s *Server) getProof(ps params.Params) (any, *neorpc.Error) {
 }
 
 func (s *Server) verifyProof(ps params.Params) (any, *neorpc.Error) {
-	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
+	if s.chain.GetConfig().KeepOnlyLatestState {
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("'verifyproof' is not supported: %s", errKeepOnlyLatestState))
 	}
 	root, err := ps.Value(0).GetUint256()
@@ -1758,7 +1758,7 @@ func (s *Server) getStateRootFromParam(p *params.Param) (util.Uint256, *neorpc.E
 	if err != nil {
 		return util.Uint256{}, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "invalid stateroot")
 	}
-	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
+	if s.chain.GetConfig().KeepOnlyLatestState {
 		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
 		if err != nil {
 			return util.Uint256{}, neorpc.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
@@ -2443,7 +2443,7 @@ func (s *Server) getInvokeContractVerifyParams(reqParams params.Params) (util.Ui
 // specified stateroot is stored at the specified height for further request
 // handling consistency.
 func (s *Server) getHistoricParams(reqParams params.Params) (uint32, *neorpc.Error) {
-	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
+	if s.chain.GetConfig().KeepOnlyLatestState {
 		return 0, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("only latest state is supported: %s", errKeepOnlyLatestState))
 	}
 	if len(reqParams) < 1 {
