@@ -218,13 +218,15 @@ func testGetBlocksByIndex(t *testing.T, cmd CommandType) {
 		ps[i] = newLocalPeer(t, s)
 		ps[i].messageHandler = func(t *testing.T, msg *Message) {
 			require.Equal(t, expectsCmd[i], msg.Command)
-			if expectsCmd[i] == cmd {
+			switch expectsCmd[i] {
+			case cmd:
 				p, ok := msg.Payload.(*payload.GetBlockByIndex)
 				require.True(t, ok)
 				require.Contains(t, expectedHeight[i], p.IndexStart)
 				expectsCmd[i] = CMDPong
-			} else if expectsCmd[i] == CMDPong {
+			case CMDPong:
 				expectsCmd[i] = cmd
+			default:
 			}
 		}
 		ps[i].version = &payload.Version{Nonce: uint32(i), UserAgent: []byte("fake"), Capabilities: []capability.Capability{
