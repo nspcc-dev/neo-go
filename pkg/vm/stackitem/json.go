@@ -168,7 +168,7 @@ func itemToJSONString(it Item) ([]byte, error) {
 	data, _ := json.Marshal(s) // error never occurs because `ToString` checks for validity
 
 	// ref https://github.com/neo-project/neo-modules/issues/375 and https://github.com/dotnet/runtime/issues/35281
-	return bytes.Replace(data, []byte{'+'}, []byte("\\u002B"), -1), nil
+	return bytes.ReplaceAll(data, []byte{'+'}, []byte("\\u002B")), nil
 }
 
 // FromJSON decodes an Item from JSON.
