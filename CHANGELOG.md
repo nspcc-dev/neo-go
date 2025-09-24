@@ -2,6 +2,41 @@
 
 This document outlines major changes between releases.
 
+## 0.113.0 "Circumnavigation" (24 Sept 2025)
+
+This version includes an upgrade to Go 1.24 and adds a couple of new native
+contract APIs to Faun hardfork preview. But what is more important, it delivers
+a set of essential compiler updates and bug fixes.
+
+We strongly recommend smart contract developers to upgrade to this version and
+review the list of compiler-related improvements. Also, the upgrade is
+recommended to the users of `rpcclient` package to avoid possible problems with
+node version unmarshalling after upcoming Faun hardfork activation. Node
+operators may safely skip this update.
+
+Behavior changes:
+ * switch from go.etcd.io/bbolt to custom (and upgraded) nspcc-dev/bbolt (#4006)
+
+Improvements:
+ * `hexEncode` and `hexDecode` APIs of native StdLib contract added to Faun
+   preview (#4004)
+ * `getBlockedAccounts` API of native Policy contract added to Faun preview
+   (#4004)
+ * built-in `clear()` support in compiler (#3091)
+ * range over integers in compiler (#3525)
+ * Go 1.24 support (#4010)
+ * byte slice/integer conversion helpers added to SC interop module (#3983)
+ * NEP-32 support for `db dump` CLI command (#3987)
+
+Bugs fixed:
+ * invalid string representation of Faun hardfork (#4001)
+ * increment operator doesn't work on struct fields in compiler (#3981)
+ * panic on inlined function invocation in compiler (#4002)
+ * list items swap doesn't work as expected in compiler (#4005)
+ * panic on fetching map values with `ok` flag (#3716)
+ * inability to `go install` neo-go due to `replace` directive in go.mod (#4006)
+ * initialization statement of `switch` is ignored by compiler (#3991)
+
 ## 0.112.0 "Hibernation" (29 Aug 2025)
 
 This version fixes state difference at block 8813651 of testnet caused by
