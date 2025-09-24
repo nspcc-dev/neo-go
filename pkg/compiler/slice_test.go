@@ -416,7 +416,8 @@ var sliceTestCases = []testCase{
 func TestSliceOperations(t *testing.T) {
 	srcBuilder := bytes.NewBuffer([]byte("package testcase\n"))
 	for i, tc := range sliceTestCases {
-		srcBuilder.WriteString(fmt.Sprintf(tc.src, i))
+		_, err := fmt.Fprintf(srcBuilder, tc.src, i)
+		require.NoError(t, err)
 	}
 
 	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)

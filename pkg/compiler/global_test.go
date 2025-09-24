@@ -884,11 +884,13 @@ func TestConstDontUseSlots(t *testing.T) {
 	const count = 256
 	buf := bytes.NewBufferString("package foo\n")
 	for i := range count {
-		buf.WriteString(fmt.Sprintf("const n%d = 1\n", i))
+		_, err := fmt.Fprintf(buf, "const n%d = 1\n", i)
+		require.NoError(t, err)
 	}
 	buf.WriteString("func Main() int { sum := 0\n")
 	for i := range count {
-		buf.WriteString(fmt.Sprintf("sum += n%d\n", i))
+		_, err := fmt.Fprintf(buf, "sum += n%d\n", i)
+		require.NoError(t, err)
 	}
 	buf.WriteString("return sum }")
 
@@ -900,11 +902,13 @@ func TestUnderscoreVarsDontUseSlots(t *testing.T) {
 	const count = 128
 	buf := bytes.NewBufferString("package foo\n")
 	for i := range count {
-		buf.WriteString(fmt.Sprintf("var _, n%d = 1, 1\n", i))
+		_, err := fmt.Fprintf(buf, "var _, n%d = 1, 1\n", i)
+		require.NoError(t, err)
 	}
 	buf.WriteString("func Main() int { sum := 0\n")
 	for i := range count {
-		buf.WriteString(fmt.Sprintf("sum += n%d\n", i))
+		_, err := fmt.Fprintf(buf, "sum += n%d\n", i)
+		require.NoError(t, err)
 	}
 	buf.WriteString("return sum }")
 

@@ -230,7 +230,8 @@ var binaryExprTestCases = []testCase{
 func TestBinaryExprs(t *testing.T) {
 	srcBuilder := bytes.NewBuffer([]byte("package testcase\n"))
 	for i, tc := range binaryExprTestCases {
-		srcBuilder.WriteString(fmt.Sprintf(tc.src, i))
+		_, err := fmt.Fprintf(srcBuilder, tc.src, i)
+		require.NoError(t, err)
 	}
 
 	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
@@ -248,7 +249,7 @@ func TestBinaryExprs(t *testing.T) {
 
 func addBoolExprTestFunc(testCases []testCase, b *bytes.Buffer, val bool, cond string) []testCase {
 	n := len(testCases)
-	b.WriteString(fmt.Sprintf(`
+	fmt.Fprintf(b, `
 	func F%d_expr() int {
 		var cond%d = %s
 		if cond%d { return 42 }
@@ -261,7 +262,7 @@ func addBoolExprTestFunc(testCases []testCase, b *bytes.Buffer, val bool, cond s
 	func F%d_else() int {
 		if %s { return 42 } else { return 17 }
 	}
-	`, n, n, cond, n, n, cond, n, cond))
+	`, n, n, cond, n, n, cond, n, cond)
 
 	res := big.NewInt(42)
 	if !val {

@@ -66,7 +66,8 @@ func TestConvert(t *testing.T) {
 	`))
 	for i, tc := range convertTestCases {
 		name := getFunctionName(tc.returnType)
-		srcBuilder.WriteString(fmt.Sprintf(srcTmpl, i, tc.returnType, tc.argValue, name))
+		_, err := fmt.Fprintf(srcBuilder, srcTmpl, i, tc.returnType, tc.argValue, name)
+		require.NoError(t, err)
 	}
 
 	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
