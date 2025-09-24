@@ -63,6 +63,7 @@ type (
 		blockHeaderQueuer
 		extpool.Ledger
 		mempool.Feer
+		IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
 		GetBlock(hash util.Uint256) (*block.Block, error)
 		GetConfig() config.Blockchain
 		GetHeader(hash util.Uint256) (*block.Header, error)

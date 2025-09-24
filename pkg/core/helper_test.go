@@ -64,7 +64,8 @@ func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
 			panic(err)
 		}
 	}
-	if bc.config.StateRootInHeader {
+	var f = config.HFFaun
+	if bc.IsHardforkEnabled(&f, lastBlock.Index+1) {
 		sr, err := bc.GetStateModule().GetStateRoot(bc.BlockHeight())
 		if err != nil {
 			panic(err)
@@ -107,7 +108,7 @@ func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util
 		b.Index = index
 
 		if prevState != nil {
-			b.StateRootEnabled = true
+			b.Version = block.VersionFaun
 			b.PrevStateRoot = *prevState
 		}
 	}, txs...)
