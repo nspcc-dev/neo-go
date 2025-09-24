@@ -74,7 +74,7 @@ func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
 	}
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
-		r.Err = errors.New("Array or Struct expected")
+		r.Err = errors.New("'Array' or 'Struct' expected")
 		return
 	}
 	ne.Item = stackitem.NewArray(arr)

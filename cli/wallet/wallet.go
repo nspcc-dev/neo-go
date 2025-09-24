@@ -933,11 +933,11 @@ func readAccountName() (string, error) {
 func readNewPassword() (string, error) {
 	phrase, err := input.ReadPassword(EnterNewPasswordPrompt)
 	if err != nil {
-		return "", fmt.Errorf("Error reading password: %w", err)
+		return "", fmt.Errorf("error reading password: %w", err)
 	}
 	phraseCheck, err := input.ReadPassword(ConfirmPasswordPrompt)
 	if err != nil {
-		return "", fmt.Errorf("Error reading password: %w", err)
+		return "", fmt.Errorf("error reading password: %w", err)
 	}
 
 	if phrase != phraseCheck {

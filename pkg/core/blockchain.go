@@ -324,7 +324,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		log.Info("Genesis TimePerBlock is not set or wrong, using default value",
 			zap.Duration("Genesis TimePerBlock", cfg.Genesis.TimePerBlock))
 	} else if cfg.Genesis.TimePerBlock%time.Millisecond != 0 {
-		return nil, errors.New("Genesis TimePerBlock must be an integer number of milliseconds")
+		return nil, errors.New("Genesis.TimePerBlock must be an integer number of milliseconds")
 	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
 		const timePerDay = 24 * time.Hour
@@ -2666,7 +2666,7 @@ func (bc *Blockchain) GetNativeContractScriptHash(name string) (util.Uint160, er
 	if c != nil {
 		return c.Metadata().Hash, nil
 	}
-	return util.Uint160{}, errors.New("Unknown native contract")
+	return util.Uint160{}, errors.New("unknown native contract")
 }
 
 // GetNatives returns list of native contracts.

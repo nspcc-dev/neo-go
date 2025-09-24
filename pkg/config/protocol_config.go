@@ -103,7 +103,7 @@ func (p *ProtocolConfiguration) Validate() error {
 	}
 	for name := range p.Hardforks {
 		if !IsHardforkValid(name) {
-			return fmt.Errorf("Hardforks configuration section contains unexpected hardfork: %s", name)
+			return fmt.Errorf("'Hardforks' configuration section contains unexpected hardfork: %s", name)
 		}
 	}
 	var (

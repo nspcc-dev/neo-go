@@ -451,7 +451,7 @@ func GetUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*
 		rawPass, err := input.ReadPassword(
 			fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
 		if err != nil {
-			return nil, fmt.Errorf("Error reading password: %w", err)
+			return nil, fmt.Errorf("error reading password: %w", err)
 		}
 		trimmed := strings.TrimRight(string(rawPass), "\n")
 		pass = &trimmed

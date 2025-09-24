@@ -48,7 +48,7 @@ var ErrNoSessionID = errors.New("server returned iterator ID, but no session ID"
 // user to differentiate between Null and zero value (like an empty string)
 // returned and handle both cases in a way appropriate for a particular
 // contract/backend interaction.
-var ErrNull = errors.New("Null result")
+var ErrNull = errors.New("'Null' result")
 
 // Error implements the error interface.
 func (e Exception) Error() string {
