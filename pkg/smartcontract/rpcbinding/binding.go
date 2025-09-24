@@ -608,7 +608,7 @@ func Generate(cfg binding.Config) error {
 func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) []manifest.Method {
 	return slices.DeleteFunc(meths, func(m manifest.Method) bool {
 		return slices.ContainsFunc(manifested, func(e manifest.Method) bool {
-			return 0 == cmp.Or(
+			return 0 == cmp.Or( // nolint:staticcheck
 				cmp.Compare(m.Name, e.Name),
 				func() int {
 					if e.Parameters == nil {
@@ -624,7 +624,7 @@ func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) 
 func dropManifestEvents(events []manifest.Event, manifested []manifest.Event) []manifest.Event {
 	return slices.DeleteFunc(events, func(e manifest.Event) bool {
 		return slices.ContainsFunc(manifested, func(v manifest.Event) bool {
-			return 0 == cmp.Or(
+			return 0 == cmp.Or( // nolint:staticcheck
 				cmp.Compare(e.Name, v.Name),
 				cmp.Compare(len(e.Parameters), len(v.Parameters)),
 			)

@@ -95,7 +95,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 		s.Start()
 		p := newLocalPeer(t, s)
 		s.register <- p
-		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
+		require.Eventually(t, func() bool { return s.PeerCount() == 1 }, time.Second, time.Millisecond*10)
 
 		require.True(t, s.started.Load())
 		require.Eventually(t, func() bool {
@@ -119,7 +119,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 		s.Start()
 		p := newLocalPeer(t, s)
 		s.register <- p
-		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
+		require.Eventually(t, func() bool { return s.PeerCount() == 1 }, time.Second, time.Millisecond*10)
 
 		assert.True(t, s.services["fake"].(*fakeConsensus).started.Load())
 		require.True(t, s.started.Load())
@@ -166,12 +166,12 @@ func TestServerRegisterPeer(t *testing.T) {
 	startWithCleanup(t, s)
 
 	s.register <- ps[0]
-	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
+	require.Eventually(t, func() bool { return s.PeerCount() == 1 }, time.Second, time.Millisecond*10)
 	s.handshake <- ps[0]
 
 	s.register <- ps[1]
 	s.handshake <- ps[1]
-	require.Eventually(t, func() bool { return 2 == s.PeerCount() }, time.Second, time.Millisecond*10)
+	require.Eventually(t, func() bool { return s.PeerCount() == 2 }, time.Second, time.Millisecond*10)
 
 	require.Equal(t, 0, len(s.discovery.UnconnectedPeers()))
 	s.register <- ps[2]
@@ -444,7 +444,7 @@ func TestConsensus(t *testing.T) {
 	p := newLocalPeer(t, s)
 	p.handshaked.Store(true)
 	s.register <- p
-	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
+	require.Eventually(t, func() bool { return s.PeerCount() == 1 }, time.Second, time.Millisecond*10)
 
 	newConsensusMessage := func(start, end uint32) *Message {
 		pl := payload.NewExtensible()
@@ -1123,7 +1123,7 @@ func TestTryInitStateSync(t *testing.T) {
 		p.handshaked.Store(false) // one disconnected peer to check it won't be taken into attention
 		p.lastBlockIndex = 5
 		s.register <- p
-		require.Eventually(t, func() bool { return 7 == s.PeerCount() }, time.Second, time.Millisecond*10)
+		require.Eventually(t, func() bool { return s.PeerCount() == 7 }, time.Second, time.Millisecond*10)
 
 		var expectedH uint32 = 8 // median peer
 		ss := &fakechain.FakeStateSync{InitFunc: func(h uint32) error {
