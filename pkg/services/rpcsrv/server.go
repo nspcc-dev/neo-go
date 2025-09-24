@@ -1458,7 +1458,7 @@ func (s *Server) getTokenTransfers(ps params.Params, isNEP11 bool) (any, *neorpc
 
 		resCount++
 		// Check limits for continue flag.
-		return received, sent, !(limit != 0 && resCount >= limit), nil
+		return received, sent, limit == 0 || resCount < limit, nil
 	}
 	if !isNEP11 {
 		err = s.chain.ForEachNEP17Transfer(u, end, func(tr *state.NEP17Transfer) (bool, error) {

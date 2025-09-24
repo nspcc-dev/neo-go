@@ -341,7 +341,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 	if cfg.P2PStateExchangeExtensions && cfg.NeoFSStateSyncExtensions {
 		return nil, errors.New("P2PStateExchangeExtensions and NeoFSStateSyncExtensions cannot be enabled simultaneously")
 	}
-	if cfg.TrustedHeader.Index > 0 && !(cfg.P2PStateExchangeExtensions || cfg.NeoFSStateSyncExtensions) {
+	if cfg.TrustedHeader.Index > 0 && !cfg.P2PStateExchangeExtensions && !cfg.NeoFSStateSyncExtensions {
 		return nil, errors.New("TrustedHeader can not be used without P2PStateExchangeExtensions or NeoFSStateSyncExtensions")
 	}
 	if cfg.TrustedHeader.Index == 0 && (cfg.P2PStateExchangeExtensions || cfg.NeoFSStateSyncExtensions) {
@@ -361,7 +361,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		}
 	}
 	if cfg.NeoFSStateSyncExtensions {
-		if !(cfg.NeoFSBlockFetcher.Enabled && cfg.NeoFSStateFetcher.Enabled) {
+		if !cfg.NeoFSBlockFetcher.Enabled || !cfg.NeoFSStateFetcher.Enabled {
 			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher or NeoFSStateFetcher are off")
 		}
 		if !cfg.Ledger.RemoveUntraceableBlocks {
@@ -663,7 +663,7 @@ func (bc *Blockchain) init() error {
 		if (stateChStage[0] & stateResetBit) != 0 {
 			return bc.resetStateInternal(stateSyncPoint, stateChangeStage(stateChStage[0]&(^stateResetBit)))
 		}
-		if !(bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks || bc.config.NeoFSStateSyncExtensions) {
+		if (!bc.config.P2PStateExchangeExtensions || !bc.config.Ledger.RemoveUntraceableBlocks) && !bc.config.NeoFSStateSyncExtensions {
 			return errors.New("state jump was not completed, P2PStateExchangeExtensions (with RemoveUntraceableBlocks) " +
 				"or NeoFSStateSyncExtensions must be enabled. " +
 				"To start an archival node drop the database manually and restart the node")
@@ -2239,7 +2239,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.S
 		return
 	}
 	arr, ok := note.Item.Value().([]stackitem.Item)
-	if !ok || !(len(arr) == 3 || len(arr) == 4) {
+	if !ok || (len(arr) != 3 && len(arr) != 4) {
 		return
 	}
 	from, err := parseUint160(arr[0])
@@ -2676,7 +2676,7 @@ func (bc *Blockchain) GetNatives() []state.Contract {
 	current := bc.getCurrentHF()
 	for _, c := range css {
 		activeIn := c.ActiveIn()
-		if !(activeIn == nil || activeIn.Cmp(current) <= 0) {
+		if activeIn != nil && activeIn.Cmp(current) > 0 {
 			continue
 		}
 
@@ -3426,7 +3426,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	for i := range t.Signers {
 		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
 		if err != nil &&
-			!(i == 0 && isPartialTx && errors.Is(err, ErrInvalidSignature)) { // it's OK for partially-filled transaction with dummy first witness.
+			(i != 0 || !isPartialTx || !errors.Is(err, ErrInvalidSignature)) { // it's OK for partially-filled transaction with dummy first witness.
 			return fmt.Errorf("witness #%d: %w", i, err)
 		}
 		gasLimit -= gasConsumed

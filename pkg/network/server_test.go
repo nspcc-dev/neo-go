@@ -800,7 +800,7 @@ func TestHandleGetMPTData(t *testing.T) {
 		r3 := random.Uint256()
 		node := []byte{1, 2, 3}
 		s.stateSync.(*fakechain.FakeStateSync).TraverseFunc = func(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error {
-			if !(root.Equals(r1) || root.Equals(r2)) {
+			if !root.Equals(r1) && !root.Equals(r2) {
 				t.Fatal("unexpected root")
 			}
 			require.False(t, process(mpt.NewHashNode(r3), node))

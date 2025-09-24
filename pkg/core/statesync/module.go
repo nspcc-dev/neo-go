@@ -131,7 +131,7 @@ type Module struct {
 
 // NewModule returns new instance of statesync module.
 func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Simple, jumpCallback func(p uint32) error) *Module {
-	if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().Ledger.RemoveUntraceableBlocks) && !bc.GetConfig().NeoFSStateSyncExtensions {
+	if (!bc.GetConfig().P2PStateExchangeExtensions || !bc.GetConfig().Ledger.RemoveUntraceableBlocks) && !bc.GetConfig().NeoFSStateSyncExtensions {
 		return &Module{
 			dao:       s,
 			bc:        bc,
@@ -695,7 +695,7 @@ func (s *Module) IsActive() bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	return !(s.syncStage == inactive || (s.syncStage == headersSynced|mptSynced|blocksSynced))
+	return s.syncStage != inactive && (s.syncStage != headersSynced|mptSynced|blocksSynced)
 }
 
 // IsInitialized tells whether state sync module does not require initialization.

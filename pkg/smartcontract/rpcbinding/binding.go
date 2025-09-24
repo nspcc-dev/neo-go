@@ -1156,7 +1156,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	imports["github.com/nspcc-dev/neo-go/pkg/util"] = struct{}{}
 	if len(ctr.SafeMethods) > 0 {
 		imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"] = struct{}{}
-		if !(ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep24) {
+		if !ctr.IsNep17 && !ctr.IsNep11D && !ctr.IsNep11ND && !ctr.IsNep24 {
 			imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
 		}
 	}

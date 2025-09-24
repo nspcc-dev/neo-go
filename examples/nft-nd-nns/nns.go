@@ -520,7 +520,7 @@ func checkFragment(v string, isRoot bool) bool {
 	}
 	c := v[0]
 	if isRoot {
-		if !(c >= 'a' && c <= 'z') {
+		if c < 'a' || c > 'z' {
 			return false
 		}
 	} else {

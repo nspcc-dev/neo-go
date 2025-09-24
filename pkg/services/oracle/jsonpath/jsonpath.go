@@ -148,8 +148,8 @@ func (p *pathParser) parseIdent() (string, int, bool) {
 	var end int
 	for end = p.i + 1; end < len(p.s); end++ {
 		c := p.s[end]
-		if c != '_' && !('a' <= c && c <= 'z') &&
-			!('A' <= c && c <= 'Z') && !('0' <= c && c <= '9') {
+		if c != '_' && (c < 'a' || c > 'z') &&
+			(c < 'A' || c > 'Z') && (c < '0' || c > '9') {
 			break
 		}
 	}
