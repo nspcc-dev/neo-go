@@ -749,10 +749,7 @@ func doSomeWSRequest(t *testing.T, ws *websocket.Conn) {
 
 func TestWSClientsLimit(t *testing.T) {
 	for tname, limit := range map[string]int{"8": 8, "disabled": -1} {
-		effectiveClients := limit
-		if limit < 0 {
-			effectiveClients = 0
-		}
+		effectiveClients := max(limit, 0)
 		t.Run(tname, func(t *testing.T) {
 			_, _, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
 				cfg.ApplicationConfiguration.RPC.MaxWebSocketClients = limit
