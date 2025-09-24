@@ -55,5 +55,5 @@ func New(actor Actor) *Contract {
 	var hash = Hash
 	var nep11dt = nep11.NewDivisible(actor, hash)
 	var nep24t = nep24.NewRoyaltyReader(actor, hash)
-	return &Contract{ContractReader{nep11dt.DivisibleReader, *nep24t, actor, hash}, nep11dt.DivisibleWriter, nep22.NewContract(actor, hash), nep31.NewContract(actor, hash), actor, hash}
+	return &Contract{ContractReader{nep11dt.DivisibleReader, *nep24t, actor, hash}, nep11dt.DivisibleWriter, *nep22.NewContract(actor, hash), *nep31.NewContract(actor, hash), actor, hash}
 }

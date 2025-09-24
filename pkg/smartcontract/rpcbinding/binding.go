@@ -246,8 +246,8 @@ func New(actor Actor{{- if not (len .Hash) -}}, hash util.Uint160{{- end -}}) *C
 		{{- if .IsNep11D}}nep11dt.DivisibleWriter, {{end -}}
 		{{- if .IsNep11ND}}nep11ndt.BaseWriter, {{end -}}
 		{{- if .IsNep17}}nep17t.TokenWriter, {{end -}}
-		{{- if .IsNep22}}nep22.NewContract(actor, hash), {{end -}}
-		{{- if .IsNep31}}nep31.NewContract(actor, hash), {{end -}}
+		{{- if .IsNep22}}*nep22.NewContract(actor, hash), {{end -}}
+		{{- if .IsNep31}}*nep31.NewContract(actor, hash), {{end -}}
 		actor, hash}
 }
 {{end -}}

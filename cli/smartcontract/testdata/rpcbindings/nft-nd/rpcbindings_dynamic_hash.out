@@ -69,7 +69,7 @@ func NewReader(invoker Invoker, hash util.Uint160) *ContractReader {
 func New(actor Actor, hash util.Uint160) *Contract {
 	var nep11ndt = nep11.NewNonDivisible(actor, hash)
 	var nep24t = nep24.NewRoyaltyReader(actor, hash)
-	return &Contract{ContractReader{nep11ndt.NonDivisibleReader, *nep24t, actor, hash}, nep11ndt.BaseWriter, nep22.NewContract(actor, hash), nep31.NewContract(actor, hash), actor, hash}
+	return &Contract{ContractReader{nep11ndt.NonDivisibleReader, *nep24t, actor, hash}, nep11ndt.BaseWriter, *nep22.NewContract(actor, hash), *nep31.NewContract(actor, hash), actor, hash}
 }
 
 func (c *Contract) scriptForSetRoyaltyInfo(ctx any, tokenID []byte, recipients []*NftRoyaltyRecipientShare) ([]byte, error) {
