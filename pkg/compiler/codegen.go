@@ -1343,6 +1343,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.scope.vars.newScope()
 		defer c.scope.vars.dropScope()
 
+		labelAfterRangeLoop := c.newLabel()
 		start, label := c.generateLabel(labelStart)
 		end := c.newNamedLabel(labelEnd, label)
 		post := c.newNamedLabel(labelPost, label)
@@ -1369,6 +1370,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isInteger = typ.Info()&types.IsInteger != 0
 		}
 		if !isInteger {
+			emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.ISNULL)
+			emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 1 + 1 + 4})
+			emit.Opcodes(c.prog.BinWriter, opcode.DROP)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, labelAfterRangeLoop)
 			emit.Opcodes(c.prog.BinWriter, opcode.DUP)
 			if isMap {
 				emit.Opcodes(c.prog.BinWriter, opcode.KEYS, opcode.DUP)
@@ -1455,6 +1460,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.setLabel(end)
 		c.dropStackLabel()
+		c.setLabel(labelAfterRangeLoop)
 
 		c.currentFor = lastFor
 		c.currentSwitch = lastSwitch
