@@ -1049,6 +1049,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 			} else {
 				typ := c.typeOf(fun)
+				if typ == nil {
+					c.prog.Err = fmt.Errorf("can't find function %q in package %s", name, c.currPkg.PkgPath)
+					return nil
+				}
 				ast.Walk(c, n.Args[0])
 				c.emitExplicitConvert(c.typeOf(n.Args[0]), typ)
 				return nil
