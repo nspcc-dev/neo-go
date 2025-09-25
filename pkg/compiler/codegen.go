@@ -1118,7 +1118,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Function was not found, thus it can only be an invocation of a func-typed variable or type conversion.
 			// We care only about string conversions because all others are effectively no-op in NeoVM.
 			// E.g. one cannot write `bool(int(a))`, only `int32(int(a))`.
-			if isString(c.typeOf(n.Fun)) {
+			var typ = c.typeOf(n.Fun)
+			if typ == nil {
+				c.prog.Err = fmt.Errorf("can't find function %q in package %s", name, c.currPkg.PkgPath)
+				return nil
+			}
+			if isString(typ) {
 				c.emitConvert(stackitem.ByteArrayT)
 			} else if isFunc {
 				c.emitLoadVar("", name)
