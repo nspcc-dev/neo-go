@@ -319,7 +319,7 @@ func (b *Billet) tryCollapseLeaf(curr *LeafNode) Node {
 }
 
 func (b *Billet) tryCollapseExtension(curr *ExtensionNode) Node {
-	if !(curr.next.Type() == HashT && curr.next.(*HashNode).Collapsed) {
+	if curr.next.Type() != HashT || !curr.next.(*HashNode).Collapsed {
 		return curr
 	}
 	res := NewHashNode(curr.Hash())

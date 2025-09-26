@@ -37,7 +37,7 @@ func NewInternal(ctx context.Context, register InternalHook) (*Internal, error) 
 		events: make(chan neorpc.Notification),
 	}
 
-	err := initClient(ctx, &c.WSClient.Client, "localhost:0", Options{})
+	err := initClient(ctx, &c.Client, "localhost:0", Options{})
 	if err != nil {
 		return nil, err // Can't really happen for internal client.
 	}

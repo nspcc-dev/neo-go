@@ -34,14 +34,14 @@ func TestStateSyncModule_Init(t *testing.T) {
 	boltCfg := func(c *config.Blockchain) {
 		spoutCfg(c)
 		c.P2PStateExchangeExtensions = true
-		c.Ledger.KeepOnlyLatestState = true
-		c.Ledger.RemoveUntraceableBlocks = true
+		c.KeepOnlyLatestState = true
+		c.RemoveUntraceableBlocks = true
 	}
 
 	boltCfgStorage := func(c *config.Blockchain) {
 		spoutCfg(c)
-		c.Ledger.KeepOnlyLatestState = true
-		c.Ledger.RemoveUntraceableBlocks = true
+		c.KeepOnlyLatestState = true
+		c.RemoveUntraceableBlocks = true
 		c.NeoFSStateSyncExtensions = true
 		c.NeoFSStateFetcher.Enabled = true
 		c.NeoFSBlockFetcher.Enabled = true
@@ -364,8 +364,8 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			trustedHeader     = stateSyncPoint - 2*maxTraceable + 2
 		)
 		spoutCfg := func(c *config.Blockchain) {
-			c.Ledger.KeepOnlyLatestState = spoutEnableGC
-			c.Ledger.RemoveUntraceableBlocks = spoutEnableGC
+			c.KeepOnlyLatestState = spoutEnableGC
+			c.RemoveUntraceableBlocks = spoutEnableGC
 			c.StateRootInHeader = true
 			c.StateSyncInterval = stateSyncInterval
 			c.MaxTraceableBlocks = maxTraceable
@@ -397,8 +397,8 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		boltCfg := func(c *config.Blockchain) {
 			spoutCfg(c)
 			c.P2PStateExchangeExtensions = true
-			c.Ledger.KeepOnlyLatestState = true
-			c.Ledger.RemoveUntraceableBlocks = true
+			c.KeepOnlyLatestState = true
+			c.RemoveUntraceableBlocks = true
 			if enableStorageSync {
 				c.P2PStateExchangeExtensions = false
 				c.NeoFSStateSyncExtensions = true
@@ -652,13 +652,13 @@ func TestStateSyncModule_SetOnStageChanged(t *testing.T) {
 	mptCfg := func(c *config.Blockchain) {
 		spoutCfg(c)
 		c.P2PStateExchangeExtensions = true
-		c.Ledger.KeepOnlyLatestState = true
-		c.Ledger.RemoveUntraceableBlocks = true
+		c.KeepOnlyLatestState = true
+		c.RemoveUntraceableBlocks = true
 	}
 	storageCfg := func(c *config.Blockchain) {
 		spoutCfg(c)
-		c.Ledger.KeepOnlyLatestState = true
-		c.Ledger.RemoveUntraceableBlocks = true
+		c.KeepOnlyLatestState = true
+		c.RemoveUntraceableBlocks = true
 		c.NeoFSStateSyncExtensions = true
 		c.NeoFSStateFetcher.Enabled = true
 		c.NeoFSBlockFetcher.Enabled = true

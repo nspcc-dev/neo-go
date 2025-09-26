@@ -109,7 +109,7 @@ func (p *Payload) SetValidatorIndex(i uint16) {
 
 // Height implements the payload.ConsensusPayload interface.
 func (p Payload) Height() uint32 {
-	return p.message.BlockIndex
+	return p.BlockIndex
 }
 
 // EncodeBinary implements the io.Serializable interface.
@@ -134,7 +134,7 @@ func (p *Payload) Sign(key *keys.PrivateKey) error {
 
 // Hash implements the payload.ConsensusPayload interface.
 func (p *Payload) Hash() util.Uint256 {
-	if p.Extensible.Data == nil {
+	if p.Data == nil {
 		p.encodeData()
 	}
 	return p.Extensible.Hash()
@@ -216,18 +216,18 @@ func (t messageType) String() string {
 }
 
 func (p *Payload) encodeData() {
-	if p.Extensible.Data == nil {
-		p.Extensible.ValidBlockStart = 0
-		p.Extensible.ValidBlockEnd = p.BlockIndex
+	if p.Data == nil {
+		p.ValidBlockStart = 0
+		p.ValidBlockEnd = p.BlockIndex
 		bw := io.NewBufBinWriter()
 		p.message.EncodeBinary(bw.BinWriter)
-		p.Extensible.Data = bw.Bytes()
+		p.Data = bw.Bytes()
 	}
 }
 
 // decode data of payload into its message.
 func (p *Payload) decodeData() error {
-	br := io.NewBinReaderFromBuf(p.Extensible.Data)
+	br := io.NewBinReaderFromBuf(p.Data)
 	p.message.DecodeBinary(br)
 	if br.Err != nil {
 		return fmt.Errorf("can't decode message: %w", br.Err)

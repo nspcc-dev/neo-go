@@ -59,7 +59,7 @@ func uploadState(ctx *cli.Context) error {
 		chain.Close()
 	}()
 
-	if chain.GetConfig().Ledger.KeepOnlyLatestState || chain.GetConfig().Ledger.RemoveUntraceableBlocks {
+	if chain.GetConfig().KeepOnlyLatestState || chain.GetConfig().RemoveUntraceableBlocks {
 		return cli.Exit("only full-state node is supported: disable KeepOnlyLatestState and RemoveUntraceableBlocks", 1)
 	}
 	syncInterval := cfg.ProtocolConfiguration.StateSyncInterval

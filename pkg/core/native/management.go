@@ -653,7 +653,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		if activeIn != nil && activeIn.Cmp(latestHF) > 0 {
 			latestHF = *activeIn
 		}
-		if !(isDeploy || isUpdate) {
+		if !isDeploy && !isUpdate {
 			continue
 		}
 		md := native.Metadata()

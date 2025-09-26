@@ -29,7 +29,7 @@ func TestBlockchain_DumpAndRestore(t *testing.T) {
 		// Dump can only be created if all blocks and transactions are present.
 		testDumpAndRestore(t, nil, func(c *config.Blockchain) {
 			c.MaxTraceableBlocks = 2
-			c.Ledger.RemoveUntraceableBlocks = true
+			c.RemoveUntraceableBlocks = true
 		})
 	})
 }

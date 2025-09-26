@@ -450,7 +450,7 @@ func (c *codegen) genStructExtended(t *types.Struct, name string, exts map[strin
 				field := t.Field(i)
 				ft, _, _, fet := c.scAndVMTypeFromType(field.Type(), exts)
 				if fet == nil {
-					et.Fields[i].ExtendedType.Base = ft
+					et.Fields[i].Base = ft
 				} else {
 					et.Fields[i].ExtendedType = *fet
 				}

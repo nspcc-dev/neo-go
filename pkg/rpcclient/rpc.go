@@ -132,7 +132,7 @@ func (c *Client) getBlockVerbose(param any) (*result.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp.Header.StateRootEnabled = sr
+	resp.StateRootEnabled = sr
 	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}

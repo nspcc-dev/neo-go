@@ -193,7 +193,7 @@ func parseCosigner(c string) (transaction.Signer, error) {
 		}
 		if scope == transaction.Global && res.Scopes&^transaction.Global != 0 ||
 			scope != transaction.Global && res.Scopes&transaction.Global != 0 {
-			return transaction.Signer{}, errors.New("Global scope can not be combined with other scopes")
+			return transaction.Signer{}, errors.New("'Global' scope can not be combined with other scopes")
 		}
 
 		res.Scopes |= scope

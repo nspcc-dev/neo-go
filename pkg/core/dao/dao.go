@@ -890,7 +890,7 @@ func (dao *Simple) storeHeader(key []byte, h *block.Header) error {
 	buf := dao.getDataBuf()
 	buf.WriteB(storage.ExecBlock)
 	h.EncodeBinary(buf.BinWriter)
-	buf.BinWriter.WriteB(0)
+	buf.WriteB(0)
 	if buf.Err != nil {
 		return buf.Err
 	}

@@ -68,7 +68,7 @@ func Tick() bool {
 
 // SelfDestroy destroys the contract.
 func SelfDestroy() bool {
-	if !(runtime.CheckWitness(owner) || runtime.CheckWitness(runtime.GetExecutingScriptHash())) {
+	if !runtime.CheckWitness(owner) && !runtime.CheckWitness(runtime.GetExecutingScriptHash()) {
 		runtime.Log("Only owner or the contract itself are allowed to destroy the contract.")
 		return false
 	}

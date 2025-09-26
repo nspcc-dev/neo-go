@@ -57,10 +57,10 @@ type (
 // NewModule returns new instance of stateroot module.
 func NewModule(cfg config.Blockchain, verif VerifierFunc, log *zap.Logger, s *storage.MemCachedStore) *Module {
 	var mode mpt.TrieMode
-	if cfg.Ledger.KeepOnlyLatestState {
+	if cfg.KeepOnlyLatestState {
 		mode |= mpt.ModeLatest
 	}
-	if cfg.Ledger.RemoveUntraceableBlocks {
+	if cfg.RemoveUntraceableBlocks {
 		mode |= mpt.ModeGC
 	}
 	return &Module{

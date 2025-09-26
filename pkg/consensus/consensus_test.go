@@ -62,7 +62,7 @@ func TestNewWatchingService(t *testing.T) {
 
 func collectBlock(t *testing.T, bc *core.Blockchain, srv *service) {
 	h := bc.BlockHeight()
-	srv.dbft.OnTimeout(srv.dbft.Context.BlockIndex, 0) // Collect and add block to the chain.
+	srv.dbft.OnTimeout(srv.dbft.BlockIndex, 0) // Collect and add block to the chain.
 	header, err := bc.GetHeader(bc.GetHeaderHash(h + 1))
 	require.NoError(t, err)
 	srv.dbft.Reset(header.Timestamp * nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.

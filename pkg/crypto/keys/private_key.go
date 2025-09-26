@@ -152,7 +152,7 @@ func (p *PrivateKey) Sign(data []byte) []byte {
 // SignHash signs a particular hash with the private key.
 func (p *PrivateKey) SignHash(digest util.Uint256) []byte {
 	r, s := rfc6979.SignECDSA(&p.PrivateKey, digest[:], sha256.New)
-	return getSignatureSlice(p.PrivateKey.Curve, r, s)
+	return getSignatureSlice(p.Curve, r, s)
 }
 
 // SignHashable signs some Hashable item for the network specified using

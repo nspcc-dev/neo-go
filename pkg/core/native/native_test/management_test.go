@@ -676,7 +676,7 @@ func TestManagement_ContractDeploy(t *testing.T) {
 			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
 		})
 		t.Run("_deploy called", func(t *testing.T) {
-			helperInvoker := c.Executor.CommitteeInvoker(cs1.Hash)
+			helperInvoker := c.CommitteeInvoker(cs1.Hash)
 			expected := stackitem.NewArray([]stackitem.Item{stackitem.Make("create"), stackitem.Null{}})
 			expectedBytes, err := stackitem.Serialize(expected)
 			require.NoError(t, err)
@@ -692,7 +692,7 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		})
 		t.Run("get after restore", func(t *testing.T) {
 			w := io.NewBufBinWriter()
-			require.NoError(t, chaindump.Dump(c.Executor.Chain, w.BinWriter, 0, c.Executor.Chain.BlockHeight()+1))
+			require.NoError(t, chaindump.Dump(c.Chain, w.BinWriter, 0, c.Chain.BlockHeight()+1))
 			require.NoError(t, w.Err)
 
 			r := io.NewBinReaderFromBuf(w.Bytes())
@@ -700,7 +700,7 @@ func TestManagement_ContractDeploy(t *testing.T) {
 			e2 := neotest.NewExecutor(t, bc2, acc, acc)
 			managementInvoker2 := e2.CommitteeInvoker(e2.NativeHash(t, nativenames.Management))
 
-			require.NoError(t, chaindump.Restore(bc2, r, 0, c.Executor.Chain.BlockHeight()+1, nil))
+			require.NoError(t, chaindump.Restore(bc2, r, 0, c.Chain.BlockHeight()+1, nil))
 			require.NoError(t, r.Err)
 			managementInvoker2.Invoke(t, si, "getContract", cs1.Hash.BytesBE())
 		})
@@ -853,7 +853,7 @@ func TestManagement_ContractDeployAndUpdateWithParameter(t *testing.T) {
 	si, err := cs1.ToStackItem()
 	require.NoError(t, err)
 	managementInvoker.Invoke(t, si, "deploy", nef1b, manif1)
-	helperInvoker := c.Executor.CommitteeInvoker(cs1.Hash)
+	helperInvoker := c.CommitteeInvoker(cs1.Hash)
 
 	t.Run("_deploy called", func(t *testing.T) {
 		expected := stackitem.NewArray([]stackitem.Item{stackitem.Make("create"), stackitem.Null{}})
@@ -893,7 +893,7 @@ func TestManagement_ContractUpdate(t *testing.T) {
 	si, err := cs1.ToStackItem()
 	require.NoError(t, err)
 	managementInvoker.Invoke(t, si, "deploy", nefBytes, manifestBytes)
-	helperInvoker := c.Executor.CommitteeInvoker(cs1.Hash)
+	helperInvoker := c.CommitteeInvoker(cs1.Hash)
 
 	t.Run("unknown contract", func(t *testing.T) {
 		managementInvoker.InvokeFail(t, "contract doesn't exist", "update", nefBytes, manifestBytes)
@@ -959,7 +959,7 @@ func TestManagement_ContractUpdate(t *testing.T) {
 			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
 		})
 		t.Run("_deploy called", func(t *testing.T) {
-			helperInvoker := c.Executor.CommitteeInvoker(cs1.Hash)
+			helperInvoker := c.CommitteeInvoker(cs1.Hash)
 			expected := stackitem.NewArray([]stackitem.Item{stackitem.Make("update"), stackitem.Null{}})
 			expectedBytes, err := stackitem.Serialize(expected)
 			require.NoError(t, err)
@@ -1046,7 +1046,7 @@ func TestManagement_GetContract(t *testing.T) {
 		managementInvoker.Invoke(t, si, "getContractById", cs1.ID)
 	})
 	t.Run("by ID, native", func(t *testing.T) {
-		csm := managementInvoker.Executor.Chain.GetContractState(managementInvoker.Hash)
+		csm := managementInvoker.Chain.GetContractState(managementInvoker.Hash)
 		require.NotNil(t, csm)
 		sim, err := csm.ToStackItem()
 		require.NoError(t, err)
@@ -1069,7 +1069,7 @@ func TestManagement_GetContract(t *testing.T) {
 		emit.Opcodes(w.BinWriter, opcode.ASSERT) // No more elements, single value left on the stack.
 		require.NoError(t, w.Err)
 		h := managementInvoker.InvokeScript(t, w.Bytes(), managementInvoker.Signers)
-		managementInvoker.Executor.CheckHalt(t, h, stackitem.NewStruct([]stackitem.Item{stackitem.Make([]byte{0, 0, 0, 1}), stackitem.Make(cs1.Hash.BytesBE())}))
+		managementInvoker.CheckHalt(t, h, stackitem.NewStruct([]stackitem.Item{stackitem.Make([]byte{0, 0, 0, 1}), stackitem.Make(cs1.Hash.BytesBE())}))
 	})
 }
 
@@ -1088,7 +1088,7 @@ func TestManagement_ContractDestroy(t *testing.T) {
 	si, err := cs1.ToStackItem()
 	require.NoError(t, err)
 	managementInvoker.Invoke(t, si, "deploy", nefBytes, manifestBytes)
-	helperInvoker := c.Executor.CommitteeInvoker(cs1.Hash)
+	helperInvoker := c.CommitteeInvoker(cs1.Hash)
 
 	t.Run("no contract", func(t *testing.T) {
 		managementInvoker.InvokeFail(t, "key not found", "destroy")

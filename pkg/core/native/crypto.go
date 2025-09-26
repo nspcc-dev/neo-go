@@ -338,7 +338,7 @@ func (c *Crypto) bls12381Deserialize(_ *interop.Context, args []stackitem.Item) 
 func (c *Crypto) bls12381Equal(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	a, okA := args[0].(*stackitem.Interop).Value().(blsPoint)
 	b, okB := args[1].(*stackitem.Interop).Value().(blsPoint)
-	if !(okA && okB) {
+	if !okA || !okB {
 		panic("some of the arguments are not a bls12381 point")
 	}
 	res, err := a.EqualsCheckType(b)
@@ -351,7 +351,7 @@ func (c *Crypto) bls12381Equal(_ *interop.Context, args []stackitem.Item) stacki
 func (c *Crypto) bls12381Add(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	a, okA := args[0].(*stackitem.Interop).Value().(blsPoint)
 	b, okB := args[1].(*stackitem.Interop).Value().(blsPoint)
-	if !(okA && okB) {
+	if !okA || !okB {
 		panic("some of the arguments are not a bls12381 point")
 	}
 
@@ -411,7 +411,7 @@ func (c *Crypto) bls12381Mul(_ *interop.Context, args []stackitem.Item) stackite
 func (c *Crypto) bls12381Pairing(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	a, okA := args[0].(*stackitem.Interop).Value().(blsPoint)
 	b, okB := args[1].(*stackitem.Interop).Value().(blsPoint)
-	if !(okA && okB) {
+	if !okA || !okB {
 		panic("some of the arguments are not a bls12381 point")
 	}
 

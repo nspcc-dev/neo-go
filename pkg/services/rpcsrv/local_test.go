@@ -20,8 +20,8 @@ func TestLocalClient(t *testing.T) {
 	_, rpcSrv, _ := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
 		// No addresses configured -> RPC server listens nothing (but it
 		// has MaxGasInvoke, sessions and other stuff).
-		cfg.ApplicationConfiguration.RPC.BasicService.Enabled = true
-		cfg.ApplicationConfiguration.RPC.BasicService.Addresses = nil
+		cfg.ApplicationConfiguration.RPC.Enabled = true
+		cfg.ApplicationConfiguration.RPC.Addresses = nil
 		cfg.ApplicationConfiguration.RPC.TLSConfig.Addresses = nil
 	})
 	// RPC server listens nothing (not exposed in any way), but it works for internal clients.

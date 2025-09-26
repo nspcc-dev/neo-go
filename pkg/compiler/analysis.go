@@ -95,7 +95,7 @@ func (c *codegen) traverseGlobals() bool {
 	}
 
 	if n > 255 {
-		c.prog.BinWriter.Err = errors.New("too many global variables")
+		c.prog.Err = errors.New("too many global variables")
 		return hasDeploy
 	}
 
@@ -746,6 +746,7 @@ func canConvert(s string) bool {
 // The list of functions that can be inlined is not static, it depends on the function usages.
 // isBuiltin denotes whether code generation for dynamic builtin function will be performed
 // manually.
+// nolint:staticcheck // could apply De Morgan's law, but it's less readable.
 func canInline(s string, name string, isBuiltin bool) bool {
 	if strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline") {
 		return true

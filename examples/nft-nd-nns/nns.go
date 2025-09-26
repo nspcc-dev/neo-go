@@ -491,7 +491,7 @@ func getRecordKey(tokenId []byte, name string, typ RecordType) []byte {
 
 // isValid returns true if the provided address is a valid Uint160.
 func isValid(address interop.Hash160) bool {
-	return address != nil && len(address) == 20 // nolint: gosimple
+	return address != nil && len(address) == 20 // nolint: staticcheck
 }
 
 // checkCommittee panics if the script container is not signed by the committee.
@@ -520,7 +520,7 @@ func checkFragment(v string, isRoot bool) bool {
 	}
 	c := v[0]
 	if isRoot {
-		if !(c >= 'a' && c <= 'z') {
+		if c < 'a' || c > 'z' {
 			return false
 		}
 	} else {

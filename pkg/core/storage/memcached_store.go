@@ -147,7 +147,7 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 // PutChangeSet implements the Store interface. Never returns an error.
 func (s *MemCachedStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
 	s.lock()
-	s.MemoryStore.putChangeSet(puts, stores)
+	s.putChangeSet(puts, stores)
 	s.unlock()
 	return nil
 }
@@ -206,7 +206,7 @@ func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) (Store, []KeyValu
 		}
 	}
 	s.rlock()
-	m := s.MemoryStore.chooseMap(rng.Prefix)
+	m := s.chooseMap(rng.Prefix)
 	for k, v := range m {
 		if isKeyOK(k) {
 			memRes = append(memRes, KeyValueExists{
@@ -366,7 +366,7 @@ func (s *MemCachedStore) PersistPrivate(private ...*MemCachedStore) int {
 
 	s.lock()
 	for _, p := range private {
-		s.MemoryStore.putChangeSet(p.mem, p.stor)
+		s.putChangeSet(p.mem, p.stor)
 		p.mem = nil
 		p.stor = nil
 	}

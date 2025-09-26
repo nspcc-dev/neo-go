@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Test for #605, #623.
@@ -16,7 +18,8 @@ func TestManyVariables(t *testing.T) {
 
 	buf := bytes.NewBufferString("package main\n")
 	for i := range count {
-		buf.WriteString(fmt.Sprintf("var a%d = %d\n", i, i))
+		_, err := fmt.Fprintf(buf, "var a%d = %d\n", i, i)
+		require.NoError(t, err)
 	}
 	buf.WriteString("func Main() int {\nreturn 7\n}\n")
 

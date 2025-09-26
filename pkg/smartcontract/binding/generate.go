@@ -334,11 +334,11 @@ func (e *ExtendedType) Equals(other *ExtendedType) bool {
 		e == nil && other != nil {
 		return false
 	}
-	if !((e.Base == other.Base || (e.Base == smartcontract.ByteArrayType || e.Base == smartcontract.StringType) &&
-		(other.Base == smartcontract.ByteArrayType || other.Base == smartcontract.StringType)) &&
-		e.Name == other.Name &&
-		e.Interface == other.Interface &&
-		e.Key == other.Key) {
+	if e.Base != other.Base && (e.Base != smartcontract.ByteArrayType && e.Base != smartcontract.StringType ||
+		other.Base != smartcontract.ByteArrayType && other.Base != smartcontract.StringType) ||
+		e.Name != other.Name ||
+		e.Interface != other.Interface ||
+		e.Key != other.Key {
 		return false
 	}
 	if len(e.Fields) != len(other.Fields) {
@@ -348,7 +348,7 @@ func (e *ExtendedType) Equals(other *ExtendedType) bool {
 		if e.Fields[i].Field != other.Fields[i].Field {
 			return false
 		}
-		if !e.Fields[i].ExtendedType.Equals(&other.Fields[i].ExtendedType) {
+		if !e.Fields[i].Equals(&other.Fields[i].ExtendedType) {
 			return false
 		}
 	}

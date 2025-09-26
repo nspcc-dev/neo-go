@@ -311,7 +311,7 @@ func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 		return err
 	}
 
-	_, totalSupply := n.nep17TokenNative.getTotalSupply(ic.DAO)
+	_, totalSupply := n.getTotalSupply(ic.DAO)
 	if totalSupply.Sign() != 0 {
 		return errors.New("already initialized")
 	}

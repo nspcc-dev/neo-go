@@ -69,9 +69,9 @@ func TestNewServer(t *testing.T) {
 		s = newTestServer(t, ServerConfig{MinPeers: -1})
 
 		require.True(t, s.ID() != 0)
-		require.Equal(t, defaultMinPeers, s.ServerConfig.MinPeers)
-		require.Equal(t, defaultMaxPeers, s.ServerConfig.MaxPeers)
-		require.Equal(t, defaultAttemptConnPeers, s.ServerConfig.AttemptConnPeers)
+		require.Equal(t, defaultMinPeers, s.MinPeers)
+		require.Equal(t, defaultMaxPeers, s.MaxPeers)
+		require.Equal(t, defaultAttemptConnPeers, s.AttemptConnPeers)
 	})
 	t.Run("don't defaults", func(t *testing.T) {
 		cfg := ServerConfig{
@@ -82,9 +82,9 @@ func TestNewServer(t *testing.T) {
 		s = newTestServer(t, cfg)
 
 		require.True(t, s.ID() != 0)
-		require.Equal(t, 1, s.ServerConfig.MinPeers)
-		require.Equal(t, 2, s.ServerConfig.MaxPeers)
-		require.Equal(t, 3, s.ServerConfig.AttemptConnPeers)
+		require.Equal(t, 1, s.MinPeers)
+		require.Equal(t, 2, s.MaxPeers)
+		require.Equal(t, 3, s.AttemptConnPeers)
 	})
 }
 
@@ -95,7 +95,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 		s.Start()
 		p := newLocalPeer(t, s)
 		s.register <- p
-		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
+		require.Eventually(t, func() bool { return s.PeerCount() == 1 }, time.Second, time.Millisecond*10)
 
 		require.True(t, s.started.Load())
 		require.Eventually(t, func() bool {
@@ -119,7 +119,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 		s.Start()
 		p := newLocalPeer(t, s)
 		s.register <- p
-		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
+		require.Eventually(t, func() bool { return s.PeerCount() == 1 }, time.Second, time.Millisecond*10)
 
 		assert.True(t, s.services["fake"].(*fakeConsensus).started.Load())
 		require.True(t, s.started.Load())
@@ -166,12 +166,12 @@ func TestServerRegisterPeer(t *testing.T) {
 	startWithCleanup(t, s)
 
 	s.register <- ps[0]
-	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
+	require.Eventually(t, func() bool { return s.PeerCount() == 1 }, time.Second, time.Millisecond*10)
 	s.handshake <- ps[0]
 
 	s.register <- ps[1]
 	s.handshake <- ps[1]
-	require.Eventually(t, func() bool { return 2 == s.PeerCount() }, time.Second, time.Millisecond*10)
+	require.Eventually(t, func() bool { return s.PeerCount() == 2 }, time.Second, time.Millisecond*10)
 
 	require.Equal(t, 0, len(s.discovery.UnconnectedPeers()))
 	s.register <- ps[2]
@@ -218,13 +218,15 @@ func testGetBlocksByIndex(t *testing.T, cmd CommandType) {
 		ps[i] = newLocalPeer(t, s)
 		ps[i].messageHandler = func(t *testing.T, msg *Message) {
 			require.Equal(t, expectsCmd[i], msg.Command)
-			if expectsCmd[i] == cmd {
+			switch expectsCmd[i] {
+			case cmd:
 				p, ok := msg.Payload.(*payload.GetBlockByIndex)
 				require.True(t, ok)
 				require.Contains(t, expectedHeight[i], p.IndexStart)
 				expectsCmd[i] = CMDPong
-			} else if expectsCmd[i] == CMDPong {
+			case CMDPong:
 				expectsCmd[i] = cmd
+			default:
 			}
 		}
 		ps[i].version = &payload.Version{Nonce: uint32(i), UserAgent: []byte("fake"), Capabilities: []capability.Capability{
@@ -442,7 +444,7 @@ func TestConsensus(t *testing.T) {
 	p := newLocalPeer(t, s)
 	p.handshaked.Store(true)
 	s.register <- p
-	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
+	require.Eventually(t, func() bool { return s.PeerCount() == 1 }, time.Second, time.Millisecond*10)
 
 	newConsensusMessage := func(start, end uint32) *Message {
 		pl := payload.NewExtensible()
@@ -800,7 +802,7 @@ func TestHandleGetMPTData(t *testing.T) {
 		r3 := random.Uint256()
 		node := []byte{1, 2, 3}
 		s.stateSync.(*fakechain.FakeStateSync).TraverseFunc = func(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error {
-			if !(root.Equals(r1) || root.Equals(r2)) {
+			if !root.Equals(r1) && !root.Equals(r2) {
 				t.Fatal("unexpected root")
 			}
 			require.False(t, process(mpt.NewHashNode(r3), node))
@@ -827,7 +829,7 @@ func TestHandleGetMPTData(t *testing.T) {
 	t.Run("KeepOnlyLatestState on", func(t *testing.T) {
 		s := startTestServer(t, func(c *config.Blockchain) {
 			c.P2PStateExchangeExtensions = true
-			c.Ledger.KeepOnlyLatestState = true
+			c.KeepOnlyLatestState = true
 		})
 		check(t, s)
 	})
@@ -1035,7 +1037,7 @@ func TestMemPool(t *testing.T) {
 	expected := make([]util.Uint256, 4)
 	for i := range expected {
 		tx := newDummyTx()
-		require.NoError(t, bc.Pool.Add(tx, &feerStub{blockHeight: 10}))
+		require.NoError(t, bc.Add(tx, &feerStub{blockHeight: 10}))
 		expected[i] = tx.Hash()
 	}
 
@@ -1121,7 +1123,7 @@ func TestTryInitStateSync(t *testing.T) {
 		p.handshaked.Store(false) // one disconnected peer to check it won't be taken into attention
 		p.lastBlockIndex = 5
 		s.register <- p
-		require.Eventually(t, func() bool { return 7 == s.PeerCount() }, time.Second, time.Millisecond*10)
+		require.Eventually(t, func() bool { return s.PeerCount() == 7 }, time.Second, time.Millisecond*10)
 
 		var expectedH uint32 = 8 // median peer
 		ss := &fakechain.FakeStateSync{InitFunc: func(h uint32) error {

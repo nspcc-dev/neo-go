@@ -581,7 +581,7 @@ func (v *VM) StepOver() error {
 	expSize := len(v.istack)
 	for {
 		err = v.StepInto()
-		if !(v.state == vmstate.None && len(v.istack) > expSize) {
+		if v.state != vmstate.None || len(v.istack) <= expSize {
 			break
 		}
 	}

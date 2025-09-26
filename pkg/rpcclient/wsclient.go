@@ -541,7 +541,7 @@ func NewWS(ctx context.Context, endpoint string, opts WSOptions) (*WSClient, err
 	if err != nil {
 		return nil, err
 	}
-	wsc.Client.cli = nil
+	wsc.cli = nil
 
 	go wsc.wsReader()
 	go wsc.wsWriter()
@@ -560,7 +560,7 @@ func (c *WSClient) Close() {
 		// break out of the loop closing c.done channel in its shutdown sequence.
 		close(c.shutdown)
 		// Call to cancel will send signal to all users of Context().
-		c.Client.ctxCancel()
+		c.ctxCancel()
 	}
 	<-c.readerDone
 }
@@ -684,7 +684,7 @@ readloop:
 		c.dropSubCh(rcvrCh, ids[0], true)
 	}
 	c.subscriptionsLock.Unlock()
-	c.Client.ctxCancel()
+	c.ctxCancel()
 }
 
 // dropSubCh closes corresponding subscriber's channel and removes it from the
@@ -1125,5 +1125,5 @@ func (c *WSClient) getErrorOrClosedByUser() error {
 
 // Context returns WSClient Cancel context that will be terminated on Client shutdown.
 func (c *WSClient) Context() context.Context {
-	return c.Client.ctx
+	return c.ctx
 }

@@ -308,10 +308,10 @@ func (o *Oracle) finish(ic *interop.Context, _ []stackitem.Item) stackitem.Item 
 // FinishInternal processes an oracle response.
 func (o *Oracle) FinishInternal(ic *interop.Context) error {
 	if len(ic.VM.Istack()) != 2 {
-		return errors.New("Oracle.finish called from non-entry script")
+		return errors.New("'Oracle.finish' called from non-entry script")
 	}
 	if ic.Invocations[o.Hash] != 1 {
-		return errors.New("Oracle.finish called multiple times")
+		return errors.New("'Oracle.finish' called multiple times")
 	}
 	resp := getResponse(ic.Tx)
 	if resp == nil {

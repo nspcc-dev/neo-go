@@ -324,7 +324,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		log.Info("Genesis TimePerBlock is not set or wrong, using default value",
 			zap.Duration("Genesis TimePerBlock", cfg.Genesis.TimePerBlock))
 	} else if cfg.Genesis.TimePerBlock%time.Millisecond != 0 {
-		return nil, errors.New("Genesis TimePerBlock must be an integer number of milliseconds")
+		return nil, errors.New("Genesis.TimePerBlock must be an integer number of milliseconds")
 	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
 		const timePerDay = 24 * time.Hour
@@ -341,7 +341,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 	if cfg.P2PStateExchangeExtensions && cfg.NeoFSStateSyncExtensions {
 		return nil, errors.New("P2PStateExchangeExtensions and NeoFSStateSyncExtensions cannot be enabled simultaneously")
 	}
-	if cfg.TrustedHeader.Index > 0 && !(cfg.P2PStateExchangeExtensions || cfg.NeoFSStateSyncExtensions) {
+	if cfg.TrustedHeader.Index > 0 && !cfg.P2PStateExchangeExtensions && !cfg.NeoFSStateSyncExtensions {
 		return nil, errors.New("TrustedHeader can not be used without P2PStateExchangeExtensions or NeoFSStateSyncExtensions")
 	}
 	if cfg.TrustedHeader.Index == 0 && (cfg.P2PStateExchangeExtensions || cfg.NeoFSStateSyncExtensions) {
@@ -361,10 +361,10 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		}
 	}
 	if cfg.NeoFSStateSyncExtensions {
-		if !(cfg.NeoFSBlockFetcher.Enabled && cfg.NeoFSStateFetcher.Enabled) {
+		if !cfg.NeoFSBlockFetcher.Enabled || !cfg.NeoFSStateFetcher.Enabled {
 			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher or NeoFSStateFetcher are off")
 		}
-		if !cfg.Ledger.RemoveUntraceableBlocks {
+		if !cfg.RemoveUntraceableBlocks {
 			return nil, errors.New("NeoFSStateFetcher cannot be used on archival nodes; set RemoveUntraceableBlocks=true")
 		}
 		if cfg.StateSyncInterval <= 0 {
@@ -392,9 +392,9 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 	}
 
 	// Local config consistency checks.
-	if cfg.Ledger.RemoveUntraceableBlocks && cfg.Ledger.GarbageCollectionPeriod == 0 {
-		cfg.Ledger.GarbageCollectionPeriod = defaultGCPeriod
-		log.Info("GarbageCollectionPeriod is not set or wrong, using default value", zap.Uint32("GarbageCollectionPeriod", cfg.Ledger.GarbageCollectionPeriod))
+	if cfg.RemoveUntraceableBlocks && cfg.GarbageCollectionPeriod == 0 {
+		cfg.GarbageCollectionPeriod = defaultGCPeriod
+		log.Info("GarbageCollectionPeriod is not set or wrong, using default value", zap.Uint32("GarbageCollectionPeriod", cfg.GarbageCollectionPeriod))
 	}
 	var natives []interop.Contract
 	if len(newNatives) != 0 && newNatives[0] != nil {
@@ -579,7 +579,7 @@ func (bc *Blockchain) init() error {
 			StateRootInHeader:          bc.config.StateRootInHeader,
 			P2PSigExtensions:           bc.config.P2PSigExtensions,
 			P2PStateExchangeExtensions: bc.config.P2PStateExchangeExtensions,
-			KeepOnlyLatestState:        bc.config.Ledger.KeepOnlyLatestState,
+			KeepOnlyLatestState:        bc.config.KeepOnlyLatestState,
 			Magic:                      uint32(bc.config.Magic),
 			Value:                      version,
 			SaveInvocations:            bc.config.SaveInvocations,
@@ -603,7 +603,7 @@ func (bc *Blockchain) init() error {
 			}
 			trusted = bc.config.TrustedHeader
 		}
-		bc.HeaderHashes.initMinTrustedHeader(bc.dao, trusted)
+		bc.initMinTrustedHeader(bc.dao, trusted)
 		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
@@ -624,9 +624,9 @@ func (bc *Blockchain) init() error {
 		return fmt.Errorf("P2PStateExchangeExtensions setting mismatch (old=%t, new=%t)",
 			ver.P2PStateExchangeExtensions, bc.config.P2PStateExchangeExtensions)
 	}
-	if ver.KeepOnlyLatestState != bc.config.Ledger.KeepOnlyLatestState {
+	if ver.KeepOnlyLatestState != bc.config.KeepOnlyLatestState {
 		return fmt.Errorf("KeepOnlyLatestState setting mismatch (old=%v, new=%v)",
-			ver.KeepOnlyLatestState, bc.config.Ledger.KeepOnlyLatestState)
+			ver.KeepOnlyLatestState, bc.config.KeepOnlyLatestState)
 	}
 	if ver.Magic != uint32(bc.config.Magic) {
 		return fmt.Errorf("protocol configuration Magic mismatch (old=%v, new=%v)",
@@ -663,7 +663,7 @@ func (bc *Blockchain) init() error {
 		if (stateChStage[0] & stateResetBit) != 0 {
 			return bc.resetStateInternal(stateSyncPoint, stateChangeStage(stateChStage[0]&(^stateResetBit)))
 		}
-		if !(bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks || bc.config.NeoFSStateSyncExtensions) {
+		if (!bc.config.P2PStateExchangeExtensions || !bc.config.RemoveUntraceableBlocks) && !bc.config.NeoFSStateSyncExtensions {
 			return errors.New("state jump was not completed, P2PStateExchangeExtensions (with RemoveUntraceableBlocks) " +
 				"or NeoFSStateSyncExtensions must be enabled. " +
 				"To start an archival node drop the database manually and restart the node")
@@ -949,7 +949,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			bc.log.Info("chain is at the proper state", zap.Uint32("height", height))
 			return nil
 		}
-		if bc.config.Ledger.KeepOnlyLatestState {
+		if bc.config.KeepOnlyLatestState {
 			return fmt.Errorf("KeepOnlyLatestState is enabled, state for height %d is outdated and removed from the storage", height)
 		}
 		var (
@@ -963,7 +963,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 				return fmt.Errorf("failed to get MaxTraceableBlocks from DAO: %w", err)
 			}
 		}
-		if bc.config.Ledger.RemoveUntraceableBlocks && currHeight >= uint32(mtb) {
+		if bc.config.RemoveUntraceableBlocks && currHeight >= uint32(mtb) {
 			return fmt.Errorf("RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
 		}
 	}
@@ -1116,7 +1116,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 
 		p = time.Now()
 		var mode = mpt.ModeAll
-		if bc.config.Ledger.RemoveUntraceableBlocks {
+		if bc.config.RemoveUntraceableBlocks {
 			mode |= mpt.ModeGCFlag
 		}
 		trieStore := mpt.NewTrieStore(sr.Root, mode, upperCache.Store)
@@ -1356,14 +1356,14 @@ func (bc *Blockchain) Run() {
 		case <-persistTimer.C:
 			var oldPersisted uint32
 
-			if bc.config.Ledger.RemoveUntraceableBlocks {
+			if bc.config.RemoveUntraceableBlocks {
 				oldPersisted = atomic.LoadUint32(&bc.persistedHeight)
 			}
 			dur, err := bc.persist()
 			if err != nil {
 				bc.log.Error("failed to persist blockchain", zap.Error(err))
 			}
-			if bc.config.Ledger.RemoveUntraceableBlocks {
+			if bc.config.RemoveUntraceableBlocks {
 				dur += bc.tryRunGC(oldPersisted)
 			}
 			interval := persistInterval - dur
@@ -1395,12 +1395,12 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 		tgtBlock = min(tgtBlock, int64(syncP-mtb))
 	}
 	// Always round to the GCP.
-	tgtBlock /= int64(bc.config.Ledger.GarbageCollectionPeriod)
-	tgtBlock *= int64(bc.config.Ledger.GarbageCollectionPeriod)
+	tgtBlock /= int64(bc.config.GarbageCollectionPeriod)
+	tgtBlock *= int64(bc.config.GarbageCollectionPeriod)
 	// Count periods.
-	oldHeight /= bc.config.Ledger.GarbageCollectionPeriod
-	newHeight /= bc.config.Ledger.GarbageCollectionPeriod
-	if tgtBlock > int64(bc.config.Ledger.GarbageCollectionPeriod) && newHeight != oldHeight {
+	oldHeight /= bc.config.GarbageCollectionPeriod
+	newHeight /= bc.config.GarbageCollectionPeriod
+	if tgtBlock > int64(bc.config.GarbageCollectionPeriod) && newHeight != oldHeight {
 		dur = bc.removeOldTransfers(uint32(tgtBlock))
 		dur += bc.stateRoot.GC(uint32(tgtBlock), bc.store)
 		dur += bc.removeUntraceableBlocks(newHeight, uint32(tgtBlock))
@@ -1979,7 +1979,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			transCache   = make(map[util.Uint160]transferData)
 		)
 		kvcache.StoreAsCurrentBlock(block)
-		if bc.config.Ledger.RemoveUntraceableBlocks && block.Index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
+		if bc.config.RemoveUntraceableBlocks && block.Index%bc.config.GarbageCollectionPeriod == 0 {
 			_ = bc.gcBlockTimes.Add(block.Index, block.Timestamp)
 		}
 		for aer := range aerchan {
@@ -1997,9 +1997,9 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				err = fmt.Errorf("failed to store exec result: %w", err)
 				break
 			}
-			if aer.Execution.VMState == vmstate.Halt {
-				for j := range aer.Execution.Events {
-					bc.handleNotification(&aer.Execution.Events[j], kvcache, transCache, block, aer.Container)
+			if aer.VMState == vmstate.Halt {
+				for j := range aer.Events {
+					bc.handleNotification(&aer.Events[j], kvcache, transCache, block, aer.Container)
 				}
 			}
 		}
@@ -2110,7 +2110,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 	}
 
-	if bc.config.Ledger.SaveStorageBatch {
+	if bc.config.SaveStorageBatch {
 		bc.lastBatch = cache.GetBatch()
 	}
 	// Every persist cycle we also compact our in-memory MPT. It's flushed
@@ -2239,7 +2239,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.S
 		return
 	}
 	arr, ok := note.Item.Value().([]stackitem.Item)
-	if !ok || !(len(arr) == 3 || len(arr) == 4) {
+	if !ok || (len(arr) != 3 && len(arr) != 4) {
 		return
 	}
 	from, err := parseUint160(arr[0])
@@ -2417,7 +2417,7 @@ func (bc *Blockchain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, e
 	if err != nil {
 		return nil, err
 	}
-	if bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks {
+	if bc.config.P2PStateExchangeExtensions && bc.config.RemoveUntraceableBlocks {
 		if _, ok := info.LastUpdated[bc.neo.Metadata().ID]; !ok {
 			nBalance, lub := bc.neo.BalanceOf(bc.dao, acc)
 			if nBalance.Sign() != 0 {
@@ -2621,7 +2621,7 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 // HasBlock returns true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
-	if bc.HeaderHashes.haveRecentHash(hash, bc.BlockHeight()) {
+	if bc.haveRecentHash(hash, bc.BlockHeight()) {
 		return true
 	}
 
@@ -2666,7 +2666,7 @@ func (bc *Blockchain) GetNativeContractScriptHash(name string) (util.Uint160, er
 	if c != nil {
 		return c.Metadata().Hash, nil
 	}
-	return util.Uint160{}, errors.New("Unknown native contract")
+	return util.Uint160{}, errors.New("unknown native contract")
 }
 
 // GetNatives returns list of native contracts.
@@ -2676,7 +2676,7 @@ func (bc *Blockchain) GetNatives() []state.Contract {
 	current := bc.getCurrentHF()
 	for _, c := range css {
 		activeIn := c.ActiveIn()
-		if !(activeIn == nil || activeIn.Cmp(current) <= 0) {
+		if activeIn != nil && activeIn.Cmp(current) > 0 {
 			continue
 		}
 
@@ -3220,7 +3220,7 @@ func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *
 
 // GetTestHistoricVM returns an interop context with VM set up for a test run.
 func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, nextBlockHeight uint32) (*interop.Context, error) {
-	if bc.config.Ledger.KeepOnlyLatestState {
+	if bc.config.KeepOnlyLatestState {
 		return nil, errors.New("only latest state is supported")
 	}
 	b, err := bc.GetFakeNextBlock(nextBlockHeight)
@@ -3228,7 +3228,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 		return nil, fmt.Errorf("failed to create fake block for height %d: %w", nextBlockHeight, err)
 	}
 	var mode = mpt.ModeAll
-	if bc.config.Ledger.RemoveUntraceableBlocks {
+	if bc.config.RemoveUntraceableBlocks {
 		if b.Index < bc.BlockHeight()-bc.GetMaxTraceableBlocks() {
 			return nil, fmt.Errorf("state for height %d is outdated and removed from the storage", b.Index)
 		}
@@ -3426,7 +3426,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	for i := range t.Signers {
 		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
 		if err != nil &&
-			!(i == 0 && isPartialTx && errors.Is(err, ErrInvalidSignature)) { // it's OK for partially-filled transaction with dummy first witness.
+			(i != 0 || !isPartialTx || !errors.Is(err, ErrInvalidSignature)) { // it's OK for partially-filled transaction with dummy first witness.
 			return fmt.Errorf("witness #%d: %w", i, err)
 		}
 		gasLimit -= gasConsumed

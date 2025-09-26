@@ -309,11 +309,11 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		s.PingInterval = defaultPingInterval
 	}
 
-	if len(s.ServerConfig.Addresses) == 0 {
+	if len(s.Addresses) == 0 {
 		return nil, errors.New("no bind addresses configured")
 	}
-	transports := make([]Transporter, len(s.ServerConfig.Addresses))
-	for i, addr := range s.ServerConfig.Addresses {
+	transports := make([]Transporter, len(s.Addresses))
+	for i, addr := range s.Addresses {
 		transports[i] = newTransport(s, addr.Address)
 	}
 	s.transports = transports
@@ -356,7 +356,7 @@ func (s *Server) Start() {
 	go s.relayBlocksLoop()
 	go s.bQueue.Run()
 	go s.bFetcherQueue.Run()
-	if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled && !s.config.NeoFSStateSyncExtensions && !s.config.P2PStateExchangeExtensions {
+	if s.NeoFSBlockFetcherCfg.Enabled && !s.config.NeoFSStateSyncExtensions && !s.config.P2PStateExchangeExtensions {
 		if err := s.blockFetcher.Start(); err != nil {
 			s.log.Error("skipping NeoFS BlockFetcher", zap.Error(err))
 		}
@@ -444,7 +444,7 @@ func (s *Server) stateSyncCallBack() {
 	}
 	if !isActive {
 		s.syncBlockFetcher.Shutdown()
-		if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled {
+		if s.NeoFSBlockFetcherCfg.Enabled {
 			if err := s.blockFetcher.Start(); err != nil {
 				s.log.Error("skipping NeoFS BlockFetcher", zap.Error(err))
 			}

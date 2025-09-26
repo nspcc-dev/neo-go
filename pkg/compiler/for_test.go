@@ -802,7 +802,8 @@ var forLoopTestCases = []testCase{
 func TestForLoop(t *testing.T) {
 	srcBuilder := bytes.NewBuffer([]byte("package testcase\n"))
 	for i, tc := range forLoopTestCases {
-		srcBuilder.WriteString(fmt.Sprintf(tc.src, i))
+		_, err := fmt.Fprintf(srcBuilder, tc.src, i)
+		require.NoError(t, err)
 	}
 
 	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
@@ -855,7 +856,8 @@ func TestForLoopComplexConditions(t *testing.T) {
 	`
 	srcBuilder := bytes.NewBufferString("package foo\n")
 	for i, tc := range forCondTestCases {
-		srcBuilder.WriteString(fmt.Sprintf(tmpl, i, tc.Assign, tc.Cond, tc.Assign))
+		_, err := fmt.Fprintf(srcBuilder, tmpl, i, tc.Assign, tc.Cond, tc.Assign)
+		require.NoError(t, err)
 	}
 
 	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
