@@ -275,6 +275,46 @@ var mapTestCases = []testCase{
 			},
 		},
 	},
+	{
+		"range, over nil map",
+		`package foo
+		func Main() int {
+			var s map[any]any
+			cnt := 0
+			for range s {
+				cnt++
+			}
+			return cnt
+		}`,
+		big.NewInt(0),
+	},
+	{
+		"range, over nil map returned by func",
+		`package foo
+		func get() map[any]any { return nil }
+		func Main() int {
+			cnt := 0
+			for range get() {
+				cnt++
+			}
+			return cnt
+		}`,
+		big.NewInt(0),
+	},
+	{
+		"range, over nil with side-effects",
+		`package foo
+		func Main() int {
+			var (
+				i = 42
+				a map[int]any
+			)
+			for i = range a {
+			}
+			return i
+		}`,
+		big.NewInt(42),
+	},
 }
 
 func TestMaps(t *testing.T) {
