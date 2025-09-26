@@ -18,7 +18,7 @@ require (
 	github.com/nspcc-dev/dbft v0.4.0
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20250911084817-6fb4472993d1
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250923153235-ffb84619d02f
-	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.14
+	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.15
 	github.com/nspcc-dev/rfc6979 v0.2.4
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/prometheus/client_golang v1.23.2
@@ -50,8 +50,8 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/nspcc-dev/hrw/v2 v2.0.3 // indirect
-	github.com/nspcc-dev/tzhash v1.8.2 // indirect
+	github.com/nspcc-dev/hrw/v2 v2.0.4 // indirect
+	github.com/nspcc-dev/tzhash v1.8.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
@@ -63,12 +63,12 @@ require (
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b // indirect
+	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/mod v0.28.0 // indirect
 	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241202173237-19429a94021a // indirect
-	google.golang.org/grpc v1.70.0 // indirect
-	google.golang.org/protobuf v1.36.8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9 // indirect
+	google.golang.org/grpc v1.75.1 // indirect
+	google.golang.org/protobuf v1.36.9 // indirect
 )
