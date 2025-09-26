@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
@@ -30,7 +29,6 @@ func uploadBin(ctx *cli.Context) error {
 	}
 	attr := ctx.String("block-attribute")
 	numWorkers := ctx.Uint("workers")
-	maxParallelSearches := ctx.Uint("searchers")
 	maxRetries := ctx.Uint("retries")
 	debug := ctx.Bool("debug")
 	batchSize := ctx.Uint("batch-size")
@@ -66,7 +64,7 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("failed to get current block height from RPC: %v", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
-	batchID, existing, err := searchLastBatch(ctx, p, containerID, acc.PrivateKey(), batchSize, attr, maxParallelSearches, uint(currentBlockHeight), debug)
+	batchID, existing, err := searchLastBatch(ctx, p, containerID, signer, batchSize, attr, uint(currentBlockHeight), debug)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to find objects: %w", err), 1)
 	}
@@ -212,9 +210,9 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 
 // searchLastBatch scans batches backwards to find the last fully-uploaded batch;
 // Returns next batch ID and a map of already uploaded object IDs in that batch.
-func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey, batchSize uint, blockAttributeKey string, maxParallelSearches uint, currentBlockHeight uint, debug bool) (uint, map[uint]oid.ID, error) {
-	totalBatches := (currentBlockHeight + batchSize - 1) / batchSize
+func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, signer user.Signer, batchSize uint, blockAttributeKey string, currentBlockHeight uint, debug bool) (uint, map[uint]oid.ID, error) {
 	var (
+		totalBatches = (currentBlockHeight + batchSize - 1) / batchSize
 		nextExisting = make(map[uint]oid.ID, batchSize)
 		nextBatch    uint
 	)
@@ -226,8 +224,8 @@ func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKey
 		// Collect blocks in [start, end).
 		existing := make(map[uint]oid.ID, batchSize)
 		blkErr := make(chan error)
-		items := searchObjects(ctx.Context, p, containerID, privKeys,
-			blockAttributeKey, start, end, maxParallelSearches, blkErr)
+		items := searchObjects(ctx.Context, p, containerID, signer,
+			blockAttributeKey, start, end, blkErr)
 
 	loop:
 		for {
@@ -273,63 +271,46 @@ func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKey
 	return nextBatch, nextExisting, nil
 }
 
-// searchObjects searches in parallel for objects with attribute GE startIndex and LT
-// endIndex. It returns a buffered channel of resulting object IDs and closes it once
-// OID search is finished. Errors are sent to errCh in a non-blocking way.
-func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey, blockAttributeKey string, startIndex, endIndex, maxParallelSearches uint, errCh chan error) chan client.SearchResultItem {
+// searchObjects searches objects with attribute GE startIndex and LT endIndex.
+// It returns a buffered channel of resulting object IDs and closes it once OID
+// search is finished. Errors are sent to errCh in a non-blocking way.
+func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, signer user.Signer, blockAttributeKey string, startIndex, endIndex uint, errCh chan error) chan client.SearchResultItem {
 	var res = make(chan client.SearchResultItem, 2*neofs.DefaultSearchBatchSize)
+
 	go func() {
-		var wg sync.WaitGroup
 		defer close(res)
 
-		for i := startIndex; i < endIndex; i += neofs.DefaultSearchBatchSize * maxParallelSearches {
-			for j := range maxParallelSearches {
-				start := i + j*neofs.DefaultSearchBatchSize
-				end := start + neofs.DefaultSearchBatchSize
+		f := object.NewSearchFilters()
+		f.AddFilter(blockAttributeKey, strconv.FormatUint(uint64(startIndex), 10), object.MatchNumGE)
+		f.AddFilter(blockAttributeKey, strconv.FormatUint(uint64(endIndex), 10), object.MatchNumLT)
 
-				if start >= endIndex {
-					break
+		var (
+			cursor string
+			items  []client.SearchResultItem
+			err    error
+		)
+
+		for {
+			items, cursor, err = p.SearchObjects(ctx, containerID, f, []string{blockAttributeKey}, cursor, signer, client.SearchObjectsOptions{})
+			if err != nil {
+				select {
+				case errCh <- fmt.Errorf("failed to search objects from %d to %d (cursor=%q): %w", startIndex, endIndex, cursor, err):
+				default:
 				}
-				if end > endIndex {
-					end = endIndex
-				}
-
-				wg.Add(1)
-				go func(start, end uint) {
-					defer wg.Done()
-
-					filters := object.NewSearchFilters()
-					filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchNumGE)
-					filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", end), object.MatchNumLT)
-
-					results, errs := neofs.ObjectSearch(ctx, p, privKeys, containerID, filters, []string{blockAttributeKey})
-					for {
-						select {
-						case <-ctx.Done():
-							return
-						case item, ok := <-results:
-							if !ok {
-								return
-							}
-							select {
-							case <-ctx.Done():
-								return
-							case res <- item:
-							}
-
-						case err := <-errs:
-							if err != nil {
-								select {
-								case errCh <- fmt.Errorf("failed to search objects from %d to %d: %w", start, end, err):
-								default:
-								}
-							}
-							return
-						}
-					}
-				}(start, end)
+				return
 			}
-			wg.Wait()
+
+			for _, it := range items {
+				select {
+				case <-ctx.Done():
+					return
+				case res <- it:
+				}
+			}
+
+			if cursor == "" {
+				break
+			}
 		}
 	}()
 
