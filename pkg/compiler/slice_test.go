@@ -411,6 +411,46 @@ var sliceTestCases = []testCase{
 		`,
 		big.NewInt(1),
 	},
+	{
+		"range, over nil slice",
+		`func F%d() int {
+			var s []any
+			cnt := 0
+			for range s {
+				cnt++
+			}
+			return cnt
+		}
+		`,
+		big.NewInt(0),
+	},
+	{
+		"range, over nil slice returned by func",
+		`func get() []int { return nil }
+		func F%d() int {
+			cnt := 0
+			for range get() {
+				cnt++
+			}
+			return cnt
+		}
+		`,
+		big.NewInt(0),
+	},
+	{
+		"range, over nil with side-effects",
+		`func F%d() int {
+			var (
+				i = 42
+				a []string
+			)
+			for i = range a {
+			}
+			return i
+		}
+		`,
+		big.NewInt(42),
+	},
 }
 
 func TestSliceOperations(t *testing.T) {
