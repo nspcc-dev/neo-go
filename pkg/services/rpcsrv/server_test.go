@@ -2989,7 +2989,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
 		assert.Equal(t, 23, actual.Confirmations)
-		assert.Equal(t, TXHash, actual.Transaction.Hash())
+		assert.Equal(t, TXHash, actual.Hash())
 	})
 
 	t.Run("getblockheader_positive", func(t *testing.T) {
@@ -3476,7 +3476,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	})
 	t.Run("test functions with unsupported states", func(t *testing.T) {
 		chain, _, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
-			c.ApplicationConfiguration.Ledger.KeepOnlyLatestState = true
+			c.ApplicationConfiguration.KeepOnlyLatestState = true
 		})
 
 		e := &executor{chain: chain, httpSrv: httpSrv}

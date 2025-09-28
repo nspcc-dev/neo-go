@@ -125,7 +125,8 @@ func TestSyscallExecution(t *testing.T) {
 		} else {
 			tmpl = "func %s() any { return %s(%s) }\n"
 		}
-		srcBuilder.WriteString(fmt.Sprintf(tmpl, realName, goName, strings.Join(tc.params, ", ")))
+		_, err := fmt.Fprintf(srcBuilder, tmpl, realName, goName, strings.Join(tc.params, ", "))
+		require.NoError(t, err)
 	}
 
 	nf, di, err := compiler.CompileWithOptions("foo.go", srcBuilder, nil)

@@ -608,7 +608,7 @@ func Generate(cfg binding.Config) error {
 func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) []manifest.Method {
 	return slices.DeleteFunc(meths, func(m manifest.Method) bool {
 		return slices.ContainsFunc(manifested, func(e manifest.Method) bool {
-			return 0 == cmp.Or(
+			return 0 == cmp.Or( // nolint:staticcheck
 				cmp.Compare(m.Name, e.Name),
 				func() int {
 					if e.Parameters == nil {
@@ -624,7 +624,7 @@ func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) 
 func dropManifestEvents(events []manifest.Event, manifested []manifest.Event) []manifest.Event {
 	return slices.DeleteFunc(events, func(e manifest.Event) bool {
 		return slices.ContainsFunc(manifested, func(v manifest.Event) bool {
-			return 0 == cmp.Or(
+			return 0 == cmp.Or( // nolint:staticcheck
 				cmp.Compare(e.Name, v.Name),
 				cmp.Compare(len(e.Parameters), len(v.Parameters)),
 			)
@@ -633,7 +633,7 @@ func dropManifestEvents(events []manifest.Event, manifested []manifest.Event) []
 }
 
 func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.Method {
-	meths = dropManifestMethods(meths, std.Manifest.ABI.Methods)
+	meths = dropManifestMethods(meths, std.ABI.Methods)
 	if std.Optional != nil {
 		meths = dropManifestMethods(meths, std.Optional)
 	}
@@ -644,7 +644,7 @@ func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.
 }
 
 func dropStdEvents(events []manifest.Event, std *standard.Standard) []manifest.Event {
-	events = dropManifestEvents(events, std.Manifest.ABI.Events)
+	events = dropManifestEvents(events, std.ABI.Events)
 	if std.Base != nil {
 		return dropStdEvents(events, std.Base)
 	}
@@ -659,8 +659,8 @@ func dropNep24Types(cfg binding.Config) binding.Config {
 	if royaltyInfo, ok := cfg.Types[standard.MethodRoyaltyInfo]; ok && royaltyInfo.Value != nil {
 		returnType, exists := cfg.NamedTypes[royaltyInfo.Value.Name]
 		if !exists || returnType.Fields == nil || len(returnType.Fields) != 2 ||
-			returnType.Fields[0].ExtendedType.Base != smartcontract.Hash160Type ||
-			returnType.Fields[1].ExtendedType.Base != smartcontract.IntegerType {
+			returnType.Fields[0].Base != smartcontract.Hash160Type ||
+			returnType.Fields[1].Base != smartcontract.IntegerType {
 			return cfg
 		}
 		targetTypeName = royaltyInfo.Value.Name
@@ -1156,7 +1156,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	imports["github.com/nspcc-dev/neo-go/pkg/util"] = struct{}{}
 	if len(ctr.SafeMethods) > 0 {
 		imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"] = struct{}{}
-		if !(ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep24) {
+		if !ctr.IsNep17 && !ctr.IsNep11D && !ctr.IsNep11ND && !ctr.IsNep24 {
 			imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
 		}
 	}

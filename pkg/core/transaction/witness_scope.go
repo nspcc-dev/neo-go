@@ -35,7 +35,7 @@ const (
 func ScopesFromByte(b byte) (WitnessScope, error) {
 	var res = WitnessScope(b)
 	if (res&Global != 0) && (res&(None|CalledByEntry|CustomContracts|CustomGroups|Rules) != 0) {
-		return 0, errors.New("Global scope can not be combined with other scopes")
+		return 0, errors.New("'Global' scope can not be combined with other scopes")
 	}
 	if res&^(None|CalledByEntry|CustomContracts|CustomGroups|Rules|Global) != 0 {
 		return 0, fmt.Errorf("invalid scope %d", res)
@@ -65,8 +65,8 @@ func ScopesFromString(s string) (WitnessScope, error) {
 		if !ok {
 			return result, fmt.Errorf("invalid witness scope: %v", scopeStr)
 		}
-		if isGlobal && !(scope == Global) {
-			return result, errors.New("Global scope can not be combined with other scopes")
+		if isGlobal && scope != Global {
+			return result, errors.New("'Global' scope can not be combined with other scopes")
 		}
 		result |= scope
 		if scope == Global {

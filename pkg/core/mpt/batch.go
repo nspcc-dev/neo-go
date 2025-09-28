@@ -187,10 +187,10 @@ func (t *Trie) stripBranch(b *BranchNode) (Node, error) {
 			lastIndex = byte(i)
 		}
 	}
-	switch {
-	case n == 0:
+	switch n {
+	case 0:
 		return EmptyNode{}, nil
-	case n == 1:
+	case 1:
 		if lastIndex != lastChild {
 			return t.mergeExtension([]byte{lastIndex}, b.Children[lastIndex])
 		}

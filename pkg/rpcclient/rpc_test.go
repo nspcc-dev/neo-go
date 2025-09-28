@@ -100,7 +100,7 @@ func getTxMoveNeo() *result.TransactionOutputRaw {
 		Transaction: *tx,
 		TransactionMetadata: result.TransactionMetadata{
 			Timestamp:     b1.Timestamp,
-			Blockhash:     b1.Block.Hash(),
+			Blockhash:     b1.Hash(),
 			Confirmations: int(b1.Confirmations),
 			VMState:       "HALT",
 		},
@@ -668,7 +668,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					return nil, err
 				}
-				out.Transaction.FeePerByte() // set fee per byte
+				out.FeePerByte() // set fee per byte
 				return out, nil
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + txMoveNeoVerbose + `}`,
@@ -2293,8 +2293,8 @@ func TestUninitedClient(t *testing.T) {
 
 func newTestNEF(script []byte) nef.File {
 	var ne nef.File
-	ne.Header.Magic = nef.Magic
-	ne.Header.Compiler = "neo-go-3.0"
+	ne.Magic = nef.Magic
+	ne.Compiler = "neo-go-3.0"
 	ne.Script = script
 	ne.Checksum = ne.CalculateChecksum()
 	return ne

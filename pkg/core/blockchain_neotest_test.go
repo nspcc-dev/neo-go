@@ -140,7 +140,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 		ps = newPS(t)
 		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.Blockchain) {
 			customConfig(c)
-			c.Ledger.KeepOnlyLatestState = true
+			c.KeepOnlyLatestState = true
 		}, ps)
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "KeepOnlyLatestState setting mismatch"), err)
@@ -1278,8 +1278,8 @@ func TestBlockchain_RemoveUntraceable(t *testing.T) {
 	t.Run("P2PStateExchangeExtensions off", func(t *testing.T) {
 		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 			c.MaxTraceableBlocks = mtb
-			c.Ledger.GarbageCollectionPeriod = gcp
-			c.Ledger.RemoveUntraceableBlocks = true
+			c.GarbageCollectionPeriod = gcp
+			c.RemoveUntraceableBlocks = true
 		})
 		e := neotest.NewExecutor(t, bc, acc, acc)
 		neoValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Neo))
@@ -1332,8 +1332,8 @@ func TestBlockchain_RemoveUntraceable(t *testing.T) {
 		const stateSyncInterval = 2 // use small value to fit within the size of blockTimesCache in GC mode with short GCP.
 		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 			c.MaxTraceableBlocks = mtb
-			c.Ledger.GarbageCollectionPeriod = gcp
-			c.Ledger.RemoveUntraceableBlocks = true
+			c.GarbageCollectionPeriod = gcp
+			c.RemoveUntraceableBlocks = true
 			c.P2PStateExchangeExtensions = true
 			c.StateSyncInterval = stateSyncInterval
 			c.StateRootInHeader = true
@@ -2603,12 +2603,12 @@ func TestBlockchain_ResetStateErrors(t *testing.T) {
 	})
 	t.Run("KeepOnlyLatestState is enabled", func(t *testing.T) {
 		checkResetErr(t, func(c *config.Blockchain) {
-			c.Ledger.KeepOnlyLatestState = true
+			c.KeepOnlyLatestState = true
 		}, uint32(chainHeight-1), "KeepOnlyLatestState is enabled")
 	})
 	t.Run("some blocks where removed", func(t *testing.T) {
 		checkResetErr(t, func(c *config.Blockchain) {
-			c.Ledger.RemoveUntraceableBlocks = true
+			c.RemoveUntraceableBlocks = true
 			c.MaxTraceableBlocks = 2
 		}, uint32(chainHeight-3), "RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
 	})

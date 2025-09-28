@@ -91,7 +91,7 @@ func OnPersist(ic *interop.Context) error {
 	}
 	for _, c := range ic.Natives {
 		activeIn := c.ActiveIn()
-		if !(activeIn == nil || ic.IsHardforkEnabled(*activeIn)) {
+		if activeIn != nil && !ic.IsHardforkEnabled(*activeIn) {
 			continue
 		}
 		err := c.OnPersist(ic)
@@ -109,7 +109,7 @@ func PostPersist(ic *interop.Context) error {
 	}
 	for _, c := range ic.Natives {
 		activeIn := c.ActiveIn()
-		if !(activeIn == nil || ic.IsHardforkEnabled(*activeIn)) {
+		if activeIn != nil && !ic.IsHardforkEnabled(*activeIn) {
 			continue
 		}
 		err := c.PostPersist(ic)

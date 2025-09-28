@@ -387,7 +387,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 							// TODO: see the TestCompile_GuessEventTypes, "SC parameter type mismatch" section,
 							// do we want to compare with actual.RealType? The conversion code is emitted by the
 							// compiler for it, so we expect the parameter to be of the proper type.
-							if !(mParam.Type == smartcontract.AnyType || actual.TypeSC == mParam.Type) {
+							if mParam.Type != smartcontract.AnyType && actual.TypeSC != mParam.Type {
 								return nil, fmt.Errorf("inconsistent usages of event `%s` against config: SC type of param #%d mismatch: %s vs %s", eventName, i, actual.TypeSC, mParam.Type)
 							}
 							expected := exampleUsage.Params[i]

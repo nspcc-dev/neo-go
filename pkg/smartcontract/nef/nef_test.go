@@ -33,12 +33,12 @@ func TestEncodeDecodeBinary(t *testing.T) {
 	}
 
 	t.Run("invalid Magic", func(t *testing.T) {
-		expected.Header.Magic = 123
+		expected.Magic = 123
 		checkDecodeError(t, expected)
 	})
 
 	t.Run("invalid checksum", func(t *testing.T) {
-		expected.Header.Magic = Magic
+		expected.Magic = Magic
 		expected.Checksum = 123
 		checkDecodeError(t, expected)
 	})
@@ -66,7 +66,7 @@ func TestEncodeDecodeBinary(t *testing.T) {
 		expected.Script = script
 		expected.Tokens[0].Method = "method"
 		expected.Checksum = expected.CalculateChecksum()
-		expected.Header.Magic = Magic
+		expected.Magic = Magic
 		testserdes.EncodeDecodeBinary(t, expected, &File{})
 	})
 	t.Run("positive with empty tokens", func(t *testing.T) {
@@ -74,7 +74,7 @@ func TestEncodeDecodeBinary(t *testing.T) {
 		// Check `Tokens` won't be deserialized to `nil`. We expect them to be non-nil slice in the related code.
 		expected.Tokens = []MethodToken{}
 		expected.Checksum = expected.CalculateChecksum()
-		expected.Header.Magic = Magic
+		expected.Magic = Magic
 		testserdes.EncodeDecodeBinary(t, expected, &File{})
 	})
 	t.Run("invalid reserved bytes", func(t *testing.T) {

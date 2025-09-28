@@ -334,7 +334,7 @@ func (a *Actor) SendRequestExactly(mainTx *transaction.Transaction, fbTx *transa
 // transactions can be waited for in a usual way potentially with positive result.
 func (a *Actor) Wait(mainHash, fbHash util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
 	// #2248 will eventually remove this garbage from the code.
-	if err != nil && !(strings.Contains(strings.ToLower(err.Error()), "already exists") || strings.Contains(strings.ToLower(err.Error()), "already on chain")) {
+	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "already exists") && !strings.Contains(strings.ToLower(err.Error()), "already on chain") {
 		return nil, err
 	}
 	return a.WaitAny(context.TODO(), vub, mainHash, fbHash)

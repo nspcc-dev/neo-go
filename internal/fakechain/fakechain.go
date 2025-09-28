@@ -155,7 +155,7 @@ func (chain *FakeChain) GetStoragePrice() int64 {
 
 // GetMaxTraceableBlocks implements the Ledger interface.
 func (chain *FakeChain) GetMaxTraceableBlocks() uint32 {
-	return chain.ProtocolConfiguration.MaxTraceableBlocks
+	return chain.MaxTraceableBlocks
 }
 
 // GetMaxVerificationGAS implements the Policer interface.
@@ -268,7 +268,7 @@ func (chain *FakeChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 
 // GetMillisecondsPerBlock implements the Blockchainer interface.
 func (chain *FakeChain) GetMillisecondsPerBlock() uint32 {
-	return uint32(chain.Blockchain.TimePerBlock.Milliseconds())
+	return uint32(chain.TimePerBlock.Milliseconds())
 }
 
 // GetNextBlockValidators implements the Blockchainer interface.

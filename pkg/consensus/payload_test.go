@@ -287,7 +287,7 @@ func TestPayload_DecodeFromPrivnet(t *testing.T) {
 	require.Equal(t, uint32(2), p.Height())
 	require.Equal(t, uint16(3), p.ValidatorIndex())
 	require.Equal(t, byte(0), p.ViewNumber())
-	require.NotNil(t, p.message.payload)
+	require.NotNil(t, p.payload)
 
 	buf.ReadB()
 	require.Equal(t, gio.EOF, buf.Err)

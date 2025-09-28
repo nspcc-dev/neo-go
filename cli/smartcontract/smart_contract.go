@@ -43,7 +43,7 @@ var (
 	errNoConfFile   = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
 	errNoMethod     = errors.New("no method specified for function invocation command")
 	errNoScriptHash = errors.New("no smart contract hash was provided, specify one as the first argument")
-	errFileExist    = errors.New("A file with given smart-contract name already exists")
+	errFileExist    = errors.New("file with given smart-contract name already exists")
 	addressFlag     = &flags.AddressFlag{
 		Name:    addressFlagName,
 		Aliases: []string{addressFlagAlias},

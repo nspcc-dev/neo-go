@@ -160,7 +160,7 @@ func NewService(cfg Config) (Service, error) {
 
 		// Check that the wallet password is correct for at least one account.
 		var ok = slices.ContainsFunc(srv.wallet.Accounts, func(acc *wallet.Account) bool {
-			return acc.Decrypt(srv.Config.Wallet.Password, srv.wallet.Scrypt) == nil
+			return acc.Decrypt(srv.Wallet.Password, srv.wallet.Scrypt) == nil
 		})
 		if !ok {
 			return nil, errors.New("no account with provided password was found")
@@ -240,9 +240,9 @@ func (s *service) newPayload(c *dbft.Context[util.Uint256], t dbft.MessageType, 
 	}
 	cp.payload = msg.(io.Serializable)
 
-	cp.Extensible.ValidBlockStart = 0
-	cp.Extensible.ValidBlockEnd = c.BlockIndex
-	cp.Extensible.Sender = c.Validators[c.MyIndex].(*keys.PublicKey).GetScriptHash()
+	cp.ValidBlockStart = 0
+	cp.ValidBlockEnd = c.BlockIndex
+	cp.Sender = c.Validators[c.MyIndex].(*keys.PublicKey).GetScriptHash()
 
 	return cp
 }
@@ -448,7 +448,7 @@ func (s *service) getKeyPair(pubs []dbft.PublicKey) (int, dbft.PrivateKey, dbft.
 			}
 
 			if !acc.CanSign() {
-				err := acc.Decrypt(s.Config.Wallet.Password, s.wallet.Scrypt)
+				err := acc.Decrypt(s.Wallet.Password, s.wallet.Scrypt)
 				if err != nil {
 					s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))
 					break
@@ -506,7 +506,7 @@ func (s *service) broadcast(p dbft.ConsensusPayload[util.Uint256]) {
 	}
 
 	ep := &p.(*Payload).Extensible
-	s.Config.Broadcast(ep)
+	s.Broadcast(ep)
 }
 
 func (s *service) getTx(h util.Uint256) dbft.Transaction[util.Uint256] {
@@ -514,7 +514,7 @@ func (s *service) getTx(h util.Uint256) dbft.Transaction[util.Uint256] {
 		return tx.(*transaction.Transaction)
 	}
 
-	tx, _, _ := s.Config.Chain.GetTransaction(h)
+	tx, _, _ := s.Chain.GetTransaction(h)
 
 	// this is needed because in case of absent tx dBFT expects to
 	// get nil interface, not a nil pointer to any concrete type
@@ -656,7 +656,7 @@ func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
 		}
 	}
 
-	m := s.dbft.Context.M()
+	m := s.dbft.M()
 	verif, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
 	if err != nil {
 		s.log.Warn("can't create multisig redeem script", zap.Error(err))
@@ -687,7 +687,7 @@ func (s *service) getBlock(h util.Uint256) dbft.Block[util.Uint256] {
 }
 
 func (s *service) getVerifiedTx() []dbft.Transaction[util.Uint256] {
-	pool := s.Config.Chain.GetMemPool()
+	pool := s.Chain.GetMemPool()
 
 	var txx []*transaction.Transaction
 
@@ -707,7 +707,7 @@ func (s *service) getVerifiedTx() []dbft.Transaction[util.Uint256] {
 	}
 
 	if len(txx) > 0 {
-		txx = s.Config.Chain.ApplyPolicyToTxSet(txx)
+		txx = s.Chain.ApplyPolicyToTxSet(txx)
 	}
 
 	res := make([]dbft.Transaction[util.Uint256], len(txx))
@@ -759,7 +759,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 	block := &neoBlock{network: s.ProtocolConfiguration.Magic}
 
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
-	block.Block.Nonce = ctx.Nonce
+	block.Nonce = ctx.Nonce
 	block.Block.Index = ctx.BlockIndex
 	if s.ProtocolConfiguration.StateRootInHeader {
 		sr, err := s.Chain.GetStateRoot(ctx.BlockIndex - 1)
@@ -785,12 +785,12 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 	if err != nil {
 		s.log.Fatal(fmt.Sprintf("failed to create multisignature script: %s", err.Error()))
 	}
-	block.Block.NextConsensus = hash.Hash160(script)
+	block.NextConsensus = hash.Hash160(script)
 	block.Block.PrevHash = ctx.PrevHash
-	block.Block.Version = coreb.VersionInitial
+	block.Version = coreb.VersionInitial
 
 	primaryIndex := byte(ctx.PrimaryIndex)
-	block.Block.PrimaryIndex = primaryIndex
+	block.PrimaryIndex = primaryIndex
 
 	// it's OK to have ctx.TransactionsHashes == nil here
 	block.Block.MerkleRoot = hash.CalcMerkleRoot(slices.Clone(ctx.TransactionHashes))
@@ -799,9 +799,9 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 }
 
 func (s *service) timePerBlock() time.Duration {
-	return time.Duration(s.Config.Chain.GetMillisecondsPerBlock()) * time.Millisecond
+	return time.Duration(s.Chain.GetMillisecondsPerBlock()) * time.Millisecond
 }
 
 func (s *service) maxTimePerBlock() time.Duration {
-	return s.Config.ProtocolConfiguration.MaxTimePerBlock
+	return s.ProtocolConfiguration.MaxTimePerBlock
 }

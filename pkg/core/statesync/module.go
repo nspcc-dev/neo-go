@@ -131,7 +131,7 @@ type Module struct {
 
 // NewModule returns new instance of statesync module.
 func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Simple, jumpCallback func(p uint32) error) *Module {
-	if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().Ledger.RemoveUntraceableBlocks) && !bc.GetConfig().NeoFSStateSyncExtensions {
+	if (!bc.GetConfig().P2PStateExchangeExtensions || !bc.GetConfig().RemoveUntraceableBlocks) && !bc.GetConfig().NeoFSStateSyncExtensions {
 		return &Module{
 			dao:       s,
 			bc:        bc,
@@ -275,7 +275,7 @@ func (s *Module) defineSyncStage() error {
 		}
 		var mode mpt.TrieMode
 		// No need to enable GC here, it only has the latest things.
-		if s.bc.GetConfig().Ledger.KeepOnlyLatestState || s.bc.GetConfig().Ledger.RemoveUntraceableBlocks {
+		if s.bc.GetConfig().KeepOnlyLatestState || s.bc.GetConfig().RemoveUntraceableBlocks {
 			mode |= mpt.ModeLatest
 		}
 		if s.mode == MPTBased {
@@ -695,7 +695,7 @@ func (s *Module) IsActive() bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	return !(s.syncStage == inactive || (s.syncStage == headersSynced|mptSynced|blocksSynced))
+	return s.syncStage != inactive && (s.syncStage != headersSynced|mptSynced|blocksSynced)
 }
 
 // IsInitialized tells whether state sync module does not require initialization.
@@ -740,7 +740,7 @@ func (s *Module) Traverse(root util.Uint256, process func(node mpt.Node, nodeByt
 
 	var mode mpt.TrieMode
 	// GC must be turned off here to allow access to the archived nodes.
-	if s.bc.GetConfig().Ledger.KeepOnlyLatestState || s.bc.GetConfig().Ledger.RemoveUntraceableBlocks {
+	if s.bc.GetConfig().KeepOnlyLatestState || s.bc.GetConfig().RemoveUntraceableBlocks {
 		mode |= mpt.ModeLatest
 	}
 	b := mpt.NewBillet(root, mode, mpt.DummySTTempStoragePrefix, storage.NewMemCachedStore(s.dao.Store))
