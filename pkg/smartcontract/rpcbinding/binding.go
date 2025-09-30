@@ -125,6 +125,10 @@ import (
 // Hash contains contract hash.
 var Hash = {{ .Hash }}
 {{end -}}
+{{- range $index, $name := .ContractWriterStandards }}
+// {{toTypeNameUpper $name}}Contract is an alias for {{toTypeNameLower $name}}.Contract.
+type {{toTypeNameUpper $name}}Contract {{toTypeNameLower $name}}.Contract
+{{end -}}
 {{- range $index, $typ := .NamedTypes }}
 // {{toTypeName $typ.Name}} is a contract-specific {{$typ.Name}} type used by its methods.
 type {{toTypeName $typ.Name}} struct {
@@ -159,10 +163,8 @@ type Actor interface {
 	nep11.Actor
 {{else if .IsNep17}}
 	nep17.Actor
-{{else if .IsNep22}}
-	nep22.Actor
-{{else if .IsNep31}}
-	nep31.Actor
+{{else if len .ContractWriterStandards}}
+	{{index .ContractWriterStandards 0 | toTypeNameLower}}.Actor
 {{end}}
 {{- if len .Methods}}
 	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
@@ -200,9 +202,8 @@ type Contract struct {
 	{{end -}}
 	{{if .IsNep17}}nep17.TokenWriter
 	{{end -}}
-	{{if .IsNep22}}nep22.Contract
-	{{end -}}
-	{{if .IsNep31}}nep31.Contract
+	{{- range $index, $name := .ContractWriterStandards -}}
+	{{toTypeNameUpper $name}}Contract
 	{{end -}}
 	actor Actor
 	hash util.Uint160
@@ -246,8 +247,8 @@ func New(actor Actor{{- if not (len .Hash) -}}, hash util.Uint160{{- end -}}) *C
 		{{- if .IsNep11D}}nep11dt.DivisibleWriter, {{end -}}
 		{{- if .IsNep11ND}}nep11ndt.BaseWriter, {{end -}}
 		{{- if .IsNep17}}nep17t.TokenWriter, {{end -}}
-		{{- if .IsNep22}}*nep22.NewContract(actor, hash), {{end -}}
-		{{- if .IsNep31}}*nep31.NewContract(actor, hash), {{end -}}
+		{{- range $index, $name := .ContractWriterStandards -}}
+		{{toTypeNameUpper $name}}Contract(*{{toTypeNameLower $name}}.NewContract(actor, hash)), {{end -}}
 		actor, hash}
 }
 {{end -}}
@@ -422,10 +423,12 @@ type (
 		IsNep11D       bool
 		IsNep11ND      bool
 		IsNep17        bool
-		IsNep22        bool
 		IsNep24        bool
 		IsNep24Payable bool
-		IsNep31        bool
+		// ContractWriterStandards is the list of supported standards those RPC bindings matches the following criteria:
+		// 1. Has `nepXX.Contract` structure declared in the package.
+		// 2. Has `nepXX.NewContract(actor, hash) *Contract` constructor (which implies the presence of non-safe methods).
+		ContractWriterStandards []string
 
 		HasReader   bool
 		HasWriter   bool
@@ -474,9 +477,9 @@ func Generate(cfg binding.Config) error {
 	cfg.Manifest = &mfst
 
 	var (
-		imports = make(map[string]struct{})
-		ctr     ContractTmpl
-		isNep30 bool
+		imports                   = make(map[string]struct{})
+		ctr                       ContractTmpl
+		isNep22, isNep30, isNep31 bool
 	)
 
 	// Strip standard methods from NEP-XX packages.
@@ -497,7 +500,8 @@ func Generate(cfg binding.Config) error {
 		case manifest.NEP22StandardName:
 			if standard.ComplyABI(cfg.Manifest, standard.Nep22) == nil {
 				imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep22"] = struct{}{}
-				ctr.IsNep22 = true
+				ctr.ContractWriterStandards = append(ctr.ContractWriterStandards, std)
+				isNep22 = true
 			}
 		case manifest.NEP24StandardName:
 			if standard.ComplyABI(cfg.Manifest, standard.Nep24) == nil {
@@ -515,7 +519,8 @@ func Generate(cfg binding.Config) error {
 		case manifest.NEP31StandardName:
 			if standard.ComplyABI(cfg.Manifest, standard.Nep31) == nil {
 				imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep31"] = struct{}{}
-				ctr.IsNep31 = true
+				ctr.ContractWriterStandards = append(ctr.ContractWriterStandards, std)
+				isNep31 = true
 			}
 		}
 	}
@@ -533,7 +538,7 @@ func Generate(cfg binding.Config) error {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17)
 		mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep17)
 	}
-	if ctr.IsNep22 {
+	if isNep22 {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep22)
 	}
 	if ctr.IsNep24 {
@@ -546,7 +551,7 @@ func Generate(cfg binding.Config) error {
 	if isNep30 {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep30)
 	}
-	if ctr.IsNep31 {
+	if isNep31 {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep31)
 	}
 
@@ -598,6 +603,8 @@ func Generate(cfg binding.Config) error {
 		"goTypeConverter": goTypeConverter,
 		"scTypeConverter": scTypeConverter,
 		"toTypeName":      toTypeName,
+		"toTypeNameUpper": toTypeNameUpper,
+		"toTypeNameLower": toTypeNameLower,
 		"cutPointer":      cutPointer,
 		"upperFirst":      upperFirst,
 	}).Parse(srcTmpl))
@@ -1163,7 +1170,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	if len(ctr.Methods) > 0 {
 		imports["github.com/nspcc-dev/neo-go/pkg/core/transaction"] = struct{}{}
 	}
-	if len(ctr.Methods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep22 || ctr.IsNep31 {
+	if len(ctr.Methods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || len(ctr.ContractWriterStandards) > 0 {
 		ctr.HasWriter = true
 	}
 	if len(ctr.SafeMethods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep24 {
@@ -1216,11 +1223,19 @@ func cutPointer(s string) string {
 
 func toTypeName(s string) string {
 	return strings.Map(func(c rune) rune {
-		if c == '.' {
+		if c == '.' || c == '-' {
 			return -1
 		}
 		return c
 	}, upperFirst(s))
+}
+
+func toTypeNameUpper(s string) string {
+	return strings.ToUpper(toTypeName(s))
+}
+
+func toTypeNameLower(s string) string {
+	return strings.ToLower(toTypeName(s))
 }
 
 func addIndent(str string, ind string) string {
