@@ -14,6 +14,12 @@ import (
 // Hash contains contract hash.
 var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
 
+// NEP22Contract is an alias for nep22.Contract.
+type NEP22Contract nep22.Contract
+
+// NEP31Contract is an alias for nep31.Contract.
+type NEP31Contract nep31.Contract
+
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 	nep11.Invoker
@@ -38,8 +44,8 @@ type ContractReader struct {
 type Contract struct {
 	ContractReader
 	nep11.DivisibleWriter
-	nep22.Contract
-	nep31.Contract
+	NEP22Contract
+	NEP31Contract
 	actor Actor
 	hash  util.Uint160
 }
@@ -55,5 +61,5 @@ func New(actor Actor) *Contract {
 	var hash = Hash
 	var nep11dt = nep11.NewDivisible(actor, hash)
 	var nep24t = nep24.NewRoyaltyReader(actor, hash)
-	return &Contract{ContractReader{nep11dt.DivisibleReader, *nep24t, actor, hash}, nep11dt.DivisibleWriter, *nep22.NewContract(actor, hash), *nep31.NewContract(actor, hash), actor, hash}
+	return &Contract{ContractReader{nep11dt.DivisibleReader, *nep24t, actor, hash}, nep11dt.DivisibleWriter, NEP22Contract(*nep22.NewContract(actor, hash)), NEP31Contract(*nep31.NewContract(actor, hash)), actor, hash}
 }
