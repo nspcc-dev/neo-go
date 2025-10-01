@@ -8,6 +8,7 @@ package core
 */
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -75,6 +76,14 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemStoragePut, Func: storage.Put, Price: 1 << 15, RequiredFlags: callflag.WriteStates},
 	{Name: interopnames.SystemStorageAsReadOnly, Func: storage.ContextAsReadOnly, Price: 1 << 4,
 		RequiredFlags: callflag.ReadStates},
+	{Name: interopnames.SystemStorageLocalGet, Func: storage.LocalGet, Price: 1 << 15,
+		RequiredFlags: callflag.ReadStates, ActiveFrom: config.HFFaun},
+	{Name: interopnames.SystemStorageLocalFind, Func: storage.LocalFind, Price: 1 << 15,
+		RequiredFlags: callflag.ReadStates, ActiveFrom: config.HFFaun},
+	{Name: interopnames.SystemStorageLocalPut, Func: storage.LocalPut, Price: 1 << 15,
+		RequiredFlags: callflag.WriteStates, ActiveFrom: config.HFFaun},
+	{Name: interopnames.SystemStorageLocalDelete, Func: storage.LocalDelete, Price: 1 << 15,
+		RequiredFlags: callflag.WriteStates, ActiveFrom: config.HFFaun},
 }
 
 // init initializes IDs in the global interop slices.

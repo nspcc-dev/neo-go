@@ -333,3 +333,10 @@ func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.C
 	v, context, chain := createVM(t)
 	return v, contractState, context, chain
 }
+
+func TestStorage_LocalErrors(t *testing.T) {
+	_, ic, _ := createVM(t)
+	for _, f := range []func(*interop.Context) error{istorage.LocalDelete, istorage.LocalFind, istorage.LocalGet, istorage.LocalPut} {
+		require.Contains(t, f(ic).Error(), "storage context can not be retrieved in dynamic scripts")
+	}
+}
