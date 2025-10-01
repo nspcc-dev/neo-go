@@ -132,3 +132,11 @@ func Find(ic *interop.Context) error {
 
 	return nil
 }
+
+// FindLocal calls GetReadOnlyContext and then calls Find.
+func FindLocal(ic *interop.Context) error {
+	if err := GetContext(ic); err != nil {
+		return fmt.Errorf("can't get read only context: %w", err)
+	}
+	return Find(ic)
+}

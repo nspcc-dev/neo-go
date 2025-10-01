@@ -144,6 +144,7 @@ type Function struct {
 	// ParamCount is a number of function parameters.
 	ParamCount int
 	Price      int64
+	ActiveFrom config.Hardfork
 	// RequiredFlags is a set of flags which must be set during script invocations.
 	// Default value is NoneFlag i.e. no flags are required.
 	RequiredFlags callflag.CallFlag
@@ -445,7 +446,7 @@ func (ic *Context) GetFunction(id uint32) *Function {
 	n, ok := slices.BinarySearchFunc(ic.Functions, Function{}, func(a, _ Function) int {
 		return cmp.Compare(a.ID, id)
 	})
-	if !ok {
+	if !ok || ic.Functions[n].ActiveFrom != config.HFDefault && !ic.IsHardforkEnabled(ic.Functions[n].ActiveFrom) {
 		return nil
 	}
 	return &ic.Functions[n]

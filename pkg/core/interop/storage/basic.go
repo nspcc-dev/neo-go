@@ -38,6 +38,14 @@ func Delete(ic *interop.Context) error {
 	return nil
 }
 
+// DeleteLocal calls GetReadOnlyContext and then calls Delete.
+func DeleteLocal(ic *interop.Context) error {
+	if err := GetContext(ic); err != nil {
+		return fmt.Errorf("can't get read only context: %w", err)
+	}
+	return Delete(ic)
+}
+
 // Get returns stored key-value pair.
 func Get(ic *interop.Context) error {
 	stcInterface := ic.VM.Estack().Pop().Value()
@@ -53,6 +61,14 @@ func Get(ic *interop.Context) error {
 		ic.VM.Estack().PushItem(stackitem.Null{})
 	}
 	return nil
+}
+
+// GetLocal calls GetReadOnlyContext and then calls Get.
+func GetLocal(ic *interop.Context) error {
+	if err := GetReadOnlyContext(ic); err != nil {
+		return fmt.Errorf("can't get read only context: %w", err)
+	}
+	return Get(ic)
 }
 
 // GetContext returns storage context for the currently executing contract.
@@ -118,6 +134,14 @@ func Put(ic *interop.Context) error {
 	key := ic.VM.Estack().Pop().Bytes()
 	value := ic.VM.Estack().Pop().Bytes()
 	return putWithContext(ic, stc, key, value)
+}
+
+// PutLocal calls GetReadOnlyContext and then calls Put.
+func PutLocal(ic *interop.Context) error {
+	if err := GetContext(ic); err != nil {
+		return fmt.Errorf("can't get read only context: %w", err)
+	}
+	return Put(ic)
 }
 
 // ContextAsReadOnly sets given context to read-only mode.
