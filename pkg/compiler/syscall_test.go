@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
@@ -99,8 +101,17 @@ func TestSyscallExecution(t *testing.T) {
 		"storage.ConvertContextToReadOnly": {interopnames.SystemStorageAsReadOnly, []string{sctx}, false},
 		"crypto.CheckMultisig":             {interopnames.SystemCryptoCheckMultisig, []string{pubs, sigs}, false},
 		"crypto.CheckSig":                  {interopnames.SystemCryptoCheckSig, []string{pub, sig}, false},
+		"storage.DeleteLocal":              {interopnames.SystemStorageLocalDelete, []string{b}, true},
+		"storage.FindLocal":                {interopnames.SystemStorageLocalFind, []string{b, "storage.None"}, false},
+		"storage.GetLocal":                 {interopnames.SystemStorageLocalGet, []string{b}, false},
+		"storage.PutLocal":                 {interopnames.SystemStorageLocalPut, []string{b, b}, true},
 	}
-	ic := &interop.Context{}
+	ic := &interop.Context{
+		Hardforks: map[string]uint32{
+			config.HFFaun.String(): 0,
+		},
+		Block: &block.Block{},
+	}
 	core.SpawnVM(ic) // set Functions field
 	for _, fs := range ic.Functions {
 		// It will be set in test and we want to fail if calling invalid syscall.

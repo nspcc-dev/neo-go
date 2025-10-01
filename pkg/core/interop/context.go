@@ -446,7 +446,7 @@ func (ic *Context) GetFunction(id uint32) *Function {
 	n, ok := slices.BinarySearchFunc(ic.Functions, Function{}, func(a, _ Function) int {
 		return cmp.Compare(a.ID, id)
 	})
-	if !ok || ic.Functions[n].ActiveFrom == config.HFDefault && !ic.IsHardforkEnabled(ic.Functions[n].ActiveFrom) {
+	if !ok || ic.Functions[n].ActiveFrom != config.HFDefault && !ic.IsHardforkEnabled(ic.Functions[n].ActiveFrom) {
 		return nil
 	}
 	return &ic.Functions[n]

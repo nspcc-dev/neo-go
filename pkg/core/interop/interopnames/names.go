@@ -39,6 +39,10 @@ const (
 	SystemStorageGetReadOnlyContext     = "System.Storage.GetReadOnlyContext"
 	SystemStoragePut                    = "System.Storage.Put"
 	SystemStorageAsReadOnly             = "System.Storage.AsReadOnly"
+	SystemStorageLocalGet               = "System.Storage.Local.Get"
+	SystemStorageLocalFind              = "System.Storage.Local.Find"
+	SystemStorageLocalPut               = "System.Storage.Local.Put"
+	SystemStorageLocalDelete            = "System.Storage.Local.Delete"
 )
 
 var names = []string{
@@ -78,4 +82,8 @@ var names = []string{
 	SystemStorageAsReadOnly,
 	SystemCryptoCheckMultisig,
 	SystemCryptoCheckSig,
+	SystemStorageLocalGet,
+	SystemStorageLocalFind,
+	SystemStorageLocalPut,
+	SystemStorageLocalDelete,
 }
