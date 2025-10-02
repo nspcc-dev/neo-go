@@ -373,7 +373,7 @@ func TestAppCall(t *testing.T) {
 	}
 
 	fc := fakechain.NewFakeChain()
-	ic := interop.NewContext(trigger.Application, fc, dao.NewSimple(storage.NewMemoryStore(), false),
+	ic := interop.NewContext(trigger.Application, fc, dao.NewSimple(storage.NewMemoryStore()),
 		interop.DefaultBaseExecFee, native.DefaultStoragePrice, contractGetter, nil, nil, nil, nil, zaptest.NewLogger(t))
 
 	t.Run("valid script", func(t *testing.T) {

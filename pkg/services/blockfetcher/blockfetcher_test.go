@@ -14,6 +14,11 @@ type mockLedger struct {
 	height uint32
 }
 
+// IsHardforkEnabled implements Blockchainer interface.
+func (m *mockLedger) IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool {
+	return false
+}
+
 func (m *mockLedger) HeaderHeight() uint32 {
 	return m.height
 }
