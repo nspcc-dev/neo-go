@@ -9,11 +9,12 @@ import (
 
 // Method represents method's metadata.
 type Method struct {
-	Name       string                  `json:"name"`
-	Offset     int                     `json:"offset"`
-	Parameters []Parameter             `json:"parameters"`
-	ReturnType smartcontract.ParamType `json:"returntype"`
-	Safe       bool                    `json:"safe"`
+	Name               string                  `json:"name"`
+	Offset             int                     `json:"offset"`
+	Parameters         []Parameter             `json:"parameters"`
+	ReturnType         smartcontract.ParamType `json:"returntype"`
+	ExtendedReturnType *ExtendedType           `json:"extendedreturntype,omitempty"`
+	Safe               bool                    `json:"safe"`
 }
 
 // IsValid checks Method consistency and correctness.

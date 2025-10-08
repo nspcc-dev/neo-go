@@ -54,13 +54,16 @@ type Options struct {
 	// This setting has effect only if manifest is emitted.
 	NoPermissionsCheck bool
 
-	// GuessEventTypes specifies if types of runtime notifications need to be guessed
-	// from the usage context. These types are used for RPC binding generation only and
+	// GuessedNamedTypes specifies guessed from the usage context named types of
+	// runtime notifications. These types are used for RPC binding generation only and
 	// can be defined for events with name known at the compilation time and without
-	// variadic args usages. If some type is specified via config file, then the config's
-	// one is preferable. Currently, event's parameter type is defined from the first
+	// variadic args usages. Currently, event's parameter type is defined from the first
 	// occurrence of event call.
-	GuessEventTypes bool
+	GuessedNamedTypes map[string]manifest.ExtendedType
+	// CollectedNamedTypes specifies named types collected from contract sources.
+	// These types are used for RPC binding generation and contain definitions for
+	// struct types discovered in the code.
+	CollectedNamedTypes map[string]manifest.ExtendedType
 
 	// Name is a contract's name to be written to manifest.
 	Name string
@@ -69,11 +72,7 @@ type Options struct {
 	SourceURL string
 
 	// Runtime notifications declared in the contract configuration file.
-	ContractEvents []HybridEvent
-
-	// DeclaredNamedTypes is the set of named types that were declared in the
-	// contract configuration type and are the part of manifest events.
-	DeclaredNamedTypes map[string]binding.ExtendedType
+	ContractEvents []manifest.Event
 
 	// The list of standards supported by the contract.
 	ContractSupportedStandards []string
@@ -90,23 +89,6 @@ type Options struct {
 
 	// BindingsFile contains configuration for smart-contract bindings generator.
 	BindingsFile string
-}
-
-// HybridEvent represents the description of event emitted by the contract squashed
-// with extended event's parameters description. We have it as a separate type for
-// the user's convenience. It is applied for the smart contract configuration file
-// only.
-type HybridEvent struct {
-	Name       string            `json:"name"`
-	Parameters []HybridParameter `json:"parameters"`
-}
-
-// HybridParameter contains the manifest's event parameter description united with
-// the extended type description for this parameter. It is applied for the smart
-// contract configuration file only.
-type HybridParameter struct {
-	manifest.Parameter `yaml:",inline"`
-	ExtendedType       *binding.ExtendedType `yaml:"extendedtype,omitempty"`
 }
 
 type buildInfo struct {
@@ -337,15 +319,6 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 				cfg.Types[m.Name.Name] = *m.ReturnTypeExtended
 			}
 		}
-		if len(di.NamedTypes) > 0 {
-			cfg.NamedTypes = di.NamedTypes
-		}
-		for name, et := range o.DeclaredNamedTypes {
-			if _, ok := cfg.NamedTypes[name]; ok {
-				return nil, fmt.Errorf("configured declared named type intersects with the contract's one: `%s`", name)
-			}
-			cfg.NamedTypes[name] = et
-		}
 		for _, e := range o.ContractEvents {
 			eStructName := rpcbinding.ToEventBindingName(e.Name)
 			for _, p := range e.Parameters {
@@ -356,7 +329,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 				}
 			}
 		}
-		if o.GuessEventTypes {
+		if o.GuessedNamedTypes != nil {
 			if len(di.EmittedEvents) > 0 {
 				var keys = make([]string, 0, len(di.EmittedEvents))
 				for k := range di.EmittedEvents {
@@ -366,7 +339,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 				for _, eventName := range keys {
 					var (
 						eventUsages   = di.EmittedEvents[eventName]
-						manifestEvent HybridEvent
+						manifestEvent manifest.Event
 					)
 					for _, e := range o.ContractEvents {
 						if e.Name == eventName {
@@ -408,12 +381,12 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 						if p.ExtendedType != nil {
 							typeName := p.ExtendedType.Name
 							if extType, ok := exampleUsage.ExtTypes[typeName]; ok {
-								for _, ok := cfg.NamedTypes[typeName]; ok; _, ok = cfg.NamedTypes[typeName] {
+								for _, ok := o.GuessedNamedTypes[typeName]; ok; _, ok = o.GuessedNamedTypes[typeName] {
 									typeName = typeName + "X"
 								}
 								extType.Name = typeName
 								p.ExtendedType.Name = typeName
-								cfg.NamedTypes[typeName] = extType
+								o.GuessedNamedTypes[typeName] = extType
 							}
 							if _, ok := cfg.Types[pname]; !ok {
 								cfg.Types[pname] = *p.ExtendedType
