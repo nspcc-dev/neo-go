@@ -64,7 +64,11 @@ func (c *Client) GetBestBlockHash() (util.Uint256, error) {
 	return resp, nil
 }
 
-// GetBlockCount returns the number of blocks in the blockchain.
+// GetBlockCount returns the number of blocks in the blockchain. Notice that
+// this is not the same as current chain height in terms of the latest block
+// index. Chain containing genesis block only is at height 0, but it has block
+// count of 1, so to get current height subtract 1 from the result of this
+// call.
 func (c *Client) GetBlockCount() (uint32, error) {
 	var resp uint32
 	if err := c.performRequest("getblockcount", nil, &resp); err != nil {
