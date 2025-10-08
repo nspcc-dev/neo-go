@@ -2,18 +2,20 @@ package manifest
 
 import (
 	"cmp"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
-
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"gopkg.in/yaml.v3"
+	"slices"
 )
 
 // Parameter represents smartcontract's parameter's definition.
 type Parameter struct {
-	Name string                  `json:"name"`
-	Type smartcontract.ParamType `json:"type"`
+	Name         string                  `json:"name"`
+	Type         smartcontract.ParamType `json:"type"`
+	ExtendedType *ExtendedType           `json:"extendedtype,omitempty" yaml:"extendedtype,omitempty"`
 }
 
 // Parameters is just an array of Parameter.
@@ -106,4 +108,116 @@ func sliceHasDups[S ~[]E, E any](x S, cmp func(a, b E) int) bool {
 		}
 	}
 	return false
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler.
+func (p *Parameter) UnmarshalYAML(node *yaml.Node) error {
+	var raw map[string]interface{}
+	if err := node.Decode(&raw); err != nil {
+		return err
+	}
+	if v, ok := raw["field"]; ok {
+		if _, ok := raw["name"]; !ok {
+			raw["name"] = v
+		}
+		delete(raw, "field")
+	}
+	if _, ok := raw["extendedtype"]; !ok {
+		m := make(map[string]interface{})
+		for k, v := range raw {
+			if k != "name" && k != "type" {
+				m[k] = v
+				delete(raw, k)
+			}
+		}
+		if len(m) > 0 {
+			raw["extendedtype"] = m
+		}
+	}
+	var tmpET *ExtendedType
+	if et, ok := raw["extendedtype"]; ok {
+		b, err := yaml.Marshal(et)
+		if err != nil {
+			return err
+		}
+		tmpET = &ExtendedType{}
+		if err = yaml.Unmarshal(b, tmpET); err != nil {
+			return err
+		}
+		delete(raw, "extendedtype")
+		if _, ok := raw["type"]; !ok {
+			raw["type"] = tmpET.Base.String()
+		}
+	}
+	b, err := yaml.Marshal(raw)
+	if err != nil {
+		return err
+	}
+	type param Parameter
+	var tmpParam param
+	if err = yaml.Unmarshal(b, &tmpParam); err != nil {
+		return err
+	}
+	if tmpET != nil && tmpParam.Type != tmpET.Base {
+		return fmt.Errorf("conflicting types: parameter type %v vs extendedtype type %v", tmpParam.Type, tmpET.Base)
+	}
+	*p = Parameter(tmpParam)
+	p.ExtendedType = tmpET
+	return nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (p *Parameter) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if v, ok := raw["field"]; ok {
+		if _, ok := raw["name"]; !ok {
+			raw["name"] = v
+		}
+		delete(raw, "field")
+	}
+	if _, ok := raw["extendedtype"]; !ok {
+		m := make(map[string]json.RawMessage)
+		for k, v := range raw {
+			if k != "name" && k != "type" {
+				m[k] = v
+				delete(raw, k)
+			}
+		}
+		if len(m) > 0 {
+			b, err := json.Marshal(m)
+			if err != nil {
+				return err
+			}
+			raw["extendedtype"] = b
+		}
+	}
+	var tmpET *ExtendedType
+	if etRaw, ok := raw["extendedtype"]; ok {
+		tmpET = &ExtendedType{}
+		if err := json.Unmarshal(etRaw, tmpET); err != nil {
+			return err
+		}
+		delete(raw, "extendedtype")
+		if _, ok := raw["type"]; !ok {
+			raw["type"] = json.RawMessage(tmpET.Base.String())
+		}
+	}
+	b, err := json.Marshal(raw)
+	if err != nil {
+		return err
+	}
+	type param Parameter
+	var tmpParam param
+	if err := json.Unmarshal(b, &tmpParam); err != nil {
+		return err
+	}
+	if tmpET != nil && tmpParam.Type != tmpET.Base {
+		return fmt.Errorf("conflicting types: parameter type %v vs extendedtype type %v", tmpParam.Type, tmpET.Base)
+	}
+	*p = Parameter(tmpParam)
+	p.ExtendedType = tmpET
+	return nil
 }

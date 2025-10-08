@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"math/big"
 	"path/filepath"
 	"slices"
@@ -2913,14 +2914,14 @@ func TestEngineLimits(t *testing.T) {
 			}
 			return len(res)
 		}`, args)
-	eParams := make([]compiler.HybridParameter, eArgsCount)
+	eParams := make([]manifest.Parameter, eArgsCount)
 	for i := range eParams {
 		eParams[i].Name = fmt.Sprintf("str%d", i)
 		eParams[i].Type = smartcontract.ByteArrayType
 	}
 	c := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(src), &compiler.Options{
 		Name: "test_contract",
-		ContractEvents: []compiler.HybridEvent{
+		ContractEvents: []manifest.Event{
 			{
 				Name:       "LargeEvent",
 				Parameters: eParams,
@@ -2980,14 +2981,14 @@ func TestRuntimeNotifyRefcounting(t *testing.T) {
 			}
 		}`, args)
 
-	eParams := make([]compiler.HybridParameter, eArgsCount)
+	eParams := make([]manifest.Parameter, eArgsCount)
 	for i := range eParams {
 		eParams[i].Name = fmt.Sprintf("str%d", i)
 		eParams[i].Type = smartcontract.ByteArrayType
 	}
 	c := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(src), &compiler.Options{
 		Name: "test_contract",
-		ContractEvents: []compiler.HybridEvent{
+		ContractEvents: []manifest.Event{
 			{
 				Name:       "LargeEvent",
 				Parameters: eParams,

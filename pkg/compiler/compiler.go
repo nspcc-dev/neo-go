@@ -69,11 +69,11 @@ type Options struct {
 	SourceURL string
 
 	// Runtime notifications declared in the contract configuration file.
-	ContractEvents []HybridEvent
+	ContractEvents []manifest.Event
 
 	// DeclaredNamedTypes is the set of named types that were declared in the
 	// contract configuration type and are the part of manifest events.
-	DeclaredNamedTypes map[string]binding.ExtendedType
+	DeclaredNamedTypes map[string]manifest.ExtendedType
 
 	// The list of standards supported by the contract.
 	ContractSupportedStandards []string
@@ -90,23 +90,6 @@ type Options struct {
 
 	// BindingsFile contains configuration for smart-contract bindings generator.
 	BindingsFile string
-}
-
-// HybridEvent represents the description of event emitted by the contract squashed
-// with extended event's parameters description. We have it as a separate type for
-// the user's convenience. It is applied for the smart contract configuration file
-// only.
-type HybridEvent struct {
-	Name       string            `json:"name"`
-	Parameters []HybridParameter `json:"parameters"`
-}
-
-// HybridParameter contains the manifest's event parameter description united with
-// the extended type description for this parameter. It is applied for the smart
-// contract configuration file only.
-type HybridParameter struct {
-	manifest.Parameter `yaml:",inline"`
-	ExtendedType       *binding.ExtendedType `yaml:"extendedtype,omitempty"`
 }
 
 type buildInfo struct {
@@ -366,7 +349,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 				for _, eventName := range keys {
 					var (
 						eventUsages   = di.EmittedEvents[eventName]
-						manifestEvent HybridEvent
+						manifestEvent manifest.Event
 					)
 					for _, e := range o.ContractEvents {
 						if e.Name == eventName {

@@ -133,7 +133,7 @@ type {{toTypeNameUpper $name}}Contract {{toTypeNameLower $name}}.Contract
 // {{toTypeName $typ.Name}} is a contract-specific {{$typ.Name}} type used by its methods.
 type {{toTypeName $typ.Name}} struct {
 {{- range $m := $typ.Fields}}
-	{{ upperFirst .Field}} {{etTypeToStr .ExtendedType}}
+	{{ upperFirst .Name}} {{etTypeToStr .ExtendedType}}
 {{- end}}
 }
 {{end}}
@@ -294,9 +294,9 @@ func (res *{{toTypeName $typ.Name}}) FromStackItem(item stackitem.Item) error {
 	)
 {{- range $m := $typ.Fields}}
 	index++
-	res.{{ upperFirst .Field}}, err = {{etTypeConverter .ExtendedType "arr[index]"}}
+	res.{{ upperFirst .Name}}, err = {{etTypeConverter .ExtendedType "arr[index]"}}
 	if err != nil {
-		return fmt.Errorf("field {{ upperFirst .Field}}: %w", err)
+		return fmt.Errorf("field {{ upperFirst .Name}}: %w", err)
 	}
 {{end}}
 {{- end}}
@@ -317,9 +317,9 @@ func (res *{{toTypeName $typ.Name}}) ToStackItem() (stackitem.Item, error) {
 	)
 
 {{- range $m := $typ.Fields}}
-	itm, err = {{goTypeConverter .ExtendedType (print "res." (upperFirst .Field))}}
+	itm, err = {{goTypeConverter .ExtendedType (print "res." (upperFirst .Name))}}
 	if err != nil {
-		return nil, fmt.Errorf("field {{ upperFirst .Field}}: %w", err)
+		return nil, fmt.Errorf("field {{ upperFirst .Name}}: %w", err)
 	}
 	items = append(items, itm)
 {{end}}
@@ -341,9 +341,9 @@ func (res *{{toTypeName $typ.Name}}) ToSCParameter() (smartcontract.Parameter, e
 	)
 
 {{- range $m := $typ.Fields}}
-	prm, err = {{scTypeConverter .ExtendedType (print "res." (upperFirst .Field))}}
+	prm, err = {{scTypeConverter .ExtendedType (print "res." (upperFirst .Name))}}
 	if err != nil {
-		return smartcontract.Parameter{}, fmt.Errorf("field {{ upperFirst .Field}}: %w", err)
+		return smartcontract.Parameter{}, fmt.Errorf("field {{ upperFirst .Name}}: %w", err)
 	}
 	prms = append(prms, prm)
 {{end}}
@@ -418,7 +418,7 @@ type (
 
 		SafeMethods  []SafeMethodTmpl
 		CustomEvents []CustomEventTemplate
-		NamedTypes   []binding.ExtendedType
+		NamedTypes   []manifest.ExtendedType
 
 		IsNep11D       bool
 		IsNep11ND      bool
@@ -439,7 +439,7 @@ type (
 		binding.MethodTmpl
 		Unwrapper      string
 		ItemTo         string
-		ExtendedReturn binding.ExtendedType
+		ExtendedReturn manifest.ExtendedType
 	}
 
 	CustomEventTemplate struct {
@@ -458,7 +458,7 @@ type (
 
 		// ExtType holds the event parameter's type information provided by Manifest,
 		// i.e. simple types only.
-		ExtType binding.ExtendedType
+		ExtType manifest.ExtendedType
 	}
 )
 
@@ -565,17 +565,17 @@ func Generate(cfg binding.Config) error {
 
 	ctr.ContractTmpl = binding.TemplateFromManifest(cfg, scTypeToGo)
 	ctr = scTemplateToRPC(cfg, ctr, imports, scTypeToGo)
-	ctr.NamedTypes = make([]binding.ExtendedType, 0, len(cfg.NamedTypes))
+	ctr.NamedTypes = make([]manifest.ExtendedType, 0, len(cfg.NamedTypes))
 	for k := range cfg.NamedTypes {
 		ctr.NamedTypes = append(ctr.NamedTypes, cfg.NamedTypes[k])
 	}
-	slices.SortFunc(ctr.NamedTypes, func(a, b binding.ExtendedType) int { return cmp.Compare(a.Name, b.Name) })
+	slices.SortFunc(ctr.NamedTypes, func(a, b manifest.ExtendedType) int { return cmp.Compare(a.Name, b.Name) })
 
 	// Check resulting named types and events don't have duplicating field names.
 	for _, t := range ctr.NamedTypes {
 		fDict := make(map[string]struct{})
 		for _, n := range t.Fields {
-			name := upperFirst(n.Field)
+			name := upperFirst(n.Name)
 			if _, ok := fDict[name]; ok {
 				return fmt.Errorf("named type `%s` has two fields with identical resulting binding name `%s`", t.Name, name)
 			}
@@ -596,7 +596,7 @@ func Generate(cfg binding.Config) error {
 	var srcTemplate = template.Must(template.New("generate").Funcs(template.FuncMap{
 		"addIndent":       addIndent,
 		"etTypeConverter": etTypeConverter,
-		"etTypeToStr": func(et binding.ExtendedType) string {
+		"etTypeToStr": func(et manifest.ExtendedType) string {
 			r, _ := extendedTypeToGo(et, cfg.NamedTypes)
 			return r
 		},
@@ -666,8 +666,8 @@ func dropNep24Types(cfg binding.Config) binding.Config {
 	if royaltyInfo, ok := cfg.Types[standard.MethodRoyaltyInfo]; ok && royaltyInfo.Value != nil {
 		returnType, exists := cfg.NamedTypes[royaltyInfo.Value.Name]
 		if !exists || returnType.Fields == nil || len(returnType.Fields) != 2 ||
-			returnType.Fields[0].Base != smartcontract.Hash160Type ||
-			returnType.Fields[1].Base != smartcontract.IntegerType {
+			returnType.Fields[0].Type != smartcontract.Hash160Type ||
+			returnType.Fields[1].Type != smartcontract.IntegerType {
 			return cfg
 		}
 		targetTypeName = royaltyInfo.Value.Name
@@ -690,7 +690,7 @@ func dropNep24Types(cfg binding.Config) binding.Config {
 	return cfg
 }
 
-func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.ExtendedType) (string, string) {
+func extendedTypeToGo(et manifest.ExtendedType, named map[string]manifest.ExtendedType) (string, string) {
 	switch et.Base {
 	case smartcontract.AnyType:
 		return "any", ""
@@ -723,7 +723,7 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 		return "[]any", ""
 
 	case smartcontract.MapType:
-		kt, _ := extendedTypeToGo(binding.ExtendedType{Base: et.Key}, named)
+		kt, _ := extendedTypeToGo(manifest.ExtendedType{Base: et.Key}, named)
 		var vt string
 		if et.Value != nil {
 			vt, _ = extendedTypeToGo(*et.Value, named)
@@ -740,7 +740,7 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 	}
 }
 
-func etTypeConverter(et binding.ExtendedType, v string) string {
+func etTypeConverter(et manifest.ExtendedType, v string) string {
 	switch et.Base {
 	case smartcontract.AnyType:
 		return v + ".Value(), error(nil)"
@@ -817,9 +817,9 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		return res, nil
 	}(` + v + `)`
 		}
-		return etTypeConverter(binding.ExtendedType{
+		return etTypeConverter(manifest.ExtendedType{
 			Base: smartcontract.ArrayType,
-			Value: &binding.ExtendedType{
+			Value: &manifest.ExtendedType{
 				Base: smartcontract.AnyType,
 			},
 		}, v)
@@ -834,7 +834,7 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		}
 		res := make(` + at + `)
 		for i := range m {
-			k, err := ` + addIndent(etTypeConverter(binding.ExtendedType{Base: et.Key}, "m[i].Key"), "\t\t") + `
+			k, err := ` + addIndent(etTypeConverter(manifest.ExtendedType{Base: et.Key}, "m[i].Key"), "\t\t") + `
 			if err != nil {
 				return nil, fmt.Errorf("key %d: %w", i, err)
 			}
@@ -847,10 +847,10 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		return res, nil
 	}(` + v + `)`
 		}
-		return etTypeConverter(binding.ExtendedType{
+		return etTypeConverter(manifest.ExtendedType{
 			Base: smartcontract.MapType,
 			Key:  et.Key,
-			Value: &binding.ExtendedType{
+			Value: &manifest.ExtendedType{
 				Base: smartcontract.AnyType,
 			},
 		}, v)
@@ -863,7 +863,7 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 	}
 }
 
-func goTypeConverter(et binding.ExtendedType, v string) string {
+func goTypeConverter(et manifest.ExtendedType, v string) string {
 	switch et.Base {
 	case smartcontract.AnyType:
 		return "stackitem.TryMake(" + v + ")"
@@ -902,9 +902,9 @@ func goTypeConverter(et binding.ExtendedType, v string) string {
 		return stackitem.NewArray(items), nil
 	}(` + v + `)`
 		}
-		return goTypeConverter(binding.ExtendedType{
+		return goTypeConverter(manifest.ExtendedType{
 			Base: smartcontract.ArrayType,
-			Value: &binding.ExtendedType{
+			Value: &manifest.ExtendedType{
 				Base: smartcontract.AnyType,
 			},
 		}, v)
@@ -919,7 +919,7 @@ func goTypeConverter(et binding.ExtendedType, v string) string {
 
 		var m = stackitem.NewMap()
 		for k, v := range in {
-			iKey, err := ` + goTypeConverter(binding.ExtendedType{Base: et.Key}, "k") + `
+			iKey, err := ` + goTypeConverter(manifest.ExtendedType{Base: et.Key}, "k") + `
 			if err != nil {
 				return nil, fmt.Errorf("key %v: %w", k, err)
 			}
@@ -933,10 +933,10 @@ func goTypeConverter(et binding.ExtendedType, v string) string {
 	}(` + v + `)`
 		}
 
-		return goTypeConverter(binding.ExtendedType{
+		return goTypeConverter(manifest.ExtendedType{
 			Base: smartcontract.MapType,
 			Key:  et.Key,
-			Value: &binding.ExtendedType{
+			Value: &manifest.ExtendedType{
 				Base: smartcontract.AnyType,
 			},
 		}, v)
@@ -949,7 +949,7 @@ func goTypeConverter(et binding.ExtendedType, v string) string {
 	}
 }
 
-func scTypeConverter(et binding.ExtendedType, v string) string {
+func scTypeConverter(et manifest.ExtendedType, v string) string {
 	switch et.Base {
 	case smartcontract.AnyType, smartcontract.BoolType, smartcontract.IntegerType,
 		smartcontract.ByteArrayType, smartcontract.SignatureType, smartcontract.StringType,
@@ -977,9 +977,9 @@ func scTypeConverter(et binding.ExtendedType, v string) string {
 		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 	}(` + v + `)`
 		}
-		return scTypeConverter(binding.ExtendedType{
+		return scTypeConverter(manifest.ExtendedType{
 			Base: smartcontract.ArrayType,
-			Value: &binding.ExtendedType{
+			Value: &manifest.ExtendedType{
 				Base: smartcontract.AnyType,
 			},
 		}, v)
@@ -994,7 +994,7 @@ func scTypeConverter(et binding.ExtendedType, v string) string {
 
 		var prms = make([]smartcontract.ParameterPair, 0, len(in))
 		for k, v := range in {
-			iKey, err := ` + scTypeConverter(binding.ExtendedType{Base: et.Key}, "k") + `
+			iKey, err := ` + scTypeConverter(manifest.ExtendedType{Base: et.Key}, "k") + `
 			if err != nil {
 				return smartcontract.Parameter{}, fmt.Errorf("key %v: %w", k, err)
 			}
@@ -1008,10 +1008,10 @@ func scTypeConverter(et binding.ExtendedType, v string) string {
 	}(` + v + `)`
 		}
 
-		return goTypeConverter(binding.ExtendedType{
+		return goTypeConverter(manifest.ExtendedType{
 			Base: smartcontract.MapType,
 			Key:  et.Key,
-			Value: &binding.ExtendedType{
+			Value: &manifest.ExtendedType{
 				Base: smartcontract.AnyType,
 			},
 		}, v)
@@ -1023,7 +1023,7 @@ func scTypeConverter(et binding.ExtendedType, v string) string {
 func scTypeToGo(name string, typ smartcontract.ParamType, cfg *binding.Config) (string, string) {
 	et, ok := cfg.Types[name]
 	if !ok {
-		et = binding.ExtendedType{Base: typ}
+		et = manifest.ExtendedType{Base: typ}
 	}
 	return extendedTypeToGo(et, cfg.NamedTypes)
 }
@@ -1077,11 +1077,11 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 			}
 
 			var (
-				extType binding.ExtendedType
+				extType manifest.ExtendedType
 				ok      bool
 			)
 			if extType, ok = cfg.Types[fullPName]; !ok {
-				extType = binding.ExtendedType{
+				extType = manifest.ExtendedType{
 					Base: abiEvent.Parameters[i].Type,
 				}
 				addETImports(extType, cfg.NamedTypes, imports)
@@ -1184,7 +1184,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	return ctr
 }
 
-func addETImports(et binding.ExtendedType, named map[string]binding.ExtendedType, imports map[string]struct{}) {
+func addETImports(et manifest.ExtendedType, named map[string]manifest.ExtendedType, imports map[string]struct{}) {
 	_, pkg := extendedTypeToGo(et, named)
 	if pkg != "" {
 		imports[pkg] = struct{}{}
@@ -1207,10 +1207,12 @@ func addETImports(et binding.ExtendedType, named map[string]binding.ExtendedType
 		addETImports(*et.Value, named, imports)
 	}
 	if et.Base == smartcontract.MapType {
-		addETImports(binding.ExtendedType{Base: et.Key}, named, imports)
+		addETImports(manifest.ExtendedType{Base: et.Key}, named, imports)
 	}
 	for i := range et.Fields {
-		addETImports(et.Fields[i].ExtendedType, named, imports)
+		if et.Fields[i].ExtendedType != nil {
+			addETImports(*et.Fields[i].ExtendedType, named, imports)
+		}
 	}
 }
 
