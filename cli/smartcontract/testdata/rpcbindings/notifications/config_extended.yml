@@ -26,6 +26,11 @@ events:
         extendedtype:
           base: Struct
           name: crazyStruct
+          fields:
+            - field: I
+              base: Integer
+            - field: B
+              base: Boolean
   - name: "SomeArray"
     parameters:
       - name: a
@@ -43,18 +48,6 @@ events:
         extendedtype:
           base: Struct
           name: simpleStruct
-namedtypes:
-  crazyStruct:
-    base: Struct
-    name: crazyStruct
-    fields:
-      - field: I
-        base: Integer
-      - field: B
-        base: Boolean
-  simpleStruct:
-    base: Struct
-    name: simpleStruct
-    fields:
-      - field: i
-        base: Integer
+          fields:
+            - field: i
+              base: Integer

@@ -671,8 +671,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					if id.Name != "_" {
 						if !isMapKeyCheck {
 							if len(t.Values) == 0 {
-								c.emitDefault(c.typeOf(t.Type))
+								typ := c.typeOf(t.Type)
+								c.collectNamedTypes(typ)
+								c.emitDefault(typ)
 							} else if i == 0 || !multiRet {
+								c.collectNamedTypes(c.typeOf(t.Values[i]))
 								ast.Walk(c, t.Values[i])
 							}
 						}
@@ -725,6 +728,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 		if !isAssignOp && !isMapKeyCheck {
 			for i := range n.Rhs {
+				c.collectNamedTypes(c.typeOf(n.Rhs[i]))
 				ast.Walk(c, n.Rhs[i])
 			}
 		}
@@ -972,6 +976,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		t := c.typeOf(n)
 		switch typ := t.Underlying().(type) {
 		case *types.Struct:
+			named, isNamed := t.(*types.Named)
+			if c.buildInfo.options != nil {
+				if !isNamed {
+					name := "unnamed"
+					if c.buildInfo.options.NamedTypes != nil {
+						for c.buildInfo.options.NamedTypes[name].Name == name {
+							name = name + "X"
+						}
+						_ = c.genStructExtended(typ, name, c.buildInfo.options.NamedTypes)
+					}
+				} else if !isInteropPath(named.String()) {
+					_ = c.genStructExtended(typ, named.Obj().Name(), c.buildInfo.options.NamedTypes)
+				}
+			}
 			c.convertStruct(n, false)
 		case *types.Map:
 			c.convertMap(n)
@@ -2159,6 +2177,52 @@ func (c *codegen) checkGetMapValueWithOKFlag(expr ast.Expr) bool {
 	}
 	_, ok = c.typeOf(idxExpr.X).Underlying().(*types.Map)
 	return ok
+}
+
+func (c *codegen) collectNamedTypes(t types.Type) {
+	if c.buildInfo.options == nil {
+		return
+	}
+	var (
+		seen = make(map[types.Type]bool)
+		walk func(types.Type)
+	)
+	walk = func(tt types.Type) {
+		if tt == nil || seen[tt] {
+			return
+		}
+		seen[tt] = true
+
+		switch x := tt.(type) {
+		case *types.Pointer:
+			walk(x.Elem())
+		case *types.Slice:
+			walk(x.Elem())
+		case *types.Map:
+			walk(x.Key())
+			walk(x.Elem())
+		case *types.Struct:
+			name := "unnamed"
+			if c.buildInfo.options.NamedTypes != nil {
+				for c.buildInfo.options.NamedTypes[name].Name == name {
+					name = name + "X"
+				}
+				_ = c.genStructExtended(x, name, c.buildInfo.options.NamedTypes)
+			}
+			for i := range x.NumFields() {
+				walk(x.Field(i).Type())
+			}
+		case *types.Named:
+			if typ, ok := x.Underlying().(*types.Struct); ok && !isInteropPath(x.String()) {
+				_ = c.genStructExtended(typ, x.Obj().Pkg().Path()+"."+x.Obj().Name(), c.buildInfo.options.NamedTypes)
+				for i := range typ.NumFields() {
+					walk(typ.Field(i).Type())
+				}
+			}
+		}
+	}
+
+	walk(t)
 }
 
 func (c *codegen) emitGetMapValueWithOKFlag(expr ast.Expr) {
