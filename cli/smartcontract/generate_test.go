@@ -483,7 +483,7 @@ func TestAssistedRPCBindings(t *testing.T) {
 		}
 		testName += fmt.Sprintf(", predefined hash: %t", hasDefinedHash)
 		t.Run(testName, func(t *testing.T) {
-			outFile := filepath.Join(tmpDir, "out.go")
+			outFile := filepath.Join("./testdata/rpcbindings/", "out.go")
 			if configFile == "" {
 				if len(suffix) != 0 {
 					configFile = filepath.Join(source, "config_"+suffix[0]+".yml")
