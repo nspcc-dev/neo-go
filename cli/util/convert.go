@@ -38,11 +38,6 @@ var neoFSFlags = append([]cli.Flag{
 			}
 			return nil
 		},
-	},
-	&cli.UintFlag{
-		Name:  "searchers",
-		Usage: "Number of concurrent searches for objects",
-		Value: 100,
 	}}, options.NeoFSRPC...)
 
 // NewCommands returns util commands for neo-go CLI.
@@ -216,7 +211,7 @@ func NewCommands() []*cli.Command {
 				{
 					Name:      "upload-bin",
 					Usage:     "Fetch blocks from RPC node and upload them to the NeoFS container",
-					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--batch-size <size>] [--retries <num>] [--debug]",
+					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--batch-size <size>] [--retries <num>] [--debug]",
 					Action:    uploadBin,
 					Flags:     uploadBinFlags,
 				},
