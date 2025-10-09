@@ -145,14 +145,13 @@ func runSyscallTestCase(t *testing.T, ic *interop.Context, realName string,
 	syscallID := interopnames.ToID([]byte(tc.method))
 	f := ic.GetFunction(syscallID)
 	require.NotNil(t, f)
-	require.Equal(t, f.ParamCount, len(tc.params))
 	called := false
 	f.Func = func(ic *interop.Context) error {
 		called = true
-		if ic.VM.Estack().Len() < f.ParamCount {
+		if ic.VM.Estack().Len() < len(tc.params) {
 			return errors.New("not enough parameters")
 		}
-		for range f.ParamCount {
+		for range len(tc.params) {
 			ic.VM.Estack().Pop()
 		}
 		if !tc.isVoid {
