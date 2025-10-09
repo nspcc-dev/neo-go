@@ -276,7 +276,7 @@ func restoreDB(ctx *cli.Context) error {
 	}
 
 	var buf []byte
-	if versionOrLen == block.VersionInitial {
+	if versionOrLen == block.VersionInitial || versionOrLen == block.VersionFaun {
 		// Block length > 0 => we read block version, so we have ordinary chain dump.
 		buf = binary.LittleEndian.AppendUint32(buf, allBlocks)
 		allBlocks = start

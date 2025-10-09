@@ -44,6 +44,7 @@ type Ledger interface {
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	ComputeNextBlockValidators() []*keys.PublicKey
+	IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
 	GetMillisecondsPerBlock() uint32
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	SubscribeForBlocks(ch chan *coreb.Block)
@@ -216,27 +217,24 @@ var (
 )
 
 // NewPayload creates a new consensus payload for the provided network.
-func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
+func NewPayload(m netmode.Magic) *Payload {
 	return &Payload{
 		Extensible: npayload.Extensible{
 			Category: npayload.ConsensusCategory,
-		},
-		message: message{
-			stateRootEnabled: stateRootEnabled,
 		},
 		network: m,
 	}
 }
 
 func (s *service) newPayload(c *dbft.Context[util.Uint256], t dbft.MessageType, msg any) dbft.ConsensusPayload[util.Uint256] {
-	cp := NewPayload(s.ProtocolConfiguration.Magic, s.ProtocolConfiguration.StateRootInHeader)
+	cp := NewPayload(s.ProtocolConfiguration.Magic)
 	cp.BlockIndex = c.BlockIndex
 	cp.message.ValidatorIndex = byte(c.MyIndex)
 	cp.message.ViewNumber = c.ViewNumber
 	cp.message.Type = messageType(t)
 	if pr, ok := msg.(*prepareRequest); ok {
 		pr.prevHash = s.dbft.PrevHash
-		pr.version = coreb.VersionInitial
+		pr.version = coreb.VersionInitial // TODO: ?
 	}
 	cp.payload = msg.(io.Serializable)
 
@@ -249,12 +247,14 @@ func (s *service) newPayload(c *dbft.Context[util.Uint256], t dbft.MessageType, 
 
 func (s *service) newPrepareRequest(ts uint64, nonce uint64, transactionsHashes []util.Uint256) dbft.PrepareRequest[util.Uint256] {
 	r := &prepareRequest{
+		version:           coreb.VersionInitial,
 		timestamp:         ts / nsInMs,
 		nonce:             nonce,
 		transactionHashes: transactionsHashes,
 	}
-	if s.ProtocolConfiguration.StateRootInHeader {
-		r.stateRootEnabled = true
+	var f = config.HFFaun
+	if s.Chain.IsHardforkEnabled(&f, s.dbft.BlockIndex) {
+		r.version = coreb.VersionFaun
 		if sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1); err == nil {
 			r.stateRoot = sr.Root
 		} else {
@@ -291,9 +291,7 @@ func (s *service) newRecoveryRequest(ts uint64) dbft.RecoveryRequest {
 }
 
 func (s *service) newRecoveryMessage() dbft.RecoveryMessage[util.Uint256] {
-	return &recoveryMessage{
-		stateRootEnabled: s.ProtocolConfiguration.StateRootInHeader,
-	}
+	return new(recoveryMessage)
 }
 
 // Name returns service name.
@@ -464,9 +462,6 @@ func (s *service) getKeyPair(pubs []dbft.PublicKey) (int, dbft.PrivateKey, dbft.
 func (s *service) payloadFromExtensible(ep *npayload.Extensible) *Payload {
 	return &Payload{
 		Extensible: *ep,
-		message: message{
-			stateRootEnabled: s.ProtocolConfiguration.StateRootInHeader,
-		},
 	}
 }
 
@@ -597,15 +592,27 @@ func (s *service) verifyRequest(p dbft.ConsensusPayload[util.Uint256]) error {
 	if req.prevHash != s.dbft.PrevHash {
 		return errInvalidPrevHash
 	}
-	if req.version != coreb.VersionInitial {
-		return errInvalidVersion
+	var (
+		f               = config.HFFaun
+		expectedVersion = coreb.VersionInitial
+	)
+	if s.Chain.IsHardforkEnabled(&f, s.dbft.BlockIndex) {
+		expectedVersion = coreb.VersionFaun
 	}
-	if s.ProtocolConfiguration.StateRootInHeader {
+	if req.version != expectedVersion {
+		return fmt.Errorf("%w: expected %d, got %d", errInvalidVersion, expectedVersion, req.version)
+	}
+	if req.version == coreb.VersionFaun {
 		sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
 		if err != nil {
 			return err
 		} else if sr.Root != req.stateRoot {
 			return fmt.Errorf("%w: %s != %s", errInvalidStateRoot, sr.Root, req.stateRoot)
+		}
+	} else {
+		// TODO: port this check to C# node:
+		if !req.stateRoot.Equals(util.Uint256{}) {
+			return fmt.Errorf("stateroot is not empty, but Faun is not enabled yet: %s", req.stateRoot)
 		}
 	}
 	if len(req.TransactionHashes()) > int(s.ProtocolConfiguration.MaxTransactionsPerBlock) {
@@ -756,17 +763,23 @@ func convertKeys(validators []dbft.PublicKey) (pubs []*keys.PublicKey) {
 }
 
 func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Block[util.Uint256] {
-	block := &neoBlock{network: s.ProtocolConfiguration.Magic}
+	var (
+		blockVersion = coreb.VersionInitial
+		block        = &neoBlock{network: s.ProtocolConfiguration.Magic}
+	)
 
+	hff, ok := s.ProtocolConfiguration.Hardforks[config.HFFaun.String()]
+	if ok && hff <= ctx.BlockIndex {
+		blockVersion = coreb.VersionFaun
+	}
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
 	block.Nonce = ctx.Nonce
 	block.Block.Index = ctx.BlockIndex
-	if s.ProtocolConfiguration.StateRootInHeader {
+	if blockVersion > coreb.VersionInitial {
 		sr, err := s.Chain.GetStateRoot(ctx.BlockIndex - 1)
 		if err != nil {
 			s.log.Fatal(fmt.Sprintf("failed to get state root: %s", err.Error()))
 		}
-		block.StateRootEnabled = true
 		block.PrevStateRoot = sr.Root
 	}
 
@@ -787,7 +800,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 	}
 	block.NextConsensus = hash.Hash160(script)
 	block.Block.PrevHash = ctx.PrevHash
-	block.Version = coreb.VersionInitial
+	block.Version = blockVersion
 
 	primaryIndex := byte(ctx.PrimaryIndex)
 	block.PrimaryIndex = primaryIndex

@@ -72,10 +72,9 @@ type Options struct {
 
 // cache stores cache values for the RPC client methods.
 type cache struct {
-	initDone          bool
-	network           netmode.Magic
-	stateRootInHeader bool
-	nativeHashes      map[string]util.Uint160
+	initDone     bool
+	network      netmode.Magic
+	nativeHashes map[string]util.Uint160
 }
 
 // New returns a new Client ready to use. You should call Init method to
@@ -156,7 +155,6 @@ func (c *Client) Init() error {
 	defer c.cacheLock.Unlock()
 
 	c.cache.network = version.Protocol.Network
-	c.cache.stateRootInHeader = version.Protocol.StateRootInHeader
 	for _, ctr := range natives {
 		c.cache.nativeHashes[ctr.Manifest.Name] = ctr.Hash
 	}
