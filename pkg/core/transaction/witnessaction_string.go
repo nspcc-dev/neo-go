@@ -17,8 +17,9 @@ const _WitnessAction_name = "DenyAllow"
 var _WitnessAction_index = [...]uint8{0, 4, 9}
 
 func (i WitnessAction) String() string {
-	if i >= WitnessAction(len(_WitnessAction_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_WitnessAction_index)-1 {
 		return "WitnessAction(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _WitnessAction_name[_WitnessAction_index[i]:_WitnessAction_index[i+1]]
+	return _WitnessAction_name[_WitnessAction_index[idx]:_WitnessAction_index[idx+1]]
 }
