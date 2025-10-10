@@ -21,7 +21,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -419,15 +418,13 @@ func initSmartContract(ctx *cli.Context) error {
 		SourceURL:          "http://example.com/",
 		SupportedStandards: []string{},
 		SafeMethods:        []string{},
-		Events: []compiler.HybridEvent{
+		Events: []manifest.Event{
 			{
 				Name: "Hello world!",
-				Parameters: []compiler.HybridParameter{
+				Parameters: []manifest.Parameter{
 					{
-						Parameter: manifest.Parameter{
-							Name: "args",
-							Type: smartcontract.ArrayType,
-						},
+						Name: "args",
+						Type: smartcontract.ArrayType,
 					},
 				},
 			},
@@ -760,10 +757,10 @@ type ProjectConfig struct {
 	SourceURL          string
 	SafeMethods        []string
 	SupportedStandards []string
-	Events             []compiler.HybridEvent
+	Events             []manifest.Event
 	Permissions        []permission
-	Overloads          map[string]string               `yaml:"overloads,omitempty"`
-	NamedTypes         map[string]binding.ExtendedType `yaml:"namedtypes,omitempty"`
+	Overloads          map[string]string                `yaml:"overloads,omitempty"`
+	NamedTypes         map[string]manifest.ExtendedType `yaml:"namedtypes,omitempty"`
 }
 
 func inspect(ctx *cli.Context) error {
