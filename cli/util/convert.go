@@ -100,17 +100,6 @@ func NewCommands() []*cli.Command {
 			Value:  neofs.DefaultBlockAttribute,
 			Action: cmdargs.EnsureNotEmpty("block-attribute"),
 		},
-		&cli.StringFlag{
-			Name:   "index-attribute",
-			Usage:  "Attribute key of the index object",
-			Value:  "Index",
-			Action: cmdargs.EnsureNotEmpty("index-attribute"),
-		},
-		&cli.UintFlag{
-			Name:  "index-file-size",
-			Usage: "Number of blocks OIDs in the index file",
-			Value: neofs.DefaultBatchSize,
-		},
 		&cli.BoolFlag{
 			Name:  "dry-run",
 			Usage: "If set, the command will not delete any objects, but will print the list of objects to be deleted",
@@ -118,7 +107,7 @@ func NewCommands() []*cli.Command {
 		},
 		&cli.IntFlag{
 			Name:  "skip",
-			Usage: "Number of index files to skip audit for",
+			Usage: "Number of blocks to skip audit for",
 			Value: 0,
 			Action: func(context *cli.Context, i int) error {
 				if i < 0 {
@@ -131,6 +120,7 @@ func NewCommands() []*cli.Command {
 		options.ForceTimestampLogs,
 	}, neoFSFlags...)
 	auditBinFlags = append(auditBinFlags, options.Wallet...)
+	auditBinFlags = append(auditBinFlags, options.RPC...)
 	return []*cli.Command{
 		{
 			Name:  "util",
@@ -217,15 +207,13 @@ func NewCommands() []*cli.Command {
 				},
 				{
 					Name:      "audit-bin",
-					Usage:     "Audit NeoFS container for duplicating block or index file objects",
-					UsageText: "neo-go util audit-bin -fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> [--block-attribute Block] [--index-attribute Index] [--wallet <wallet>] [--wallet-config <config>] [--address <address>] [--searchers <num>] [--retries <num>] [--debug] [--dry-run]",
+					Usage:     "Audit NeoFS container for duplicate or missing block objects",
+					UsageText: "neo-go util audit-bin -fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> [--block-attribute Block] [--wallet <wallet>] [--wallet-config <config>] [--address <address>] [--retries <num>] [--debug] [--dry-run]",
 					Action:    auditBin,
 					Flags:     auditBinFlags,
-					Description: `Searches for the duplicating index files or blocks. Logs duplicating
-   index files OIDs without removal if --dry-run is enabled. If --debug is enabled, then duplicating
-   block OIDs are also printed. Preserves index files consistency: the first index file returned by
-   SEARCH for the given height considered to be the original one, all duplicating blocks that are not
-   mentioned in this file will be removed.
+					Description: `Searches for the duplicating or missing blocks. Logs duplicating or missing
+   blocks without removal or uploading them respectively if --dry-run is enabled. If --debug is enabled, then
+   duplicating or missing block OIDs are also printed.
 `,
 				},
 				{
