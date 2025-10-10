@@ -17,8 +17,9 @@ const _OperationMode_name = "NonBlockingBlocking"
 var _OperationMode_index = [...]uint8{0, 11, 19}
 
 func (i OperationMode) String() string {
-	if i >= OperationMode(len(_OperationMode_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_OperationMode_index)-1 {
 		return "OperationMode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _OperationMode_name[_OperationMode_index[i]:_OperationMode_index[i+1]]
+	return _OperationMode_name[_OperationMode_index[idx]:_OperationMode_index[idx+1]]
 }

@@ -17,8 +17,9 @@ const _StorageSyncMode_name = "MPTBasedContractStorageBased"
 var _StorageSyncMode_index = [...]uint8{0, 8, 28}
 
 func (i StorageSyncMode) String() string {
-	if i >= StorageSyncMode(len(_StorageSyncMode_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_StorageSyncMode_index)-1 {
 		return "StorageSyncMode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _StorageSyncMode_name[_StorageSyncMode_index[i]:_StorageSyncMode_index[i+1]]
+	return _StorageSyncMode_name[_StorageSyncMode_index[idx]:_StorageSyncMode_index[idx+1]]
 }
