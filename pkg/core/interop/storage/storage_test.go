@@ -2,8 +2,11 @@ package storage_test
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -14,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -332,6 +336,52 @@ func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.C
 
 	v, context, chain := createVM(t)
 	return v, contractState, context, chain
+}
+
+func TestStorage_LocalInteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 6,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package foo
+    import (
+      "github.com/nspcc-dev/neo-go/pkg/interop/storage"
+      "github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+    )
+
+    func LocalPut() {
+      storage.LocalPut([]byte("key"), []byte("val"))
+    }
+
+    func LocalGet() any {
+      return storage.LocalGet([]byte("key"))
+    }
+
+    func LocalDelete() {
+      storage.LocalDelete([]byte("key"))
+    }
+
+    func LocalFind() bool {
+      return iterator.Next(storage.LocalFind([]byte("key"), storage.None))
+    }`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "testpolicy_contract",
+	})
+	e.DeployContract(t, ctr, nil)
+
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+	ctrInvoker.InvokeFail(t, "System.Storage.Local.Put failed: syscall not found", "localPut")
+	ctrInvoker.InvokeFail(t, "System.Storage.Local.Get failed: syscall not found", "localGet")
+	ctrInvoker.InvokeFail(t, "System.Storage.Local.Delete failed: syscall not found", "localDelete")
+	ctrInvoker.InvokeFail(t, "System.Storage.Local.Find failed: syscall not found", "localFind")
+	ctrInvoker.Invoke(t, nil, "localPut")
+	ctrInvoker.Invoke(t, stackitem.Make([]byte("val")), "localGet")
+	ctrInvoker.Invoke(t, nil, "localDelete")
+	ctrInvoker.Invoke(t, stackitem.Make(false), "localFind")
 }
 
 func TestStorage_LocalErrors(t *testing.T) {

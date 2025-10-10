@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
@@ -95,12 +97,21 @@ func TestSyscallExecution(t *testing.T) {
 		"storage.Get":                      {interopnames.SystemStorageGet, []string{sctx, b}, false},
 		"storage.GetContext":               {interopnames.SystemStorageGetContext, nil, false},
 		"storage.GetReadOnlyContext":       {interopnames.SystemStorageGetReadOnlyContext, nil, false},
+		"storage.LocalDelete":              {interopnames.SystemStorageLocalDelete, []string{b}, true},
+		"storage.LocalFind":                {interopnames.SystemStorageLocalFind, []string{b, "storage.None"}, false},
+		"storage.LocalGet":                 {interopnames.SystemStorageLocalGet, []string{b}, false},
+		"storage.LocalPut":                 {interopnames.SystemStorageLocalPut, []string{b, b}, true},
 		"storage.Put":                      {interopnames.SystemStoragePut, []string{sctx, b, b}, true},
 		"storage.ConvertContextToReadOnly": {interopnames.SystemStorageAsReadOnly, []string{sctx}, false},
 		"crypto.CheckMultisig":             {interopnames.SystemCryptoCheckMultisig, []string{pubs, sigs}, false},
 		"crypto.CheckSig":                  {interopnames.SystemCryptoCheckSig, []string{pub, sig}, false},
 	}
-	ic := &interop.Context{}
+	ic := &interop.Context{
+		Hardforks: map[string]uint32{
+			config.HFFaun.String(): 0,
+		},
+		Block: &block.Block{},
+	}
 	core.SpawnVM(ic) // set Functions field
 	for _, fs := range ic.Functions {
 		// It will be set in test and we want to fail if calling invalid syscall.
