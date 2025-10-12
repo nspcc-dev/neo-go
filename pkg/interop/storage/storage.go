@@ -78,11 +78,21 @@ func Put(ctx Context, key any, value any) {
 	neogointernal.Syscall3NoReturn("System.Storage.Put", ctx, key, value)
 }
 
+// LocalPut is similar to Put, but does not require context.
+func LocalPut(key []byte, value []byte) {
+	neogointernal.Syscall2NoReturn("System.Storage.Local.Put", key, value)
+}
+
 // Get retrieves value stored for the given key using given Context. See Put
 // documentation on possible key and value types. If the value is not present in
 // the database it returns nil. This function uses `System.Storage.Get` syscall.
 func Get(ctx Context, key any) any {
 	return neogointernal.Syscall2("System.Storage.Get", ctx, key)
+}
+
+// LocalGet is similar to Get, but does not require context.
+func LocalGet(key []byte) any {
+	return neogointernal.Syscall1("System.Storage.Local.Get", key)
 }
 
 // Delete removes key-value pair from storage by the given key using given
@@ -92,10 +102,20 @@ func Delete(ctx Context, key any) {
 	neogointernal.Syscall2NoReturn("System.Storage.Delete", ctx, key)
 }
 
+// LocalDelete is similar to Delete, but does not require context.
+func LocalDelete(key []byte) {
+	neogointernal.Syscall1NoReturn("System.Storage.Local.Delete", key)
+}
+
 // Find returns an iterator.Iterator over key-value pairs in the given Context
 // that match the given key (contain it as a prefix). See Put documentation on
 // possible key types and iterator package documentation on how to use the
 // returned value. This function uses `System.Storage.Find` syscall.
 func Find(ctx Context, key any, options FindFlags) iterator.Iterator {
 	return neogointernal.Syscall3("System.Storage.Find", ctx, key, options).(iterator.Iterator)
+}
+
+// LocalFind is similar to Find, but does not require context.
+func LocalFind(key []byte, options FindFlags) iterator.Iterator {
+	return neogointernal.Syscall2("System.Storage.Local.Find", key, options).(iterator.Iterator)
 }

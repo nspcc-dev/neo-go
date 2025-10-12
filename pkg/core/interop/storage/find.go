@@ -90,13 +90,7 @@ func (s *Iterator) Value() stackitem.Item {
 	})
 }
 
-// Find finds stored key-value pair.
-func Find(ic *interop.Context) error {
-	stcInterface := ic.VM.Estack().Pop().Value()
-	stc, ok := stcInterface.(*Context)
-	if !ok {
-		return fmt.Errorf("%T is not a storage,Context", stcInterface)
-	}
+func findWithContext(ic *interop.Context, stc *Context) error {
 	prefix := ic.VM.Estack().Pop().Bytes()
 	opts := ic.VM.Estack().Pop().BigInt().Int64()
 	if opts&^FindAll != 0 {
@@ -131,4 +125,26 @@ func Find(ic *interop.Context) error {
 	})
 
 	return nil
+}
+
+// Find finds stored key-value pair.
+func Find(ic *interop.Context) error {
+	stcInterface := ic.VM.Estack().Pop().Value()
+	stc, ok := stcInterface.(*Context)
+	if !ok {
+		return fmt.Errorf("%T is not a storage.Context", stcInterface)
+	}
+	return findWithContext(ic, stc)
+}
+
+// LocalFind is similar to Find, but does not require storage context.
+func LocalFind(ic *interop.Context) error {
+	contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
+	if err != nil {
+		return fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
+	}
+	return findWithContext(ic, &Context{
+		ID:       contract.ID,
+		ReadOnly: true,
+	})
 }
