@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -44,6 +45,12 @@ const (
 	Secp256r1Sha256    NamedCurveHash = 23
 	Secp256k1Keccak256 NamedCurveHash = 122
 	Secp256r1Keccak256 NamedCurveHash = 123
+)
+
+const (
+	FieldElementLength = 32
+	G1EncodedLength    = 64
+	PairInputLength    = 192
 )
 
 func newCrypto() *Crypto {
@@ -134,6 +141,22 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
 	md = NewMethodAndPrice(c.recoverSecp256K1, 1<<15, callflag.NoneFlag, config.HFEchidna)
 	c.AddMethod(md, desc)
+
+	desc = NewDescriptor("bn254Add", smartcontract.ByteArrayType,
+		manifest.NewParameter("input", smartcontract.ByteArrayType))
+	md = NewMethodAndPrice(c.bn254Add, 1<<19, callflag.NoneFlag, config.HFFaun)
+	c.AddMethod(md, desc)
+
+	desc = NewDescriptor("bn254Mul", smartcontract.ByteArrayType,
+		manifest.NewParameter("input", smartcontract.ByteArrayType))
+	md = NewMethodAndPrice(c.bn254Mul, 1<<19, callflag.NoneFlag, config.HFFaun)
+	c.AddMethod(md, desc)
+
+	desc = NewDescriptor("bn254Pairing", smartcontract.ByteArrayType,
+		manifest.NewParameter("input", smartcontract.ByteArrayType))
+	md = NewMethodAndPrice(c.bn254Pairing, 1<<19, callflag.NoneFlag, config.HFFaun)
+	c.AddMethod(md, desc)
+
 	return c
 }
 
@@ -276,6 +299,86 @@ func (c *Crypto) recoverSecp256K1(_ *interop.Context, args []stackitem.Item) sta
 		return stackitem.Null{}
 	}
 	return stackitem.NewByteArray(pub.SerializeCompressed())
+}
+
+func (c *Crypto) bn254Add(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	input, err := args[0].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid input argument: %w", err))
+	}
+	if len(input) != 2*G1EncodedLength {
+		panic(fmt.Errorf("invalid BN254 add input length: want %d, got %d", 2*G1EncodedLength, len(input)))
+	}
+	var res, first, second bn254.G1Affine
+	if _, err = first.SetBytes(input[:G1EncodedLength]); err != nil {
+		return stackitem.NewByteArray(make([]byte, G1EncodedLength))
+	}
+	if _, err = second.SetBytes(input[G1EncodedLength:]); err != nil {
+		return stackitem.NewByteArray(make([]byte, G1EncodedLength))
+	}
+	res.Add(&first, &second)
+	bytes := res.RawBytes()
+	return stackitem.NewByteArray(bytes[:])
+}
+
+func (c *Crypto) bn254Mul(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	input, err := args[0].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid input argument: %w", err))
+	}
+	if len(input) != G1EncodedLength+FieldElementLength {
+		panic(fmt.Errorf("invalid BN254 mul input length: want %d, got %d", G1EncodedLength+FieldElementLength, len(input)))
+	}
+	var (
+		res, basePoint bn254.G1Affine
+		scalar         fr.Element
+	)
+	if _, err = basePoint.SetBytes(input[:G1EncodedLength]); err != nil {
+		return stackitem.NewByteArray(make([]byte, G1EncodedLength))
+	}
+	scalar.SetBytes(input[G1EncodedLength:])
+	res.ScalarMultiplication(&basePoint, scalar.BigInt(new(big.Int)))
+	bytes := res.RawBytes()
+	return stackitem.NewByteArray(bytes[:])
+}
+
+func (c *Crypto) bn254Pairing(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	input, err := args[0].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid input argument: %w", err))
+	}
+	if len(input)%PairInputLength != 0 {
+		panic(errors.New("invalid BN254 pairing input length"))
+	}
+	var (
+		pairCount = len(input) / PairInputLength
+		P         = make([]bn254.G1Affine, 0, pairCount)
+		Q         = make([]bn254.G2Affine, 0, pairCount)
+		g1        bn254.G1Affine
+		g2        bn254.G2Affine
+	)
+	for i := range pairCount {
+		offset := i * PairInputLength
+		if _, err = g1.SetBytes(input[offset : offset+G1EncodedLength]); err != nil {
+			return stackitem.NewByteArray(make([]byte, FieldElementLength))
+		}
+		if _, err = g2.SetBytes(input[offset+G1EncodedLength : offset+3*G1EncodedLength]); err != nil {
+			return stackitem.NewByteArray(make([]byte, FieldElementLength))
+		}
+		if g1.IsInfinity() || g2.IsInfinity() {
+			continue
+		}
+		P = append(P, g1)
+		Q = append(Q, g2)
+	}
+	successWord := [FieldElementLength]byte{FieldElementLength - 1: 1}
+	if len(P) == 0 {
+		return stackitem.NewByteArray(successWord[:])
+	}
+	if ok, err := bn254.PairingCheck(P, Q); err != nil || !ok {
+		return stackitem.NewByteArray(make([]byte, FieldElementLength))
+	}
+	return stackitem.NewByteArray(successWord[:])
 }
 
 // koblitzSigToCanonical converts compact Secp256K1 signature representation
