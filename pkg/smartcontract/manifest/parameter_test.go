@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestParametersAreValid(t *testing.T) {
@@ -56,6 +57,90 @@ func TestParameter_FromStackItemErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			p := new(Parameter)
 			require.Error(t, p.FromStackItem(errCase))
+		})
+	}
+}
+
+func TestParameter_UnmarshalYAML(t *testing.T) {
+	testCases := []struct {
+		name        string
+		src         string
+		expected    Parameter
+		expectedErr string
+	}{
+		{
+			name:        "invalid yaml",
+			src:         `invalid`,
+			expectedErr: "cannot unmarshal",
+		},
+		{
+			name:        "invalid field type",
+			src:         `type: invalid`,
+			expectedErr: "bad parameter type",
+		},
+		{
+			name: "difficult parameter",
+			src: `
+name: p
+extendedtype:
+  base: Array
+  name: SomeStruct
+  fields:
+    - field: S
+      base: Array
+      name: InternalStruct
+      fields:
+        - name: B
+          type: Boolean
+`,
+			expectedErr: "",
+			expected: Parameter{
+				Name: "p",
+				Type: smartcontract.ArrayType, // should be set from extendedtype.base
+				ExtendedType: &ExtendedType{
+					Base: smartcontract.ArrayType,
+					Name: "SomeStruct",
+					Fields: []Parameter{
+						{
+							Name: "S",
+							Type: smartcontract.ArrayType,
+							ExtendedType: &ExtendedType{
+								Base: smartcontract.ArrayType,
+								Name: "InternalStruct",
+								Fields: []Parameter{
+									{
+										Name: "B",
+										Type: smartcontract.BoolType,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "conflicting type and extendedtype",
+			src: `
+type: Integer
+extendedtype:
+  base: String
+`,
+			expectedErr: "conflicting types",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var p Parameter
+			err := yaml.Unmarshal([]byte(tc.src), &p)
+
+			if tc.expectedErr != "" {
+				require.ErrorContains(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, p)
+			}
 		})
 	}
 }
