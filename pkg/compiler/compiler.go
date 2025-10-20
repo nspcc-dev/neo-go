@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -266,13 +265,6 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	f, di, err := CompileWithOptions(src, nil, o)
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to compile smart contract file: %w", err)
-	}
-	if o.SourceURL != "" {
-		if len(o.SourceURL) > nef.MaxSourceURLLength {
-			return nil, errors.New("too long source URL")
-		}
-		f.Source = o.SourceURL
-		f.Checksum = f.CalculateChecksum()
 	}
 	bytes, err := f.Bytes()
 	if err != nil {
