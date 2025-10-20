@@ -117,11 +117,12 @@ protocol) and `20331` (JSON-RPC server).
 
 ### Importing mainnet/testnet dump files
 
-If you want to jump-start your mainnet or testnet node with [chain archives
-provided by NGD](https://sync.ngd.network/), follow these instructions:
+If you want to jump-start your mainnet or testnet node with NEP-32 chain
+archives [provided by NGD](https://sync.ngd.network/)
+[or NeoSPCC](https://archive.fs.neo.org/), follow these instructions:
 ```
-$ wget .../chain.acc.zip # chain dump file
-$ unzip chain.acc.zip
+$ wget .../chain.acc.zip # chain dump file (not needed for NeoSPCC archives)
+$ unzip chain.acc.zip    # (not needed for NeoSPCC archives)
 $ ./bin/neo-go db restore -m -i chain.acc # for testnet use '-t' flag instead of '-m'
 ```
 
