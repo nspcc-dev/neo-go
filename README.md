@@ -45,13 +45,13 @@ provided (but smart contract compiler requires Go compiler to operate). You
 can grab it from [releases
 page](https://github.com/nspcc-dev/neo-go/releases), use a Docker image (see
 [Docker Hub](https://hub.docker.com/r/nspccdev/neo-go) for various releases of
-NeoGo, `:latest` points to the latest release) or build yourself.
+NeoGo, `latest` points to the latest release) or build yourself.
 
 ### Building
 
 Building NeoGo requires modern Go (any officially supported version, see
 [NeoSPCC Go policy](https://github.com/nspcc-dev/.github/blob/master/go.md)
-for how we manage Go updates) + and `make`:
+for how we manage Go updates) and `make`:
 
 ```
 make
