@@ -33,10 +33,8 @@ This includes, but not limited to (see documentation for more details):
 - [Oracle service](docs/oracle.md)
 - [State validation service](docs/stateroots.md)
 
-The protocol implemented here is Neo N3-compatible, however you can also find
-an implementation of the Neo Legacy protocol in the [**master-2.x**
-branch](https://github.com/nspcc-dev/neo-go/tree/master-2.x) and releases
-before 0.80.0 (**0.7X.Y** track).
+The protocol implemented is compatible with the latest C# node releases, but
+has some experimental extensions as well.
 
 # Getting started
 
