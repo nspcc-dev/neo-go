@@ -98,6 +98,11 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
+Or point NeoGo to a specific config with `--config-file` parameter like:
+```
+./bin/neo-go node --config-file ./config/protocol.mainnet.neofs.yml
+```
+
 To run a consensus/committee node, refer to [consensus
 documentation](docs/consensus.md).
 
