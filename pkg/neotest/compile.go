@@ -62,13 +62,11 @@ func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath s
 	// nef.NewFile() cares about version a lot.
 	config.Version = "neotest"
 
-	ne, di, err := compiler.CompileWithOptions(srcPath, nil, nil)
-	require.NoError(t, err)
-
 	conf, err := smartcontract.ParseContractConfig(configPath)
 	require.NoError(t, err)
 
 	o := &compiler.Options{}
+	o.SourceURL = conf.SourceURL
 	o.Name = conf.Name
 	o.ContractEvents = conf.Events
 	o.DeclaredNamedTypes = conf.NamedTypes
@@ -79,7 +77,8 @@ func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath s
 	}
 	o.SafeMethods = conf.SafeMethods
 	o.Overloads = conf.Overloads
-	o.SourceURL = conf.SourceURL
+	ne, di, err := compiler.CompileWithOptions(srcPath, nil, o)
+	require.NoError(t, err)
 	m, err := compiler.CreateManifest(di, o)
 	require.NoError(t, err)
 
