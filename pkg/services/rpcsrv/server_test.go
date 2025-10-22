@@ -1362,15 +1362,15 @@ var rpcTestCases = map[string][]rpcTestCase{
 			result: func(*executor) any {
 				return &[]result.Validator{}
 			},
-			/* preview3 doesn't return any validators until there is a vote
 			check: func(t *testing.T, e *executor, validators any) {
+				sBValidators, err := e.chain.GetNextBlockValidators()
+				require.NoError(t, err)
+
 				var expected []result.Validator
-				sBValidators := e.chain.GetStandByValidators()
 				for _, sbValidator := range sBValidators {
 					expected = append(expected, result.Validator{
 						PublicKey: *sbValidator,
-						Votes:     0,
-						Active:    true,
+						Votes:     -1,
 					})
 				}
 
@@ -1379,7 +1379,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 
 				assert.ElementsMatch(t, expected, *actual)
 			},
-			*/
 		},
 	},
 	"getversion": {

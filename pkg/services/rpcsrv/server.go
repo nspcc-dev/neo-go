@@ -2130,8 +2130,6 @@ func (s *Server) getCandidates(_ params.Params) (any, *neorpc.Error) {
 
 // getNextBlockValidators returns validators for the next block with voting status.
 func (s *Server) getNextBlockValidators(_ params.Params) (any, *neorpc.Error) {
-	var validators keys.PublicKeys
-
 	validators, err := s.chain.GetNextBlockValidators()
 	if err != nil {
 		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Can't get next block validators: %s", err.Error()))
@@ -2140,14 +2138,19 @@ func (s *Server) getNextBlockValidators(_ params.Params) (any, *neorpc.Error) {
 	if err != nil {
 		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Can't get enrollments: %s", err.Error()))
 	}
-	var res = make([]result.Validator, 0, len(validators))
-	for _, v := range enrollments {
-		if !validators.Contains(v.Key) {
-			continue
+	enrollmentVotes := make(map[keys.PublicKey]int64)
+	for _, e := range enrollments {
+		enrollmentVotes[*e.Key] = e.Votes.Int64()
+	}
+	res := make([]result.Validator, 0, len(validators))
+	for _, validator := range validators {
+		votes := int64(-1)
+		if vote, ok := enrollmentVotes[*validator]; ok {
+			votes = vote
 		}
 		res = append(res, result.Validator{
-			PublicKey: *v.Key,
-			Votes:     v.Votes.Int64(),
+			PublicKey: *validator,
+			Votes:     votes,
 		})
 	}
 	return res, nil
