@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/big"
 	"unicode/utf8"
@@ -71,21 +72,12 @@ var (
 // Copy implements NativeContractCache interface.
 func (c *ManagementCache) Copy() dao.NativeContractCache {
 	cp := &ManagementCache{
-		contracts: make(map[util.Uint160]*state.Contract),
-		nep11:     make(map[util.Uint160]struct{}),
-		nep17:     make(map[util.Uint160]struct{}),
-	}
-	// Copy the whole set of contracts is too expensive. We will create a separate map
-	// holding the same set of pointers to contracts, and in case if some contract is
-	// supposed to be changed, Management will create the copy in-place.
-	for hash, ctr := range c.contracts {
-		cp.contracts[hash] = ctr
-	}
-	for hash := range c.nep17 {
-		cp.nep17[hash] = struct{}{}
-	}
-	for hash := range c.nep11 {
-		cp.nep11[hash] = struct{}{}
+		// Copy the whole set of contracts is too expensive. We will create a separate map
+		// holding the same set of pointers to contracts, and in case if some contract is
+		// supposed to be changed, Management will create the copy in-place.
+		contracts: maps.Clone(c.contracts),
+		nep11:     maps.Clone(c.nep11),
+		nep17:     maps.Clone(c.nep17),
 	}
 	return cp
 }
