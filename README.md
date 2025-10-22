@@ -33,10 +33,8 @@ This includes, but not limited to (see documentation for more details):
 - [Oracle service](docs/oracle.md)
 - [State validation service](docs/stateroots.md)
 
-The protocol implemented here is Neo N3-compatible, however you can also find
-an implementation of the Neo Legacy protocol in the [**master-2.x**
-branch](https://github.com/nspcc-dev/neo-go/tree/master-2.x) and releases
-before 0.80.0 (**0.7X.Y** track).
+The protocol implemented is compatible with the latest C# node releases, but
+has some experimental extensions as well.
 
 # Getting started
 
@@ -47,13 +45,13 @@ provided (but smart contract compiler requires Go compiler to operate). You
 can grab it from [releases
 page](https://github.com/nspcc-dev/neo-go/releases), use a Docker image (see
 [Docker Hub](https://hub.docker.com/r/nspccdev/neo-go) for various releases of
-NeoGo, `:latest` points to the latest release) or build yourself.
+NeoGo, `latest` points to the latest release) or build yourself.
 
 ### Building
 
 Building NeoGo requires modern Go (any officially supported version, see
 [NeoSPCC Go policy](https://github.com/nspcc-dev/.github/blob/master/go.md)
-for how we manage Go updates) + and `make`:
+for how we manage Go updates) and `make`:
 
 ```
 make
@@ -100,6 +98,11 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
+Or point NeoGo to a specific config with `--config-file` parameter like:
+```
+./bin/neo-go node --config-file ./config/protocol.mainnet.neofs.yml
+```
+
 To run a consensus/committee node, refer to [consensus
 documentation](docs/consensus.md).
 
@@ -119,11 +122,12 @@ protocol) and `20331` (JSON-RPC server).
 
 ### Importing mainnet/testnet dump files
 
-If you want to jump-start your mainnet or testnet node with [chain archives
-provided by NGD](https://sync.ngd.network/), follow these instructions:
+If you want to jump-start your mainnet or testnet node with NEP-32 chain
+archives [provided by NGD](https://sync.ngd.network/)
+[or NeoSPCC](https://archive.fs.neo.org/), follow these instructions:
 ```
-$ wget .../chain.acc.zip # chain dump file
-$ unzip chain.acc.zip
+$ wget .../chain.acc.zip # chain dump file (not needed for NeoSPCC archives)
+$ unzip chain.acc.zip    # (not needed for NeoSPCC archives)
 $ ./bin/neo-go db restore -m -i chain.acc # for testnet use '-t' flag instead of '-m'
 ```
 
