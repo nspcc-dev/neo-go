@@ -3,10 +3,29 @@ package native
 import (
 	"errors"
 	"fmt"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fp"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"math/big"
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+)
+
+const (
+	// bls12FieldElementLength is EIP-2537 ABI encoding length for a single Fp element.
+	bls12FieldElementLength = fp.Bytes + 16
+	// bls12G1EncodedLength is uncompressed encoding length for an Ethereum G1 point.
+	bls12G1EncodedLength = 2 * bls12FieldElementLength
+	// bls12G2EncodedLength is uncompressed encoding length for an Ethereum G2 point.
+	bls12G2EncodedLength = 4 * bls12FieldElementLength
+	// bls12381MultiExpMaxPairs is the maximum number of (point, scalar) pairs
+	// accepted by the CryptoLib native contract method `bls12381MultiExp`.
+	bls12381MultiExpMaxPairs = 128
+	// bls12381PairingMaxPairs is the maximum number of (G1, G2) pairs
+	// accepted by the CryptoLib native contract method `bls12381PairingList`.
+	bls12381PairingMaxPairs = bls12381MultiExpMaxPairs
+	// bls12ScalarLength is encoding length for an Ethereum scalar.
+	bls12ScalarLength = fr.Bytes
 )
 
 // blsPoint is a wrapper around bls12381 point types that must be used as
