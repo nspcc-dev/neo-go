@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fp"
 	"math/big"
 
+	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
@@ -44,6 +46,17 @@ const (
 	Secp256r1Sha256    NamedCurveHash = 23
 	Secp256k1Keccak256 NamedCurveHash = 122
 	Secp256r1Keccak256 NamedCurveHash = 123
+)
+
+const (
+	Bls12FieldElementLength = 64
+	Bls12G1EncodedLength    = 2 * Bls12FieldElementLength
+
+	Bls12G2EncodedLength = 4 * Bls12FieldElementLength
+	// Bls12381MultiExpMaxPairs is the maximum number of (point, scalar) pairs
+	// accepted by the Bls12381MultiExp native contract.
+	Bls12381MultiExpMaxPairs = 128
+	Bls12381PairingMaxPairs  = Bls12381MultiExpMaxPairs
 )
 
 func newCrypto() *Crypto {
@@ -133,6 +146,11 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("messageHash", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
 	md = NewMethodAndPrice(c.recoverSecp256K1, 1<<15, callflag.NoneFlag, config.HFEchidna)
+	c.AddMethod(md, desc)
+
+	desc = NewDescriptor("bls12381MultiExp", smartcontract.InteropInterfaceType,
+		manifest.NewParameter("pairs", smartcontract.ArrayType))
+	md = NewMethodAndPrice(c.bls12381MultiExp, 1<<23, callflag.NoneFlag, config.HFFaun)
 	c.AddMethod(md, desc)
 	return c
 }
@@ -335,6 +353,228 @@ func (c *Crypto) bls12381Deserialize(_ *interop.Context, args []stackitem.Item) 
 	return stackitem.NewInterop(*p)
 }
 
+func (c *Crypto) bls12381SerializeEth(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	itm, _ := serializeEthPoint(args[0])
+	return itm
+}
+
+func (c *Crypto) bls12381DeserializeEth(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	itm, _ := deserializeEthPoint(args[0].Value().([]byte))
+	return itm
+}
+
+func serializeEthPoint(point stackitem.Item) (stackitem.Item, int) {
+	if point.Type() != stackitem.InteropT {
+		panic(fmt.Errorf("point type must be an %s, got %s", stackitem.InteropT, point.Type()))
+	}
+	p, ok := point.Value().(blsPoint)
+	if !ok {
+		panic("serialized item is not a bls12381 point")
+	}
+	var (
+		g1   *bls12381.G1Affine
+		g2   *bls12381.G2Affine
+		isG2 = -1
+	)
+	switch p := p.point.(type) {
+	case *bls12381.G1Affine:
+		g1 = p
+	case *bls12381.G1Jac:
+		g1 = new(bls12381.G1Affine).FromJacobian(p)
+	case *bls12381.G2Affine:
+		g2 = p
+	case *bls12381.G2Jac:
+		g2 = new(bls12381.G2Affine).FromJacobian(p)
+	default:
+		panic("invalid point type")
+	}
+	if g1 != nil {
+		if g1.IsInfinity() {
+			return stackitem.NewByteArray(make([]byte, Bls12G1EncodedLength)), isG2
+		}
+		bytes := g1.RawBytes()
+		return stackitem.NewByteArray(toEthereum(bytes[:])), isG2
+	}
+	isG2 = 1
+	if g2.IsInfinity() {
+		return stackitem.NewByteArray(make([]byte, Bls12G2EncodedLength)), isG2
+	}
+	bytes := g2.RawBytes()
+	return stackitem.NewByteArray(toEthereum(bytes[:])), isG2
+}
+
+func deserializeEthPoint(buf []byte) (stackitem.Item, int) {
+	if l := len(buf); l != Bls12G1EncodedLength && l != Bls12G2EncodedLength {
+		panic(fmt.Errorf("ethereum point must be with length %d or %d bytes, got %d bytes", Bls12G1EncodedLength, Bls12G2EncodedLength, l))
+	}
+	var (
+		err  error
+		p    any
+		isG2 = -1
+	)
+	if len(buf) == Bls12G1EncodedLength {
+		g1 := &bls12381.G1Affine{}
+		_, err = g1.SetBytes(fromEthereum(buf))
+		p = g1
+	} else {
+		g2 := &bls12381.G2Affine{}
+		_, err = g2.SetBytes(fromEthereum(buf))
+		isG2 = 1
+		p = g2
+	}
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewInterop(blsPoint{point: p}), isG2
+}
+
+func (c *Crypto) bls12381SerializeEthList(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	items := args[0].Value().([]stackitem.Item)
+	if len(items) == 0 {
+		panic("require at least one element")
+	}
+	if items[0].Type() == stackitem.InteropT {
+		return serializeEthPoints(items)
+	}
+	return serializeEthPointScalarPairs(items)
+}
+
+func serializeEthPoints(points []stackitem.Item) stackitem.Item {
+	var (
+		res       = make([]stackitem.Item, 0, len(points))
+		groupType int
+	)
+	for _, p := range points {
+		itm, isG2 := serializeEthPoint(p)
+		if groupType*isG2 == 1 {
+			panic("invalid sequence of points")
+		}
+		groupType = isG2
+		res = append(res, itm)
+	}
+	return stackitem.NewArray(res)
+}
+
+func (c *Crypto) bls12381DeserializeEthPoints(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	var (
+		buf = args[0].Value().([]byte)
+		l   = len(buf)
+	)
+	if l == 0 {
+		panic("deserializer requires at least one pair")
+	}
+	if l%(Bls12G1EncodedLength+Bls12G2EncodedLength) != 0 {
+		panic(fmt.Sprintf("length must be a multiple of %d", Bls12G1EncodedLength+Bls12G2EncodedLength))
+	}
+	var (
+		i             int
+		res           = make([]stackitem.Item, 0, l/(Bls12G1EncodedLength+Bls12G2EncodedLength))
+		currPointSize = Bls12G1EncodedLength
+	)
+	for i < l {
+		itm, isG2 := deserializeEthPoint(buf[i : i+currPointSize])
+		res = append(res, itm)
+		i += currPointSize
+		if isG2 < 0 {
+			currPointSize = Bls12G2EncodedLength
+		} else {
+			currPointSize = Bls12G1EncodedLength
+		}
+	}
+	return stackitem.NewArray(res)
+}
+
+func serializeEthPointScalarPairs(pairs []stackitem.Item) stackitem.Item {
+	var (
+		res   = make([]stackitem.Item, 0, len(pairs))
+		useG2 int
+	)
+	for _, si := range pairs {
+		if si.Type() != stackitem.ArrayT && si.Type() != stackitem.StructT {
+			panic("pair must be Array or Struct")
+		}
+		pair := si.Value().([]stackitem.Item)
+		if len(pair) != 2 {
+			panic("pair must contain point and scalar")
+		}
+		scalarLE, err := pair[1].TryBytes()
+		if err != nil {
+			panic(fmt.Errorf("can't get scalar bytes: %w", err))
+		}
+		scalarBytes := make([]byte, fr.Bytes)
+		copy(scalarBytes, scalarLE)
+		itm, isG2 := serializeEthPoint(pair[0])
+		useG2 = ensureGroupType(useG2, isG2)
+		res = append(res, stackitem.NewArray([]stackitem.Item{
+			itm,
+			stackitem.NewByteArray(scalarBytes),
+		}))
+	}
+	return stackitem.NewArray(res)
+}
+
+func deserializeEthPointScalarPairs(pairs []stackitem.Item) stackitem.Item {
+	var (
+		res   = make([]stackitem.Item, 0, len(pairs))
+		useG2 int
+	)
+	for _, si := range pairs {
+		if si.Type() != stackitem.ArrayT && si.Type() != stackitem.StructT {
+			panic("pair must be Array or Struct")
+		}
+		pair := si.Value().([]stackitem.Item)
+		if len(pair) != 2 {
+			panic("pair must contain point and scalar")
+		}
+		pointBytes, err := pair[0].TryBytes()
+		if err != nil {
+			panic(fmt.Errorf("invalid point: %w", err))
+		}
+		scalarBytes, err := pair[1].TryBytes()
+		if err != nil {
+			panic(fmt.Errorf("invalid scalar: %w", err))
+		}
+		scalar, err := scalarFromBytes(scalarBytes, false)
+		if err != nil {
+			panic(fmt.Errorf("can't get scalar from bytes: %w", err))
+		}
+		itm, isG2 := deserializeEthPoint(pointBytes)
+		useG2 = ensureGroupType(useG2, isG2)
+		res = append(res, stackitem.NewArray([]stackitem.Item{
+			itm,
+			stackitem.NewBigInteger(scalar.BigInt(new(big.Int))),
+		}))
+	}
+	return stackitem.NewArray(res)
+}
+
+func fromEthereum(data []byte) []byte {
+	var (
+		count = len(data) / Bls12FieldElementLength
+		res   = make([]byte, count*fp.Bytes)
+	)
+	for i := range count {
+		for _, b := range data[i*Bls12FieldElementLength : (i+1)*Bls12FieldElementLength-fp.Bytes] {
+			if b != 0 {
+				panic("bls12-381 field element overflow")
+			}
+		}
+		copy(res[i*fp.Bytes:(i+1)*fp.Bytes], data[(i+1)*Bls12FieldElementLength-fp.Bytes:(i+1)*Bls12FieldElementLength])
+	}
+	return res
+}
+
+func toEthereum(data []byte) []byte {
+	var (
+		count = len(data) / fp.Bytes
+		res   = make([]byte, count*Bls12FieldElementLength)
+	)
+	for i := range count {
+		copy(res[(i+1)*Bls12FieldElementLength-fp.Bytes:(i+1)*Bls12FieldElementLength], data[i*fp.Bytes:(i+1)*fp.Bytes])
+	}
+	return res
+}
+
 func (c *Crypto) bls12381Equal(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	a, okA := args[0].(*stackitem.Interop).Value().(blsPoint)
 	b, okB := args[1].(*stackitem.Interop).Value().(blsPoint)
@@ -360,6 +600,77 @@ func (c *Crypto) bls12381Add(_ *interop.Context, args []stackitem.Item) stackite
 		panic(err)
 	}
 	return stackitem.NewInterop(p)
+}
+
+func (c *Crypto) bls12381MultiExp(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	pairs := args[0].Value().([]stackitem.Item)
+	if len(pairs) == 0 {
+		panic("bls12381 multi exponent requires at least one pair")
+	}
+	if len(pairs) > Bls12381MultiExpMaxPairs {
+		panic(fmt.Sprintf("bls12381 multi exponent supports at most %d pairs", Bls12381MultiExpMaxPairs))
+	}
+	var (
+		useG2       int // 1 => use G2
+		accumulator blsPoint
+	)
+	for _, si := range pairs {
+		if si.Type() != stackitem.ArrayT && si.Type() != stackitem.StructT {
+			panic("bls12381 multi exponent pair must be Array or Struct")
+		}
+		pair := si.Value().([]stackitem.Item)
+		if len(pair) != 2 {
+			panic("bls12381 multi exponent pair must contain point and scalar")
+		}
+		if pair[0].Type() != stackitem.InteropT {
+			panic("bls12381 multi exponent requires interop points")
+		}
+		point, ok := pair[0].Value().(blsPoint)
+		if !ok {
+			panic("bls12381 multi exponent interop must contain blsPoint")
+		}
+		var isG2 int
+		switch point.point.(type) {
+		case *bls12381.G1Jac, *bls12381.G1Affine:
+			isG2 = -1
+		case *bls12381.G2Jac, *bls12381.G2Affine:
+			isG2 = 1
+		default:
+			panic("bls12381 type mismatch")
+		}
+		useG2 = ensureGroupType(useG2, isG2)
+		mulBytes, err := pair[1].TryBytes()
+		if err != nil {
+			panic(fmt.Errorf("invalid multiplier: %w", err))
+		}
+		alpha, err := scalarFromBytes(mulBytes, false)
+		if err != nil {
+			panic(err)
+		}
+		if alpha.BigInt(new(big.Int)).Sign() == 0 {
+			continue
+		}
+		res, err := blsPointMul(point, alpha.BigInt(new(big.Int)))
+		if err != nil {
+			panic(err)
+		}
+		if accumulator.point == nil {
+			accumulator.point = res.point
+		} else if accumulator, err = blsPointAdd(accumulator, res); err != nil {
+			panic(err)
+		}
+	}
+	if useG2 == 0 {
+		panic("bls12381 multi exponent requires at least one valid pair")
+	}
+	return stackitem.NewInterop(accumulator)
+}
+
+func ensureGroupType(useG2, isG2 int) int {
+	if useG2*isG2 != -1 {
+		return isG2
+	}
+	panic("can't mix groups")
 }
 
 func scalarFromBytes(bytes []byte, neg bool) (*fr.Element, error) {
@@ -420,6 +731,39 @@ func (c *Crypto) bls12381Pairing(_ *interop.Context, args []stackitem.Item) stac
 		panic(err)
 	}
 	return stackitem.NewInterop(p)
+}
+
+func (c *Crypto) bls12381PairingLst(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	var (
+		points = args[0].Value().([]stackitem.Item)
+		l      = len(points)
+	)
+	if l == 0 {
+		panic("bls12381 pairing requires at least one pair")
+	}
+	if l > Bls12381PairingMaxPairs {
+		panic(fmt.Errorf("bls12381 pairing supports at most %d pairs", Bls12381PairingMaxPairs))
+	}
+	if l%2 != 0 {
+		panic("bls12381 pairing requires an even number of elements")
+	}
+	accumulator := blsPoint{point: new(bls12381.GT).SetOne()}
+	for i := 0; i < l; i += 2 {
+		if points[i].Type() != stackitem.InteropT || points[i+1].Type() != stackitem.InteropT {
+			panic("bls12381 pairing requires interop points")
+		}
+		a, okA := points[i].(*stackitem.Interop).Value().(blsPoint)
+		b, okB := points[i+1].(*stackitem.Interop).Value().(blsPoint)
+		if !okA || !okB {
+			panic("interop must contain bls12381 point")
+		}
+		res, err := blsPointPairing(a, b)
+		if err != nil {
+			panic(fmt.Errorf("can't pair two points: %w", err))
+		}
+		accumulator, _ = blsPointAdd(accumulator, res)
+	}
+	return stackitem.NewInterop(accumulator)
 }
 
 func (c *Crypto) keccak256(_ *interop.Context, args []stackitem.Item) stackitem.Item {
