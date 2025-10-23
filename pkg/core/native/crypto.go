@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
@@ -45,6 +46,10 @@ const (
 	Secp256k1Keccak256 NamedCurveHash = 122
 	Secp256r1Keccak256 NamedCurveHash = 123
 )
+
+// Bls12381MultiExpMaxPairs is the maximum number of (point, scalar) pairs
+// accepted by the Bls12381MultiExp native contract.
+const Bls12381MultiExpMaxPairs = 128
 
 func newCrypto() *Crypto {
 	c := &Crypto{ContractMD: *interop.NewContractMD(nativenames.CryptoLib, nativeids.CryptoLib)}
@@ -133,6 +138,11 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("messageHash", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
 	md = NewMethodAndPrice(c.recoverSecp256K1, 1<<15, callflag.NoneFlag, config.HFEchidna)
+	c.AddMethod(md, desc)
+
+	desc = NewDescriptor("bls12381MultiExp", smartcontract.InteropInterfaceType,
+		manifest.NewParameter("pairs", smartcontract.ArrayType))
+	md = NewMethodAndPrice(c.bls12381MultiExp, 1<<23, callflag.NoneFlag, config.HFFaun)
 	c.AddMethod(md, desc)
 	return c
 }
@@ -360,6 +370,96 @@ func (c *Crypto) bls12381Add(_ *interop.Context, args []stackitem.Item) stackite
 		panic(err)
 	}
 	return stackitem.NewInterop(p)
+}
+
+func (c *Crypto) bls12381MultiExp(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	pairs := args[0].Value().([]stackitem.Item)
+	if len(pairs) == 0 {
+		panic("BLS12-381 multi exponent requires at least one pair")
+	}
+	if len(pairs) > Bls12381MultiExpMaxPairs {
+		panic(fmt.Sprintf("BLS12-381 multi exponent supports at most %d pairs", Bls12381MultiExpMaxPairs))
+	}
+	var (
+		useG2       int // 1 => use G2
+		accumulator blsPoint
+	)
+	for _, si := range pairs {
+		if si.Type() != stackitem.ArrayT && si.Type() != stackitem.StructT {
+			panic("BLS12-381 multi exponent pair must be Array or Struct")
+		}
+		pair := si.Value().([]stackitem.Item)
+		if len(pair) != 2 {
+			panic("BLS12-381 multi exponent pair must contain point and scalar")
+		}
+		if pair[0].Type() != stackitem.InteropT {
+			panic("BLS12-381 multi exponent requires interop points")
+		}
+		point, ok := pair[0].Value().(blsPoint)
+		if !ok {
+			panic("BLS12-381 multi exponent interop must contain blsPoint")
+		}
+		switch point.point.(type) {
+		case *bls12381.G1Jac, *bls12381.G1Affine:
+			useG2 = ensureGroupType(useG2, -1)
+		case *bls12381.G2Jac, *bls12381.G2Affine:
+			useG2 = ensureGroupType(useG2, 1)
+		default:
+			panic("BLS12-381 type mismatch")
+		}
+		scalar, err := parseScalar(pair[1])
+		if err != nil {
+			panic(err)
+		}
+		if scalar.BigInt(new(big.Int)).Sign() == 0 {
+			continue
+		}
+		res, err := blsPointMul(point, scalar.BigInt(new(big.Int)))
+		if err != nil {
+			panic(err)
+		}
+		if accumulator.point == nil {
+			accumulator.point = res.point
+		} else if accumulator, err = blsPointAdd(accumulator, res); err != nil {
+			panic(err)
+		}
+	}
+	if useG2 == 0 {
+		panic("BLS12-381 multi exponent requires at least one valid pair")
+	}
+	return stackitem.NewInterop(accumulator)
+}
+
+func ensureGroupType(useG2, isG2 int) int {
+	if useG2 == 0 {
+		return isG2
+	}
+	if useG2 != isG2 {
+		panic("BLS12-381 multi exponent cannot mix groups")
+	}
+	return isG2
+}
+
+func parseScalar(item stackitem.Item) (*fr.Element, error) {
+	bytes, err := item.TryBytes()
+	if err != nil {
+		return nil, fmt.Errorf("invalid multiplier: %w", err)
+	}
+	l := len(bytes)
+	if l != fr.Bytes && l != 2*fr.Bytes {
+		return nil, fmt.Errorf("invalid multiplier: 32- or 64-bytes scalar is expected, got %d", l)
+	}
+	if l == fr.Bytes {
+		v, err := fr.LittleEndian.Element((*[fr.Bytes]byte)(bytes))
+		if err == nil {
+			return &v, nil
+		}
+	}
+	beBytes := make([]byte, l)
+	for i := range l {
+		beBytes[l-i-1] = bytes[i]
+	}
+	return new(fr.Element).SetBigInt(new(big.Int).SetBytes(beBytes)), nil
 }
 
 func scalarFromBytes(bytes []byte, neg bool) (*fr.Element, error) {
