@@ -371,6 +371,8 @@ func (s *Stack) MarshalJSON() ([]byte, error) {
 		data, err := stackitem.ToJSONWithTypes(items[i])
 		if err == nil {
 			arr[i] = data
+		} else if errors.Is(err, stackitem.ErrRecursive) {
+			arr[i] = []byte(`"error: circular reference"`)
 		}
 	}
 	return json.Marshal(arr)

@@ -1428,3 +1428,20 @@ func TestJump(t *testing.T) {
 	e.checkNextLine(t, fmt.Sprintf("jumped to instruction %d", jmpTo))
 	e.checkStack(t, 9)
 }
+
+func TestCircularReference_MarshalJSON(t *testing.T) {
+	e := newTestVMCLI(t)
+	e.runProg(t,
+		"loadbase64 EMNKSs8=",
+		"run",
+	)
+
+	e.checkNextLine(t, "READY: loaded 5 instructions")
+
+	d := json.NewDecoder(e.out)
+	var actual []any
+	require.NoError(t, d.Decode(&actual))
+
+	require.Len(t, actual, 1)
+	require.Equal(t, "error: circular reference", actual[0])
+}
