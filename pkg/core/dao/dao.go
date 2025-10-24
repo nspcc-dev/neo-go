@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	iocore "io"
+	"maps"
 	"math/big"
 	"sync"
 
@@ -1051,9 +1052,7 @@ func (dao *Simple) PersistSync() (int, error) {
 // It does NO checks for nativeCachePS is not nil.
 func (dao *Simple) persistNativeCache() {
 	lower := dao.nativeCachePS
-	for id, nativeCache := range dao.nativeCache {
-		lower.nativeCache[id] = nativeCache
-	}
+	maps.Copy(lower.nativeCache, dao.nativeCache)
 	dao.nativeCache = nil
 }
 

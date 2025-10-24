@@ -3,6 +3,7 @@ package oracle
 import (
 	"context"
 	"errors"
+	"maps"
 	"mime"
 	"net/http"
 	"net/url"
@@ -66,9 +67,7 @@ func (o *Oracle) AddRequests(reqs map[uint64]*state.OracleRequest) {
 
 	o.respMtx.Lock()
 	if !o.running {
-		for id, r := range reqs {
-			o.pending[id] = r
-		}
+		maps.Copy(o.pending, reqs)
 		o.respMtx.Unlock()
 		return
 	}
@@ -79,9 +78,7 @@ func (o *Oracle) AddRequests(reqs map[uint64]*state.OracleRequest) {
 	default:
 		select {
 		case old := <-o.requestMap:
-			for id, r := range old {
-				reqs[id] = r
-			}
+			maps.Copy(reqs, old)
 		default:
 		}
 		o.requestMap <- reqs
