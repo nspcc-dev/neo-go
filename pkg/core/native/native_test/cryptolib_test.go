@@ -10,8 +10,10 @@ import (
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
@@ -594,4 +596,113 @@ func TestCryptoLib_RecoverSecp256K1_EIP2098Compat(t *testing.T) {
 		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigExpanded)
 		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigCompact)
 	}
+}
+
+const (
+	Bn254G1X     = "1"
+	Bn254G1Y     = "2"
+	Bn254DoubleX = "030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3"
+	Bn254DoubleY = "15ed738c0e0a7c92e7845f96b2ae9c0a68a6a449e3538fc7ff3ebf7a5a18a2c4"
+	Bn254G2XIm   = "1800deef121f1e7641a819fe67140f7f8f87b140996fbbd1ba87fb145641f404"
+	Bn254G2XRe   = "198e9393920d483a7260bfb731fb5db382322bc5b47fbf6c80f6321231df581"
+	Bn254G2YIm   = "12c85ea5db8c6deb43baf7868f1c5341fd8ed84a82f89ed36e80b6a4a8dd22e1"
+	Bn254G2YRe   = "090689d0585ff0756c27a122072274f89d4d1c6d2f9d3af03d86c6b29b53e2b"
+)
+
+func TestCryptoLib_Bn254(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 2,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	p := e.CommitteeInvoker(nativehashes.CryptoLib)
+
+	p.InvokeFail(t, "method not found: bn254Add/1", "bn254Add", stackitem.NewByteArray([]byte{}))
+
+	input := make([]byte, 128)
+	writeBn254Field(t, Bn254G1X, input, 0)
+	writeBn254Field(t, Bn254G1Y, input, 32)
+	writeBn254Field(t, Bn254G1X, input, 64)
+	writeBn254Field(t, Bn254G1Y, input, 96)
+
+	expected := make([]byte, 64)
+	writeBn254Field(t, Bn254DoubleX, expected, 0)
+	writeBn254Field(t, Bn254DoubleY, expected, 32)
+
+	e.AddNewBlock(t)
+	p.Invoke(t, expected, "bn254Add", stackitem.NewByteArray(input))
+}
+
+func TestCryptoLib_Bn254InteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package testcryptolib
+		import "github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
+		func Bn254Add(input []byte) []byte {
+			return crypto.Bn254Add(input)
+		}
+		func Bn254Mul(input []byte) []byte {
+			return crypto.Bn254Mul(input)
+		}
+		func Bn254Pairing(input []byte) []byte {
+			return crypto.Bn254Pairing(input)
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "testcryptolib_contract",
+	})
+	e.DeployContract(t, ctr, nil)
+
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+
+	t.Run("bn254Add", func(t *testing.T) {
+		input := make([]byte, 128)
+		writeBn254Field(t, Bn254G1X, input, 0)
+		writeBn254Field(t, Bn254G1Y, input, 32)
+		writeBn254Field(t, Bn254G1X, input, 64)
+		writeBn254Field(t, Bn254G1Y, input, 96)
+
+		expected := make([]byte, 64)
+		writeBn254Field(t, Bn254DoubleX, expected, 0)
+		writeBn254Field(t, Bn254DoubleY, expected, 32)
+		ctrInvoker.Invoke(t, expected, "bn254Add", stackitem.NewByteArray(input))
+	})
+
+	t.Run("bn254Mul", func(t *testing.T) {
+		input := make([]byte, 96)
+		writeBn254Field(t, Bn254G1X, input, 0)
+		writeBn254Field(t, Bn254G1Y, input, 32)
+		writeBn254Field(t, "2", input, 64)
+
+		expected := make([]byte, 64)
+		writeBn254Field(t, Bn254DoubleX, expected, 0)
+		writeBn254Field(t, Bn254DoubleY, expected, 32)
+		ctrInvoker.Invoke(t, expected, "bn254Mul", stackitem.NewByteArray(input))
+	})
+
+	t.Run("bn254Pairing", func(t *testing.T) {
+		input := make([]byte, 192)
+		writeBn254Field(t, Bn254G1X, input, 0)
+		writeBn254Field(t, Bn254G1Y, input, 32)
+		writeBn254Field(t, Bn254G2XIm, input, 64)
+		writeBn254Field(t, Bn254G2XRe, input, 96)
+		writeBn254Field(t, Bn254G2YIm, input, 128)
+		writeBn254Field(t, Bn254G2YRe, input, 160)
+
+		ctrInvoker.Invoke(t, make([]byte, 32), "bn254Pairing", stackitem.NewByteArray(input))
+	})
+}
+
+func writeBn254Field(t *testing.T, hexStr string, buf []byte, offset int) {
+	require.LessOrEqual(t, len(hexStr), 64)
+	hexStr = strings.Repeat("0", 64-len(hexStr)) + hexStr
+	b, err := hex.DecodeString(hexStr)
+	require.NoError(t, err)
+	copy(buf[offset:offset+32], b)
 }
