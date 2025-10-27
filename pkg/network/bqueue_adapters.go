@@ -11,7 +11,7 @@ var (
 	_ = (bqueue.Queuer[*block.Block])(&chainBlockQueueAdapter{})
 )
 
-// stateSyncBlockQueueAdapter is a wrapper over StateSync module that that
+// stateSyncBlockQueueAdapter is a wrapper over StateSync module that
 // implements the [bqueue.Queuer] interface for operating with [*block.Block].
 type stateSyncBlockQueueAdapter struct {
 	stateSync StateSync
