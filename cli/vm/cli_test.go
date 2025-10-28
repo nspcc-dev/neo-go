@@ -1129,7 +1129,7 @@ func TestRunWithHistoricState(t *testing.T) {
 	e.checkNextLine(t, "READY: loaded 36 instructions")
 	e.checkStack(t, []byte{1})
 	e.checkNextLine(t, "READY: loaded 36 instructions")
-	e.checkNextLineExact(t, "Error: at instruction 31 (SYSCALL): System.Contract.Call failed: called contract 0f825b050eb8ce9eaa82993e90615025ab798016 not found: key not found\n")
+	e.checkNextLineExact(t, "Error: at instruction 31 (SYSCALL): System.Contract.Call failed: called contract fc78291ebacd4dc1d4d6a16399ccb1fac8438d93 not found: key not found\n")
 }
 
 func TestEvents(t *testing.T) {

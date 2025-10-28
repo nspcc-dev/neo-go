@@ -26,3 +26,10 @@ func TestCompileFileCashedIdentifiers(t *testing.T) {
 	contract2 := CompileFile(t, sender, srcPath, configPath2)
 	require.NotEqual(t, contract1, contract2)
 }
+
+func TestAddSourceURLToNEF(t *testing.T) {
+	srcPath := "../../internal/basicchain/testdata/test_contract.go"
+	configPath := "../../internal/basicchain/testdata/test_contract.yml"
+	ctr := CompileFile(t, util.Uint160{}, srcPath, configPath)
+	require.NotEqual(t, "", ctr.NEF.Source)
+}

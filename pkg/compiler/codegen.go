@@ -2508,6 +2508,12 @@ func codeGen(info *buildInfo) (*nef.File, *DebugInfo, error) {
 	if c.callTokens != nil {
 		f.Tokens = c.callTokens
 	}
+	if info.options != nil && info.options.SourceURL != "" {
+		if len(info.options.SourceURL) > nef.MaxSourceURLLength {
+			return nil, nil, errors.New("too long source URL")
+		}
+		f.Source = info.options.SourceURL
+	}
 	f.Checksum = f.CalculateChecksum()
 	return f, di, vm.IsScriptCorrect(buf, methods)
 }
