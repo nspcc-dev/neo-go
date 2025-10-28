@@ -1,6 +1,8 @@
 package native
 
 import (
+	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"maps"
@@ -10,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -52,6 +55,8 @@ const (
 
 	// blockedAccountPrefix is a prefix used to store blocked account.
 	blockedAccountPrefix = 15
+	// whitelistedFeeContractPrefix is a prefix used to store whitelisted contract.
+	whitelistedFeeContractPrefix = 16
 	// attributeFeePrefix is a prefix used to store attribute fee.
 	attributeFeePrefix = 20
 )
@@ -79,15 +84,24 @@ type Policy struct {
 }
 
 type PolicyCache struct {
-	execFeeFactor      uint32
-	feePerByte         int64
-	maxVerificationGas int64
-	storagePrice       uint32
-	msPerBlock         uint32
-	maxVUBIncrement    uint32
-	maxTraceableBlocks uint32
-	attributeFee       map[transaction.AttrType]uint32
-	blockedAccounts    []util.Uint160
+	execFeeFactor        uint32
+	feePerByte           int64
+	maxVerificationGas   int64
+	storagePrice         uint32
+	msPerBlock           uint32
+	maxVUBIncrement      uint32
+	maxTraceableBlocks   uint32
+	attributeFee         map[transaction.AttrType]uint32
+	blockedAccounts      []util.Uint160
+	whitelistedContracts map[whitelistedContract]int64
+}
+
+// whitelistedContract is a structure representing whitelisted contract with the
+// pre-defined execution price.
+type whitelistedContract struct {
+	hash   util.Uint160
+	method string
+	argCnt int
 }
 
 var (
@@ -106,6 +120,7 @@ func copyPolicyCache(src, dst *PolicyCache) {
 	*dst = *src
 	dst.attributeFee = maps.Clone(src.attributeFee)
 	dst.blockedAccounts = slices.Clone(src.blockedAccounts)
+	dst.whitelistedContracts = maps.Clone(src.whitelistedContracts)
 }
 
 // newPolicy returns Policy native contract.
@@ -215,6 +230,34 @@ func newPolicy() *Policy {
 	md = NewMethodAndPrice(p.getBlockedAccounts, 1<<15, callflag.ReadStates, config.HFFaun)
 	p.AddMethod(md, desc)
 
+	desc = NewDescriptor("setWhitelistFeeContract", smartcontract.VoidType,
+		manifest.NewParameter("contractHash", smartcontract.Hash160Type),
+		manifest.NewParameter("method", smartcontract.StringType),
+		manifest.NewParameter("argCount", smartcontract.IntegerType),
+		manifest.NewParameter("fixedFee", smartcontract.IntegerType))
+	md = NewMethodAndPrice(p.setWhitelistFeeContract, 1<<15, callflag.States|callflag.AllowNotify, config.HFFaun)
+	p.AddMethod(md, desc)
+
+	desc = NewDescriptor("removeWhitelistFeeContract", smartcontract.VoidType,
+		manifest.NewParameter("contractHash", smartcontract.Hash160Type),
+		manifest.NewParameter("method", smartcontract.StringType),
+		manifest.NewParameter("argCount", smartcontract.IntegerType))
+	md = NewMethodAndPrice(p.removeWhitelistFeeContract, 1<<15, callflag.States|callflag.AllowNotify, config.HFFaun)
+	p.AddMethod(md, desc)
+
+	desc = NewDescriptor("getWhitelistFeeContracts", smartcontract.InteropInterfaceType)
+	md = NewMethodAndPrice(p.getWhitelistFeeContracts, 1<<15, callflag.ReadStates, config.HFFaun)
+	p.AddMethod(md, desc)
+
+	eDesc = NewEventDescriptor("WhitelistChanged",
+		manifest.NewParameter("contract", smartcontract.Hash160Type),
+		manifest.NewParameter("method", smartcontract.StringType),
+		manifest.NewParameter("argCount", smartcontract.IntegerType),
+		manifest.NewParameter("fee", smartcontract.AnyType),
+	)
+	eMD = NewEvent(eDesc, config.HFFaun)
+	p.AddEvent(eMD)
+
 	return p
 }
 
@@ -231,12 +274,13 @@ func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 		setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
 
 		cache := &PolicyCache{
-			execFeeFactor:      defaultExecFeeFactor,
-			feePerByte:         defaultFeePerByte,
-			maxVerificationGas: defaultMaxVerificationGas,
-			storagePrice:       DefaultStoragePrice,
-			attributeFee:       map[transaction.AttrType]uint32{},
-			blockedAccounts:    make([]util.Uint160, 0),
+			execFeeFactor:        defaultExecFeeFactor,
+			feePerByte:           defaultFeePerByte,
+			maxVerificationGas:   defaultMaxVerificationGas,
+			storagePrice:         DefaultStoragePrice,
+			attributeFee:         map[transaction.AttrType]uint32{},
+			blockedAccounts:      make([]util.Uint160, 0),
+			whitelistedContracts: map[whitelistedContract]int64{},
 		}
 		ic.DAO.SetCache(p.ID, cache)
 	}
@@ -318,6 +362,38 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple, isHardforkE
 		cache.maxVUBIncrement = uint32(getIntWithKey(p.ID, d, maxVUBIncrementKey))
 		cache.msPerBlock = uint32(getIntWithKey(p.ID, d, msPerBlockKey))
 		cache.maxTraceableBlocks = uint32(getIntWithKey(p.ID, d, MaxTraceableBlocksKey))
+	}
+
+	cache.whitelistedContracts = make(map[whitelistedContract]int64)
+	var faun = config.HFFaun
+	if isHardforkEnabled(&faun, blockHeight) {
+		d.Seek(p.ID, storage.SeekRange{Prefix: []byte{whitelistedFeeContractPrefix}}, func(k, v []byte) bool {
+			if len(k) < util.Uint160Size+4+1 {
+				fErr = fmt.Errorf("unexpected whitelisted contract key length %d", len(k))
+				return false
+			}
+			h, err := util.Uint160DecodeBytesBE(k[:util.Uint160Size])
+			if err != nil {
+				fErr = fmt.Errorf("failed to decode whitelisted contract hash: %w", err)
+				return false
+			}
+			method := string(k[util.Uint160Size : len(k)-4])
+			argsCnt := int(binary.BigEndian.Uint32(k[len(k)-4:]))
+			value := bigint.FromBytes(v)
+			if value == nil {
+				fErr = fmt.Errorf("unexpected whitelisted contract fee format: key=%s, value=%s", hex.EncodeToString(k), hex.EncodeToString(v))
+				return false
+			}
+			cache.whitelistedContracts[whitelistedContract{
+				hash:   h,
+				method: method,
+				argCnt: argsCnt,
+			}] = bigint.FromBytes(v).Int64()
+			return true
+		})
+		if fErr != nil {
+			return fmt.Errorf("failed to initialize whitelisted contracts: %w", fErr)
+		}
 	}
 
 	return nil
@@ -677,6 +753,133 @@ func (p *Policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error {
 		}
 	}
 	return nil
+}
+
+// IsWhitelisted checks whether the specified contract method is whitelisted and
+// returns a non-negative execution fee if so. It always uses native cache,
+// hence cache is expected to be initialized by this moment.
+func (p *Policy) IsWhitelisted(dao *dao.Simple, hash util.Uint160, method string, argCnt int) int64 {
+	cache := dao.GetROCache(p.ID).(*PolicyCache)
+	fee, ok := cache.whitelistedContracts[whitelistedContract{
+		hash:   hash,
+		method: method,
+		argCnt: argCnt,
+	}]
+	if !ok {
+		return -1
+	}
+	return fee
+}
+
+// CleanWhitelist removes a contract with the specified hash from the list of
+// whitelisted contracts.
+func (p *Policy) CleanWhitelist(ic *interop.Context, h util.Uint160) {
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	maps.DeleteFunc(cache.whitelistedContracts, func(c whitelistedContract, _ int64) bool {
+		if c.hash.Equals(h) {
+			k := makeWhitelistedKey(c.hash, c.method, c.argCnt)
+			ic.DAO.DeleteStorageItem(p.ID, k)
+			return true
+		}
+		return false
+	})
+}
+
+func (p *Policy) removeWhitelistFeeContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	if !p.NEO.CheckCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	h := toUint160(args[0])
+	method := toString(args[1])
+	argCnt := int(toInt64(args[2]))
+	k := makeWhitelistedKey(h, method, argCnt)
+	if ic.DAO.GetStorageItem(p.ID, k) == nil {
+		panic(fmt.Errorf("whitelist for %s/%s/%d not found", h.StringLE(), method, argCnt))
+	}
+	ic.DAO.DeleteStorageItem(p.ID, k)
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	delete(cache.whitelistedContracts, whitelistedContract{
+		hash:   h,
+		method: method,
+		argCnt: argCnt,
+	})
+
+	err := ic.AddNotification(p.Hash, "WhitelistChanged", stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(h.BytesBE()),
+		stackitem.NewByteArray([]byte(method)),
+		stackitem.NewBigInteger(big.NewInt(int64(argCnt))),
+		stackitem.Null{},
+	}))
+	if err != nil {
+		panic(err)
+	}
+
+	return stackitem.Null{}
+}
+
+func (p *Policy) setWhitelistFeeContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	h := toUint160(args[0])
+	method := toString(args[1])
+	argCnt := int(toInt64(args[2]))
+	fee := toInt64(args[3])
+	if fee < 0 {
+		panic(fmt.Errorf("fee should be positive, got %d", fee))
+	}
+	if !p.NEO.CheckCommittee(ic) {
+		panic("invalid committee signature")
+	}
+
+	cs, err := ic.GetContract(h)
+	if err != nil {
+		panic(fmt.Errorf("contract %s not found: %w", h.StringLE(), err))
+	}
+	md := cs.Manifest.ABI.GetMethod(method, argCnt)
+	if md == nil {
+		panic(fmt.Errorf("contract %s: method not found: %s/%d", h.StringLE(), method, argCnt))
+	}
+
+	setIntWithKey(p.ID, ic.DAO, makeWhitelistedKey(h, method, argCnt), fee)
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	cache.whitelistedContracts[whitelistedContract{
+		hash:   h,
+		method: method,
+		argCnt: argCnt,
+	}] = fee
+
+	err = ic.AddNotification(p.Hash, "WhitelistChanged", stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(h.BytesBE()),
+		stackitem.NewByteArray([]byte(method)),
+		stackitem.NewBigInteger(big.NewInt(int64(argCnt))),
+		stackitem.NewBigInteger(big.NewInt(fee)),
+	}))
+	if err != nil {
+		panic(err)
+	}
+
+	return stackitem.Null{}
+}
+
+func (p *Policy) getWhitelistFeeContracts(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	ctx, cancel := context.WithCancel(context.Background())
+	prefix := []byte{whitelistedFeeContractPrefix}
+	seekres := ic.DAO.SeekAsync(ctx, p.ID, storage.SeekRange{Prefix: prefix})
+	opts := istorage.FindRemovePrefix | istorage.FindKeysOnly
+	item := istorage.NewIterator(seekres, prefix, int64(opts))
+	ic.RegisterCancelFunc(func() {
+		cancel()
+		for range seekres { //nolint:revive //empty-block
+		}
+	})
+	return stackitem.NewInterop(item)
+}
+
+func makeWhitelistedKey(h util.Uint160, method string, argCount int) []byte {
+	k := make([]byte, 1+util.Uint160Size+4+len(method))
+	k[0] = whitelistedFeeContractPrefix
+	copy(k[1:], h.BytesBE())
+	binary.BigEndian.PutUint32(k[1+util.Uint160Size:], uint32(argCount))
+	copy(k[1+util.Uint160Size+4:], method)
+	return k
 }
 
 // iterator provides an iterator over a slice of keys.

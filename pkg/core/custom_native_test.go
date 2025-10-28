@@ -198,10 +198,14 @@ func (p *policy) GetMaxValidUntilBlockIncrementFromCache(d *dao.Simple) uint32 {
 func (p *policy) GetAttributeFeeInternal(d *dao.Simple, attrType transaction.AttrType) int64 {
 	return 1
 }
-func (p *policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error      { return nil }
-func (p *policy) GetFeePerByteInternal(d *dao.Simple) int64                         { return 1 }
-func (p *policy) BlockAccountInternal(d *dao.Simple, hash util.Uint160) bool        { return false }
-func (p *policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool                 { return false }
+func (p *policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error { return nil }
+func (p *policy) GetFeePerByteInternal(d *dao.Simple) int64                    { return 1 }
+func (p *policy) BlockAccountInternal(d *dao.Simple, hash util.Uint160) bool   { return false }
+func (p *policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool            { return false }
+func (p *policy) IsWhitelisted(d *dao.Simple, hash util.Uint160, method string, argCnt int) int64 {
+	return -1
+}
+func (p *policy) CleanWhitelist(ic *interop.Context, hash util.Uint160)             {}
 func (p *policy) GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uint32 { return 2 }
 func (p *policy) getTimePerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewBigInteger(big.NewInt(1000))
