@@ -470,6 +470,11 @@ func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.Fi
 		return nil, errors.New("the contract reached the maximum number of updates")
 	}
 
+	err = m.Policy.CleanWhitelist(ic, oldcontract)
+	if err != nil {
+		return nil, fmt.Errorf("failed to clean whitelist for %s: %w", oldcontract.Hash.StringLE(), err)
+	}
+
 	contract = *oldcontract // Make a copy, don't ruin (potentially) cached contract.
 	// if NEF was provided, update the contract script
 	if neff != nil {
@@ -498,13 +503,17 @@ func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.Fi
 	return &contract, nil
 }
 
-// destroy is an implementation of destroy update method, it's run under
+// destroy is an implementation of the public destroy method, it's run under
 // VM protections, so it's OK for it to panic instead of returning errors.
 func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackitem.Item {
 	hash := ic.VM.GetCallingScriptHash()
-	err := m.Destroy(ic.DAO, hash)
+	cs, err := m.Destroy(ic.DAO, hash)
 	if err != nil {
 		panic(err)
+	}
+	err = m.Policy.CleanWhitelist(ic, cs)
+	if err != nil {
+		panic(fmt.Errorf("failed to clean whitelist for %s: %w", cs.Hash.StringLE(), err))
 	}
 	err = m.emitNotification(ic, contractDestroyNotificationName, hash)
 	if err != nil {
@@ -514,10 +523,10 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 }
 
 // Destroy drops the given contract from DAO along with its storage. It doesn't emit notification.
-func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
+func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
 	contract, err := GetContract(d, m.ID, hash)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	key := MakeContractKey(hash)
 	d.DeleteStorageItem(m.ID, key)
@@ -530,7 +539,7 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 	})
 	m.Policy.BlockAccountInternal(d, hash)
 	markUpdated(d, m.ID, hash, nil)
-	return nil
+	return contract, nil
 }
 
 func (m *Management) getMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {

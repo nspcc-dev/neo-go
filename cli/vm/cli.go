@@ -1160,7 +1160,7 @@ func handleRun(c *cli.Context) error {
 			breaks := v.Context().BreakPoints() // We ensure that there's a context loaded.
 			ic.ReuseVM(v)
 			v.SetGasLimit(gasLimit)
-			v.LoadNEFMethod(&cs.NEF, &cs.Manifest, util.Uint160{}, cs.Hash, callflag.All, hasRet, offset, initOff, nil)
+			v.LoadNEFMethod(&cs.NEF, &cs.Manifest, util.Uint160{}, cs.Hash, callflag.All, hasRet, offset, initOff, nil, false)
 			for _, bp := range breaks {
 				v.AddBreakPoint(bp)
 			}

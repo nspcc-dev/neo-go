@@ -202,6 +202,8 @@ func (p *policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error  
 func (p *policy) GetFeePerByteInternal(d *dao.Simple) int64                         { return 1 }
 func (p *policy) BlockAccountInternal(d *dao.Simple, hash util.Uint160) bool        { return false }
 func (p *policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool                 { return false }
+func (p *policy) WhitelistedFee(d *dao.Simple, hash util.Uint160, offset int) int64 { return -1 }
+func (p *policy) CleanWhitelist(ic *interop.Context, cs *state.Contract) error      { return nil }
 func (p *policy) GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uint32 { return 2 }
 func (p *policy) getTimePerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewBigInteger(big.NewInt(1000))
