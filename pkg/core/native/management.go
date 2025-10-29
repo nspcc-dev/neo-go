@@ -449,6 +449,7 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 		panic(err)
 	}
 	m.callDeploy(ic, contract, args[2], true)
+	m.Policy.CleanWhitelist(ic, contract.Hash)
 	err = m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
 	if err != nil {
 		panic(err)

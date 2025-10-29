@@ -64,8 +64,14 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("missing call flags for native %d `%s` operation call: %05b vs %05b",
 			version, m.MD.Name, ic.VM.Context().GetCallFlags(), reqFlags)
 	}
-	invokeFee := m.CPUFee*ic.BaseExecFee() +
-		m.StorageFee*ic.BaseStorageFee()
+	var invokeFee int64 = -1
+	if ic.IsHardforkEnabled(config.HFFaun) && ic.PolicyChecker != nil {
+		invokeFee = ic.PolicyChecker.IsWhitelisted(ic.DAO, curr, m.MD.Name, len(m.MD.Parameters))
+	}
+	if invokeFee == -1 {
+		invokeFee = m.CPUFee*ic.BaseExecFee() +
+			m.StorageFee*ic.BaseStorageFee()
+	}
 	if !ic.VM.AddGas(invokeFee) {
 		return errors.New("gas limit exceeded")
 	}

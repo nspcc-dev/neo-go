@@ -170,7 +170,9 @@ func (v *VM) GasConsumed() int64 {
 
 // AddGas consumes the specified amount of gas. It returns true if gas limit wasn't exceeded.
 func (v *VM) AddGas(gas int64) bool {
-	v.gasConsumed += gas
+	if ctx := v.Context(); ctx == nil || !ctx.sc.whitelisted {
+		v.gasConsumed += gas
+	}
 	return v.GasLimit < 0 || v.gasConsumed <= v.GasLimit
 }
 
@@ -339,14 +341,14 @@ func (v *VM) LoadScript(b []byte) {
 
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, nil)
+	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, nil, false)
 }
 
 // LoadDynamicScript loads the given script with the given flags. This script is
 // considered to be dynamic, it can either return no value at all or return
 // exactly one value.
 func (v *VM) LoadDynamicScript(b []byte, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, DynamicOnUnload)
+	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, DynamicOnUnload, false)
 }
 
 // LoadScriptWithHash is similar to the LoadScriptWithFlags method, but it also loads
@@ -356,19 +358,19 @@ func (v *VM) LoadDynamicScript(b []byte, f callflag.CallFlag) {
 // accordingly). It's up to the user of this function to make sure the script and hash match
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), hash, f, 1, 0, nil)
+	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), hash, f, 1, 0, nil, false)
 }
 
 // LoadNEFMethod allows to create a context to execute a method from the NEF
 // file with the specified caller and executing hash, call flags, return value,
 // method and _initialize offsets.
 func (v *VM) LoadNEFMethod(exe *nef.File, manifest *manifest.Manifest, caller util.Uint160, hash util.Uint160, f callflag.CallFlag,
-	hasReturn bool, methodOff int, initOff int, onContextUnload ContextUnloadCallback) {
+	hasReturn bool, methodOff int, initOff int, onContextUnload ContextUnloadCallback, whitelisted bool) {
 	var rvcount int
 	if hasReturn {
 		rvcount = 1
 	}
-	v.loadScriptWithCallingHash(exe.Script, exe, manifest, caller, hash, f, rvcount, methodOff, onContextUnload)
+	v.loadScriptWithCallingHash(exe.Script, exe, manifest, caller, hash, f, rvcount, methodOff, onContextUnload, whitelisted)
 	if initOff >= 0 {
 		v.Call(initOff)
 	}
@@ -377,7 +379,7 @@ func (v *VM) LoadNEFMethod(exe *nef.File, manifest *manifest.Manifest, caller ut
 // loadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
 func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, manifest *manifest.Manifest, caller util.Uint160,
-	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int, onContextUnload ContextUnloadCallback) {
+	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int, onContextUnload ContextUnloadCallback, whitelisted bool) {
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, rvcount, offset)
 	parent := v.Context()
@@ -395,6 +397,7 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, manifest *manife
 	ctx.sc.callingScriptHash = caller
 	ctx.sc.NEF = exe
 	ctx.sc.Manifest = manifest
+	ctx.sc.whitelisted = whitelisted
 	if v.invTree != nil {
 		curTree := v.invTree
 		if parent != nil {
@@ -633,7 +636,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 	}()
 
-	if v.getPrice != nil && ctx.ip < len(ctx.sc.prog) {
+	if v.getPrice != nil && ctx.ip < len(ctx.sc.prog) && !ctx.sc.whitelisted {
 		v.gasConsumed += v.getPrice(op, parameter)
 		if v.GasLimit >= 0 && v.gasConsumed > v.GasLimit {
 			panic("gas limit is exceeded")

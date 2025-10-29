@@ -15,11 +15,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -457,4 +459,152 @@ func TestPolicy_GetBlockedAccountsInteropAPI(t *testing.T) {
 
 	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
 	ctrInvoker.Invoke(t, []stackitem.Item{stackitem.NewBuffer(unlucky.ScriptHash().BytesBE())}, "getBlockedAccounts")
+}
+
+func TestPolicy_WhitelistContracts(t *testing.T) {
+	const faunHeight = 4
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): faunHeight,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	p := e.CommitteeInvoker(nativehashes.PolicyContract)
+
+	// Invoke before Faun should fail.
+	p.InvokeFail(t, "System.Contract.Call failed: method not found: getWhitelistFeeContracts/1", "getWhitelistFeeContracts", nativehashes.StdLib)
+	p.InvokeFail(t, "System.Contract.Call failed: method not found: setWhitelistFeeContract/4", "setWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1, 0)
+	p.InvokeFail(t, "System.Contract.Call failed: method not found: removeWhitelistFeeContract/1", "removeWhitelistFeeContract", nativehashes.StdLib)
+
+	for e.Chain.BlockHeight() < faunHeight {
+		e.AddNewBlock(t)
+	}
+
+	// Invoke at/after Faun should succeed.
+	h := p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1, 0)
+	e.CheckTxNotificationEvent(t, h, 0, state.NotificationEvent{
+		ScriptHash: nativehashes.PolicyContract,
+		Name:       "WhitelistChanged",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(nativehashes.StdLib),
+			stackitem.Make("hexEncode"),
+			stackitem.Make(1),
+			stackitem.Make(0),
+		}),
+	})
+	p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexDecode", 1, 1)
+
+	checkGetWhitelisted := func(t *testing.T, expected []stackitem.Item) {
+		for i := range len(expected) + 1 {
+			w := io.NewBufBinWriter()
+			emit.AppCall(w.BinWriter, p.Hash, "getWhitelistFeeContracts", callflag.All)
+			for range i + 1 {
+				emit.Opcodes(w.BinWriter, opcode.DUP)
+				emit.Syscall(w.BinWriter, interopnames.SystemIteratorNext)
+				emit.Opcodes(w.BinWriter, opcode.DROP) // drop the value returned from Next.
+			}
+			emit.Syscall(w.BinWriter, interopnames.SystemIteratorValue)
+			require.NoError(t, w.Err)
+			h := p.InvokeScript(t, w.Bytes(), p.Signers)
+			if i < len(expected) {
+				e.CheckHalt(t, h, expected[i])
+			} else {
+				e.CheckFault(t, h, "iterator index out of range") // ensure there are no extra elements.
+			}
+			w.Reset()
+		}
+	}
+	checkGetWhitelisted(t, []stackitem.Item{
+		stackitem.Make(append(append(nativehashes.StdLib.BytesBE(), 0, 0, 0, 1), []byte("hexDecode")...)),
+		stackitem.Make(append(append(nativehashes.StdLib.BytesBE(), 0, 0, 0, 1), []byte("hexEncode")...)),
+	})
+
+	// Set: negative fee.
+	p.InvokeFail(t, "fee should be positive", "setWhitelistFeeContract", nativehashes.StdLib, "base64Encode", 1, -1)
+
+	// Set: not signed by committee.
+	p1 := e.NewInvoker(nativehashes.PolicyContract, e.NewAccount(t))
+	p1.InvokeFail(t, "invalid committee signature", "setWhitelistFeeContract", nativehashes.StdLib, "base64Encode", 1, 0)
+
+	// Set: unknown contract.
+	p.InvokeFail(t, "not found: key not found", "setWhitelistFeeContract", util.Uint160{1, 2, 3}, "base64Encode", 1, 0)
+
+	// Set: unknown method.
+	p.InvokeFail(t, "method not found: base64Encode/8", "setWhitelistFeeContract", nativehashes.StdLib, "base64Encode", 8, 0)
+
+	// Remove: not signed by committee.
+	p1.InvokeFail(t, "invalid committee signature", "removeWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1)
+
+	// Remove: non-whitelisted.
+	p.InvokeFail(t, fmt.Sprintf("whitelist for %s/base64Encode/1 not found", nativehashes.StdLib.StringLE()), "removeWhitelistFeeContract", nativehashes.StdLib, "base64Encode", 1)
+
+	// Remove: good.
+	h = p.Invoke(t, stackitem.Null{}, "removeWhitelistFeeContract", nativehashes.StdLib, "hexDecode", 1)
+	checkGetWhitelisted(t, []stackitem.Item{
+		stackitem.Make(append(append(nativehashes.StdLib.BytesBE(), 0, 0, 0, 1), []byte("hexEncode")...)),
+	})
+	e.CheckTxNotificationEvent(t, h, 0, state.NotificationEvent{
+		ScriptHash: nativehashes.PolicyContract,
+		Name:       "WhitelistChanged",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(nativehashes.StdLib),
+			stackitem.Make("hexDecode"),
+			stackitem.Make(1),
+			stackitem.Null{},
+		}),
+	})
+}
+
+func TestPolicy_WhitelistContractsInteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package policywrapper
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+			"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+		)
+		func SetWhitelistFeeContract(contract interop.Hash160, method string, argCnt int, fee int) {
+			policy.SetWhitelistFeeContract(contract, method, argCnt, fee)
+		}
+		func RemoveWhitelistFeeContract(contract interop.Hash160, method string, argCnt int) {
+			policy.RemoveWhitelistFeeContract(contract, method, argCnt)
+		}
+		func GetWhitelistedContracts() [][]byte {
+			i := policy.GetWhitelistFeeContracts()
+			var res [][]byte
+			for iterator.Next(i) {
+				res = append(res, iterator.Value(i).([]byte))
+			}
+			return res
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "whitelisted wrapper",
+		Permissions: []manifest.Permission{
+			{
+				Methods: manifest.WildStrings{
+					Value: []string{"setWhitelistFeeContract", "removeWhitelistFeeContract", "getWhitelistedContracts"},
+				},
+			},
+		},
+	})
+	e.DeployContract(t, ctr, nil)
+
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+	ctrInvoker.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1, 0)
+	ctrInvoker.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexDecode", 1, 0)
+	ctrInvoker.Invoke(t, stackitem.Make([]stackitem.Item{
+		stackitem.NewBuffer(append(append(nativehashes.StdLib.BytesBE(), 0, 0, 0, 1), []byte("hexDecode")...)),
+		stackitem.NewBuffer(append(append(nativehashes.StdLib.BytesBE(), 0, 0, 0, 1), []byte("hexEncode")...)),
+	}), "getWhitelistedContracts")
+	ctrInvoker.Invoke(t, stackitem.Null{}, "removeWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1)
+	ctrInvoker.Invoke(t, stackitem.Make([]stackitem.Item{
+		stackitem.NewBuffer(append(append(nativehashes.StdLib.BytesBE(), 0, 0, 0, 1), []byte("hexDecode")...)),
+	}), "getWhitelistedContracts")
 }
