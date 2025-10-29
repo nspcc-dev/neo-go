@@ -41,8 +41,8 @@ type ContractReader struct {
 type Contract struct {
 	ContractReader
 	nep11.DivisibleWriter
-	NEP22Contract
-	NEP31Contract
+	nep22.Contract
+	nep31.Contract
 	actor Actor
 	hash  util.Uint160
 }
@@ -56,5 +56,5 @@ func NewReader(invoker Invoker, hash util.Uint160) *ContractReader {
 func New(actor Actor, hash util.Uint160) *Contract {
 	var nep11dt = nep11.NewDivisible(actor, hash)
 	var nep24t = nep24.NewRoyaltyReader(actor, hash)
-	return &Contract{ContractReader{nep11dt.DivisibleReader, *nep24t, actor, hash}, nep11dt.DivisibleWriter, NEP22Contract(*nep22.NewContract(actor, hash)), NEP31Contract(*nep31.NewContract(actor, hash)), actor, hash}
+	return &Contract{ContractReader{nep11dt.DivisibleReader, *nep24t, actor, hash}, nep11dt.DivisibleWriter, *nep22.NewContract(actor, hash), *nep31.NewContract(actor, hash), actor, hash}
 }

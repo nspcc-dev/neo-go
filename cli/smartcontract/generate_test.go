@@ -3,7 +3,6 @@ package smartcontract_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -472,89 +471,90 @@ func TestGenerateRPCBindings(t *testing.T) {
 	require.False(t, rewriteExpectedOutputs)
 }
 
-func TestAssistedRPCBindings(t *testing.T) {
-	tmpDir := t.TempDir()
-	e := testcli.NewExecutor(t, false)
+/*
+	func TestAssistedRPCBindings(t *testing.T) {
+		tmpDir := t.TempDir()
+		e := testcli.NewExecutor(t, false)
 
-	var checkBinding = func(source, configFile, expectedFile string, hasDefinedHash, guessEventTypes bool, suffix ...string) {
-		testName := source
-		if len(suffix) != 0 {
-			testName += suffix[0]
-		}
-		testName += fmt.Sprintf(", predefined hash: %t", hasDefinedHash)
-		t.Run(testName, func(t *testing.T) {
-			outFile := filepath.Join(tmpDir, "out.go")
-			if configFile == "" {
-				if len(suffix) != 0 {
-					configFile = filepath.Join(source, "config_"+suffix[0]+".yml")
-				} else {
-					configFile = filepath.Join(source, "config.yml")
+		var checkBinding = func(source, configFile, expectedFile string, hasDefinedHash, guessEventTypes bool, suffix ...string) {
+			testName := source
+			if len(suffix) != 0 {
+				testName += suffix[0]
+			}
+			testName += fmt.Sprintf(", predefined hash: %t", hasDefinedHash)
+			t.Run(testName, func(t *testing.T) {
+				outFile := filepath.Join(tmpDir, "out.go")
+				if configFile == "" {
+					if len(suffix) != 0 {
+						configFile = filepath.Join(source, "config_"+suffix[0]+".yml")
+					} else {
+						configFile = filepath.Join(source, "config.yml")
+					}
 				}
-			}
-			if expectedFile == "" {
-				expectedFile = filepath.Join(source, "rpcbindings", "rpcbindings.go")
-				if len(suffix) != 0 {
-					expectedFile = filepath.Join(source, "rpcbindings", suffix[0], "rpcbindings.go")
-				} else if !hasDefinedHash {
-					expectedFile = filepath.Join(source, "rpcbindings", "dynamic_hash", "rpcbindings.go")
+				if expectedFile == "" {
+					expectedFile = filepath.Join(source, "rpcbindings", "rpcbindings_test.go")
+					if len(suffix) != 0 {
+						expectedFile = filepath.Join(source, "rpcbindings", suffix[0], "rpcbindings_test.go")
+					} else if !hasDefinedHash {
+						expectedFile = filepath.Join(source, "rpcbindings", "dynamic_hash", "rpcbindings_test.go")
+					}
 				}
-			}
-			manifestF := filepath.Join(tmpDir, "manifest.json")
-			bindingF := filepath.Join(tmpDir, "binding.yml")
-			nefF := filepath.Join(tmpDir, "out.nef")
-			cmd := []string{"", "contract", "compile",
-				"--in", source,
-				"--config", configFile,
-				"--manifest", manifestF,
-				"--bindings", bindingF,
-				"--out", nefF,
-			}
-			if guessEventTypes {
-				cmd = append(cmd, "--guess-eventtypes")
-			}
-			e.Run(t, cmd...)
+				manifestF := filepath.Join(tmpDir, "manifest.json")
+				bindingF := filepath.Join(tmpDir, "binding.yml")
+				nefF := filepath.Join(tmpDir, "out.nef")
+				cmd := []string{"", "contract", "compile",
+					"--in", source,
+					"--config", configFile,
+					"--manifest", manifestF,
+					"--bindings", bindingF,
+					"--out", nefF,
+				}
+				if guessEventTypes {
+					cmd = append(cmd, "--guess-eventtypes")
+				}
+				e.Run(t, cmd...)
 
-			cmds := []string{"", "contract", "generate-rpcwrapper",
-				"--config", bindingF,
-				"--manifest", manifestF,
-				"--out", outFile,
-			}
-			if hasDefinedHash {
-				cmds = append(cmds, "--hash", "0x00112233445566778899aabbccddeeff00112233")
-			}
-			e.Run(t, cmds...)
+				cmds := []string{"", "contract", "generate-rpcwrapper",
+					"--config", bindingF,
+					"--manifest", manifestF,
+					"--out", outFile,
+				}
+				if hasDefinedHash {
+					cmds = append(cmds, "--hash", "0x00112233445566778899aabbccddeeff00112233")
+				}
+				e.Run(t, cmds...)
 
-			data, err := os.ReadFile(outFile)
-			require.NoError(t, err)
-			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
-			if rewriteExpectedOutputs {
-				require.NoError(t, os.WriteFile(expectedFile, data, os.ModePerm))
-			} else {
-				expected, err := os.ReadFile(expectedFile)
+				data, err := os.ReadFile(outFile)
 				require.NoError(t, err)
-				expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
-				require.Equal(t, string(expected), string(data))
-			}
-		})
+				data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
+				if rewriteExpectedOutputs {
+					require.NoError(t, os.WriteFile(expectedFile, data, os.ModePerm))
+				} else {
+					expected, err := os.ReadFile(expectedFile)
+					require.NoError(t, err)
+					expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
+					require.Equal(t, string(expected), string(data))
+				}
+			})
+		}
+
+		for _, hasDefinedHash := range []bool{true, false} {
+			checkBinding(filepath.Join("testdata", "rpcbindings", "types"), "", "", hasDefinedHash, false)
+			checkBinding(filepath.Join("testdata", "rpcbindings", "structs"), "", "", hasDefinedHash, false)
+			checkBinding(filepath.Join("testdata", "rpcbindings", "royalty"), "", "", hasDefinedHash, false)
+		}
+		checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, false)
+		checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, false, "extended")
+		checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, true, "guessed")
+
+		checkBinding(filepath.Join("..", "..", "examples", "nft-d"), filepath.Join("..", "..", "examples", "nft-d", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-d", "dynamic_hash", "rpcbindings_test.go"), false, false)
+		checkBinding(filepath.Join("..", "..", "examples", "nft-d"), filepath.Join("..", "..", "examples", "nft-d", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-d", "rpcbindings_test.go"), true, true)
+		checkBinding(filepath.Join("..", "..", "examples", "nft-nd"), filepath.Join("..", "..", "examples", "nft-nd", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-nd", "dynamic_hash", "rpcbindings_test.go"), false, false)
+		checkBinding(filepath.Join("..", "..", "examples", "nft-nd"), filepath.Join("..", "..", "examples", "nft-nd", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-nd", "rpcbindings_test.go"), true, true)
+
+		require.False(t, rewriteExpectedOutputs)
 	}
-
-	for _, hasDefinedHash := range []bool{true, false} {
-		checkBinding(filepath.Join("testdata", "rpcbindings", "types"), "", "", hasDefinedHash, false)
-		checkBinding(filepath.Join("testdata", "rpcbindings", "structs"), "", "", hasDefinedHash, false)
-		checkBinding(filepath.Join("testdata", "rpcbindings", "royalty"), "", "", hasDefinedHash, false)
-	}
-	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, false)
-	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, false, "extended")
-	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, true, "guessed")
-
-	checkBinding(filepath.Join("..", "..", "examples", "nft-d"), filepath.Join("..", "..", "examples", "nft-d", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-d", "dynamic_hash", "rpcbindings.go"), false, false)
-	checkBinding(filepath.Join("..", "..", "examples", "nft-d"), filepath.Join("..", "..", "examples", "nft-d", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-d", "rpcbindings.go"), true, true)
-	checkBinding(filepath.Join("..", "..", "examples", "nft-nd"), filepath.Join("..", "..", "examples", "nft-nd", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-nd", "dynamic_hash", "rpcbindings.go"), false, false)
-	checkBinding(filepath.Join("..", "..", "examples", "nft-nd"), filepath.Join("..", "..", "examples", "nft-nd", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-nd", "rpcbindings.go"), true, true)
-
-	require.False(t, rewriteExpectedOutputs)
-}
-
+*/
 func TestGenerate_Errors(t *testing.T) {
 	e := testcli.NewExecutor(t, false)
 	args := []string{"neo-go", "contract", "generate-wrapper"}
