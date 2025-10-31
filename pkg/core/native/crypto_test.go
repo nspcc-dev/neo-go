@@ -4,15 +4,18 @@ import (
 	"crypto/ed25519"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"math/big"
 	"slices"
 	"testing"
 
+	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -392,4 +395,110 @@ func TestKeccak256(t *testing.T) {
 	actual := hex.EncodeToString(data.BytesBE())
 
 	require.Equal(t, expected, actual)
+}
+
+func TestBlsMultiExp(t *testing.T) {
+	const (
+		g1Hex = "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
+		g2Hex = "93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e" +
+			"024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8"
+	)
+	g1, err := hex.DecodeString(g1Hex)
+	require.NoError(t, err)
+
+	g2, err := hex.DecodeString(g2Hex)
+	require.NoError(t, err)
+
+	crypto := newCrypto()
+
+	t.Run("multiExpG1", func(t *testing.T) {
+		var g1Point bls12381.G1Affine
+		_, err = g1Point.SetBytes(g1)
+		require.NoError(t, err)
+		one := make([]byte, fr.Bytes)
+		bigint.ToPreallocatedBytes(new(big.Int).SetUint64(1), one)
+		two := make([]byte, fr.Bytes)
+		bigint.ToPreallocatedBytes(new(big.Int).SetUint64(2), two)
+
+		pairs := stackitem.NewArray([]stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.NewInterop(blsPoint{point: &g1Point}),
+				stackitem.NewByteArray(one),
+			}),
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.NewInterop(blsPoint{point: &g1Point}),
+				stackitem.NewByteArray(two),
+			}),
+		})
+		actual, ok := crypto.bls12381MultiExp(nil, []stackitem.Item{pairs}).(*stackitem.Interop).Value().(blsPoint)
+		require.True(t, ok)
+		expected, err := blsPointMul(blsPoint{point: &g1Point}, new(big.Int).SetUint64(3))
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	})
+
+	t.Run("multiExpG2", func(t *testing.T) {
+		var g2Point bls12381.G2Affine
+		_, err = g2Point.SetBytes(g2)
+		require.NoError(t, err)
+		five := make([]byte, fr.Bytes)
+		bigint.ToPreallocatedBytes(new(big.Int).SetUint64(5), five)
+
+		pairs := stackitem.NewArray([]stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.NewInterop(blsPoint{point: &g2Point}),
+				stackitem.NewByteArray(five),
+			}),
+		})
+		actual, ok := crypto.bls12381MultiExp(nil, []stackitem.Item{pairs}).(*stackitem.Interop).Value().(blsPoint)
+		require.True(t, ok)
+		expected, err := blsPointMul(blsPoint{point: &g2Point}, new(big.Int).SetUint64(5))
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	})
+
+	t.Run("reduces scalar", func(t *testing.T) {
+		var g1Point bls12381.G1Affine
+		_, err = g1Point.SetBytes(g1)
+		require.NoError(t, err)
+		twoPlusR := make([]byte, fr.Bytes)
+		bigint.ToPreallocatedBytes(new(big.Int).Add(fr.Modulus(), big.NewInt(2)), twoPlusR)
+
+		pairs := stackitem.NewArray([]stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.NewInterop(blsPoint{point: &g1Point}),
+				stackitem.NewByteArray(twoPlusR),
+			}),
+		})
+		actual, ok := crypto.bls12381MultiExp(nil, []stackitem.Item{pairs}).(*stackitem.Interop).Value().(blsPoint)
+		require.True(t, ok)
+		expected, err := blsPointMul(blsPoint{point: &g1Point}, new(big.Int).SetUint64(2))
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	})
+
+	t.Run("empty pairs", func(t *testing.T) {
+		require.PanicsWithValue(t, "BLS12-381 multi exponent requires at least one pair", func() {
+			crypto.bls12381MultiExp(nil, []stackitem.Item{stackitem.NewArray([]stackitem.Item{})})
+		})
+	})
+	t.Run("too many pairs", func(t *testing.T) {
+		require.PanicsWithValue(t, fmt.Sprintf("BLS12-381 multi exponent supports at most %d pairs", Bls12381MultiExpMaxPairs), func() {
+			crypto.bls12381MultiExp(nil, []stackitem.Item{stackitem.NewArray(make([]stackitem.Item, Bls12381MultiExpMaxPairs+1))})
+		})
+	})
+	t.Run("invalid pair type", func(t *testing.T) {
+		require.PanicsWithValue(t, "BLS12-381 multi exponent pair must be Array or Struct", func() {
+			crypto.bls12381MultiExp(nil, []stackitem.Item{stackitem.NewArray([]stackitem.Item{
+				stackitem.NewMap(),
+			})})
+		})
+	})
+	t.Run("invalid pair length", func(t *testing.T) {
+		require.PanicsWithValue(t, "BLS12-381 multi exponent pair must contain point and scalar", func() {
+			crypto.bls12381MultiExp(nil, []stackitem.Item{stackitem.NewArray([]stackitem.Item{
+				stackitem.NewArray(nil),
+			})})
+		})
+	})
 }
