@@ -2773,7 +2773,12 @@ func (s *Server) submitNotaryRequest(ps params.Params) (any, *neorpc.Error) {
 	if err != nil {
 		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("can't decode notary payload: %s", err))
 	}
-	return getRelayResult(s.coreServer.RelayP2PNotaryRequest(r), r.FallbackTransaction.Hash())
+	res, e := getRelayResult(s.coreServer.RelayP2PNotaryRequest(r), r.FallbackTransaction.Hash())
+	if e != nil {
+		e = neorpc.WrapErrorWithData(e, fmt.Sprintf("notary request sender: %s; main tx sender: %s; script: %s; data: %s",
+			r.FallbackTransaction.Sender().StringLE(), r.MainTransaction.Signers[1].Account.StringLE(), hex.EncodeToString(r.MainTransaction.Script), e.Data))
+	}
+	return res, e
 }
 
 // getRelayResult returns successful relay result or an error.
