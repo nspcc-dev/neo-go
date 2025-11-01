@@ -4,50 +4,51 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestExtendedType_Equals(t *testing.T) {
-	crazyT := ExtendedType{
-		Base:      smartcontract.StringType,
+	crazyT := manifest.ExtendedType{
+		Type:      smartcontract.StringType,
 		Name:      "qwertyu",
 		Interface: "qwerty",
 		Key:       smartcontract.BoolType,
-		Value: &ExtendedType{
-			Base: smartcontract.IntegerType,
+		Value: &manifest.ExtendedType{
+			Type: smartcontract.IntegerType,
 		},
-		Fields: []FieldExtendedType{
+		Fields: []manifest.Parameter{
 			{
-				Field: "qwe",
-				ExtendedType: ExtendedType{
-					Base:      smartcontract.IntegerType,
+				Name: "qwe",
+				ExtendedType: &manifest.ExtendedType{
+					Type:      smartcontract.IntegerType,
 					Name:      "qwer",
 					Interface: "qw",
 					Key:       smartcontract.ArrayType,
-					Fields: []FieldExtendedType{
+					Fields: []manifest.Parameter{
 						{
-							Field: "as",
+							Name: "as",
 						},
 					},
 				},
 			},
 			{
-				Field: "asf",
-				ExtendedType: ExtendedType{
-					Base: smartcontract.BoolType,
+				Name: "asf",
+				ExtendedType: &manifest.ExtendedType{
+					Type: smartcontract.BoolType,
 				},
 			},
 			{
-				Field: "sffg",
-				ExtendedType: ExtendedType{
-					Base: smartcontract.AnyType,
+				Name: "sffg",
+				ExtendedType: &manifest.ExtendedType{
+					Type: smartcontract.AnyType,
 				},
 			},
 		},
 	}
 	tcs := map[string]struct {
-		a           *ExtendedType
-		b           *ExtendedType
+		a           *manifest.ExtendedType
+		b           *manifest.ExtendedType
 		expectedRes bool
 	}{
 		"both nil": {
@@ -57,160 +58,160 @@ func TestExtendedType_Equals(t *testing.T) {
 		},
 		"a is nil": {
 			a:           nil,
-			b:           &ExtendedType{},
+			b:           &manifest.ExtendedType{},
 			expectedRes: false,
 		},
 		"b is nil": {
-			a:           &ExtendedType{},
+			a:           &manifest.ExtendedType{},
 			b:           nil,
 			expectedRes: false,
 		},
 		"base mismatch": {
-			a: &ExtendedType{
-				Base: smartcontract.StringType,
+			a: &manifest.ExtendedType{
+				Type: smartcontract.StringType,
 			},
-			b: &ExtendedType{
-				Base: smartcontract.IntegerType,
+			b: &manifest.ExtendedType{
+				Type: smartcontract.IntegerType,
 			},
 			expectedRes: false,
 		},
 		"name mismatch": {
-			a: &ExtendedType{
-				Base: smartcontract.ArrayType,
+			a: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
 				Name: "q",
 			},
-			b: &ExtendedType{
-				Base: smartcontract.ArrayType,
+			b: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
 				Name: "w",
 			},
 			expectedRes: false,
 		},
 		"number of fields mismatch": {
-			a: &ExtendedType{
-				Base: smartcontract.ArrayType,
+			a: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
 				Name: "q",
-				Fields: []FieldExtendedType{
+				Fields: []manifest.Parameter{
 					{
-						Field:        "IntField",
-						ExtendedType: ExtendedType{Base: smartcontract.IntegerType},
+						Name:         "IntField",
+						ExtendedType: &manifest.ExtendedType{Type: smartcontract.IntegerType},
 					},
 				},
 			},
-			b: &ExtendedType{
-				Base: smartcontract.ArrayType,
+			b: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
 				Name: "w",
-				Fields: []FieldExtendedType{
+				Fields: []manifest.Parameter{
 					{
-						Field:        "IntField",
-						ExtendedType: ExtendedType{Base: smartcontract.IntegerType},
+						Name:         "IntField",
+						ExtendedType: &manifest.ExtendedType{Type: smartcontract.IntegerType},
 					},
 					{
-						Field:        "BoolField",
-						ExtendedType: ExtendedType{Base: smartcontract.BoolType},
+						Name:         "BoolField",
+						ExtendedType: &manifest.ExtendedType{Type: smartcontract.BoolType},
 					},
 				},
 			},
 			expectedRes: false,
 		},
 		"field names mismatch": {
-			a: &ExtendedType{
-				Base: smartcontract.ArrayType,
-				Fields: []FieldExtendedType{
+			a: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
+				Fields: []manifest.Parameter{
 					{
-						Field:        "IntField",
-						ExtendedType: ExtendedType{Base: smartcontract.IntegerType},
+						Name:         "IntField",
+						ExtendedType: &manifest.ExtendedType{Type: smartcontract.IntegerType},
 					},
 				},
 			},
-			b: &ExtendedType{
-				Base: smartcontract.ArrayType,
-				Fields: []FieldExtendedType{
+			b: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
+				Fields: []manifest.Parameter{
 					{
-						Field:        "BoolField",
-						ExtendedType: ExtendedType{Base: smartcontract.BoolType},
+						Name:         "BoolField",
+						ExtendedType: &manifest.ExtendedType{Type: smartcontract.BoolType},
 					},
 				},
 			},
 			expectedRes: false,
 		},
 		"field types mismatch": {
-			a: &ExtendedType{
-				Base: smartcontract.ArrayType,
-				Fields: []FieldExtendedType{
+			a: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
+				Fields: []manifest.Parameter{
 					{
-						Field:        "Field",
-						ExtendedType: ExtendedType{Base: smartcontract.IntegerType},
+						Name:         "Field",
+						ExtendedType: &manifest.ExtendedType{Type: smartcontract.IntegerType},
 					},
 				},
 			},
-			b: &ExtendedType{
-				Base: smartcontract.ArrayType,
-				Fields: []FieldExtendedType{
+			b: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
+				Fields: []manifest.Parameter{
 					{
-						Field:        "Field",
-						ExtendedType: ExtendedType{Base: smartcontract.BoolType},
+						Name:         "Field",
+						ExtendedType: &manifest.ExtendedType{Type: smartcontract.BoolType},
 					},
 				},
 			},
 			expectedRes: false,
 		},
 		"interface mismatch": {
-			a:           &ExtendedType{Interface: "iterator"},
-			b:           &ExtendedType{Interface: "unknown"},
+			a:           &manifest.ExtendedType{Interface: "iterator"},
+			b:           &manifest.ExtendedType{Interface: "unknown"},
 			expectedRes: false,
 		},
 		"value is nil": {
-			a: &ExtendedType{
-				Base: smartcontract.StringType,
+			a: &manifest.ExtendedType{
+				Type: smartcontract.StringType,
 			},
-			b: &ExtendedType{
-				Base: smartcontract.StringType,
+			b: &manifest.ExtendedType{
+				Type: smartcontract.StringType,
 			},
 			expectedRes: true,
 		},
 		"a value is not nil": {
-			a: &ExtendedType{
-				Base:  smartcontract.ArrayType,
-				Value: &ExtendedType{},
+			a: &manifest.ExtendedType{
+				Type:  smartcontract.ArrayType,
+				Value: &manifest.ExtendedType{},
 			},
-			b: &ExtendedType{
-				Base: smartcontract.ArrayType,
+			b: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
 			},
 			expectedRes: false,
 		},
 		"b value is not nil": {
-			a: &ExtendedType{
-				Base: smartcontract.ArrayType,
+			a: &manifest.ExtendedType{
+				Type: smartcontract.ArrayType,
 			},
-			b: &ExtendedType{
-				Base:  smartcontract.ArrayType,
-				Value: &ExtendedType{},
+			b: &manifest.ExtendedType{
+				Type:  smartcontract.ArrayType,
+				Value: &manifest.ExtendedType{},
 			},
 			expectedRes: false,
 		},
 		"byte array tolerance for a": {
-			a: &ExtendedType{
-				Base: smartcontract.StringType,
+			a: &manifest.ExtendedType{
+				Type: smartcontract.StringType,
 			},
-			b: &ExtendedType{
-				Base: smartcontract.ByteArrayType,
+			b: &manifest.ExtendedType{
+				Type: smartcontract.ByteArrayType,
 			},
 			expectedRes: true,
 		},
 		"byte array tolerance for b": {
-			a: &ExtendedType{
-				Base: smartcontract.ByteArrayType,
+			a: &manifest.ExtendedType{
+				Type: smartcontract.ByteArrayType,
 			},
-			b: &ExtendedType{
-				Base: smartcontract.StringType,
+			b: &manifest.ExtendedType{
+				Type: smartcontract.StringType,
 			},
 			expectedRes: true,
 		},
 		"key mismatch": {
-			a: &ExtendedType{
+			a: &manifest.ExtendedType{
 				Key: smartcontract.StringType,
 			},
-			b: &ExtendedType{
+			b: &manifest.ExtendedType{
 				Key: smartcontract.IntegerType,
 			},
 			expectedRes: false,
