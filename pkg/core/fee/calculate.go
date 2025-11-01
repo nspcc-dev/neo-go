@@ -10,7 +10,7 @@ import (
 // ECDSAVerifyPrice is a gas price of a single verification.
 const ECDSAVerifyPrice = 1 << 15
 
-// Calculate returns network fee for a transaction.
+// Calculate returns network fee for a transaction in Datoshi units.
 func Calculate(base int64, script []byte) (int64, int) {
 	var (
 		netFee int64
@@ -28,7 +28,7 @@ func Calculate(base int64, script []byte) (int64, int) {
 	} /*else {
 		// We can support more contract types in the future.
 	}*/
-	return netFee, size
+	return vm.PicoGasToDatoshi(netFee), size
 }
 
 func calculateMultisig(base int64, n int) int64 {

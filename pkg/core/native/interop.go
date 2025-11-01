@@ -66,7 +66,7 @@ func Call(ic *interop.Context) error {
 	}
 	invokeFee := m.CPUFee*ic.BaseExecFee() +
 		m.StorageFee*ic.BaseStorageFee()
-	if !ic.VM.AddGas(invokeFee) {
+	if !ic.VM.AddPicoGas(invokeFee) {
 		return errors.New("gas limit exceeded")
 	}
 	ctx := ic.VM.Context()

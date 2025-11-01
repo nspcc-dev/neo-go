@@ -72,7 +72,10 @@ type Context struct {
 	InvocationCalls  []state.ContractInvocation
 	cancelFuncs      []context.CancelFunc
 	getContract      func(*dao.Simple, util.Uint160) (*state.Contract, error)
-	baseExecFee      int64
+	// baseExecFee is a factor to multiply the cost of execution in picoGAS units.
+	baseExecFee int64
+	// baseStorageFee is a factor to multiply the cost of storing 1 byte of data
+	// in picoGAS units.
 	baseStorageFee   int64
 	loadToken        func(ic *Context, id int32) error
 	GetRandomCounter uint32
@@ -80,7 +83,8 @@ type Context struct {
 	SaveInvocations  bool
 }
 
-// NewContext returns new interop context.
+// NewContext returns new interop context. It expects baseExecFee and
+// baseStorageFee to be represented in picoGAS units.
 func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, baseStorageFee int64,
 	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
 	loadTokenFunc func(ic *Context, id int32) error,
@@ -450,12 +454,14 @@ func (ic *Context) GetFunction(id uint32) *Function {
 	return &ic.Functions[n]
 }
 
-// BaseExecFee represents factor to multiply syscall prices with.
+// BaseExecFee represents a factor to multiply syscall prices with (in picoGAS
+// units).
 func (ic *Context) BaseExecFee() int64 {
 	return ic.baseExecFee
 }
 
-// BaseStorageFee represents price for storing one byte of data in the contract storage.
+// BaseStorageFee represents a price for storing one byte of data in the
+// contract storage in picoGAS units.
 func (ic *Context) BaseStorageFee() int64 {
 	return ic.baseStorageFee
 }
@@ -476,7 +482,8 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 	if !cf.Has(f.RequiredFlags) {
 		return fmt.Errorf("missing call flags: %05b vs %05b", cf, f.RequiredFlags)
 	}
-	if !ic.VM.AddGas(f.Price * ic.BaseExecFee()) {
+	price := f.Price * ic.BaseExecFee()
+	if !ic.VM.AddPicoGas(price) {
 		return errors.New("insufficient amount of gas")
 	}
 	return f.Func(ic)
@@ -491,7 +498,7 @@ func (ic *Context) SpawnVM() *vm.VM {
 
 func (ic *Context) initVM(v *vm.VM) {
 	v.LoadToken = ic.LoadToken
-	v.GasLimit = -1
+	v.SetGasLimit(-1)
 	v.SyscallHandler = ic.SyscallHandler
 	v.SetPriceGetter(ic.GetPrice)
 	ic.VM = v

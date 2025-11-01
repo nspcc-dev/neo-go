@@ -96,7 +96,7 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin, []by
 	vm := vm.New()
 
 	storePlugin := newStoragePlugin()
-	vm.GasLimit = -1
+	vm.SetGasLimit(-1)
 	vm.SyscallHandler = storePlugin.syscallHandler
 
 	b, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
@@ -149,7 +149,7 @@ func newStoragePlugin() *storagePlugin {
 func (s *storagePlugin) syscallHandler(v *vm.VM, id uint32) error {
 	f := s.interops[id]
 	if f != nil {
-		if !v.AddGas(1) {
+		if !v.AddDatoshi(1) {
 			return errors.New("insufficient amount of gas")
 		}
 		return f(v)

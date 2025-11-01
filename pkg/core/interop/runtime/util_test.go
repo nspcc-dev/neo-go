@@ -17,15 +17,15 @@ import (
 func TestGasLeft(t *testing.T) {
 	t.Run("no limit", func(t *testing.T) {
 		ic := &interop.Context{VM: vm.New()}
-		ic.VM.GasLimit = -1
-		ic.VM.AddGas(58)
+		ic.VM.SetGasLimit(-1)
+		ic.VM.AddDatoshi(58)
 		require.NoError(t, GasLeft(ic))
 		checkStack(t, ic.VM, -1)
 	})
 	t.Run("with limit", func(t *testing.T) {
 		ic := &interop.Context{VM: vm.New()}
-		ic.VM.GasLimit = 100
-		ic.VM.AddGas(58)
+		ic.VM.SetGasLimit(100)
+		ic.VM.AddDatoshi(58)
 		require.NoError(t, GasLeft(ic))
 		checkStack(t, ic.VM, 42)
 	})

@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -60,7 +61,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 
 	// Enough for Call and other opcodes, but not enough for "transfer" call.
 	tx = e.NewUnsignedTx(t, gasHash, "transfer", validator.ScriptHash(), validator.ScriptHash(), 1, nil)
-	e.SignTx(t, tx, price-1, validator)
+	e.SignTx(t, tx, vm.PicoGasToDatoshi(price)-1, validator)
 	e.AddNewBlock(t, tx)
 	e.CheckFault(t, tx.Hash(), "gas limit exceeded")
 }

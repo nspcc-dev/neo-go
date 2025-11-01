@@ -92,6 +92,14 @@ func (c *ContractReader) GetExecFeeFactor() (int64, error) {
 	return unwrap.Int64(c.invoker.Call(Hash, "getExecFeeFactor"))
 }
 
+// GetExecPicoFeeFactor returns the current execution fee factor used by the
+// network. It differs from GetExecFeeFactor in that it returns the fee factor
+// in picoGAS units. This method is available starting from [config.HFFaun]
+// hardfork.
+func (c *ContractReader) GetExecPicoFeeFactor() (int64, error) {
+	return unwrap.Int64(c.invoker.Call(Hash, "getExecPicoFeeFactor"))
+}
+
 // GetFeePerByte returns current minimal per-byte network fee value which
 // affects all transactions on the network.
 func (c *ContractReader) GetFeePerByte() (int64, error) {
@@ -184,22 +192,27 @@ func (c *ContractReader) IsBlocked(account util.Uint160) (bool, error) {
 }
 
 // SetExecFeeFactor creates and sends a transaction that sets the new
-// execution fee factor for the network to use. The action is successful when
-// transaction ends in HALT state. The returned values are transaction hash, its
+// execution fee factor for the network to use. Note that starting from
+// [config.HFFaun] hardfork this method accepts the value in picoGAS units
+// instead of Datoshi units. The action is successful when the transaction ends
+// in the HALT state. The returned values are transaction hash, its
 // ValidUntilBlock value and an error if any.
 func (c *Contract) SetExecFeeFactor(value int64) (util.Uint256, uint32, error) {
 	return c.actor.SendCall(Hash, execFeeSetter, value)
 }
 
 // SetExecFeeFactorTransaction creates a transaction that sets the new execution
-// fee factor. This transaction is signed, but not sent to the network,
-// instead it's returned to the caller.
+// fee factor. Note that starting from [config.HFFaun] hardfork this method
+// accepts the value in picoGAS units instead of Datoshi units. This transaction
+// is signed but not sent to the network, instead it's returned to the caller.
 func (c *Contract) SetExecFeeFactorTransaction(value int64) (*transaction.Transaction, error) {
 	return c.actor.MakeCall(Hash, execFeeSetter, value)
 }
 
 // SetExecFeeFactorUnsigned creates a transaction that sets the new execution
-// fee factor. This transaction is not signed and just returned to the caller.
+// fee factor. Note that starting from [config.HFFaun] hardfork this method
+// accepts the value in picoGAS units instead of Datoshi units. This transaction
+// is not signed and just returned to the caller.
 func (c *Contract) SetExecFeeFactorUnsigned(value int64) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, execFeeSetter, nil, value)
 }
