@@ -3457,12 +3457,22 @@ func (bc *Blockchain) ManagementContractHash() util.Uint160 {
 	return nativehashes.ContractManagement
 }
 
-func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
+func (bc *Blockchain) newInteropContext(trig trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
 	baseExecFee := int64(interop.DefaultBaseExecFee)
 	if block == nil || block.Index != 0 {
 		// Use provided dao instead of Blockchain's one to fetch possible ExecFeeFactor
 		// changes that were not yet persisted to Blockchain's dao.
-		baseExecFee = bc.policy.GetExecFeeFactorInternal(d)
+		var persistingH = bc.BlockHeight() + 1
+		if block != nil {
+			persistingH = block.Index
+			if trig == trigger.OnPersist {
+				persistingH = block.Index - 1 // ExecFeeFactor decimals are changed during Faun's Policy OnPersist.
+			} else {
+				persistingH = block.Index
+			}
+		}
+		f := config.HFFaun
+		baseExecFee = bc.policy.GetExecFeeFactorInternal(d, bc.IsHardforkEnabled(&f, persistingH))
 	}
 	baseStorageFee := int64(native.DefaultStoragePrice)
 	if block == nil || block.Index != 0 {
@@ -3470,7 +3480,7 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, blo
 		// changes that were not yet persisted to Blockchain's dao.
 		baseStorageFee = bc.policy.GetStoragePriceInternal(d)
 	}
-	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, func(d *dao.Simple, h util.Uint160) (*state.Contract, error) {
+	ic := interop.NewContext(trig, bc, d, baseExecFee, baseStorageFee, func(d *dao.Simple, h util.Uint160) (*state.Contract, error) {
 		return native.GetContract(d, bc.NativeManagementID(), h)
 	}, bc.contracts.List, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
@@ -3500,7 +3510,8 @@ func (bc *Blockchain) GetBaseExecFee() int64 {
 	if bc.BlockHeight() == 0 {
 		return interop.DefaultBaseExecFee
 	}
-	return bc.policy.GetExecFeeFactorInternal(bc.dao)
+	f := config.HFFaun
+	return bc.policy.GetExecFeeFactorInternal(bc.dao, bc.IsHardforkEnabled(&f, bc.BlockHeight()))
 }
 
 // GetMaxVerificationGAS returns maximum verification GAS Policy limit.
