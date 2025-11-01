@@ -76,7 +76,7 @@ func FuzzVMDontPanic(f *testing.F) {
 		v := load(script)
 
 		// Prevent infinite loops from being reported as fail.
-		v.GasLimit = 1000
+		v.SetGasLimit(1000)
 		v.getPrice = func(opcode.Opcode, []byte) int64 {
 			return 1
 		}

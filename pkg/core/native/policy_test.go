@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +30,7 @@ func TestPolicy_ExecFeeFactor(t *testing.T) {
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := bc.GetBaseExecFee()
-		require.EqualValues(t, interop.DefaultBaseExecFee, n)
+		require.EqualValues(t, interop.DefaultBaseExecFee*vm.ExecFeeFactorMultiplier, n)
 	})
 }
 
@@ -41,7 +42,7 @@ func TestPolicy_StoragePrice(t *testing.T) {
 		e.AddNewBlock(t) // avoid default value got from Blockchain.
 
 		n := bc.GetStoragePrice()
-		require.Equal(t, int64(native.DefaultStoragePrice), n)
+		require.Equal(t, int64(native.DefaultStoragePrice)*vm.ExecFeeFactorMultiplier, n)
 	})
 }
 

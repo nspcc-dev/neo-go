@@ -57,6 +57,7 @@ func TestReader(t *testing.T) {
 
 	meth := []func() (int64, error){
 		pc.GetExecFeeFactor,
+		pc.GetExecPicoFeeFactor,
 		pc.GetFeePerByte,
 		pc.GetStoragePrice,
 		pc.GetMaxValidUntilBlockIncrement,
