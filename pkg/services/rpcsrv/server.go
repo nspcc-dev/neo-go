@@ -1274,7 +1274,7 @@ func (s *Server) invokeReadOnlyMulti(bw *io.BufBinWriter, h util.Uint160, method
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to prepare test VM: %w", err)
 	}
-	ic.VM.GasLimit = core.HeaderVerificationGasLimit
+	ic.VM.SetGasLimit(core.HeaderVerificationGasLimit)
 	ic.VM.LoadScriptWithFlags(script, callflag.All)
 	err = ic.VM.Run()
 	if err != nil {
@@ -2482,12 +2482,13 @@ func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contrac
 	if verbose {
 		ic.VM.EnableInvocationTree()
 	}
-	ic.VM.GasLimit = int64(s.config.MaxGasInvoke)
+	gasLimit := int64(s.config.MaxGasInvoke)
 	if t == trigger.Verification {
 		// We need this special case because witnesses verification is not the simple System.Contract.Call,
 		// and we need to define exactly the amount of gas consumed for a contract witness verification.
-		ic.VM.GasLimit = min(ic.VM.GasLimit, s.chain.GetMaxVerificationGAS())
+		gasLimit = min(gasLimit, s.chain.GetMaxVerificationGAS())
 	}
+	ic.VM.SetGasLimit(gasLimit)
 
 	if t == trigger.Verification && b == nil { // don't initialize verification context for contained invocations.
 		err = s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})

@@ -60,8 +60,10 @@ type (
 	// interaction with Blockchain and other native contracts.
 	IPolicy interface {
 		interop.Contract
+		// GetStoragePriceInternal returns the current storage price in picoGAS units.
 		GetStoragePriceInternal(d *dao.Simple) int64
 		GetMaxVerificationGas(d *dao.Simple) int64
+		// GetExecFeeFactorInternal returns the current execution fee factor in picoGAS units.
 		GetExecFeeFactorInternal(d *dao.Simple) int64
 		GetMaxTraceableBlocksInternal(d *dao.Simple) uint32
 		GetMillisecondsPerBlockInternal(d *dao.Simple) uint32

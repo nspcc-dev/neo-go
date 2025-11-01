@@ -2041,7 +2041,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		systemInterop.ReuseVM(v)
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
-		v.GasLimit = tx.SystemFee
+		v.SetGasLimit(tx.SystemFee)
 
 		err := systemInterop.Exec()
 		var faultException string
@@ -3380,7 +3380,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	gas = min(gas, bc.policy.GetMaxVerificationGas(interopCtx.DAO))
 
 	vm := interopCtx.SpawnVM()
-	vm.GasLimit = gas
+	vm.SetGasLimit(gas)
 	if err := bc.InitVerificationContext(interopCtx, hash, witness); err != nil {
 		return 0, err
 	}
@@ -3457,20 +3457,20 @@ func (bc *Blockchain) ManagementContractHash() util.Uint160 {
 	return nativehashes.ContractManagement
 }
 
-func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
-	baseExecFee := int64(interop.DefaultBaseExecFee)
+func (bc *Blockchain) newInteropContext(trig trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
+	baseExecFee := int64(interop.DefaultBaseExecFee) * vm.ExecFeeFactorMultiplier
 	if block == nil || block.Index != 0 {
 		// Use provided dao instead of Blockchain's one to fetch possible ExecFeeFactor
 		// changes that were not yet persisted to Blockchain's dao.
 		baseExecFee = bc.policy.GetExecFeeFactorInternal(d)
 	}
-	baseStorageFee := int64(native.DefaultStoragePrice)
+	baseStorageFee := int64(native.DefaultStoragePrice) * vm.ExecFeeFactorMultiplier
 	if block == nil || block.Index != 0 {
 		// Use provided dao instead of Blockchain's one to fetch possible StoragePrice
 		// changes that were not yet persisted to Blockchain's dao.
 		baseStorageFee = bc.policy.GetStoragePriceInternal(d)
 	}
-	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, func(d *dao.Simple, h util.Uint160) (*state.Contract, error) {
+	ic := interop.NewContext(trig, bc, d, baseExecFee, baseStorageFee, func(d *dao.Simple, h util.Uint160) (*state.Contract, error) {
 		return native.GetContract(d, bc.NativeManagementID(), h)
 	}, bc.contracts.List, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
@@ -3495,10 +3495,10 @@ func (bc *Blockchain) RegisterPostBlock(f func(func(*transaction.Transaction, *m
 	bc.postBlock = append(bc.postBlock, f)
 }
 
-// GetBaseExecFee return execution price for `NOP`.
+// GetBaseExecFee return execution price for `NOP` in picoGAS units.
 func (bc *Blockchain) GetBaseExecFee() int64 {
 	if bc.BlockHeight() == 0 {
-		return interop.DefaultBaseExecFee
+		return interop.DefaultBaseExecFee * vm.ExecFeeFactorMultiplier
 	}
 	return bc.policy.GetExecFeeFactorInternal(bc.dao)
 }
@@ -3519,10 +3519,10 @@ func (bc *Blockchain) GetMaxNotValidBeforeDelta() (uint32, error) {
 	return bc.notary.GetMaxNotValidBeforeDelta(bc.dao), nil
 }
 
-// GetStoragePrice returns current storage price.
+// GetStoragePrice returns the current storage price in the units of picoGAS.
 func (bc *Blockchain) GetStoragePrice() int64 {
 	if bc.BlockHeight() == 0 {
-		return native.DefaultStoragePrice
+		return native.DefaultStoragePrice * vm.ExecFeeFactorMultiplier
 	}
 	return bc.policy.GetStoragePriceInternal(bc.dao)
 }

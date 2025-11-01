@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -35,7 +36,7 @@ const (
 	DefaultStoragePrice = 100000
 
 	// maxExecFeeFactor is the maximum allowed execution fee factor.
-	maxExecFeeFactor = 100
+	maxExecFeeFactor uint32 = 100
 	// maxFeePerByte is the maximum allowed fee per byte value.
 	maxFeePerByte = 100_000_000
 	// maxStoragePrice is the maximum allowed price for a byte of storage.
@@ -80,6 +81,7 @@ type Policy struct {
 
 type PolicyCache struct {
 	execFeeFactor      uint32
+	faunInitialized    bool
 	feePerByte         int64
 	maxVerificationGas int64
 	storagePrice       uint32
@@ -215,6 +217,10 @@ func newPolicy() *Policy {
 	md = NewMethodAndPrice(p.getBlockedAccounts, 1<<15, callflag.ReadStates, config.HFFaun)
 	p.AddMethod(md, desc)
 
+	desc = NewDescriptor("getExecPicoFeeFactor", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getExecPicoFeeFactor, 1<<15, callflag.ReadStates, config.HFFaun)
+	p.AddMethod(md, desc)
+
 	return p
 }
 
@@ -258,6 +264,13 @@ func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 
 		setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(transaction.NotaryAssistedT)}, defaultNotaryAssistedFee)
 		cache.attributeFee[transaction.NotaryAssistedT] = defaultNotaryAssistedFee
+	}
+
+	if hf != nil && *hf == config.HFFaun {
+		cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+		cache.execFeeFactor = cache.execFeeFactor * vm.ExecFeeFactorMultiplier
+		cache.faunInitialized = true
+		setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, int64(cache.execFeeFactor))
 	}
 
 	return nil
@@ -320,6 +333,11 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple, isHardforkE
 		cache.maxTraceableBlocks = uint32(getIntWithKey(p.ID, d, MaxTraceableBlocksKey))
 	}
 
+	var faun = config.HFFaun
+	if isHardforkEnabled(&faun, blockHeight) {
+		cache.faunInitialized = true
+	}
+
 	return nil
 }
 
@@ -356,19 +374,35 @@ func (p *Policy) GetMaxVerificationGas(dao *dao.Simple) int64 {
 	return cache.maxVerificationGas
 }
 
+// getExecFeeFactor returns the current execution fee factor in Datoshi units.
 func (p *Policy) getExecFeeFactor(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(int64(p.GetExecFeeFactorInternal(ic.DAO))))
+	return stackitem.NewBigInteger(big.NewInt(p.GetExecFeeFactorInternal(ic.DAO) / vm.ExecFeeFactorMultiplier))
 }
 
-// GetExecFeeFactorInternal returns current execution fee factor.
+// GetExecFeeFactorInternal returns the current execution fee factor in picoGAS
+// units.
 func (p *Policy) GetExecFeeFactorInternal(d *dao.Simple) int64 {
 	cache := d.GetROCache(p.ID).(*PolicyCache)
-	return int64(cache.execFeeFactor)
+	if cache.faunInitialized {
+		return int64(cache.execFeeFactor)
+	}
+	return int64(cache.execFeeFactor * vm.ExecFeeFactorMultiplier)
+}
+
+// getExecPicoFeeFactor is active starting from [config.HFFaun] and returns the
+// current execution fee factor in picoGAS units.
+func (p *Policy) getExecPicoFeeFactor(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	cache := ic.DAO.GetROCache(p.ID).(*PolicyCache)
+	return stackitem.NewBigInteger(big.NewInt(int64(cache.execFeeFactor)))
 }
 
 func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	value := toUint32(args[0])
-	if value <= 0 || maxExecFeeFactor < value {
+	maxValue := maxExecFeeFactor
+	if ic.IsHardforkEnabled(config.HFFaun) {
+		maxValue *= vm.ExecFeeFactorMultiplier
+	}
+	if value <= 0 || maxValue < value {
 		panic(fmt.Errorf("ExecFeeFactor must be between 1 and %d", maxExecFeeFactor))
 	}
 	if !p.NEO.CheckCommittee(ic) {
@@ -409,13 +443,13 @@ func (p *Policy) isBlockedInternal(roCache *PolicyCache, hash util.Uint160) (int
 }
 
 func (p *Policy) getStoragePrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(p.GetStoragePriceInternal(ic.DAO)))
+	return stackitem.NewBigInteger(big.NewInt(p.GetStoragePriceInternal(ic.DAO) / vm.ExecFeeFactorMultiplier))
 }
 
-// GetStoragePriceInternal returns current execution fee factor.
+// GetStoragePriceInternal returns the current storage price in picoGAS units.
 func (p *Policy) GetStoragePriceInternal(d *dao.Simple) int64 {
 	cache := d.GetROCache(p.ID).(*PolicyCache)
-	return int64(cache.storagePrice)
+	return int64(cache.storagePrice) * vm.ExecFeeFactorMultiplier
 }
 
 func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) stackitem.Item {

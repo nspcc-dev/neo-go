@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -457,4 +458,59 @@ func TestPolicy_GetBlockedAccountsInteropAPI(t *testing.T) {
 
 	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
 	ctrInvoker.Invoke(t, []stackitem.Item{stackitem.NewBuffer(unlucky.ScriptHash().BytesBE())}, "getBlockedAccounts")
+}
+
+func TestPolicy_ExecPicoFeeFactor(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 3,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	c := e.CommitteeInvoker(e.NativeHash(t, nativenames.Policy))
+
+	committeeInvoker := c.WithSigners(c.Committee)
+
+	// Get, before Faun.
+	committeeInvoker.Invoke(t, interop.DefaultBaseExecFee, "getExecFeeFactor")
+	committeeInvoker.InvokeFail(t, "method not found: getExecPicoFeeFactor/0", "getExecPicoFeeFactor")
+
+	// Get at Faun.
+	tx1 := committeeInvoker.PrepareInvoke(t, "setExecFeeFactor", 2)
+	tx2 := committeeInvoker.PrepareInvoke(t, "getExecFeeFactor")
+	tx3 := committeeInvoker.PrepareInvoke(t, "getExecPicoFeeFactor")
+	committeeInvoker.AddNewBlock(t, tx1, tx2, tx3)
+	committeeInvoker.CheckHalt(t, tx1.Hash())
+	committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(2/vm.ExecFeeFactorMultiplier))
+	committeeInvoker.CheckHalt(t, tx3.Hash(), stackitem.Make(2))
+}
+
+func TestPolicy_ExecPicoFeeFactor_InteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	p := e.CommitteeInvoker(nativehashes.PolicyContract)
+
+	p.Invoke(t, stackitem.Null{}, "setExecFeeFactor", 5)
+	src := `package execfeefactor
+		import "github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+		func GetFactor() int {
+			return policy.GetExecFeeFactor()
+		}
+		func GetPicoFactor() int {
+			return policy.GetExecPicoFeeFactor()
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "execfeefactor",
+	})
+	e.DeployContract(t, ctr, nil)
+
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+	ctrInvoker.Invoke(t, stackitem.Make(0), "getFactor")
+	ctrInvoker.Invoke(t, stackitem.Make(5), "getPicoFactor")
 }
