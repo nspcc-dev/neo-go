@@ -356,9 +356,10 @@ func (i *Struct) Convert(typ Type) (Item, error) {
 
 // Clone returns a Struct with all Struct fields copied by the value.
 // Array fields are still copied by reference.
-func (i *Struct) Clone() (*Struct, error) {
+func (i *Struct) Clone() (*Struct, int, error) {
 	var limit = MaxClonableNumOfItems - 1 // For this struct itself.
-	return i.clone(&limit)
+	cloned, err := i.clone(&limit)
+	return cloned, MaxClonableNumOfItems - limit, err
 }
 
 func (i *Struct) clone(limit *int) (*Struct, error) {
@@ -906,7 +907,7 @@ func (i *Map) Convert(typ Type) (Item, error) {
 }
 
 // Add adds a key-value pair to the map.
-func (i *Map) Add(key, value Item) {
+func (i *Map) Add(key, value Item) int {
 	if err := IsValidMapKey(key); err != nil {
 		panic(err)
 	}
@@ -919,6 +920,7 @@ func (i *Map) Add(key, value Item) {
 	} else {
 		i.value = append(i.value, MapElement{key, value})
 	}
+	return index
 }
 
 // Drop removes the given index from the map (no bounds check done here).
