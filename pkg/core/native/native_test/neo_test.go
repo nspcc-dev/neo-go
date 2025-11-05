@@ -519,11 +519,11 @@ func TestNEO_GetAccountStateInteropAPI(t *testing.T) {
 	advanceChain(t)
 	neoValidatorInvoker.WithSigners(acc).Invoke(t, true, "transfer", acc.ScriptHash(), acc.ScriptHash(), amount, nil)
 
-	var hashAStr string
+	var hashAStr strings.Builder
 	for i := range util.Uint160Size {
-		hashAStr += fmt.Sprintf("%#x", acc.ScriptHash()[i])
+		fmt.Fprintf(&hashAStr, "%#x", acc.ScriptHash()[i])
 		if i != util.Uint160Size-1 {
-			hashAStr += ", "
+			hashAStr.WriteString(", ")
 		}
 	}
 	src := `package testaccountstate
@@ -532,7 +532,7 @@ func TestNEO_GetAccountStateInteropAPI(t *testing.T) {
 		  "github.com/nspcc-dev/neo-go/pkg/interop"
 	  )
 	  func GetLastGasPerVote() int {
-		  accState := neo.GetAccountState(interop.Hash160{` + hashAStr + `})
+		  accState := neo.GetAccountState(interop.Hash160{` + hashAStr.String() + `})
 		  if accState == nil {
 			  panic("nil state")
 		  }

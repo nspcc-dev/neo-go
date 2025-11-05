@@ -230,17 +230,17 @@ func scTypeToGo(name string, typ smartcontract.ParamType, cfg *Config) (string, 
 // and type conversion function. It assumes manifest to be present in the
 // configuration and assumes it to be correct (passing IsValid check).
 func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract.ParamType, *Config) (string, string)) ContractTmpl {
-	var hStr string
+	var hStr strings.Builder
 	if !cfg.Hash.Equals(util.Uint160{}) {
 		for _, b := range cfg.Hash.BytesBE() {
-			hStr += fmt.Sprintf("\\x%02x", b)
+			fmt.Fprintf(&hStr, "\\x%02x", b)
 		}
 	}
 
 	ctr := ContractTmpl{
 		PackageName:  cfg.Package,
 		ContractName: cfg.Manifest.Name,
-		Hash:         hStr,
+		Hash:         hStr.String(),
 	}
 	if ctr.PackageName == "" {
 		buf := bytes.NewBuffer(make([]byte, 0, len(cfg.Manifest.Name)))

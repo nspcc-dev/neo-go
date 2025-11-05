@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testcli"
@@ -181,17 +182,18 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		e.CheckNextLine(t, "^\\s*HASHY:\\s+HASHY NFT \\("+h.StringLE()+"\\)")
 
 		// Hashes can be ordered in any way, so make a regexp for them.
-		var tokstring = "("
+		var tokstring strings.Builder
+		tokstring.WriteString("(")
 		for i, id := range ids {
 			if i > 0 {
-				tokstring += "|"
+				tokstring.WriteString("|")
 			}
-			tokstring += hex.EncodeToString(id)
+			tokstring.WriteString(hex.EncodeToString(id))
 		}
-		tokstring += ")"
+		tokstring.WriteString(")")
 
 		for range ids {
-			e.CheckNextLine(t, "^\\s*Token: "+tokstring+"\\s*$")
+			e.CheckNextLine(t, "^\\s*Token: "+tokstring.String()+"\\s*$")
 			e.CheckNextLine(t, "^\\s*Amount: 1\\s*$")
 			e.CheckNextLine(t, "^\\s*Updated: [0-9]+\\s*$")
 		}
