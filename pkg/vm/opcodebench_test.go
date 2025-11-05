@@ -2,12 +2,26 @@ package vm
 
 import (
 	"encoding/binary"
+	"fmt"
+	"math"
+	"math/big"
+	"reflect"
 	"strconv"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	maxScriptLen     = 2048 //math.MaxInt
+	maxArrayDeep     = MaxStackSize
+	maxArraySize     = MaxStackSize
+	maxMapSize       = stackitem.MaxDeserialized
+	maxByteArraySize = stackitem.MaxSize
+	maxStructSize    = max(stackitem.MaxDeserialized, stackitem.MaxClonableNumOfItems)
+	maxInteropSize   = stackitem.MaxSize
 )
 
 func benchOpcodeInt(t *testing.B, f func() *VM, fail bool) {
@@ -47,6 +61,10 @@ func opParamPushVM(op opcode.Opcode, param []byte, items ...any) func() *VM {
 }
 
 func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, slotarg int, items ...any) func() *VM {
+	return opParamSlotsPushReadOnlyVM(op, param, sslot, slotloc, slotarg, true, items...)
+}
+
+func opParamSlotsPushReadOnlyVM(op opcode.Opcode, param []byte, sslot int, slotloc int, slotarg int, isReadOnly bool, items ...any) func() *VM {
 	return func() *VM {
 		script := []byte{byte(op)}
 		script = append(script, param...)
@@ -63,7 +81,7 @@ func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, 
 		}
 		for i := range items {
 			item, ok := items[i].(stackitem.Item)
-			if ok {
+			if ok && isReadOnly {
 				item = stackitem.DeepCopy(item, true)
 			} else {
 				item = stackitem.Make(items[i])
@@ -784,4 +802,1339 @@ func BenchmarkOpcodes(t *testing.B) {
 			benchOpcode(t, opParamPushVM(opcode.CONVERT, []byte{byte(stackitem.StructT)}, arrayOfOnes(1024)))
 		})
 	})
+}
+
+const countPoints = 8
+
+func getBigInts(minBits, maxBits, num int) []*big.Int {
+	step := uint((maxBits - minBits) / num)
+	curr := step - 1
+	res := make([]*big.Int, 0, num)
+	for range num {
+		res = append(res, new(big.Int).Lsh(big.NewInt(1), curr))
+		curr += step
+	}
+	return res
+}
+
+func getBigInts2(minV, maxV *big.Int, num int) []*big.Int {
+	res := make([]*big.Int, 0, num)
+	diff := new(big.Int).Sub(maxV, minV)
+	step := new(big.Int).Div(diff, big.NewInt(int64(num)))
+	curr := new(big.Int).Add(minV, step)
+	for range num {
+		if curr.Cmp(maxV) < 0 {
+			res = append(res, curr)
+		}
+		curr = new(big.Int).Add(curr, step)
+	}
+	return res
+}
+
+func getSizedInteropItems(n, elemSize int) []stackitem.Item {
+	res := make([]stackitem.Item, 0, n)
+	arrType := reflect.ArrayOf(elemSize, reflect.TypeOf(byte(0)))
+	for range n {
+		res = append(res, stackitem.NewInterop(reflect.New(arrType).Elem()))
+	}
+	return res
+}
+
+func getArrayWithSizeAndDeep(n, d int) []stackitem.Item {
+	items := make([]stackitem.Item, 0, n)
+	for range n {
+		var item stackitem.Item = stackitem.Null{}
+		for range d - 1 {
+			item = stackitem.NewArray([]stackitem.Item{item})
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func getStructWithSizeAndDeep(n, d int) []stackitem.Item {
+	items := make([]stackitem.Item, 0, n)
+	for range n {
+		var item stackitem.Item = stackitem.Null{}
+		for range d - 1 {
+			item = stackitem.NewStruct([]stackitem.Item{item})
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func BenchmarkPushInt(b *testing.B) {
+	type testCase struct {
+		name   string
+		op     opcode.Opcode
+		params []byte
+	}
+	var (
+		testCases    []testCase
+		opToNumBytes = map[opcode.Opcode]int{
+			opcode.PUSHINT8:   1,
+			opcode.PUSHINT16:  2,
+			opcode.PUSHINT32:  4,
+			opcode.PUSHINT64:  8,
+			opcode.PUSHINT128: 16,
+			opcode.PUSHINT256: 32,
+		}
+	)
+	for op, numBytes := range opToNumBytes {
+		buf := make([]byte, numBytes)
+		buf[numBytes-1] = 0x80
+		testCases = append(testCases, testCase{
+			name:   fmt.Sprintf("%s %d", op, numBytes),
+			op:     op,
+			params: buf,
+		})
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamVM(tc.op, tc.params))
+		})
+	}
+}
+
+func BenchmarkPushData(b *testing.B) {
+	type testCase struct {
+		name   string
+		params []byte
+	}
+	var (
+		testCases []testCase
+		stepLen   = maxByteArraySize / countPoints
+		currLen   = stepLen
+	)
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:   fmt.Sprintf("%s %d", opcode.PUSHDATA4, currLen),
+			params: make([]byte, currLen),
+		})
+		currLen += stepLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamVM(opcode.PUSHDATA4, tc.params))
+		})
+	}
+}
+
+func BenchmarkConvert(b *testing.B) {
+	type testCase struct {
+		name   string
+		params []byte
+		items  []any
+	}
+	var (
+		testCases        []testCase
+		stepArrayLen     = MaxStackSize / countPoints
+		stepByteArrayLen = maxByteArraySize / countPoints
+		stepInteropSize  = maxInteropSize / countPoints
+		currArrayLen     = stepArrayLen
+		currByteArrayLen = stepByteArrayLen
+	)
+	for range countPoints {
+		currInteropSize := stepInteropSize
+		for range countPoints {
+			item := getSizedInteropItems(currArrayLen, currInteropSize)
+			testCases = append(testCases, testCase{
+				name:   fmt.Sprintf("%s %s %s %d %d", opcode.CONVERT, stackitem.ArrayT, stackitem.StructT, currArrayLen, currInteropSize),
+				params: []byte{byte(stackitem.StructT)},
+				items:  []any{stackitem.NewArray(item)},
+			})
+			currInteropSize += stepInteropSize
+		}
+		currArrayLen += stepArrayLen
+	}
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:   fmt.Sprintf("%s %s %s %d", opcode.CONVERT, stackitem.ByteArrayT, stackitem.BufferT, currByteArrayLen),
+			params: []byte{byte(stackitem.BufferT)},
+			items:  []any{stackitem.NewByteArray(make([]byte, currByteArrayLen))},
+		})
+		currByteArrayLen += stepByteArrayLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.CONVERT, tc.params, tc.items...))
+		})
+	}
+}
+
+func BenchmarkInitSlot(b *testing.B) {
+	type testCase struct {
+		name   string
+		op     opcode.Opcode
+		params []byte
+		items  []any
+	}
+	var (
+		testCases       []testCase
+		stepSlots       = byte(math.MaxUint8 / countPoints)
+		currLocalSlots  = stepSlots
+		currStaticSlots = stepSlots
+	)
+	for range countPoints {
+		currArgsSlots := stepSlots
+		for range countPoints {
+			testCases = append(testCases, testCase{
+				name:   fmt.Sprintf("%s %d %d", opcode.INITSLOT, currLocalSlots, currArgsSlots),
+				op:     opcode.INITSLOT,
+				params: []byte{currLocalSlots, currArgsSlots},
+				// TODO: do not ignore the size and depth of the argument
+				items: make([]any, currArgsSlots),
+			})
+			currArgsSlots += stepSlots
+		}
+		currLocalSlots += stepSlots
+	}
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:   fmt.Sprintf("%s %d", opcode.INITSSLOT, currStaticSlots),
+			op:     opcode.INITSSLOT,
+			params: []byte{currStaticSlots},
+		})
+		currStaticSlots += stepSlots
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, tc.params, tc.items...))
+		})
+	}
+}
+
+func BenchmarkLD(b *testing.B) {
+	type testCase struct {
+		name string
+		f    func() *VM
+	}
+	var (
+		testCases            []testCase
+		stepIndependentParam = MaxStackSize / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.LDSFLD0, opcode.LDLOC0, opcode.LDARG0} {
+		currIndependentParam := stepIndependentParam
+		for range countPoints {
+			var (
+				stepDependentParam = MaxStackSize / (countPoints * currIndependentParam)
+				currDependentParam = stepDependentParam
+			)
+			for range countPoints {
+				indParam := currIndependentParam
+				depParam := currDependentParam
+				testCases = append(testCases, testCase{
+					name: fmt.Sprintf("%s %d %d", op, indParam, depParam),
+					f: func() *VM {
+						v := opVM(op)()
+						slot := []stackitem.Item{stackitem.NewArray(getArrayWithSizeAndDeep(indParam, depParam))}
+						switch op {
+						case opcode.LDSFLD0:
+							v.Context().sc.static = slot
+						case opcode.LDLOC0:
+							v.Context().local = slot
+						case opcode.LDARG0:
+							v.Context().arguments = slot
+						}
+						return v
+					},
+				})
+				testCases = append(testCases, testCase{
+					name: fmt.Sprintf("%s %d %d", op, depParam, indParam),
+					f: func() *VM {
+						v := opVM(op)()
+						slot := []stackitem.Item{stackitem.NewArray(getArrayWithSizeAndDeep(depParam, indParam))}
+						switch op {
+						case opcode.LDSFLD0:
+							v.Context().sc.static = slot
+						case opcode.LDLOC0:
+							v.Context().local = slot
+						case opcode.LDARG0:
+							v.Context().arguments = slot
+						}
+						return v
+					},
+				})
+				currDependentParam += stepDependentParam
+			}
+			currIndependentParam += stepIndependentParam
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
+		})
+	}
+}
+
+func BenchmarkIntegerOperands(b *testing.B) {
+	unaryOpcodes := []opcode.Opcode{
+		opcode.INVERT,
+		opcode.SIGN,
+		opcode.ABS,
+		opcode.NEGATE,
+		opcode.INC,
+		opcode.DEC,
+		opcode.SQRT,
+		opcode.NZ,
+	}
+	binaryOpcodes := []opcode.Opcode{
+		opcode.AND,
+		opcode.OR,
+		opcode.XOR,
+		opcode.EQUAL,
+		opcode.NOTEQUAL,
+		opcode.ADD,
+		opcode.SUB,
+		opcode.MUL,
+		opcode.DIV,
+		opcode.MOD,
+		opcode.POW,
+		opcode.NUMEQUAL,
+		opcode.NUMNOTEQUAL,
+		opcode.LT,
+		opcode.LE,
+		opcode.GT,
+		opcode.GE,
+		opcode.MIN,
+		opcode.MAX,
+		opcode.SHL,
+		opcode.SHR,
+	}
+	ternaryOpcodes := []opcode.Opcode{
+		opcode.MODMUL,
+		opcode.MODPOW,
+	}
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	var (
+		testCases  = make([]testCase, countPoints*(len(unaryOpcodes)+len(binaryOpcodes)+len(ternaryOpcodes)))
+		stepExp    = math.MaxUint / countPoints
+		stepSHLArg = maxSHLArg / countPoints
+		bigInts1   = getBigInts(0, stackitem.MaxBigIntegerSizeBits-1, countPoints)
+	)
+	for _, op := range unaryOpcodes {
+		for i := range bigInts1 {
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, bigInts1[i].BitLen()),
+				op:    op,
+				items: []any{bigInts1[i]},
+			})
+		}
+	}
+	bigInts2 := getBigInts(0, stackitem.MaxBigIntegerSizeBits-1, countPoints)
+	for _, op := range binaryOpcodes {
+		for i := range bigInts1 {
+			if op == opcode.POW {
+				currExp := stepExp
+				for range countPoints {
+					testCases = append(testCases, testCase{
+						name:  fmt.Sprintf("%s %d %d", op, bigInts1[i].BitLen(), currExp),
+						op:    op,
+						items: []any{bigInts1[i], big.NewInt(int64(currExp))},
+					})
+					currExp += stepExp
+				}
+				continue
+			}
+			if op == opcode.SHL || op == opcode.SHR {
+				currSHLArg := stepSHLArg
+				for range countPoints {
+					testCases = append(testCases, testCase{
+						name:  fmt.Sprintf("%s %d %d", op, bigInts1[i].BitLen(), currSHLArg),
+						op:    op,
+						items: []any{bigInts1[i], big.NewInt(int64(currSHLArg))},
+					})
+					currSHLArg += stepExp
+				}
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, bigInts1[i].BitLen()),
+				op:    op,
+				items: []any{bigInts1[i], bigInts2[i]},
+			})
+		}
+	}
+	bigInts3 := getBigInts(0, stackitem.MaxBigIntegerSizeBits-1, countPoints)
+	for _, op := range ternaryOpcodes {
+		for i := range bigInts1 {
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, bigInts1[i].BitLen()),
+				op:    op,
+				items: []any{bigInts1[i], bigInts2[i], bigInts3[i]},
+			})
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkNew(b *testing.B) {
+	type testCase struct {
+		name   string
+		op     opcode.Opcode
+		params []byte
+		item   stackitem.Item
+	}
+	var (
+		testCases []testCase
+		bigInts   = getBigInts2(big.NewInt(0), big.NewInt(MaxStackSize), countPoints)
+	)
+	for _, op := range []opcode.Opcode{opcode.NEWARRAY, opcode.NEWSTRUCT, opcode.NEWBUFFER} {
+		for _, v := range bigInts {
+			testCases = append(testCases, testCase{
+				name: fmt.Sprintf("%s %s", op, v),
+				op:   op,
+				item: stackitem.NewBigInteger(v),
+			})
+		}
+	}
+	for _, typ := range []stackitem.Type{stackitem.BooleanT, stackitem.IntegerT, stackitem.ByteArrayT, stackitem.AnyT} {
+		for _, v := range bigInts {
+			testCases = append(testCases, testCase{
+				name:   fmt.Sprintf("%s %s %s", opcode.NEWARRAYT, typ, v),
+				op:     opcode.NEWARRAYT,
+				params: []byte{byte(typ)},
+				item:   stackitem.NewBigInteger(v),
+			})
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, tc.params, tc.item))
+		})
+	}
+}
+
+func BenchmarkAppend(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		sizeStep  = maxArraySize / countPoints
+		deepStep  = (stackitem.MaxClonableNumOfItems - 1) / countPoints
+		currSize  = sizeStep
+	)
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %s %d", opcode.APPEND, stackitem.ArrayT, currSize),
+			items: []any{make([]stackitem.Item, currSize), stackitem.Null{}},
+		})
+		currDeep := deepStep
+		for range countPoints {
+			var item stackitem.Item = stackitem.Null{}
+			for range currDeep {
+				item = stackitem.NewStruct([]stackitem.Item{item})
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.APPEND, stackitem.StructT, currSize, currDeep),
+				items: []any{item, stackitem.Null{}},
+			})
+			currDeep += deepStep
+		}
+		currSize += sizeStep
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamSlotsPushReadOnlyVM(opcode.APPEND, nil, 0, 0, 0, false, tc.items...))
+		})
+	}
+}
+
+func BenchmarkMemcpy(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepSize  = maxArraySize / countPoints
+	)
+	for currSize := stepSize; currSize <= maxArraySize; currSize += stepSize {
+		buf := make([]byte, currSize)
+		testCases = append(testCases, testCase{
+			name: fmt.Sprintf("%s %d", opcode.MEMCPY, currSize),
+			items: []any{
+				stackitem.NewBuffer(buf),
+				stackitem.NewBigInteger(big.NewInt(0)),
+				stackitem.NewBuffer(buf),
+				stackitem.NewBigInteger(big.NewInt(0)),
+				stackitem.NewBigInteger(big.NewInt(int64(currSize))),
+			},
+		})
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamSlotsPushReadOnlyVM(opcode.MEMCPY, nil, 0, 0, 0, false, tc.items...))
+		})
+	}
+}
+
+func BenchmarkCat(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepSize  = stackitem.MaxSize / countPoints
+	)
+	for currSize := stepSize; currSize <= stackitem.MaxSize; currSize += stepSize {
+		testCases = append(testCases, testCase{
+			name: fmt.Sprintf("%s %d", opcode.CAT, currSize),
+			items: []any{
+				[]byte{},
+				make([]byte, currSize),
+			},
+		})
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.CAT, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkSubstr(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepSize  = maxByteArraySize / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.SUBSTR, opcode.LEFT, opcode.RIGHT} {
+		for currSize := stepSize; currSize <= maxByteArraySize; currSize += stepSize {
+			items := []any{make([]byte, currSize)}
+			if op == opcode.SUBSTR {
+				items = append(items, 0)
+			}
+			items = append(items, currSize)
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, currSize),
+				items: items,
+			})
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.CAT, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkDrop(b *testing.B) {
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	var (
+		testCases     []testCase
+		stepDeep      = maxArrayDeep / countPoints
+		stepStackSize = MaxStackSize / countPoints
+		stepElemSize  = maxArraySize / countPoints
+		currSize      = stepElemSize
+	)
+	for _, op := range []opcode.Opcode{opcode.DROP, opcode.NIP, opcode.XDROP, opcode.CLEAR} {
+		for range countPoints {
+			currDeep := stepDeep
+			for range countPoints {
+				items := []any{getArrayWithSizeAndDeep(currSize, currDeep)}
+				if op == opcode.NIP {
+					items = append(items, nil)
+				}
+				if op == opcode.DROP || op == opcode.NIP {
+					testCases = append(testCases, testCase{
+						name:  fmt.Sprintf("%s %d %d", op, currSize, currDeep*currSize),
+						op:    op,
+						items: items,
+					})
+					currDeep += stepDeep
+					continue
+				}
+				currStackSize := stepStackSize
+				for range countPoints {
+					cpItems := make([]any, currStackSize)
+					item := items[0]
+					if op == opcode.CLEAR {
+						for i := range cpItems {
+							cpItems[i] = item
+						}
+					} else {
+						items[0] = item
+						cpItems[currStackSize-1] = currStackSize - 1
+					}
+					testCases = append(testCases, testCase{
+						name:  fmt.Sprintf("%s %d %d %d", op, currSize, currDeep*currSize, currStackSize),
+						op:    op,
+						items: cpItems,
+					})
+					currStackSize += stepStackSize
+				}
+				currDeep += stepDeep
+			}
+			currSize += stepElemSize
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkDup(b *testing.B) {
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	var (
+		testCases         []testCase
+		bigInts           = getBigInts(0, stackitem.MaxBigIntegerSizeBits-1, countPoints)
+		stepElemSize      = maxInteropSize / countPoints
+		stepByteArraySize = maxByteArraySize / countPoints
+		stepStackSize     = MaxStackSize / countPoints
+	)
+	itemsForOpcode := func(op opcode.Opcode, item any, n int) []any {
+		switch op {
+		case opcode.DUP:
+			return []any{item}
+		case opcode.OVER:
+			return []any{item, nil}
+		case opcode.TUCK:
+			return []any{nil, item}
+		case opcode.PICK:
+			items := make([]any, 0, n)
+			items = append(items, item)
+			for range n - 1 {
+				items = append(items, nil)
+			}
+			return items
+		default:
+			panic("unexpected opcode")
+		}
+	}
+	for _, op := range []opcode.Opcode{opcode.DUP, opcode.OVER, opcode.TUCK} {
+		for _, v := range bigInts {
+			if op != opcode.TUCK {
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d", op, stackitem.IntegerT, v.BitLen()),
+					op:    op,
+					items: itemsForOpcode(op, v, 0),
+				})
+				continue
+			}
+			currN := stepStackSize
+			for range countPoints {
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d %d", op, stackitem.IntegerT, v.BitLen(), currN),
+					op:    op,
+					items: itemsForOpcode(op, v, currN),
+				})
+				currN += stepStackSize
+			}
+		}
+		currElemSize := stepElemSize
+		for range countPoints {
+			item := getSizedInteropItems(1, currElemSize)[0]
+			if op != opcode.TUCK {
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d", op, stackitem.IntegerT, currElemSize),
+					op:    op,
+					items: itemsForOpcode(op, item, 0),
+				})
+				continue
+			}
+			currN := stepStackSize
+			for range countPoints {
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d %d", op, stackitem.IntegerT, currElemSize, currN),
+					op:    op,
+					items: itemsForOpcode(op, item, currN),
+				})
+				currN += stepStackSize
+			}
+			currElemSize += stepElemSize
+		}
+		currByteArraySize := stepByteArraySize
+		for range countPoints {
+			item := make([]byte, currByteArraySize)
+			if op != opcode.TUCK {
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d", op, stackitem.IntegerT, currElemSize),
+					op:    op,
+					items: itemsForOpcode(op, item, 0),
+				})
+				continue
+			}
+			currN := stepStackSize
+			for range countPoints {
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d %d", op, stackitem.IntegerT, currElemSize, currN),
+					op:    op,
+					items: itemsForOpcode(op, item, currN),
+				})
+				currN += stepStackSize
+			}
+			currByteArraySize += stepByteArraySize
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkRollAndReverse(b *testing.B) {
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	var (
+		testCases     []testCase
+		stepStackSize = MaxStackSize / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.ROLL, opcode.REVERSEN} {
+		currStackSize := stepStackSize
+		for range countPoints {
+			items := make([]any, currStackSize)
+			if op == opcode.REVERSEN {
+				items[currStackSize-1] = big.NewInt(int64(currStackSize - 1))
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, currStackSize),
+				op:    op,
+				items: items,
+			})
+			currStackSize += stepStackSize
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkPackMap(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases            []testCase
+		stepStackSize        = MaxStackSize / (2 * countPoints)
+		stepKeyByteArraySize = stackitem.MaxKeySize / countPoints
+		stepBigIntBits       = stackitem.MaxBigIntegerSizeBits / countPoints
+	)
+	for _, typ := range []stackitem.Type{stackitem.BooleanT, stackitem.IntegerT, stackitem.ByteArrayT} {
+		currStackSize := stepStackSize
+		for range countPoints {
+			var (
+				item                 any
+				currKeyByteArraySize = stepKeyByteArraySize
+				currBigIntBits       = stepBigIntBits
+			)
+			switch typ {
+			case stackitem.BooleanT:
+				item = true
+			case stackitem.IntegerT:
+				item = new(big.Int).Lsh(big.NewInt(1), uint(currBigIntBits-1))
+			case stackitem.ByteArrayT:
+				buf := make([]byte, currKeyByteArraySize)
+				buf[currKeyByteArraySize-1] = 1
+				item = buf
+			}
+		keySizeLoop:
+			for range countPoints {
+				items := make([]any, 0, 2*currStackSize+1)
+				for range currStackSize {
+					items = append(items, nil, item)
+					switch it := item.(type) {
+					case *big.Int:
+						item = new(big.Int).Add(it, big.NewInt(1))
+					case []byte:
+						v := new(big.Int).SetBytes(it)
+						item = v.Add(v, big.NewInt(1)).Bytes()
+					case bool:
+						item = !it
+					}
+				}
+				items = append(items, currStackSize)
+				switch typ {
+				case stackitem.BooleanT:
+					testCases = append(testCases, testCase{
+						name:  fmt.Sprintf("%s %s %d", opcode.PACKMAP, stackitem.BooleanT, currStackSize),
+						items: items,
+					})
+					break keySizeLoop
+				case stackitem.IntegerT:
+					testCases = append(testCases, testCase{
+						name:  fmt.Sprintf("%s %s %d %d", opcode.PACKMAP, stackitem.IntegerT, currStackSize, currBigIntBits),
+						items: items,
+					})
+					currBigIntBits += stepBigIntBits
+				case stackitem.ByteArrayT:
+					testCases = append(testCases, testCase{
+						name:  fmt.Sprintf("%s %s %d %d", opcode.PACKMAP, stackitem.ByteArrayT, currStackSize, currKeyByteArraySize),
+						items: items,
+					})
+					currKeyByteArraySize += stepKeyByteArraySize
+				}
+			}
+			currStackSize += stepStackSize
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.PACKMAP, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkPack(b *testing.B) {
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	var (
+		testCases     []testCase
+		stepStackSize = MaxStackSize / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.PACK, opcode.PACKSTRUCT} {
+		currStackSize := stepStackSize
+		for range countPoints {
+			items := make([]any, currStackSize)
+			items[currStackSize-1] = currStackSize - 1
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, currStackSize),
+				op:    op,
+				items: items,
+			})
+			currStackSize += stepStackSize
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkUnpack(b *testing.B) {
+	type testCase struct {
+		name string
+		item any
+	}
+	var (
+		testCases   []testCase
+		stepMapSize = maxMapSize / countPoints
+		currMapSize = stepMapSize
+	)
+	for range countPoints {
+		m := make([]stackitem.MapElement, 0, currMapSize)
+		key := 0
+		for range currMapSize {
+			m = append(m, stackitem.MapElement{
+				Key:   stackitem.Make(key),
+				Value: nil,
+			})
+			key++
+		}
+		testCases = append(testCases, testCase{
+			name: fmt.Sprintf("%s %s %d", opcode.UNPACK, stackitem.MapT, currMapSize),
+			item: stackitem.NewMapWithValue(m),
+		})
+		currMapSize += stepMapSize
+	}
+	for _, typ := range []stackitem.Type{stackitem.ArrayT, stackitem.StructT} {
+		step := maxArraySize / countPoints
+		if typ == stackitem.StructT {
+			step = maxStructSize / countPoints
+		}
+		curr := step
+		for range countPoints {
+			tc := testCase{name: fmt.Sprintf("%s %s %d", opcode.UNPACK, typ, curr)}
+			if typ == stackitem.StructT {
+				tc.item = stackitem.NewStruct(make([]stackitem.Item, curr))
+			} else {
+				tc.item = make([]stackitem.Item, curr)
+			}
+			testCases = append(testCases, tc)
+			curr += step
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.UNPACK, nil, tc.item))
+		})
+	}
+}
+
+func BenchmarkPickitem(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases       []testCase
+		stepInteropSize = maxInteropSize / countPoints
+		stepMapSize     = maxMapSize / countPoints
+	)
+	for _, typ := range []stackitem.Type{stackitem.ArrayT, stackitem.StructT} {
+		currInteropSize := stepInteropSize
+		for range countPoints {
+			item := getSizedInteropItems(1, currInteropSize)[0]
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d", opcode.PICKITEM, typ, currInteropSize),
+				items: []any{[]stackitem.Item{item}, 0},
+			})
+			currInteropSize += stepInteropSize
+		}
+	}
+	currMapSize := stepMapSize
+	for range countPoints {
+		currInteropSize := stepInteropSize
+		for range countPoints {
+			m := make([]stackitem.MapElement, 0, currMapSize)
+			for key := range currMapSize {
+				m = append(m, stackitem.MapElement{
+					Key:   stackitem.Make(key),
+					Value: nil,
+				})
+			}
+			m[currMapSize-1].Value = getSizedInteropItems(1, currInteropSize)[0]
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.PICKITEM, stackitem.MapT, currInteropSize, currMapSize),
+				items: []any{stackitem.NewMapWithValue(m), currMapSize - 1},
+			})
+			currInteropSize += stepInteropSize
+		}
+		currMapSize += stepMapSize
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.PICKITEM, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkSetitem(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepSize  = MaxStackSize / countPoints
+	)
+	for _, typ := range []stackitem.Type{stackitem.ArrayT, stackitem.StructT, stackitem.MapT} {
+		currRemovedSize := stepSize
+		for range countPoints {
+			stepRemovedDeep := MaxStackSize / (countPoints * currRemovedSize)
+			currRemovedDeep := stepRemovedDeep
+			for range countPoints {
+				currAddedSize := stepSize
+				for range countPoints {
+					stepAddedDeep := MaxStackSize / (countPoints * currAddedSize)
+					currAddedDeep := stepAddedDeep
+					for range countPoints {
+						var (
+							obj       any
+							addedItem any
+						)
+						if typ == stackitem.MapT {
+							currMapSize := stepSize
+							for range countPoints {
+								m := make([]stackitem.MapElement, 0, currMapSize)
+								for key := range currMapSize {
+									m = append(m, stackitem.MapElement{
+										Key:   stackitem.Make(key),
+										Value: nil,
+									})
+								}
+								m[currMapSize-1].Value = stackitem.NewStruct(getArrayWithSizeAndDeep(currRemovedSize, currRemovedDeep))
+								testCases = append(testCases, testCase{
+									name:  fmt.Sprintf("%s %s %d %d %d %d %d", opcode.SETITEM, stackitem.MapT, currRemovedSize, currRemovedDeep, currAddedSize, currAddedDeep, currMapSize),
+									items: []any{stackitem.NewMapWithValue(m), currMapSize - 1, stackitem.NewStruct(getArrayWithSizeAndDeep(currAddedSize, currAddedDeep))},
+								})
+								currMapSize += stepSize
+							}
+							currAddedDeep += stepAddedDeep
+							continue
+						}
+						if typ == stackitem.StructT {
+							obj = stackitem.NewStruct([]stackitem.Item{
+								stackitem.NewStruct(getArrayWithSizeAndDeep(currRemovedSize, currRemovedDeep)),
+							})
+							addedItem = stackitem.NewStruct(getArrayWithSizeAndDeep(currAddedSize, currAddedDeep))
+						} else {
+							obj = stackitem.NewArray([]stackitem.Item{
+								stackitem.NewArray(getArrayWithSizeAndDeep(currRemovedSize, currRemovedDeep)),
+							})
+							addedItem = stackitem.NewArray(getArrayWithSizeAndDeep(currAddedSize, currAddedDeep))
+						}
+						testCases = append(testCases, testCase{
+							name:  fmt.Sprintf("%s %s %d %d %d %d", opcode.SETITEM, typ, currRemovedSize, currRemovedDeep, currAddedSize, currAddedDeep),
+							items: []any{obj, 0, addedItem},
+						})
+						currAddedDeep += stepAddedDeep
+					}
+					currAddedSize += stepSize
+				}
+				currRemovedDeep += stepRemovedDeep
+			}
+			currRemovedSize += stepSize
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamSlotsPushReadOnlyVM(opcode.SETITEM, nil, 0, 0, 0, false, tc.items...))
+		})
+	}
+}
+
+func BenchmarkReverseItems(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepSize  = MaxStackSize / countPoints
+		currSize  = stepSize
+	)
+	for _, typ := range []stackitem.Type{stackitem.BufferT, stackitem.ArrayT} {
+		for range countPoints {
+			var items []any
+			if typ != stackitem.BufferT {
+				items = []any{stackitem.NewArray(make([]stackitem.Item, currSize))}
+			} else {
+				items = []any{stackitem.NewBuffer(make([]byte, currSize))}
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d", opcode.REVERSEITEMS, typ, currSize),
+				items: items,
+			})
+			currSize += stepSize
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamSlotsPushReadOnlyVM(opcode.REVERSEITEMS, nil, 0, 0, 0, false, tc.items...))
+		})
+	}
+}
+
+func BenchmarkRemove(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases            []testCase
+		stepItemLen          = MaxStackSize / countPoints
+		stepIndependentParam = MaxStackSize / countPoints
+		currItemLen          = stepItemLen
+	)
+	for range countPoints {
+		currIndependentParam := stepIndependentParam
+		for range countPoints {
+			var (
+				stepDependentParam = MaxStackSize / (countPoints * currIndependentParam)
+				currDependentParam = stepDependentParam
+			)
+			for range countPoints {
+				arrWithItemIndependentLen := make([]stackitem.Item, currItemLen)
+				arrWithItemIndependentLen[0] = stackitem.NewArray(getArrayWithSizeAndDeep(currIndependentParam, currDependentParam))
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d %d %d", opcode.REMOVE, stackitem.ArrayT, currItemLen, currIndependentParam, currDependentParam),
+					items: []any{arrWithItemIndependentLen, 0},
+				})
+				arrWithItemIndependentDeep := make([]stackitem.Item, currItemLen)
+				arrWithItemIndependentDeep[0] = stackitem.NewArray(getArrayWithSizeAndDeep(currDependentParam, currIndependentParam))
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d %d %d", opcode.REMOVE, stackitem.ArrayT, currItemLen, currDependentParam, currIndependentParam),
+					items: []any{arrWithItemIndependentDeep, 0},
+				})
+				mapWithItemIndependentLen := make([]stackitem.MapElement, currItemLen)
+				for key := range currItemLen {
+					mapWithItemIndependentLen = append(mapWithItemIndependentLen, stackitem.MapElement{
+						Key:   stackitem.Make(key),
+						Value: nil,
+					})
+				}
+				mapWithItemIndependentLen[currItemLen-1].Value = stackitem.NewStruct(getArrayWithSizeAndDeep(currIndependentParam, currDependentParam))
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d %d %d", opcode.REMOVE, stackitem.MapT, currItemLen, currIndependentParam, currDependentParam),
+					items: []any{stackitem.NewMapWithValue(mapWithItemIndependentLen), currItemLen - 1},
+				})
+				mapWithItemIndependentDeep := make([]stackitem.MapElement, currItemLen)
+				for key := range currItemLen {
+					mapWithItemIndependentDeep = append(mapWithItemIndependentDeep, stackitem.MapElement{
+						Key:   stackitem.Make(key),
+						Value: nil,
+					})
+				}
+				mapWithItemIndependentDeep[currItemLen-1].Value = stackitem.NewStruct(getArrayWithSizeAndDeep(currDependentParam, currIndependentParam))
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d %d %d", opcode.REMOVE, stackitem.MapT, currItemLen, currDependentParam, currIndependentParam),
+					items: []any{stackitem.NewMapWithValue(mapWithItemIndependentDeep), currItemLen - 1},
+				})
+				currDependentParam += stepDependentParam
+			}
+			currIndependentParam += stepIndependentParam
+		}
+		currItemLen += stepItemLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamSlotsPushReadOnlyVM(opcode.REMOVE, nil, 0, 0, 0, false, tc.items...))
+		})
+	}
+}
+
+func BenchmarkClearItems(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases            []testCase
+		stepIndependentParam = MaxStackSize / countPoints
+		currIndependentParam = stepIndependentParam
+	)
+	for range countPoints {
+		var (
+			stepDependentParam = MaxStackSize / (countPoints * currIndependentParam)
+			currDependentParam = stepDependentParam
+		)
+		for range countPoints {
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.CLEARITEMS, stackitem.ArrayT, currIndependentParam, currDependentParam),
+				items: []any{getArrayWithSizeAndDeep(currIndependentParam, currDependentParam)},
+			})
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.CLEARITEMS, stackitem.ArrayT, currDependentParam, currIndependentParam),
+				items: []any{getArrayWithSizeAndDeep(currDependentParam, currIndependentParam)},
+			})
+			currDependentParam += stepDependentParam
+		}
+		currIndependentParam += stepIndependentParam
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.CLEARITEMS, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkPopItem(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases            []testCase
+		stepIndependentParam = MaxStackSize / countPoints
+		currIndependentParam = stepIndependentParam
+	)
+	for range countPoints {
+		var (
+			stepDependentParam = MaxStackSize / (countPoints * currIndependentParam)
+			currDependentParam = stepDependentParam
+		)
+		for range countPoints {
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.POPITEM, stackitem.ArrayT, currIndependentParam, currDependentParam),
+				items: []any{[]any{getArrayWithSizeAndDeep(currIndependentParam, currDependentParam)}},
+			})
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.POPITEM, stackitem.ArrayT, currDependentParam, currIndependentParam),
+				items: []any{[]any{getArrayWithSizeAndDeep(currDependentParam, currIndependentParam)}},
+			})
+			currDependentParam += stepDependentParam
+		}
+		currIndependentParam += stepIndependentParam
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.POPITEM, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkSize(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepLen   = MaxStackSize / countPoints
+		currLen   = stepLen
+	)
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %s %d", opcode.SIZE, stackitem.ArrayT, currLen),
+			items: []any{make([]any, currLen)},
+		})
+		currLen += stepLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.SIZE, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkCall(b *testing.B) {
+	type testCase struct {
+		op     opcode.Opcode
+		name   string
+		params []byte
+		items  []any
+	}
+	var (
+		testCases    []testCase
+		stepPosition = maxScriptLen / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.CALL, opcode.CALLL, opcode.CALLA} {
+		currPosition := stepPosition
+		for range countPoints {
+			var (
+				items []any
+				sc    = make([]byte, currPosition+1)
+			)
+			sc[0] = byte(op)
+			if op == opcode.CALLA {
+				items = []any{stackitem.NewPointer(currPosition, sc)}
+			}
+			testCases = append(testCases, testCase{
+				op:     op,
+				name:   fmt.Sprintf("%s %d", op, currPosition),
+				params: sc[1:],
+				items:  items,
+			})
+			currPosition += stepPosition
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, tc.params, tc.items...))
+		})
+	}
+}
+
+func BenchmarkKeys(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepLen   = MaxStackSize / countPoints
+		currLen   = stepLen
+		key       = make([]byte, stackitem.MaxKeySize)
+	)
+	for range countPoints {
+		m := make([]stackitem.MapElement, 0, currLen)
+		for range currLen {
+			m = append(m, stackitem.MapElement{
+				Key: stackitem.NewByteArray(key),
+			})
+		}
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %d", opcode.KEYS, currLen),
+			items: []any{stackitem.NewMapWithValue(m)},
+		})
+		currLen += stepLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.KEYS, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkValues(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases            []testCase
+		stepIndependentParam = MaxStackSize / countPoints
+		currIndependentParam = stepIndependentParam
+	)
+	for range countPoints {
+		var (
+			stepDependentParam = MaxStackSize / (countPoints * currIndependentParam)
+			currDependentParam = stepDependentParam
+		)
+		for range countPoints {
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.VALUES, stackitem.StructT, currIndependentParam, currDependentParam),
+				items: []any{stackitem.NewStruct(getStructWithSizeAndDeep(currIndependentParam, currDependentParam))},
+			})
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.VALUES, stackitem.StructT, currDependentParam, currIndependentParam),
+				items: []any{stackitem.NewStruct(getStructWithSizeAndDeep(currDependentParam, currIndependentParam))},
+			})
+			currDependentParam += stepDependentParam
+		}
+		currIndependentParam += stepIndependentParam
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.VALUES, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkHasKey(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepLen   = MaxStackSize / countPoints
+		currLen   = stepLen
+		key       = make([]byte, stackitem.MaxKeySize)
+	)
+	key[stackitem.MaxKeySize-1] = 1
+	for range countPoints {
+		m := make([]stackitem.MapElement, 0, currLen)
+		for range currLen {
+			m = append(m, stackitem.MapElement{
+				Key: stackitem.NewByteArray(key),
+			})
+		}
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %s %d", opcode.HASKEY, stackitem.MapT, currLen),
+			items: []any{stackitem.NewMapWithValue(m), make([]byte, stackitem.MaxKeySize)},
+		})
+		currLen += stepLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.HASKEY, nil, tc.items...))
+		})
+	}
 }
