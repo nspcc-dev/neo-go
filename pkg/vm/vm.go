@@ -1196,7 +1196,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		arrElem := v.estack.Pop()
 
 		val := cloneIfStruct(itemElem.value)
-
 		switch t := arrElem.value.(type) {
 		case *stackitem.Array:
 			t.Append(val)

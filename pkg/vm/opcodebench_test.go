@@ -1,8 +1,9 @@
 package vm
 
 import (
-	"encoding/binary"
-	"strconv"
+	"fmt"
+	"math"
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -30,10 +31,6 @@ func benchOpcode(t *testing.B, f func() *VM) {
 	benchOpcodeInt(t, f, false)
 }
 
-func benchOpcodeFail(t *testing.B, f func() *VM) {
-	benchOpcodeInt(t, f, true)
-}
-
 func opVM(op opcode.Opcode) func() *VM {
 	return opParamVM(op, nil)
 }
@@ -47,6 +44,10 @@ func opParamPushVM(op opcode.Opcode, param []byte, items ...any) func() *VM {
 }
 
 func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, slotarg int, items ...any) func() *VM {
+	return opParamSlotsPushReadOnlyVM(op, param, sslot, slotloc, slotarg, true, items...)
+}
+
+func opParamSlotsPushReadOnlyVM(op opcode.Opcode, param []byte, sslot int, slotloc int, slotarg int, isReadOnly bool, items ...any) func() *VM {
 	return func() *VM {
 		script := []byte{byte(op)}
 		script = append(script, param...)
@@ -63,7 +64,7 @@ func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, 
 		}
 		for i := range items {
 			item, ok := items[i].(stackitem.Item)
-			if ok {
+			if ok && isReadOnly {
 				item = stackitem.DeepCopy(item, true)
 			} else {
 				item = stackitem.Make(items[i])
@@ -74,714 +75,1587 @@ func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, 
 	}
 }
 
-func exceptParamPushVM(op opcode.Opcode, param []byte, ilen int, elen int, exception bool, items ...any) func() *VM {
+func exceptParamPushVM(op opcode.Opcode, param []byte, items ...any) func() *VM {
 	return func() *VM {
-		regVMF := opParamPushVM(op, param, items...)
-		v := regVMF()
-		if ilen != 0 {
-			eCtx := newExceptionHandlingContext(1, 2)
-			v.Context().tryStack.PushVal(eCtx)
-			for range ilen {
-				v.call(v.Context(), 0)
-			}
-		} else if elen != 0 {
-			for range elen {
-				eCtx := newExceptionHandlingContext(1, 2)
-				v.Context().tryStack.PushVal(eCtx)
-			}
-		}
-		if exception {
-			v.uncaughtException = &stackitem.Null{}
-		}
+		v := opParamPushVM(op, param, items...)()
+		v.Context().tryStack.PushVal(newExceptionHandlingContext(0, 0))
 		return v
 	}
 }
 
-func zeroSlice(l int) []byte {
-	return make([]byte, l)
-}
+const countPoints = 8
 
-func ffSlice(l int) []byte {
-	var s = make([]byte, l)
-	for i := range s {
-		s[i] = 0xff
+func getBigInts(minBits, maxBits, num int) []*big.Int {
+	step := uint((maxBits - minBits) / num)
+	curr := step - 1
+	res := make([]*big.Int, 0, num)
+	for range num {
+		res = append(res, new(big.Int).Lsh(big.NewInt(1), curr))
+		curr += step
 	}
-	return s
+	return res
 }
 
-func maxNumber() []byte {
-	s := ffSlice(32)
-	s[0] = 0
-	return s
-}
-
-func bigNumber() []byte {
-	s := maxNumber()
-	s[31] = 0
-	return s
-}
-
-func bigNegNumber() []byte {
-	s := ffSlice(32)
-	s[0] = 80
-	return s
-}
-
-func arrayOfOnes(size int) []stackitem.Item {
-	var elems = make([]stackitem.Item, size)
-	for i := range elems {
-		elems[i] = stackitem.Make(1)
+func getArrayWithDeep(d int) []stackitem.Item {
+	var item stackitem.Item = stackitem.Null{}
+	for range d - 1 {
+		item = stackitem.NewArray([]stackitem.Item{item})
 	}
-	return elems
+	return []stackitem.Item{item}
 }
 
-func arrayOfIfaces(size int) []any {
-	var elems = make([]any, size)
-	for i := range elems {
-		elems[i] = 1
+func getStructWithDeep(d int) []stackitem.Item {
+	var item stackitem.Item = stackitem.Null{}
+	for range d - 1 {
+		item = stackitem.NewStruct([]stackitem.Item{item})
 	}
-	return elems
+	return []stackitem.Item{item}
 }
 
-func bigMap() *stackitem.Map {
-	var m = stackitem.NewMap()
-	for i := range 1024 {
-		m.Add(stackitem.Make(i), stackitem.Make(i))
-	}
-	return m
-}
-
-func maxBytes() []byte {
-	return zeroSlice(1024 * 1024)
-}
-
-func maxBuf() *stackitem.Buffer {
-	return stackitem.NewBuffer(maxBytes())
-}
-
-func BenchmarkOpcodes(t *testing.B) {
-	t.Run("NOP", func(t *testing.B) { benchOpcode(t, opVM(opcode.NOP)) })
-	t.Run("PUSHINT8", func(t *testing.B) {
-		t.Run("00", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT8, []byte{0})) })
-		t.Run("FF", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT8, []byte{0xff})) })
-	})
-	t.Run("PUSHINT16", func(t *testing.B) {
-		t.Run("0000", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT16, []byte{0, 0})) })
-		t.Run("FFFF", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT16, []byte{0xff, 0xff})) })
-	})
-	t.Run("PUSHINT32", func(t *testing.B) {
-		t.Run("0000...", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT32, zeroSlice(4))) })
-		t.Run("FFFF...", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT32, ffSlice(4))) })
-	})
-	t.Run("PUSHINT64", func(t *testing.B) {
-		t.Run("0000...", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT64, zeroSlice(8))) })
-		t.Run("FFFF...", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT64, ffSlice(8))) })
-	})
-	t.Run("PUSHINT128", func(t *testing.B) {
-		t.Run("0000...", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT128, zeroSlice(16))) })
-		t.Run("FFFF...", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT128, ffSlice(16))) })
-	})
-	t.Run("PUSHINT256", func(t *testing.B) {
-		t.Run("0000...", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT256, zeroSlice(32))) })
-		t.Run("FFFF...", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHINT256, ffSlice(32))) })
-	})
-	t.Run("PUSHA", func(t *testing.B) {
-		t.Run("small script", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHA, zeroSlice(4))) })
-		t.Run("big script", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHA, zeroSlice(4+65536))) })
-	})
-	t.Run("PUSHNULL", func(t *testing.B) { benchOpcode(t, opVM(opcode.PUSHNULL)) })
-	t.Run("PUSHDATA1", func(t *testing.B) {
-		var oneSlice = []byte{1, 0}
-		var maxSlice = zeroSlice(255)
-		maxSlice = append([]byte{255}, maxSlice...)
-
-		t.Run("1", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHDATA1, oneSlice)) })
-		t.Run("255", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHDATA1, maxSlice)) })
-	})
-	t.Run("PUSHDATA2", func(t *testing.B) {
-		const minLen = 256
-		const maxLen = 65535
-		var minSlice = zeroSlice(minLen + 2)
-		var maxSlice = zeroSlice(maxLen + 2)
-
-		binary.LittleEndian.PutUint16(minSlice, minLen)
-		binary.LittleEndian.PutUint16(maxSlice, maxLen)
-
-		t.Run("256", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHDATA2, minSlice)) })
-		t.Run("65535", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHDATA2, maxSlice)) })
-	})
-	t.Run("PUSHDATA4", func(t *testing.B) {
-		const minLen = 65536
-		const maxLen = 1024 * 1024
-		var minSlice = zeroSlice(minLen + 4)
-		var maxSlice = zeroSlice(maxLen + 4)
-
-		binary.LittleEndian.PutUint32(minSlice, minLen)
-		binary.LittleEndian.PutUint32(maxSlice, maxLen)
-
-		t.Run("64K", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHDATA4, minSlice)) })
-		t.Run("1M", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.PUSHDATA4, maxSlice)) })
-	})
-	t.Run("PUSHM1", func(t *testing.B) { benchOpcode(t, opVM(opcode.PUSHM1)) })
-	t.Run("PUSH0", func(t *testing.B) { benchOpcode(t, opVM(opcode.PUSH0)) })
-
-	t.Run("JMP", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.JMP, zeroSlice(1))) })
-	t.Run("JMP_L", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.JMPL, zeroSlice(4))) })
-
-	var jmpifs = []struct {
-		op   opcode.Opcode
-		size int
-	}{
-		{opcode.JMPIF, 1},
-		{opcode.JMPIFL, 4},
-		{opcode.JMPIFNOT, 1},
-		{opcode.JMPIFNOTL, 4},
-	}
-	for _, jmpif := range jmpifs {
-		t.Run(jmpif.op.String(), func(t *testing.B) {
-			t.Run("false", func(t *testing.B) { benchOpcode(t, opParamPushVM(jmpif.op, zeroSlice(jmpif.size), false)) })
-			t.Run("true", func(t *testing.B) { benchOpcode(t, opParamPushVM(jmpif.op, zeroSlice(jmpif.size), true)) })
-		})
-	}
-
-	var jmpcmps = []struct {
-		op   opcode.Opcode
-		size int
-	}{
-		{opcode.JMPEQ, 1},
-		{opcode.JMPEQL, 4},
-		{opcode.JMPNE, 1},
-		{opcode.JMPNEL, 4},
-		{opcode.JMPGT, 1},
-		{opcode.JMPGTL, 4},
-		{opcode.JMPGE, 1},
-		{opcode.JMPGEL, 4},
-		{opcode.JMPLT, 1},
-		{opcode.JMPLTL, 4},
-		{opcode.JMPLE, 1},
-		{opcode.JMPLEL, 4},
-	}
-	for _, jmpcmp := range jmpcmps {
-		t.Run(jmpcmp.op.String(), func(t *testing.B) {
-			t.Run("false", func(t *testing.B) {
-				t.Run("small", func(t *testing.B) { benchOpcode(t, opParamPushVM(jmpcmp.op, zeroSlice(jmpcmp.size), 1, 0)) })
-				t.Run("big", func(t *testing.B) {
-					benchOpcode(t, opParamPushVM(jmpcmp.op, zeroSlice(jmpcmp.size), maxNumber(), bigNumber()))
-				})
-			})
-			t.Run("true", func(t *testing.B) {
-				t.Run("small", func(t *testing.B) { benchOpcode(t, opParamPushVM(jmpcmp.op, zeroSlice(jmpcmp.size), 1, 1)) })
-				t.Run("big", func(t *testing.B) {
-					benchOpcode(t, opParamPushVM(jmpcmp.op, zeroSlice(jmpcmp.size), maxNumber(), maxNumber()))
-				})
-			})
-		})
-	}
-
-	t.Run("CALL", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.CALL, zeroSlice(1))) })
-	t.Run("CALL_L", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.CALLL, zeroSlice(4))) })
-	t.Run("CALLA", func(t *testing.B) {
-		t.Run("small script", func(t *testing.B) {
-			p := stackitem.NewPointer(0, []byte{byte(opcode.CALLA)})
-			benchOpcode(t, opParamPushVM(opcode.CALLA, nil, p))
-		})
-		t.Run("big script", func(t *testing.B) {
-			prog := zeroSlice(65536)
-			prog[0] = byte(opcode.CALLA)
-			p := stackitem.NewPointer(0, prog)
-			benchOpcode(t, opParamPushVM(opcode.CALLA, zeroSlice(65535), p))
-		})
-	})
-
-	t.Run("ABORT", func(t *testing.B) { benchOpcodeFail(t, opVM(opcode.ABORT)) })
-	t.Run("ASSERT", func(t *testing.B) {
-		t.Run("true", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.ASSERT, nil, true)) })
-		t.Run("false", func(t *testing.B) { benchOpcodeFail(t, opParamPushVM(opcode.ASSERT, nil, false)) })
-	})
-
-	t.Run("THROW", func(t *testing.B) {
-		t.Run("0/1", func(t *testing.B) {
-			benchOpcode(t, exceptParamPushVM(opcode.THROW, []byte{0, 0, 0, 0}, 0, 1, false, 1))
-		})
-		t.Run("0/16", func(t *testing.B) {
-			benchOpcode(t, exceptParamPushVM(opcode.THROW, []byte{0, 0, 0, 0}, 0, 16, false, 1))
-		})
-		t.Run("255/0", func(t *testing.B) {
-			benchOpcode(t, exceptParamPushVM(opcode.THROW, []byte{0, 0, 0, 0}, 255, 0, false, 1))
-		})
-		t.Run("1023/0", func(t *testing.B) {
-			benchOpcode(t, exceptParamPushVM(opcode.THROW, []byte{0, 0, 0, 0}, 1023, 0, false, 1))
-		})
-	})
-	t.Run("TRY", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.TRY, []byte{1, 2, 0, 0})) })
-	t.Run("TRY_L", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.TRYL, []byte{1, 0, 0, 0, 2, 0, 0, 0})) })
-	t.Run("ENDTRY", func(t *testing.B) {
-		t.Run("1", func(t *testing.B) { benchOpcode(t, exceptParamPushVM(opcode.ENDTRY, []byte{0, 0, 0, 0}, 0, 1, false)) })
-		t.Run("16", func(t *testing.B) { benchOpcode(t, exceptParamPushVM(opcode.ENDTRY, []byte{0, 0, 0, 0}, 0, 16, false)) })
-	})
-	t.Run("ENDTRY_L", func(t *testing.B) {
-		t.Run("1", func(t *testing.B) { benchOpcode(t, exceptParamPushVM(opcode.ENDTRYL, []byte{0, 0, 0, 0}, 0, 1, false)) })
-		t.Run("16", func(t *testing.B) {
-			benchOpcode(t, exceptParamPushVM(opcode.ENDTRYL, []byte{0, 0, 0, 0}, 0, 16, false))
-		})
-	})
-	t.Run("ENDFINALLY", func(t *testing.B) {
-		t.Run("0/1", func(t *testing.B) {
-			benchOpcode(t, exceptParamPushVM(opcode.ENDFINALLY, []byte{0, 0, 0, 0}, 0, 1, true))
-		})
-		t.Run("0/16", func(t *testing.B) {
-			benchOpcode(t, exceptParamPushVM(opcode.ENDFINALLY, []byte{0, 0, 0, 0}, 0, 16, true))
-		})
-		t.Run("255/0", func(t *testing.B) {
-			benchOpcode(t, exceptParamPushVM(opcode.ENDFINALLY, []byte{0, 0, 0, 0}, 255, 0, true))
-		})
-		t.Run("1023/0", func(t *testing.B) {
-			benchOpcode(t, exceptParamPushVM(opcode.ENDFINALLY, []byte{0, 0, 0, 0}, 1023, 0, true))
-		})
-	})
-
-	t.Run("RET", func(t *testing.B) { benchOpcode(t, opVM(opcode.RET)) })
-	t.Run("SYSCALL", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.SYSCALL, zeroSlice(4))) })
-
-	t.Run("DEPTH", func(t *testing.B) {
-		t.Run("0", func(t *testing.B) { benchOpcode(t, opVM(opcode.DEPTH)) })
-		t.Run("1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DEPTH, nil, arrayOfIfaces(1024)...)) })
-	})
-	t.Run("DROP", func(t *testing.B) {
-		t.Run("1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DROP, nil, 1)) })
-		t.Run("1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DEPTH, nil, arrayOfIfaces(1024)...)) })
-	})
-	t.Run("NIP", func(t *testing.B) {
-		t.Run("2", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.NIP, nil, 1, 1)) })
-		t.Run("1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.NIP, nil, arrayOfIfaces(1024)...)) })
-	})
-	t.Run("XDROP", func(t *testing.B) {
-		t.Run("0/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.XDROP, nil, 0, 0)) })
-		var items = arrayOfIfaces(1025)
-		items[1024] = 0
-		t.Run("0/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.XDROP, nil, items...)) })
-		items[1024] = 1023
-		t.Run("1024/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.XDROP, nil, items...)) })
-		items = arrayOfIfaces(2048)
-		items[2047] = 2046
-		t.Run("2047/2048", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.XDROP, nil, items...)) })
-	})
-	t.Run("CLEAR", func(t *testing.B) {
-		t.Run("0", func(t *testing.B) { benchOpcode(t, opVM(opcode.CLEAR)) })
-		t.Run("1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.CLEAR, nil, arrayOfIfaces(1024)...)) })
-		t.Run("2048", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.CLEAR, nil, arrayOfIfaces(2048)...)) })
-	})
-	var copiers = []struct {
-		op  opcode.Opcode
-		pos int
-		l   int
-	}{
-		{opcode.DUP, 0, 1},
-		{opcode.OVER, 1, 2},
-		{opcode.PICK, 2, 3},
-		{opcode.PICK, 1024, 1025},
-		{opcode.TUCK, 1, 2},
-	}
-	for _, cp := range copiers {
-		var name = cp.op.String()
-		if cp.op == opcode.PICK {
-			name += "/" + strconv.Itoa(cp.pos)
+func getUniqueKeys(num, keySize int) [][]byte {
+	keys := make([][]byte, 0, num)
+	for i := range num {
+		key := make([]byte, keySize)
+		j := keySize - 1
+		for i > 0 {
+			key[j] = byte(i & 0xff)
+			i >>= 8
+			j--
 		}
-		var getitems = func(element any) []any {
-			l := cp.l
-			pos := cp.pos
-			if cp.op == opcode.PICK {
-				pos++
-				l++
-			}
-			var items = make([]any, l)
-			for i := range items {
-				items[i] = 0
-			}
-			items[pos] = element
-			if cp.op == opcode.PICK {
-				items[0] = cp.pos
-			}
-			return items
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func BenchmarkIs(b *testing.B) {
+	type testCase struct {
+		name   string
+		op     opcode.Opcode
+		params []byte
+		items  []any
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.ISNULL, opcode.ISTYPE} {
+		currDeep := stepDeep - 1
+		for range countPoints {
+			testCases = append(testCases, testCase{
+				name:   fmt.Sprintf("%s %d", op, currDeep),
+				op:     op,
+				params: []byte{0},
+				items:  []any{stackitem.NewArray(getArrayWithDeep(currDeep))},
+			})
+			currDeep += stepDeep
 		}
-		t.Run(name, func(t *testing.B) {
-			t.Run("null", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(stackitem.Null{})...)) })
-			t.Run("boolean", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(true)...)) })
-			t.Run("integer", func(t *testing.B) {
-				t.Run("small", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(1)...)) })
-				t.Run("big", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(bigNumber())...)) })
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, tc.params, tc.items...))
+		})
+	}
+}
+
+func BenchmarkPushInt(b *testing.B) {
+	type testCase struct {
+		name   string
+		op     opcode.Opcode
+		params []byte
+	}
+	var (
+		testCases    []testCase
+		opToNumBytes = map[opcode.Opcode]int{
+			opcode.PUSHINT8:   1,
+			opcode.PUSHINT16:  2,
+			opcode.PUSHINT32:  4,
+			opcode.PUSHINT64:  8,
+			opcode.PUSHINT128: 16,
+			opcode.PUSHINT256: 32,
+		}
+	)
+	for op, numBytes := range opToNumBytes {
+		buf := make([]byte, numBytes)
+		buf[numBytes-1] = 0x80
+		testCases = append(testCases, testCase{
+			name:   fmt.Sprintf("%s %d", op, numBytes),
+			op:     op,
+			params: buf,
+		})
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamVM(tc.op, tc.params))
+		})
+	}
+}
+
+func BenchmarkPushData(b *testing.B) {
+	type testCase struct {
+		name   string
+		params []byte
+	}
+	var (
+		testCases []testCase
+		stepLen   = stackitem.MaxSize / countPoints
+		currLen   = stepLen
+	)
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:   fmt.Sprintf("%s %d", opcode.PUSHDATA4, currLen),
+			params: make([]byte, currLen),
+		})
+		currLen += stepLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamVM(opcode.PUSHDATA4, tc.params))
+		})
+	}
+}
+
+func BenchmarkConvert(b *testing.B) {
+	type testCase struct {
+		name   string
+		params []byte
+		items  []any
+	}
+	var (
+		testCases        []testCase
+		stepArrayLen     = MaxStackSize / countPoints
+		stepByteArrayLen = stackitem.MaxSize / countPoints
+		currArrayLen     = stepArrayLen - 1
+		currByteArrayLen = stepByteArrayLen
+	)
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:   fmt.Sprintf("%s %s %s %d", opcode.CONVERT, stackitem.ArrayT, stackitem.StructT, currArrayLen),
+			params: []byte{byte(stackitem.StructT)},
+			items:  []any{make([]any, currArrayLen)},
+		})
+		currArrayLen += stepArrayLen
+	}
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:   fmt.Sprintf("%s %s %s %d", opcode.CONVERT, stackitem.ByteArrayT, stackitem.BufferT, currByteArrayLen),
+			params: []byte{byte(stackitem.BufferT)},
+			items:  []any{stackitem.NewByteArray(make([]byte, currByteArrayLen))},
+		})
+		currByteArrayLen += stepByteArrayLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.CONVERT, tc.params, tc.items...))
+		})
+	}
+}
+
+func BenchmarkInitSlot(b *testing.B) {
+	type testCase struct {
+		name   string
+		op     opcode.Opcode
+		params []byte
+		items  []any
+	}
+	var (
+		testCases []testCase
+		stepSlots = byte(math.MaxUint8 / countPoints)
+		currSlots = stepSlots
+	)
+	// TODO: do not ignore the len and depth of the argument
+	for range countPoints {
+		for _, params := range []struct{ localSlots, argSlots byte }{{currSlots, 0}, {0, currSlots}} {
+			testCases = append(testCases, testCase{
+				name:   fmt.Sprintf("%s %d %d", opcode.INITSLOT, params.localSlots, params.argSlots),
+				op:     opcode.INITSLOT,
+				params: []byte{params.localSlots, params.argSlots},
+				items:  make([]any, params.argSlots),
 			})
-			t.Run("bytearray", func(t *testing.B) {
-				t.Run("small", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems("01234567")...)) })
-				t.Run("big", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(zeroSlice(65536))...)) })
+		}
+		testCases = append(testCases, testCase{
+			name:   fmt.Sprintf("%s %d", opcode.INITSSLOT, currSlots),
+			op:     opcode.INITSSLOT,
+			params: []byte{currSlots},
+		})
+		currSlots += stepSlots
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, tc.params, tc.items...))
+		})
+	}
+}
+
+func BenchmarkLD(b *testing.B) {
+	type testCase struct {
+		name string
+		f    func() *VM
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		currDeep  = stepDeep - 1
+	)
+	for range countPoints {
+		deep := currDeep
+		testCases = append(testCases, testCase{
+			name: fmt.Sprintf("%s %d", opcode.LDSFLD0, currDeep),
+			f: func() *VM {
+				item := stackitem.NewArray(getArrayWithDeep(deep))
+				v := opVM(opcode.LDSFLD0)()
+				slot := []stackitem.Item{item}
+				v.Context().sc.static = slot
+				return v
+			},
+		})
+		currDeep += stepDeep
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
+		})
+	}
+}
+
+func BenchmarkST(b *testing.B) {
+	type testCase struct {
+		name string
+		f    func() *VM
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		currDeep  = stepDeep - 1
+	)
+	for range countPoints {
+		for _, params := range []struct{ removedDeep, addedDeep int }{
+			{currDeep, 1},
+			{1, currDeep},
+		} {
+			removedDeep := params.removedDeep
+			addedDeep := params.addedDeep
+			testCases = append(testCases, testCase{
+				name: fmt.Sprintf("%s %d %d", opcode.STSFLD0, params.removedDeep, params.addedDeep),
+				f: func() *VM {
+					item := stackitem.NewArray(getArrayWithDeep(addedDeep))
+					v := opParamPushVM(opcode.STSFLD0, nil, item)()
+					slot := []stackitem.Item{stackitem.NewArray(getArrayWithDeep(removedDeep))}
+					v.Context().sc.static = slot
+					v.refs.Add(slot[0])
+					return v
+				},
 			})
-			t.Run("buffer", func(t *testing.B) {
-				t.Run("small", func(t *testing.B) {
-					benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(stackitem.NewBuffer(zeroSlice(1)))...))
-				})
-				t.Run("big", func(t *testing.B) {
-					benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(stackitem.NewBuffer(zeroSlice(65536)))...))
-				})
+		}
+		currDeep += stepDeep
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
+		})
+	}
+}
+
+func BenchmarkNew(b *testing.B) {
+	type testCase struct {
+		name   string
+		op     opcode.Opcode
+		params []byte
+		items  []any
+	}
+	var (
+		testCases        []testCase
+		stepArrayLen     = MaxStackSize / countPoints
+		stepByteArrayLen = stackitem.MaxSize / countPoints
+		currArrayLen     = stepArrayLen - 1
+		currByteArrayLen = stepByteArrayLen
+	)
+	for range countPoints {
+		for _, typ := range []stackitem.Type{stackitem.BooleanT, stackitem.IntegerT, stackitem.ByteArrayT, stackitem.AnyT} {
+			testCases = append(testCases, testCase{
+				name:   fmt.Sprintf("%s %s %d", opcode.NEWARRAYT, typ, currArrayLen),
+				op:     opcode.NEWARRAYT,
+				params: []byte{byte(typ)},
+				items:  []any{currArrayLen},
 			})
-			t.Run("struct", func(t *testing.B) {
-				var items = make([]stackitem.Item, 1)
-				t.Run("small", func(t *testing.B) {
-					benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(stackitem.NewStruct(items))...))
-				})
-				// Stack overflow.
-				if cp.op == opcode.PICK && cp.pos == 1024 {
-					return
+		}
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %d", opcode.NEWARRAY, currArrayLen),
+			op:    opcode.NEWARRAY,
+			items: []any{currArrayLen},
+		})
+		currArrayLen += stepArrayLen
+	}
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %d", opcode.NEWBUFFER, currByteArrayLen),
+			op:    opcode.NEWBUFFER,
+			items: []any{currByteArrayLen},
+		})
+		currByteArrayLen += stepByteArrayLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, tc.params, tc.items...))
+		})
+	}
+}
+
+func BenchmarkMemCpy(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases        []testCase
+		stepByteArrayLen = stackitem.MaxSize / countPoints
+		currByteArrayLen = stepByteArrayLen
+	)
+	for range countPoints {
+		buf1 := make([]byte, currByteArrayLen)
+		buf2 := make([]byte, currByteArrayLen)
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %d", opcode.MEMCPY, currByteArrayLen),
+			items: []any{stackitem.NewBuffer(buf1), 0, stackitem.NewBuffer(buf2), 0, currByteArrayLen},
+		})
+		currByteArrayLen += stepByteArrayLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamSlotsPushReadOnlyVM(opcode.MEMCPY, nil, 0, 0, 0, false, tc.items...))
+		})
+	}
+}
+
+func BenchmarkCat(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases        []testCase
+		stepByteArrayLen = stackitem.MaxSize / countPoints
+		currByteArrayLen = stepByteArrayLen
+	)
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name: fmt.Sprintf("%s %d", opcode.CAT, currByteArrayLen),
+			items: []any{
+				[]byte{},
+				make([]byte, currByteArrayLen),
+			},
+		})
+		currByteArrayLen += stepByteArrayLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.CAT, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkSubstr(b *testing.B) {
+	type testCase struct {
+		op    opcode.Opcode
+		name  string
+		items []any
+	}
+	var (
+		testCases        []testCase
+		stepByteArrayLen = stackitem.MaxSize / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.SUBSTR, opcode.LEFT} {
+		currByteArrayLen := stepByteArrayLen
+		for range countPoints {
+			items := []any{make([]byte, currByteArrayLen)}
+			if op == opcode.SUBSTR {
+				items = append(items, 0)
+			}
+			items = append(items, currByteArrayLen)
+			testCases = append(testCases, testCase{
+				op:    op,
+				name:  fmt.Sprintf("%s %d", op, currByteArrayLen),
+				items: items,
+			})
+			currByteArrayLen += stepByteArrayLen
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkDrop(b *testing.B) {
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	itemsForOpcode := func(op opcode.Opcode, arr []stackitem.Item) []any {
+		var items []any
+		switch op {
+		case opcode.DROP, opcode.CLEAR:
+			items = []any{arr}
+		case opcode.NIP, opcode.XDROP:
+			items = []any{arr, 0}
+		}
+		return items
+	}
+	var (
+		testCases     []testCase
+		stepDeep      = MaxStackSize / countPoints
+		stepStackSize = MaxStackSize / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.DROP, opcode.NIP, opcode.XDROP, opcode.CLEAR} {
+		currDeep := stepDeep
+		for range countPoints {
+			name := fmt.Sprintf("%s %d", op, currDeep)
+			if op == opcode.XDROP {
+				name += " 0"
+			} else if op == opcode.CLEAR {
+				name += " 1"
+			}
+			testCases = append(testCases, testCase{
+				name:  name,
+				op:    op,
+				items: itemsForOpcode(op, getArrayWithDeep(currDeep)),
+			})
+			currDeep += stepDeep
+		}
+	}
+	for _, op := range []opcode.Opcode{opcode.XDROP, opcode.CLEAR} {
+		currStackSize := stepStackSize
+		for range countPoints {
+			items := make([]any, currStackSize)
+			items[currStackSize-1] = currStackSize - 2
+			name := fmt.Sprintf("%s %d %d", op, 1, currStackSize-2)
+			if op == opcode.CLEAR {
+				name = fmt.Sprintf("%s %d %d", op, currStackSize, currStackSize)
+			}
+			testCases = append(testCases, testCase{
+				name:  name,
+				op:    op,
+				items: items,
+			})
+			currStackSize += stepStackSize
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkDup(b *testing.B) {
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	itemsForOpcode := func(op opcode.Opcode, item any) []any {
+		var items []any
+		switch op {
+		case opcode.TUCK:
+			items = []any{nil, item}
+		case opcode.DUP:
+			items = []any{item}
+		case opcode.OVER, opcode.PICK:
+			items = []any{item, 0}
+		}
+		return items
+	}
+	var (
+		testCases        []testCase
+		stepByteArrayLen = stackitem.MaxSize / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.DUP, opcode.OVER, opcode.TUCK, opcode.PICK} {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %s", op, stackitem.AnyT),
+			op:    op,
+			items: itemsForOpcode(op, nil),
+		})
+		currByteArrayLen := stepByteArrayLen
+		for range countPoints {
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d", op, stackitem.ByteArrayT, currByteArrayLen),
+				op:    op,
+				items: itemsForOpcode(op, make([]byte, currByteArrayLen)),
+			})
+			currByteArrayLen += stepByteArrayLen
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkRollAndReverse(b *testing.B) {
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	var (
+		testCases     []testCase
+		stepStackSize = MaxStackSize / countPoints
+	)
+	for _, op := range []opcode.Opcode{opcode.ROLL, opcode.REVERSEN} {
+		currStackSize := stepStackSize
+		for range countPoints {
+			var (
+				items = make([]any, currStackSize)
+				n     = currStackSize - 2
+			)
+			if op == opcode.REVERSEN {
+				n++
+			}
+			items[currStackSize-1] = n
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, n),
+				op:    op,
+				items: items,
+			})
+			currStackSize += stepStackSize
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkIntegerOperands(b *testing.B) {
+	unaryOpcodes := []opcode.Opcode{
+		opcode.INVERT,
+		opcode.SIGN,
+		opcode.ABS,
+		opcode.NEGATE,
+		opcode.INC,
+		opcode.DEC,
+		opcode.SQRT,
+		opcode.NZ,
+	}
+	binaryOpcodes := []opcode.Opcode{
+		opcode.AND,
+		opcode.OR,
+		opcode.XOR,
+		opcode.EQUAL,
+		opcode.NOTEQUAL,
+		opcode.ADD,
+		opcode.SUB,
+		opcode.DIV,
+		opcode.MOD,
+		opcode.NUMEQUAL,
+		opcode.NUMNOTEQUAL,
+		opcode.LT,
+		opcode.LE,
+		opcode.GT,
+		opcode.GE,
+		opcode.MIN,
+		opcode.MAX,
+	}
+	ternaryOpcodes := []opcode.Opcode{
+		opcode.MODMUL,
+		opcode.MODPOW,
+	}
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	var (
+		testCases   []testCase
+		stepNumBits = (stackitem.MaxBigIntegerSizeBits - 1) / countPoints
+		bigInts1    = getBigInts(0, stackitem.MaxBigIntegerSizeBits-1, countPoints)
+	)
+	for _, op := range unaryOpcodes {
+		for i := range bigInts1 {
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, bigInts1[i].BitLen()),
+				op:    op,
+				items: []any{bigInts1[i]},
+			})
+		}
+	}
+	bigInts2 := getBigInts(0, stackitem.MaxBigIntegerSizeBits-1, countPoints)
+	for _, op := range binaryOpcodes {
+		for i := range bigInts1 {
+			n := bigInts2[i]
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, bigInts1[i].BitLen()),
+				op:    op,
+				items: []any{bigInts1[i], n},
+			})
+		}
+	}
+	bigInts3 := getBigInts(0, stackitem.MaxBigIntegerSizeBits-1, countPoints)
+	for _, op := range ternaryOpcodes {
+		for i := range bigInts1 {
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, bigInts1[i].BitLen()),
+				op:    op,
+				items: []any{bigInts1[i], bigInts2[i], bigInts3[i]},
+			})
+		}
+	}
+	mulBigInts := getBigInts(0, (stackitem.MaxBigIntegerSizeBits/2)-1, countPoints)
+	for _, n := range mulBigInts {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %d", opcode.MUL, n.BitLen()),
+			op:    opcode.MUL,
+			items: []any{n, n},
+		})
+	}
+	for _, op := range []opcode.Opcode{opcode.POW, opcode.SHL, opcode.SHR} {
+		currNumBits := stepNumBits
+		for range countPoints {
+			items := []any{new(big.Int).Lsh(big.NewInt(1), uint(currNumBits))}
+			switch op {
+			case opcode.POW:
+				items = append(items, int(math.Floor(float64(stackitem.MaxBigIntegerSizeBits)/float64(currNumBits))))
+			case opcode.SHL:
+				items = append(items, stackitem.MaxBigIntegerSizeBits-currNumBits-2)
+			case opcode.SHR:
+				items = append(items, currNumBits)
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %d", op, currNumBits),
+				op:    op,
+				items: items,
+			})
+			currNumBits += stepNumBits
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkAppend(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+	)
+	for _, typ := range []stackitem.Type{stackitem.ArrayT, stackitem.StructT} {
+		currDeep := stepDeep - 1
+		for range countPoints {
+			var item stackitem.Item
+			if typ == stackitem.ArrayT {
+				item = stackitem.NewArray(getArrayWithDeep(currDeep))
+			} else {
+				item = stackitem.NewStruct(getStructWithDeep(currDeep))
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %s %d", opcode.APPEND, stackitem.ArrayT, typ, currDeep),
+				items: []any{[]any{}, item},
+			})
+			currDeep += stepDeep
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.APPEND, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkPackMap(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		stepN     = MaxStackSize / (2 * countPoints)
+		currDeep  = stepDeep - 1
+	)
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %s %d %d", opcode.PACKMAP, stackitem.AnyT, currDeep, 1),
+			items: []any{stackitem.NewArray(getArrayWithDeep(currDeep - 2)), true, 1},
+		})
+		currDeep += stepDeep
+	}
+	for _, typ := range []stackitem.Type{stackitem.IntegerT, stackitem.ByteArrayT} {
+		currN := stepN - 1
+		for range countPoints {
+			items := make([]any, 0, 2*currN)
+			if typ == stackitem.ByteArrayT {
+				keys := getUniqueKeys(currN, stackitem.MaxKeySize)
+				for _, key := range keys {
+					items = append(items, nil, key)
 				}
-				items = make([]stackitem.Item, 1024)
-				t.Run("big", func(t *testing.B) {
-					benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(stackitem.NewStruct(items))...))
+			} else {
+				for i := range 2 * currN {
+					items = append(items, i)
+				}
+			}
+			items = append(items, currN)
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.PACKMAP, typ, 2*currN, currN),
+				items: items,
+			})
+			currN += stepN
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.PACKMAP, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkPack(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		stepN     = MaxStackSize / countPoints
+		currDeep  = stepDeep - 1
+		currN     = stepN - 1
+	)
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %d %d", opcode.PACK, currDeep, 1),
+			items: []any{stackitem.NewArray(getArrayWithDeep(currDeep - 1)), 1},
+		})
+		currDeep += stepDeep
+	}
+	for range countPoints {
+		items := make([]any, currN)
+		items = append(items, currN)
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %d %d", opcode.PACK, currN, currN),
+			items: items,
+		})
+		currN += stepN
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.PACK, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkUnpack(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		stepN     = MaxStackSize / countPoints
+	)
+	for _, typ := range []stackitem.Type{stackitem.ArrayT, stackitem.MapT} {
+		currDeep := stepDeep - 1
+		for range countPoints {
+			var item stackitem.Item
+			if typ == stackitem.ArrayT {
+				item = stackitem.NewArray(getArrayWithDeep(currDeep))
+			} else {
+				item = stackitem.NewMapWithValue([]stackitem.MapElement{{
+					Key:   stackitem.NewBool(true),
+					Value: stackitem.NewArray(getArrayWithDeep(currDeep - 2)),
+				}})
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.UNPACK, typ, currDeep, 1),
+				items: []any{item},
+			})
+			currDeep += stepDeep
+		}
+		currN := stepN - 1
+		for range countPoints {
+			var item stackitem.Item
+			if typ == stackitem.ArrayT {
+				item = stackitem.NewArray(make([]stackitem.Item, currN))
+			} else {
+				var (
+					keys = getUniqueKeys(currN/2, stackitem.MaxKeySize)
+					m    = make([]stackitem.MapElement, 0, currN/2)
+				)
+				for _, key := range keys {
+					m = append(m, stackitem.MapElement{Key: stackitem.NewByteArray(key)})
+				}
+				item = stackitem.NewMapWithValue(m)
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d", opcode.UNPACK, typ, currN, currN),
+				items: []any{item},
+			})
+			currN += stepN
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.UNPACK, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkPickItem(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases        []testCase
+		stepDeep         = MaxStackSize / countPoints
+		stepN            = MaxStackSize / (2 * countPoints)
+		stepByteArrayLen = stackitem.MaxSize / countPoints
+	)
+	for _, typ := range []stackitem.Type{stackitem.ArrayT, stackitem.MapT} {
+		currDeep := stepDeep - 1
+		for range countPoints {
+			var item stackitem.Item
+			if typ == stackitem.ArrayT {
+				item = stackitem.NewArray([]stackitem.Item{
+					stackitem.NewArray(getArrayWithDeep(currDeep)),
 				})
+			} else {
+				item = stackitem.NewMapWithValue([]stackitem.MapElement{{
+					Key:   stackitem.NewBigInteger(big.NewInt(0)),
+					Value: stackitem.NewArray(getArrayWithDeep(currDeep)),
+				}})
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d %s", opcode.PICKITEM, typ, currDeep, 1, stackitem.ArrayT),
+				items: []any{item, 0},
 			})
-			p := stackitem.NewPointer(0, zeroSlice(1024))
-			t.Run("pointer", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DUP, nil, getitems(p)...)) })
-		})
-	}
-
-	var swappers = []struct {
-		op  opcode.Opcode
-		num int
-	}{
-		{opcode.SWAP, 2},
-		{opcode.ROT, 3},
-		{opcode.ROLL, 4},
-		{opcode.ROLL, 1024},
-		{opcode.REVERSE3, 3},
-		{opcode.REVERSE4, 4},
-		{opcode.REVERSEN, 5},
-		{opcode.REVERSEN, 1024},
-	}
-	for _, sw := range swappers {
-		var name = sw.op.String()
-		if sw.op == opcode.ROLL || sw.op == opcode.REVERSEN {
-			name += "/" + strconv.Itoa(sw.num)
+			currDeep += stepDeep
 		}
-		var getitems = func(element any) []any {
-			l := sw.num
-			if sw.op == opcode.ROLL || sw.op == opcode.REVERSEN {
-				l++
-			}
-			var items = make([]any, l)
-			for i := range items {
-				items[i] = element
-			}
-			if sw.op == opcode.ROLL || sw.op == opcode.REVERSEN {
-				items[len(items)-1] = sw.num - 1
-			}
-			return items
-		}
-		t.Run(name, func(t *testing.B) {
-			t.Run("null", func(t *testing.B) {
-				benchOpcode(t, opParamPushVM(sw.op, nil, getitems(stackitem.Null{})...))
-			})
-			t.Run("integer", func(t *testing.B) { benchOpcode(t, opParamPushVM(sw.op, nil, getitems(0)...)) })
-			t.Run("big bytes", func(t *testing.B) {
-				benchOpcode(t, opParamPushVM(sw.op, nil, getitems(zeroSlice(65536))...))
-			})
-		})
-	}
-
-	t.Run("INITSSLOT", func(t *testing.B) {
-		t.Run("1", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.INITSSLOT, []byte{1})) })
-		t.Run("255", func(t *testing.B) { benchOpcode(t, opParamVM(opcode.INITSSLOT, []byte{255})) })
-	})
-	t.Run("INITSLOT", func(t *testing.B) {
-		t.Run("1/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.INITSLOT, []byte{1, 1}, 0)) })
-		t.Run("1/255", func(t *testing.B) {
-			benchOpcode(t, opParamPushVM(opcode.INITSLOT, []byte{1, 255}, arrayOfIfaces(255)...))
-		})
-		t.Run("255/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.INITSLOT, []byte{255, 1}, 0)) })
-		t.Run("255/255", func(t *testing.B) {
-			benchOpcode(t, opParamPushVM(opcode.INITSLOT, []byte{255, 255}, arrayOfIfaces(255)...))
-		})
-	})
-	t.Run("LDSFLD0", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.LDSFLD0, nil, 1, 0, 0)) })
-	t.Run("LDSFLD254", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.LDSFLD, []byte{254}, 255, 0, 0)) })
-	t.Run("STSFLD0", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.STSFLD0, nil, 1, 0, 0, 0)) })
-	t.Run("STSFLD254", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.STSFLD, []byte{254}, 255, 0, 0, 0)) })
-	t.Run("LDLOC0", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.LDLOC0, nil, 0, 1, 1)) })
-	t.Run("LDLOC254", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.LDLOC, []byte{254}, 0, 255, 255)) })
-	t.Run("STLOC0", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.STLOC0, nil, 0, 1, 1, 0)) })
-	t.Run("STLOC254", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.STLOC, []byte{254}, 0, 255, 255, 0)) })
-	t.Run("LDARG0", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.LDARG0, nil, 0, 1, 1)) })
-	t.Run("LDARG254", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.LDARG, []byte{254}, 0, 255, 255)) })
-	t.Run("STARG0", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.STARG0, nil, 0, 1, 1, 0)) })
-	t.Run("STARG254", func(t *testing.B) { benchOpcode(t, opParamSlotsPushVM(opcode.STARG, []byte{254}, 0, 255, 255, 0)) })
-
-	t.Run("NEWBUFFER", func(t *testing.B) {
-		t.Run("1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.NEWBUFFER, nil, 1)) })
-		t.Run("255", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.NEWBUFFER, nil, 255)) })
-		t.Run("64K", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.NEWBUFFER, nil, 65536)) })
-		t.Run("1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.NEWBUFFER, nil, 1024*1024)) })
-	})
-	t.Run("MEMCPY", func(t *testing.B) {
-		buf1 := maxBuf()
-		buf2 := maxBuf()
-
-		t.Run("1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MEMCPY, nil, buf1, 0, buf2, 0, 1)) })
-		t.Run("255", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MEMCPY, nil, buf1, 0, buf2, 0, 255)) })
-		t.Run("64K", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MEMCPY, nil, buf1, 0, buf2, 0, 65536)) })
-		t.Run("1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MEMCPY, nil, buf1, 0, buf2, 0, 1024*1024)) })
-	})
-	t.Run("CAT", func(t *testing.B) {
-		t.Run("1+1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.CAT, nil, zeroSlice(1), zeroSlice(1))) })
-		t.Run("256+256", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.CAT, nil, zeroSlice(255), zeroSlice(255))) })
-		t.Run("64K+64K", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.CAT, nil, zeroSlice(65536), zeroSlice(65536))) })
-		t.Run("512K+512K", func(t *testing.B) {
-			benchOpcode(t, opParamPushVM(opcode.CAT, nil, zeroSlice(512*1024), zeroSlice(512*1024)))
-		})
-	})
-	t.Run("SUBSTR", func(t *testing.B) {
-		buf := stackitem.NewBuffer(zeroSlice(1024 * 1024))
-
-		t.Run("1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SUBSTR, nil, buf, 0, 1)) })
-		t.Run("256", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SUBSTR, nil, buf, 0, 256)) })
-		t.Run("64K", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SUBSTR, nil, buf, 0, 65536)) })
-		t.Run("1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SUBSTR, nil, buf, 0, 1024*1024)) })
-	})
-	t.Run("LEFT", func(t *testing.B) {
-		buf := stackitem.NewBuffer(zeroSlice(1024 * 1024))
-
-		t.Run("1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.LEFT, nil, buf, 1)) })
-		t.Run("256", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.LEFT, nil, buf, 256)) })
-		t.Run("64K", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.LEFT, nil, buf, 65536)) })
-		t.Run("1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.LEFT, nil, buf, 1024*1024)) })
-	})
-	t.Run("RIGHT", func(t *testing.B) {
-		buf := stackitem.NewBuffer(zeroSlice(1024 * 1024))
-
-		t.Run("1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.RIGHT, nil, buf, 1)) })
-		t.Run("256", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.RIGHT, nil, buf, 256)) })
-		t.Run("64K", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.RIGHT, nil, buf, 65536)) })
-		t.Run("1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.RIGHT, nil, buf, 1024*1024)) })
-	})
-	unaries := []opcode.Opcode{opcode.INVERT, opcode.SIGN, opcode.ABS, opcode.NEGATE, opcode.INC, opcode.DEC, opcode.NOT, opcode.NZ}
-	for _, op := range unaries {
-		t.Run(op.String(), func(t *testing.B) {
-			t.Run("1", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, 1)) })
-			t.Run("0", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, 0)) })
-			t.Run("big", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, bigNumber())) })
-			t.Run("big negative", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, bigNegNumber())) })
-		})
-	}
-	binaries := []opcode.Opcode{opcode.AND, opcode.OR, opcode.XOR, opcode.ADD, opcode.SUB,
-		opcode.BOOLAND, opcode.BOOLOR, opcode.NUMEQUAL, opcode.NUMNOTEQUAL,
-		opcode.LT, opcode.LE, opcode.GT, opcode.GE, opcode.MIN, opcode.MAX}
-	for _, op := range binaries {
-		t.Run(op.String(), func(t *testing.B) {
-			t.Run("0+0", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, 0, 0)) })
-			t.Run("1+1", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, 1, 1)) })
-			t.Run("1/big", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, 1, bigNumber())) })
-			t.Run("big/big", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, bigNumber(), bigNumber())) })
-			t.Run("big/bigneg", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, bigNumber(), bigNegNumber())) })
-		})
-	}
-	equals := []opcode.Opcode{opcode.EQUAL, opcode.NOTEQUAL}
-	for _, op := range equals {
-		t.Run(op.String(), func(t *testing.B) {
-			t.Run("bools", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, true, false)) })
-			t.Run("small integers", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, 1, 0)) })
-			t.Run("big integers", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, bigNumber(), bigNegNumber())) })
-			t.Run("255B", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, zeroSlice(255), zeroSlice(255))) })
-			t.Run("64KEQ", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, zeroSlice(65535), zeroSlice(65535))) })
-			t.Run("64KNEQ", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, zeroSlice(65535), ffSlice(65535))) })
-		})
-	}
-	t.Run(opcode.MUL.String(), func(t *testing.B) {
-		t.Run("1+0", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MUL, nil, 1, 0)) })
-		t.Run("100/big", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MUL, nil, 100, bigNumber())) })
-		t.Run("16ff*16ff", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MUL, nil, ffSlice(16), ffSlice(16))) })
-	})
-	t.Run(opcode.DIV.String(), func(t *testing.B) {
-		t.Run("0/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DIV, nil, 0, 1)) })
-		t.Run("big/100", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DIV, nil, bigNumber(), 100)) })
-		t.Run("bigneg/big", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.DIV, nil, bigNumber(), bigNegNumber())) })
-	})
-	t.Run(opcode.MOD.String(), func(t *testing.B) {
-		t.Run("1+1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MOD, nil, 1, 1)) })
-		t.Run("big/100", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MOD, nil, bigNumber(), 100)) })
-		t.Run("big/bigneg", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.MOD, nil, bigNumber(), bigNegNumber())) })
-	})
-	t.Run(opcode.SHL.String(), func(t *testing.B) {
-		t.Run("1/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHL, nil, 1, 1)) })
-		t.Run("1/254", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHL, nil, 1, 254)) })
-		t.Run("big/7", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHL, nil, bigNumber(), 7)) })
-		t.Run("bigneg/7", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHL, nil, bigNegNumber(), 7)) })
-		t.Run("16ff/15", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHL, nil, ffSlice(16), 15)) })
-	})
-	t.Run(opcode.SHR.String(), func(t *testing.B) {
-		t.Run("1/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHR, nil, 1, 1)) })
-		t.Run("1/254", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHR, nil, 1, 254)) })
-		t.Run("big/254", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHR, nil, bigNumber(), 254)) })
-		t.Run("bigneg/7", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHR, nil, bigNegNumber(), 7)) })
-		t.Run("16ff/15", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SHR, nil, ffSlice(16), 15)) })
-	})
-	t.Run(opcode.WITHIN.String(), func(t *testing.B) {
-		t.Run("0/1/2", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.WITHIN, nil, 1, 0, 2)) })
-		t.Run("bigNeg/1/big", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.WITHIN, nil, 1, bigNegNumber(), bigNumber())) })
-		t.Run("bigNeg/big/max", func(t *testing.B) {
-			benchOpcode(t, opParamPushVM(opcode.WITHIN, nil, bigNumber(), bigNegNumber(), maxNumber()))
-		})
-	})
-	var newrefs = []opcode.Opcode{opcode.NEWARRAY0, opcode.NEWSTRUCT0, opcode.NEWMAP}
-	for _, op := range newrefs {
-		t.Run(op.String(), func(t *testing.B) { benchOpcode(t, opVM(op)) })
-	}
-	var newcountedrefs = []opcode.Opcode{opcode.NEWARRAY, opcode.NEWSTRUCT}
-	for _, op := range newcountedrefs {
-		var nums = []int{1, 255, 1024}
-		t.Run(op.String(), func(t *testing.B) {
-			for _, n := range nums {
-				t.Run(strconv.Itoa(n), func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, n)) })
-			}
-		})
-	}
-	t.Run("NEWARRAYT", func(t *testing.B) {
-		var nums = []int{1, 255, 1024}
-		var types = []stackitem.Type{stackitem.AnyT, stackitem.PointerT, stackitem.BooleanT,
-			stackitem.IntegerT, stackitem.ByteArrayT, stackitem.BufferT, stackitem.ArrayT,
-			stackitem.StructT, stackitem.MapT, stackitem.InteropT}
-		for _, n := range nums {
-			for _, typ := range types {
-				t.Run(typ.String()+"/"+strconv.Itoa(n), func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.NEWARRAYT, []byte{byte(typ)}, n)) })
-			}
-		}
-	})
-	t.Run("PACK", func(t *testing.B) {
-		var nums = []int{1, 255, 1024}
-		for _, n := range nums {
-			t.Run(strconv.Itoa(n), func(t *testing.B) {
-				var elems = make([]any, n+1)
-				for i := range elems {
-					elems[i] = 0
+		if typ == stackitem.MapT {
+			currN := stepN - 1
+			for range countPoints {
+				keys := getUniqueKeys(currN, stackitem.MaxKeySize)
+				m := make([]stackitem.MapElement, 0, currN)
+				for _, key := range keys {
+					m = append(m, stackitem.MapElement{Key: stackitem.NewByteArray(key)})
 				}
-				elems[n] = n
-				benchOpcode(t, opParamPushVM(opcode.PACK, nil, elems...))
-			})
+				m[currN-1].Value = stackitem.Null{}
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %d %d %s", opcode.PICKITEM, typ, 1, currN, stackitem.AnyT),
+					items: []any{stackitem.NewMapWithValue(m), keys[currN-1]},
+				})
+				currN += stepN
+			}
 		}
+		currByteArrayLen := stepByteArrayLen - 1
+		for range countPoints {
+			var item stackitem.Item
+			if typ == stackitem.ArrayT {
+				item = stackitem.NewArray([]stackitem.Item{
+					stackitem.NewByteArray(make([]byte, currByteArrayLen)),
+				})
+			} else {
+				item = stackitem.NewMapWithValue([]stackitem.MapElement{
+					{
+						Key:   stackitem.NewBigInteger(big.NewInt(0)),
+						Value: stackitem.NewByteArray(make([]byte, currByteArrayLen)),
+					},
+				})
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %d %s %d", opcode.PICKITEM, typ, 1, 1, stackitem.ByteArrayT, currByteArrayLen),
+				items: []any{item, 0},
+			})
+			currByteArrayLen += stepByteArrayLen
+		}
+	}
+	testCases = append(testCases, testCase{
+		name:  fmt.Sprintf("%s %s %d %d %s", opcode.PICKITEM, stackitem.ByteArrayT, 1, 1, stackitem.IntegerT),
+		items: []any{[]byte{42}, 0},
 	})
-	t.Run("UNPACK", func(t *testing.B) {
-		var nums = []int{1, 255, 1024}
-		for _, n := range nums {
-			t.Run(strconv.Itoa(n), func(t *testing.B) {
-				var elems = make([]stackitem.Item, n)
-				for i := range elems {
-					elems[i] = stackitem.Make(1)
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.PICKITEM, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkSetItem(b *testing.B) {
+	type testCase struct {
+		name string
+		f    func() *VM
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		stepN     = MaxStackSize / (2 * countPoints)
+	)
+	for _, typ := range []stackitem.Type{stackitem.ArrayT, stackitem.MapT} {
+		currDeep := stepDeep - 1
+		for range countPoints {
+			for _, params := range []struct{ removedDeep, addedDeep int }{
+				{currDeep, 1},
+				{1, currDeep},
+			} {
+				removedDeep := params.removedDeep
+				addedDeep := params.addedDeep
+				testCases = append(testCases, testCase{
+					name: fmt.Sprintf("%s %s %d %d %d", opcode.SETITEM, typ, removedDeep, addedDeep, 1),
+					f: func() *VM {
+						var item, addedItem stackitem.Item
+						if typ == stackitem.ArrayT {
+							item = stackitem.NewArray(getArrayWithDeep(removedDeep))
+							addedItem = stackitem.NewArray(getArrayWithDeep(addedDeep - 1))
+						} else {
+							item = stackitem.NewMapWithValue([]stackitem.MapElement{
+								{
+									Key:   stackitem.NewBigInteger(big.NewInt(0)),
+									Value: stackitem.NewArray(getArrayWithDeep(removedDeep - 2)),
+								},
+							})
+							addedItem = stackitem.NewArray(getArrayWithDeep(addedDeep - 2))
+						}
+						v := opVM(opcode.SETITEM)()
+						v.estack.PushVal(item)
+						v.estack.PushVal(0)
+						v.estack.PushVal(addedItem)
+						return v
+					},
+				})
+			}
+			currDeep += stepDeep
+		}
+		if typ == stackitem.MapT {
+			currN := stepN - 1
+			for range countPoints {
+				n := currN
+				testCases = append(testCases, testCase{
+					name: fmt.Sprintf("%s %s %d %d %d", opcode.SETITEM, typ, 1, 1, currN),
+					f: func() *VM {
+						keys := getUniqueKeys(n, stackitem.MaxKeySize)
+						m := make([]stackitem.MapElement, 0, n)
+						for _, key := range keys {
+							m = append(m, stackitem.MapElement{Key: stackitem.NewByteArray(key)})
+						}
+						m[n-1].Value = stackitem.Null{}
+						v := opVM(opcode.SETITEM)()
+						v.estack.PushVal(stackitem.NewMapWithValue(m))
+						v.estack.PushVal(keys[n-1])
+						v.estack.PushVal(stackitem.Null{})
+						return v
+					},
+				})
+				currN += stepN
+			}
+		}
+	}
+	testCases = append(testCases, testCase{
+		name: fmt.Sprintf("%s %s", opcode.SETITEM, stackitem.BufferT),
+		f: func() *VM {
+			v := opVM(opcode.SETITEM)()
+			v.estack.PushVal(stackitem.NewBuffer([]byte{42}))
+			v.estack.PushVal(0)
+			v.estack.PushVal(42)
+			return v
+		},
+	})
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
+		})
+	}
+}
+
+func BenchmarkReverseItems(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases        []testCase
+		stepArrayLen     = MaxStackSize / countPoints
+		stepByteArrayLen = stackitem.MaxSize / countPoints
+		currArrayLen     = stepArrayLen
+		currByteArrayLen = stepByteArrayLen
+	)
+	for range countPoints {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %s %d", opcode.REVERSEITEMS, stackitem.ArrayT, currArrayLen),
+			items: []any{make([]any, currArrayLen)},
+		})
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("%s %s %d", opcode.REVERSEITEMS, stackitem.BufferT, currByteArrayLen),
+			items: []any{make([]any, currByteArrayLen)},
+		})
+		currArrayLen += stepArrayLen
+		currByteArrayLen += stepByteArrayLen
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamSlotsPushReadOnlyVM(opcode.REVERSEITEMS, nil, 0, 0, 0, false, tc.items...))
+		})
+	}
+}
+
+func BenchmarkRemove(b *testing.B) {
+	type testCase struct {
+		name string
+		f    func() *VM
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		stepN     = MaxStackSize / (2 * countPoints)
+	)
+	for _, typ := range []stackitem.Type{stackitem.ArrayT, stackitem.MapT} {
+		currDeep := stepDeep - 1
+		for range countPoints {
+			deep := currDeep
+			testCases = append(testCases, testCase{
+				name: fmt.Sprintf("%s %s %d %d", opcode.REMOVE, typ, deep, 1),
+				f: func() *VM {
+					var item stackitem.Item
+					if typ == stackitem.ArrayT {
+						item = stackitem.NewArray(getArrayWithDeep(deep))
+					} else {
+						item = stackitem.NewMapWithValue([]stackitem.MapElement{
+							{
+								Key:   stackitem.NewBigInteger(big.NewInt(0)),
+								Value: stackitem.NewArray(getArrayWithDeep(deep - 2)),
+							},
+						})
+					}
+					v := opVM(opcode.REMOVE)()
+					v.estack.PushVal(item)
+					v.estack.PushVal(0)
+					return v
+				},
+			})
+			currDeep += stepDeep
+		}
+		if typ == stackitem.MapT {
+			currN := stepN - 1
+			for range countPoints {
+				n := currN
+				testCases = append(testCases, testCase{
+					name: fmt.Sprintf("%s %s %d %d", opcode.REMOVE, typ, 1, currN),
+					f: func() *VM {
+						keys := getUniqueKeys(n, stackitem.MaxKeySize)
+						m := make([]stackitem.MapElement, 0, n)
+						for _, key := range keys {
+							m = append(m, stackitem.MapElement{Key: stackitem.NewByteArray(key)})
+						}
+						m[n-1].Value = stackitem.Null{}
+						v := opVM(opcode.REMOVE)()
+						v.estack.PushVal(stackitem.NewMapWithValue(m))
+						v.estack.PushVal(keys[n-1])
+						return v
+					},
+				})
+				currN += stepN
+			}
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
+		})
+	}
+}
+
+func BenchmarkClearItems(b *testing.B) {
+	type testCase struct {
+		name string
+		f    func() *VM
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		stepN     = MaxStackSize / countPoints
+	)
+	for _, typ := range []stackitem.Type{stackitem.ArrayT, stackitem.MapT} {
+		currDeep := stepDeep - 1
+		for range countPoints {
+			deep := currDeep
+			testCases = append(testCases, testCase{
+				name: fmt.Sprintf("%s %s %d %d", opcode.CLEARITEMS, typ, deep, 1),
+				f: func() *VM {
+					var item stackitem.Item
+					if typ == stackitem.ArrayT {
+						item = stackitem.NewArray(getArrayWithDeep(deep))
+					} else {
+						item = stackitem.NewMapWithValue([]stackitem.MapElement{
+							{
+								Key:   stackitem.NewBigInteger(big.NewInt(0)),
+								Value: stackitem.NewArray(getArrayWithDeep(deep - 2)),
+							},
+						})
+					}
+					v := opVM(opcode.CLEARITEMS)()
+					v.estack.PushVal(item)
+					return v
+				},
+			})
+			currDeep += stepDeep
+		}
+		currN := stepN - 1
+		for range countPoints {
+			n := currN
+			testCases = append(testCases, testCase{
+				name: fmt.Sprintf("%s %s %d %d", opcode.CLEARITEMS, typ, 1, n),
+				f: func() *VM {
+					var item stackitem.Item
+					if typ == stackitem.ArrayT {
+						item = stackitem.NewArray(make([]stackitem.Item, n))
+					} else {
+						m := make([]stackitem.MapElement, 0, n/2)
+						for i := range n / 2 {
+							m = append(m, stackitem.MapElement{
+								Key:   stackitem.NewBigInteger(big.NewInt(int64(i))),
+								Value: stackitem.Null{},
+							})
+						}
+						item = stackitem.NewMapWithValue(m)
+					}
+					v := opVM(opcode.CLEARITEMS)()
+					v.estack.PushVal(item)
+					return v
+				},
+			})
+			currN += stepN
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
+		})
+	}
+}
+
+func BenchmarkPopItem(b *testing.B) {
+	type testCase struct {
+		name string
+		f    func() *VM
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		currDeep  = stepDeep - 1
+	)
+	for range countPoints {
+		deep := currDeep
+		testCases = append(testCases, testCase{
+			name: fmt.Sprintf("%s %s %d", opcode.POPITEM, stackitem.ArrayT, deep),
+			f: func() *VM {
+				v := opVM(opcode.POPITEM)()
+				v.estack.PushVal(stackitem.NewArray(getArrayWithDeep(deep)))
+				return v
+			},
+		})
+		currDeep += stepDeep
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
+		})
+	}
+}
+
+func BenchmarkSize(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	testCases := []testCase{
+		{
+			name:  fmt.Sprintf("%s %s", opcode.SIZE, stackitem.ArrayT),
+			items: []any{[]any{}},
+		},
+		{
+			name:  fmt.Sprintf("%s %s", opcode.SIZE, stackitem.MapT),
+			items: []any{stackitem.NewMap()},
+		},
+		{
+			name:  fmt.Sprintf("%s %s", opcode.SIZE, stackitem.ByteArrayT),
+			items: []any{[]byte{}},
+		},
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.SIZE, nil, tc.items...))
+		})
+	}
+}
+
+func BenchmarkJumps(b *testing.B) {
+	type testCase struct {
+		name   string
+		op     opcode.Opcode
+		params []byte
+		items  []any
+	}
+	testCases := []testCase{
+		{
+			name:   fmt.Sprintf("%s", opcode.JMP),
+			op:     opcode.JMP,
+			params: []byte{0},
+		},
+		{
+			name:   fmt.Sprintf("%s", opcode.JMPIF),
+			op:     opcode.JMPIF,
+			params: []byte{0},
+			items:  []any{true},
+		},
+		{
+			name:   fmt.Sprintf("%s", opcode.JMPEQ),
+			op:     opcode.JMPEQ,
+			params: []byte{0},
+			items:  []any{0, 0},
+		},
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(tc.op, tc.params, tc.items...))
+		})
+	}
+}
+
+func BenchmarkCall(b *testing.B) {
+	type testCase struct {
+		name string
+		f    func() *VM
+	}
+	testCases := []testCase{
+		{
+			name: fmt.Sprintf("%s", opcode.CALL),
+			f: func() *VM {
+				return opParamVM(opcode.CALL, []byte{0})()
+			},
+		},
+		{
+			name: fmt.Sprintf("%s", opcode.CALLA),
+			f: func() *VM {
+				v := opVM(opcode.CALLA)()
+				p := stackitem.NewPointerWithHash(0, []byte{42}, v.Context().ScriptHash())
+				v.estack.PushVal(p)
+				return v
+			},
+		},
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
+		})
+	}
+}
+
+func BenchmarkKeys(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases  []testCase
+		stepMapLen = MaxStackSize / (2 * countPoints)
+	)
+	for _, typ := range []stackitem.Type{stackitem.IntegerT, stackitem.ByteArrayT} {
+		currMapLen := stepMapLen - 1
+		for range countPoints {
+			m := make([]stackitem.MapElement, 0, currMapLen)
+			if typ == stackitem.IntegerT {
+				for i := range currMapLen {
+					m = append(m, stackitem.MapElement{Key: stackitem.NewBigInteger(big.NewInt(int64(i)))})
 				}
-				benchOpcode(t, opParamPushVM(opcode.UNPACK, nil, elems))
+			} else {
+				keys := getUniqueKeys(currMapLen, stackitem.MaxKeySize)
+				for _, key := range keys {
+					m = append(m, stackitem.MapElement{Key: stackitem.NewByteArray(key)})
+				}
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d", opcode.KEYS, typ, currMapLen),
+				items: []any{stackitem.NewMapWithValue(m)},
 			})
+			currMapLen += stepMapLen
 		}
-	})
-	t.Run("SIZE", func(t *testing.B) {
-		var elems = arrayOfOnes(1024)
-		var buf = maxBytes()
-		t.Run("array/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SIZE, nil, elems[:1])) })
-		t.Run("array/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SIZE, nil, elems)) })
-		t.Run("map/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SIZE, nil, bigMap())) })
-		t.Run("bytes/255", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SIZE, nil, buf[:255])) })
-		t.Run("bytes/64K", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SIZE, nil, buf[:65536])) })
-		t.Run("bytes/1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SIZE, nil, buf)) })
-	})
-	t.Run("HASKEY", func(t *testing.B) {
-		var elems = arrayOfOnes(1024)
-		var buf = maxBuf()
-		t.Run("array/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.HASKEY, nil, elems, 1)) })
-		t.Run("array/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.HASKEY, nil, elems, 1023)) })
-		t.Run("array/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.HASKEY, nil, elems, 1024)) })
-		t.Run("map/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.HASKEY, nil, bigMap(), 1)) })
-		t.Run("map/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.HASKEY, nil, bigMap(), 1023)) })
-		t.Run("map/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.HASKEY, nil, bigMap(), 1024)) })
-		t.Run("buffer/255", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.HASKEY, nil, buf, 255)) })
-		t.Run("buffer/64K", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.HASKEY, nil, buf, 65536)) })
-		t.Run("buffer/1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.HASKEY, nil, buf, 1024*1024)) })
-	})
-	t.Run("KEYS", func(t *testing.B) {
-		t.Run("map/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.KEYS, nil, bigMap())) })
-	})
-	t.Run("VALUES", func(t *testing.B) {
-		var elems = arrayOfOnes(1024)
-		t.Run("array/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.VALUES, nil, elems[:1])) })
-		t.Run("array/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.VALUES, nil, elems)) })
-		t.Run("map/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.VALUES, nil, bigMap())) })
-	})
-	t.Run("PICKITEM", func(t *testing.B) {
-		var elems = arrayOfOnes(1024)
-		var buf = maxBytes()
-		t.Run("array/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.PICKITEM, nil, elems, 1)) })
-		t.Run("array/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.PICKITEM, nil, elems, 1023)) })
-		t.Run("map/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.PICKITEM, nil, bigMap(), 1)) })
-		t.Run("map/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.PICKITEM, nil, bigMap(), 1023)) })
-		t.Run("bytes/255", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.PICKITEM, nil, buf, 255)) })
-		t.Run("bytes/64K", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.PICKITEM, nil, buf, 65536)) })
-		t.Run("bytes/1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.PICKITEM, nil, buf, 1024*1024-1)) })
-	})
-	t.Run("APPEND", func(t *testing.B) {
-		var a0 = arrayOfOnes(0)
-		var a1023 = arrayOfOnes(1023)
-		t.Run("array/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.APPEND, nil, a0, 1)) })
-		t.Run("array/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.APPEND, nil, a1023, 1)) })
-		t.Run("struct/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.APPEND, nil, stackitem.NewStruct(a0), 1)) })
-		t.Run("struct/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.APPEND, nil, stackitem.NewStruct(a1023), 1)) })
-		t.Run("array/struct", func(t *testing.B) {
-			benchOpcode(t, opParamPushVM(opcode.APPEND, nil, a1023, stackitem.NewStruct(a1023)))
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.KEYS, nil, tc.items...))
 		})
-	})
-	t.Run("SETITEM", func(t *testing.B) {
-		var elems = arrayOfOnes(1024)
-		var buf = maxBuf()
-		t.Run("array/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SETITEM, nil, elems, 1, 1)) })
-		t.Run("array/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SETITEM, nil, elems, 1023, 1)) })
-		t.Run("map/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SETITEM, nil, bigMap(), 1, 1)) })
-		t.Run("map/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SETITEM, nil, bigMap(), 1023, 1)) })
-		t.Run("buffer/255", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SETITEM, nil, buf, 255, 1)) })
-		t.Run("buffer/1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.SETITEM, nil, buf, 1024*1024-1, 1)) })
-	})
+	}
+}
 
-	t.Run("REVERSEITEMS", func(t *testing.B) {
-		var elems = arrayOfOnes(1024)
-		var buf = maxBuf()
-		t.Run("array/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.REVERSEITEMS, nil, elems)) })
-		t.Run("buffer/1M", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.REVERSEITEMS, nil, buf)) })
-	})
+func BenchmarkValues(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		stepN     = MaxStackSize / countPoints
+	)
+	for _, itemTyp := range []stackitem.Type{stackitem.ArrayT, stackitem.MapT} {
+		for _, clonedTyp := range []stackitem.Type{stackitem.AnyT, stackitem.StructT} {
+			currDeep := stepDeep - 2
+			for range countPoints {
+				var item, clonedItem stackitem.Item
+				if clonedTyp == stackitem.StructT {
+					clonedItem = stackitem.NewStruct(getStructWithDeep(currDeep))
+				} else {
+					clonedItem = stackitem.NewArray(getArrayWithDeep(currDeep))
+				}
+				if itemTyp == stackitem.ArrayT {
+					item = stackitem.NewArray([]stackitem.Item{clonedItem})
+				} else {
+					item = stackitem.NewMapWithValue([]stackitem.MapElement{
+						{
+							Key:   stackitem.NewBool(true),
+							Value: clonedItem,
+						},
+					})
+				}
+				testCases = append(testCases, testCase{
+					name:  fmt.Sprintf("%s %s %s %d %d", opcode.VALUES, itemTyp, clonedTyp, currDeep, 1),
+					items: []any{item},
+				})
+				currDeep += stepDeep
+			}
+		}
+		currN := stepN - 1
+		for range countPoints {
+			var (
+				item stackitem.Item
+				n    int
+			)
+			if itemTyp == stackitem.ArrayT {
+				n = currN
+				arr := make([]stackitem.Item, 0, currN)
+				for range currN {
+					arr = append(arr, stackitem.Null{})
+				}
+				item = stackitem.NewArray(arr)
+			} else {
+				n = currN / 2
+				m := make([]stackitem.MapElement, 0, currN/2)
+				for i := range currN / 2 {
+					m = append(m, stackitem.MapElement{
+						Key:   stackitem.NewBigInteger(big.NewInt(int64(i))),
+						Value: stackitem.Null{},
+					})
+				}
+				item = stackitem.NewMapWithValue(m)
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %s %d %d", opcode.VALUES, itemTyp, stackitem.AnyT, n, n),
+				items: []any{item},
+			})
+			currN += stepN
+		}
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.VALUES, nil, tc.items...))
+		})
+	}
+}
 
-	t.Run("REMOVE", func(t *testing.B) {
-		var elems = arrayOfOnes(1024)
-		t.Run("array/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.REMOVE, nil, elems, 1)) })
-		t.Run("array/255", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.REMOVE, nil, elems, 255)) })
-		t.Run("array/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.REMOVE, nil, elems, 1023)) })
-		t.Run("map/1", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.REMOVE, nil, bigMap(), 1)) })
-		t.Run("map/255", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.REMOVE, nil, bigMap(), 255)) })
-		t.Run("map/1023", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.REMOVE, nil, bigMap(), 1023)) })
-	})
-	t.Run("CLEARITEMS", func(t *testing.B) {
-		t.Run("array/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.CLEARITEMS, nil, arrayOfOnes(1024))) })
-		t.Run("map/1024", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.CLEARITEMS, nil, bigMap())) })
-	})
+func BenchmarkRet(b *testing.B) {
+	type testCase struct {
+		name string
+		f    func() *VM
+	}
+	var (
+		testCases []testCase
+		stepDeep  = MaxStackSize / countPoints
+		stepN     = MaxStackSize / countPoints
+		currDeep  = stepDeep
+		currN     = stepN
+	)
+	for range countPoints {
+		deep := currDeep
+		testCases = append(testCases, testCase{
+			name: fmt.Sprintf("%s %d %d", opcode.RET, deep, 1),
+			f: func() *VM {
+				v := opVM(opcode.RET)()
+				callerCtx := &Context{retCount: 1, sc: &scriptContext{estack: NewStack("call")}}
+				callerCtx.sc.estack.PushVal(stackitem.NewArray(getArrayWithDeep(deep - 1)))
+				v.istack = append(v.istack, callerCtx)
+				v.estack = callerCtx.Estack()
+				return v
+			},
+		})
+		currDeep += stepDeep
+	}
+	for range countPoints {
+		n := currN
+		testCases = append(testCases, testCase{
+			name: fmt.Sprintf("%s %d %d", opcode.RET, n, n),
+			f: func() *VM {
+				v := opVM(opcode.RET)()
+				callerCtx := &Context{retCount: n, sc: &scriptContext{estack: NewStack("call")}}
+				for range n {
+					callerCtx.sc.estack.PushVal(stackitem.Null{})
+				}
+				v.istack = append(v.istack, callerCtx)
+				v.estack = callerCtx.Estack()
+				return v
+			},
+		})
+		currN += stepN
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
+		})
+	}
+}
 
-	t.Run("ISNULL", func(t *testing.B) {
-		t.Run("null", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.ISNULL, nil, stackitem.Null{})) })
-		t.Run("integer", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.ISNULL, nil, 1)) })
+func BenchmarkHasKey(b *testing.B) {
+	type testCase struct {
+		name  string
+		items []any
+	}
+	var (
+		testCases []testCase
+		stepN     = MaxStackSize / (2 * countPoints)
+	)
+	for _, typ := range []stackitem.Type{stackitem.IntegerT, stackitem.ByteArrayT} {
+		currN := stepN - 1
+		for range countPoints {
+			m := make([]stackitem.MapElement, 0, currN)
+			if typ == stackitem.IntegerT {
+				for i := range currN {
+					m = append(m, stackitem.MapElement{Key: stackitem.Make(i)})
+				}
+			} else {
+				keys := getUniqueKeys(currN, stackitem.MaxKeySize)
+				for _, key := range keys {
+					m = append(m, stackitem.MapElement{Key: stackitem.NewByteArray(key)})
+				}
+			}
+			testCases = append(testCases, testCase{
+				name:  fmt.Sprintf("%s %s %d %s", opcode.HASKEY, stackitem.MapT, currN, typ),
+				items: []any{stackitem.NewMapWithValue(m), m[currN-1].Key},
+			})
+			currN += stepN
+		}
+	}
+	testCases = append(testCases, testCase{
+		name:  fmt.Sprintf("%s %s", opcode.HASKEY, stackitem.ArrayT),
+		items: []any{[]any{}, 0},
 	})
-	t.Run("ISTYPE", func(t *testing.B) {
-		t.Run("null/null", func(t *testing.B) {
-			benchOpcode(t, opParamPushVM(opcode.ISTYPE, []byte{byte(stackitem.AnyT)}, stackitem.Null{}))
-		})
-		t.Run("integer/integer", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.ISTYPE, []byte{byte(stackitem.IntegerT)}, 1)) })
-		t.Run("null/integer", func(t *testing.B) { benchOpcode(t, opParamPushVM(opcode.ISTYPE, []byte{byte(stackitem.AnyT)}, 1)) })
+	testCases = append(testCases, testCase{
+		name:  fmt.Sprintf("%s %s", opcode.HASKEY, stackitem.ByteArrayT),
+		items: []any{[]byte{}, 0},
 	})
-	t.Run("CONVERT", func(t *testing.B) {
-		t.Run("bytes/integer", func(t *testing.B) {
-			benchOpcode(t, opParamPushVM(opcode.CONVERT, []byte{byte(stackitem.IntegerT)}, "1012345678901234567890123456789"))
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, opParamPushVM(opcode.HASKEY, nil, tc.items...))
 		})
-		t.Run("integer/bytes", func(t *testing.B) {
-			benchOpcode(t, opParamPushVM(opcode.CONVERT, []byte{byte(stackitem.ByteArrayT)}, maxNumber()))
+	}
+}
+
+func BenchmarkExceptions(b *testing.B) {
+	type testCase struct {
+		name  string
+		op    opcode.Opcode
+		items []any
+	}
+	testCases := []testCase{
+		{
+			name:  fmt.Sprintf("%s", opcode.THROW),
+			op:    opcode.THROW,
+			items: []any{"error"},
+		},
+		{
+			name: fmt.Sprintf("%s", opcode.ABORT),
+			op:   opcode.ABORT,
+		},
+		{
+			name:  fmt.Sprintf("%s", opcode.ABORTMSG),
+			op:    opcode.ABORTMSG,
+			items: []any{"error"},
+		},
+		{
+			name:  fmt.Sprintf("%s", opcode.ASSERT),
+			op:    opcode.ASSERT,
+			items: []any{false},
+		},
+		{
+			name:  fmt.Sprintf("%s", opcode.ASSERTMSG),
+			op:    opcode.ASSERTMSG,
+			items: []any{false, "error"},
+		},
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, exceptParamPushVM(tc.op, nil, tc.items...))
 		})
-		t.Run("array/struct", func(t *testing.B) {
-			benchOpcode(t, opParamPushVM(opcode.CONVERT, []byte{byte(stackitem.StructT)}, arrayOfOnes(1024)))
+	}
+}
+
+func BenchmarkTry(b *testing.B) {
+	type testCase struct {
+		name   string
+		f      func() *VM
+		op     opcode.Opcode
+		params []byte
+		items  []any
+	}
+	testCases := []testCase{
+		{
+			name: fmt.Sprintf("%s", opcode.TRY),
+			f: func() *VM {
+				return opParamVM(opcode.TRY, []byte{1, 0})()
+			},
+		},
+		{
+			name: fmt.Sprintf("%s", opcode.ENDTRY),
+			f: func() *VM {
+				v := opParamVM(opcode.ENDTRY, []byte{0})()
+				v.Context().tryStack.PushVal(newExceptionHandlingContext(0, -1))
+				return v
+			},
+		},
+		{
+			name: fmt.Sprintf("%s", opcode.ENDFINALLY),
+			f: func() *VM {
+				v := opVM(opcode.ENDFINALLY)()
+				v.Context().tryStack.PushVal(&exceptionHandlingContext{EndOffset: 0})
+				return v
+			},
+		},
+	}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			benchOpcode(b, tc.f)
 		})
-	})
+	}
+}
+
+func BenchmarkOpcodesWithoutAnything(b *testing.B) {
+	opcodes := []opcode.Opcode{
+		opcode.PUSHM1,
+		opcode.PUSH0,
+		opcode.PUSHT,
+		opcode.PUSHNULL,
+		opcode.NEWMAP,
+		opcode.NOP,
+	}
+	for _, op := range opcodes {
+		b.Run(fmt.Sprintf("%s", op), func(b *testing.B) {
+			benchOpcode(b, opVM(op))
+		})
+	}
 }
