@@ -1,0 +1,17 @@
+arraytype,size,ns
+Any,255,4398
+Any,511,8421
+Any,767,12369
+Any,1023,16626
+Any,1279,19784
+Any,1535,24266
+Any,1791,27857
+Any,2047,32080
+ByteString,255,18834
+ByteString,511,37196
+ByteString,767,54500
+ByteString,1023,76870
+ByteString,1279,93380
+ByteString,1535,112820
+ByteString,1791,129525
+ByteString,2047,147928

@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"text/tabwriter"
+	"time"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -79,7 +80,7 @@ type VM struct {
 	state vmstate.State
 
 	// callback to get interop price
-	getPrice func(opcode.Opcode, []byte) int64
+	getPrice func(opcode.Opcode, []byte, ...any) int64
 
 	istack []*Context // invocation stack.
 	estack *Stack     // execution stack.
@@ -146,7 +147,7 @@ func (v *VM) SetOnExecHook(hook OnExecHook) {
 
 // SetPriceGetter registers the given PriceGetterFunc in v.
 // f accepts vm's Context, current instruction and instruction parameter.
-func (v *VM) SetPriceGetter(f func(opcode.Opcode, []byte) int64) {
+func (v *VM) SetPriceGetter(f func(opcode.Opcode, []byte, ...any) int64) {
 	v.getPrice = f
 }
 
@@ -508,6 +509,11 @@ func (v *VM) Ready() bool {
 	return len(v.istack) > 0
 }
 
+type S struct {
+	gas, count int64
+	ns         *big.Int
+}
+
 // Run starts execution of the loaded program.
 func (v *VM) Run() error {
 	var ctx *Context
@@ -525,6 +531,20 @@ func (v *VM) Run() error {
 	// vmstate.Halt (the default) or vmstate.Break are safe to continue.
 	v.state = vmstate.None
 	ctx = v.Context()
+	v.SetGasLimit(30 * 20 * 10_000_000)
+	//m := make(map[opcode.Opcode]*S)
+	start := time.Now()
+	/*defer func() {
+		var gas int64
+		for op, s := range m {
+			if op != opcode.CALLT {
+				gas += s.gas
+			}
+			//fmt.Printf("%s: %d, %d\n", op, s.count, s.gas/10000)
+		}
+		fmt.Printf("всего газа: %d\n", v.gasConsumed)
+		fmt.Printf("газа на то, на что мы влияем: %d\n", gas)
+	}()*/
 	for {
 		switch {
 		case v.state.HasFlag(vmstate.Fault):
@@ -535,7 +555,13 @@ func (v *VM) Run() error {
 			// Normal exit from this loop.
 			return nil
 		case v.state == vmstate.None:
-			if err := v.step(ctx); err != nil {
+			if err := v.step(ctx/*, m*/); err != nil {
+				dur := time.Since(start)
+				fmt.Printf("%.6f\n", dur.Seconds())
+				/*for op, s := range m {
+					f, _ := new(big.Rat).SetFrac(s.ns, big.NewInt(s.count)).Float64()
+					fmt.Printf("%s ns: %.6f, count: %d\n", op, f, s.count)
+				}*/
 				return err
 			}
 		default:
@@ -553,11 +579,11 @@ func (v *VM) Run() error {
 // Step 1 instruction in the program.
 func (v *VM) Step() error {
 	ctx := v.Context()
-	return v.step(ctx)
+	return v.step(ctx/*, make(map[opcode.Opcode]*S)*/)
 }
 
 // step executes one instruction in the given context.
-func (v *VM) step(ctx *Context) error {
+func (v *VM) step(ctx *Context/*, m map[opcode.Opcode]*S*/) error {
 	ip := ctx.NextIP()
 	op, param, err := ctx.Next()
 	if v.hooks.onExec != nil {
@@ -568,7 +594,7 @@ func (v *VM) step(ctx *Context) error {
 		v.state = vmstate.Fault
 		return newError(ctx.IP(), op, err)
 	}
-	return v.execute(ctx, op, param)
+	return v.execute(ctx, op, param/*, m*/)
 }
 
 // StepInto behaves the same as “step over” in case the line does not contain a function. Otherwise,
@@ -590,7 +616,7 @@ func (v *VM) StepInto() error {
 			v.state = vmstate.Fault
 			return newError(ctx.IP(), op, err)
 		}
-		vErr := v.execute(ctx, op, param)
+		vErr := v.execute(ctx, op, param/*, make(map[opcode.Opcode]*S)*/)
 		if vErr != nil {
 			return vErr
 		}
@@ -674,27 +700,36 @@ func GetInteropID(parameter []byte) uint32 {
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
-func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err error) {
+func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte/*, m map[opcode.Opcode]*S*/) (err error) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
 	// each panic at a central point, putting the VM in a fault state and setting error.
-	defer func() {
+	var (
+		args  []any
+		//start time.Time
+	)
+	defer func(canGetPrice bool) {
+		/*dur := time.Since(start)
+		if m[op] == nil {
+			m[op] = &S{ns: new(big.Int)}
+		}
+		m[op].count++
+		m[op].ns.Add(m[op].ns, big.NewInt(dur.Nanoseconds()))*/
+		if canGetPrice {
+			v.gasConsumed += v.getPrice(op, parameter, args...)
+		}
 		if errRecover := recover(); errRecover != nil {
 			v.state = vmstate.Fault
 			err = newError(ctx.IP(), op, errRecover)
 		} else if v.refs > MaxStackSize {
 			v.state = vmstate.Fault
 			err = newError(ctx.IP(), op, fmt.Sprintf("stack is too big: %d vs %d", int(v.refs), MaxStackSize))
+		} else if v.gasLimit >= 0 && v.gasConsumed > v.gasLimit {
+			v.state = vmstate.Fault
+			err = newError(ctx.IP(), op, "gas limit is exceeded")
 		}
-	}()
+	}(v.getPrice != nil && ctx.IP() < len(ctx.sc.prog) && !ctx.sc.whitelisted)
 
-	if v.getPrice != nil && ctx.IP() < len(ctx.sc.prog) && !ctx.sc.whitelisted {
-		p := v.getPrice(op, parameter)
-		v.gasConsumed += p
-		if v.gasLimit >= 0 && v.gasConsumed > v.gasLimit {
-			panic("gas limit is exceeded")
-		}
-	}
-
+	//start = time.Now()
 	if op <= opcode.PUSHINT256 {
 		v.estack.PushItem(stackitem.NewBigInteger(bigint.FromBytes(parameter)))
 		return
@@ -732,13 +767,19 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(stackitem.Bool(res.Type() == stackitem.Type(parameter[0])))
 
 	case opcode.CONVERT:
-		typ := stackitem.Type(parameter[0])
+		toType := stackitem.Type(parameter[0])
 		item := v.estack.Pop().Item()
-		result, err := item.Convert(typ)
+		result, err := item.Convert(toType)
 		if err != nil {
 			panic(err)
 		}
 		v.estack.PushItem(result)
+		fromType := item.Type()
+		if fromType == stackitem.ArrayT && toType == stackitem.StructT || fromType == stackitem.StructT && toType == stackitem.ArrayT {
+			args = []any{stackitem.ArrayT, len(item.Value().([]stackitem.Item))}
+		} else if fromType == stackitem.ByteArrayT && toType == stackitem.BufferT || fromType == stackitem.BufferT && toType == stackitem.ByteArrayT {
+			args = []any{stackitem.ByteArrayT, len(item.Value().([]byte))}
+		}
 
 	case opcode.INITSSLOT:
 		if parameter[0] == 0 {
@@ -758,6 +799,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		if parameter[1] > 0 {
 			ctx.arguments.initFromStack(int(parameter[1]), v.estack)
+			args = []any{parameter[1]}
 		}
 
 	case opcode.LDSFLD0, opcode.LDSFLD1, opcode.LDSFLD2, opcode.LDSFLD3, opcode.LDSFLD4, opcode.LDSFLD5, opcode.LDSFLD6:
@@ -770,11 +812,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.STSFLD0, opcode.STSFLD1, opcode.STSFLD2, opcode.STSFLD3, opcode.STSFLD4, opcode.STSFLD5, opcode.STSFLD6:
 		item := v.estack.popNoRef().Item()
+		r := v.refs
 		ctx.sc.static.setNoRef(int(op-opcode.STSFLD0), item, &v.refs)
+		args = []any{int(r - v.refs)}
 
 	case opcode.STSFLD:
 		item := v.estack.popNoRef().Item()
+		r := v.refs
 		ctx.sc.static.setNoRef(int(parameter[0]), item, &v.refs)
+		args = []any{int(r - v.refs)}
 
 	case opcode.LDLOC0, opcode.LDLOC1, opcode.LDLOC2, opcode.LDLOC3, opcode.LDLOC4, opcode.LDLOC5, opcode.LDLOC6:
 		item := ctx.local.Get(int(op - opcode.LDLOC0))
@@ -786,11 +832,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.STLOC0, opcode.STLOC1, opcode.STLOC2, opcode.STLOC3, opcode.STLOC4, opcode.STLOC5, opcode.STLOC6:
 		item := v.estack.popNoRef().Item()
+		r := v.refs
 		ctx.local.setNoRef(int(op-opcode.STLOC0), item, &v.refs)
+		args = []any{int(r - v.refs)}
 
 	case opcode.STLOC:
 		item := v.estack.popNoRef().Item()
+		r := v.refs
 		ctx.local.setNoRef(int(parameter[0]), item, &v.refs)
+		args = []any{int(r - v.refs)}
 
 	case opcode.LDARG0, opcode.LDARG1, opcode.LDARG2, opcode.LDARG3, opcode.LDARG4, opcode.LDARG5, opcode.LDARG6:
 		item := ctx.arguments.Get(int(op - opcode.LDARG0))
@@ -802,11 +852,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.STARG0, opcode.STARG1, opcode.STARG2, opcode.STARG3, opcode.STARG4, opcode.STARG5, opcode.STARG6:
 		item := v.estack.popNoRef().Item()
+		r := v.refs
 		ctx.arguments.setNoRef(int(op-opcode.STARG0), item, &v.refs)
+		args = []any{int(r - v.refs)}
 
 	case opcode.STARG:
 		item := v.estack.popNoRef().Item()
+		r := v.refs
 		ctx.arguments.setNoRef(int(parameter[0]), item, &v.refs)
+		args = []any{int(r - v.refs)}
 
 	case opcode.NEWBUFFER:
 		n := toInt(v.estack.Pop().BigInt())
@@ -814,6 +868,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("invalid size")
 		}
 		v.estack.PushItem(stackitem.NewBuffer(make([]byte, n)))
+		args = []any{n}
 
 	case opcode.MEMCPY:
 		n := toInt(v.estack.Pop().BigInt())
@@ -837,6 +892,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("size is too big")
 		}
 		copy(dst[di:], src[si:si+n])
+		args = []any{n}
 
 	case opcode.CAT:
 		b := v.estack.Pop().Bytes()
@@ -849,6 +905,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		copy(ab, a)
 		copy(ab[len(a):], b)
 		v.estack.PushItem(stackitem.NewBuffer(ab))
+		args = []any{l}
 
 	case opcode.SUBSTR:
 		l := toInt(v.estack.Pop().BigInt())
@@ -867,6 +924,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		res := make([]byte, l)
 		copy(res, s[o:last])
 		v.estack.PushItem(stackitem.NewBuffer(res))
+		args = []any{l}
 
 	case opcode.LEFT:
 		l := toInt(v.estack.Pop().BigInt())
@@ -880,6 +938,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		res := make([]byte, l)
 		copy(res, s[:l])
 		v.estack.PushItem(stackitem.NewBuffer(res))
+		args = []any{l}
 
 	case opcode.RIGHT:
 		l := toInt(v.estack.Pop().BigInt())
@@ -890,6 +949,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		res := make([]byte, l)
 		copy(res, s[len(s)-l:])
 		v.estack.PushItem(stackitem.NewBuffer(res))
+		args = []any{l}
 
 	case opcode.DEPTH:
 		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(v.estack.Len()))))
@@ -898,13 +958,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if v.estack.Len() < 1 {
 			panic("stack is too small")
 		}
+		r := v.refs
 		v.estack.Pop()
+		args = []any{int(r - v.refs)}
 
 	case opcode.NIP:
 		if v.estack.Len() < 2 {
 			panic("no second element found")
 		}
+		r := v.refs
 		_ = v.estack.RemoveAt(1)
+		args = []any{int(r - v.refs)}
 
 	case opcode.XDROP:
 		n := toInt(v.estack.Pop().BigInt())
@@ -914,13 +978,21 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if v.estack.Len() < n+1 {
 			panic("bad index")
 		}
+		r := v.refs
 		_ = v.estack.RemoveAt(n)
+		args = []any{int(r - v.refs), n}
 
 	case opcode.CLEAR:
+		r := v.refs
+		l := v.estack.Len()
 		v.estack.Clear()
+		args = []any{int(r - v.refs), l}
 
 	case opcode.DUP:
 		v.estack.Push(v.estack.Dup(0))
+		if elem := v.estack.Peek(0); elem.value.Type() == stackitem.ByteArrayT {
+			args = []any{len(elem.value.Value().([]byte))}
+		}
 
 	case opcode.OVER:
 		if v.estack.Len() < 2 {
@@ -928,6 +1000,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		a := v.estack.Dup(1)
 		v.estack.Push(a)
+		if a.value.Type() == stackitem.ByteArrayT {
+			args = []any{len(a.value.Value().([]byte))}
+		}
 
 	case opcode.PICK:
 		n := toInt(v.estack.Pop().BigInt())
@@ -939,6 +1014,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		a := v.estack.Dup(n)
 		v.estack.Push(a)
+		if a.value.Type() == stackitem.ByteArrayT {
+			args = []any{len(a.value.Value().([]byte))}
+		}
 
 	case opcode.TUCK:
 		if v.estack.Len() < 2 {
@@ -946,6 +1024,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		a := v.estack.Dup(0)
 		v.estack.InsertAt(a, 2)
+		if a.value.Type() == stackitem.ByteArrayT {
+			args = []any{len(a.value.Value().([]byte))}
+		}
 
 	case opcode.SWAP:
 		err := v.estack.Swap(1, 0)
@@ -958,6 +1039,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if err != nil {
 			panic(err.Error())
 		}
+		args = []any{2}
 
 	case opcode.ROLL:
 		n := toInt(v.estack.Pop().BigInt())
@@ -965,6 +1047,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if err != nil {
 			panic(err.Error())
 		}
+		args = []any{n}
 
 	case opcode.REVERSE3, opcode.REVERSE4, opcode.REVERSEN:
 		n := 3
@@ -978,6 +1061,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if err := v.estack.ReverseTop(n); err != nil {
 			panic(err.Error())
 		}
+		args = []any{n}
 
 	// Bit operations.
 	case opcode.INVERT:
@@ -1242,15 +1326,18 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			res = ar
 		}
 		v.estack.pushItemCounted(res, n+1)
+		args = []any{typ, n}
 
 	case opcode.NEWSTRUCT0:
 		v.estack.PushItem(stackitem.NewStruct([]stackitem.Item{}))
 
 	case opcode.APPEND:
+		r1 := v.refs
 		itemElem := v.estack.Pop()
+		r2 := v.refs
 		arrElem := v.estack.Pop()
 
-		val := cloneIfStruct(itemElem.value)
+		val, nClonedItems := cloneIfStruct(itemElem.value)
 
 		var isReferenced bool
 		switch t := arrElem.value.(type) {
@@ -1267,6 +1354,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if isReferenced {
 			v.refs.Add(val)
 		}
+		args = []any{isReferenced, int(r2 - v.refs), int(r1 - r2), nClonedItems}
 
 	case opcode.PACKMAP:
 		n := toInt(v.estack.Pop().BigInt())
@@ -1283,7 +1371,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			m.Add(key.value, val)
 		}
+		r := v.refs
 		v.estack.PushItem(m)
+		args = []any{int(v.refs - r), n * n}
 
 	case opcode.PACKSTRUCT, opcode.PACK:
 		n := toInt(v.estack.Pop().BigInt())
@@ -1307,11 +1397,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			res = st
 		}
 		v.estack.pushItemCounted(res, 1)
+		args = []any{n}
 
 	case opcode.UNPACK:
 		e := v.estack.Pop()
 		var arr []stackitem.Item
 		var l int
+		r := v.refs
 
 		switch t := e.value.(type) {
 		case *stackitem.Array:
@@ -1335,12 +1427,18 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 		}
 		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(l))))
+		args = []any{e.value.Type(), int(v.refs - r), l}
 
 	case opcode.PICKITEM:
 		key := v.estack.Pop()
 		validateMapKey(key)
 
-		obj := v.estack.Pop()
+		r1 := v.refs
+		var (
+			obj  = v.estack.Pop()
+			item stackitem.Item
+			i    = -1
+		)
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []Item.
@@ -1352,15 +1450,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				v.throw(stackitem.NewByteArray([]byte(msg)))
 				return
 			}
-			item := arr[index].Dup()
-			v.estack.PushItem(item)
+			item = arr[index].Dup()
 		case *stackitem.Map:
-			index := t.Index(key.Item())
-			if index < 0 {
+			i = t.Index(key.Item())
+			if i < 0 {
 				v.throw(stackitem.NewByteArray([]byte("Key not found in Map")))
 				return
 			}
-			v.estack.PushItem(t.Value().([]stackitem.MapElement)[index].Value.Dup())
+			m := t.Value().([]stackitem.MapElement)
+			item = m[i].Value.Dup()
 		default:
 			index := toInt(key.BigInt())
 			arr := obj.Bytes()
@@ -1369,16 +1467,27 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				v.throw(stackitem.NewByteArray([]byte(msg)))
 				return
 			}
-			item := arr[index]
-			v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(item))))
+			item = stackitem.NewBigInteger(big.NewInt(int64(arr[index])))
 		}
+		r2 := v.refs
+		v.estack.PushItem(item)
+		n := int(v.refs - r2)
+		if item.Type() == stackitem.ByteArrayT {
+			n = len(item.Value().([]byte))
+		}
+		args = []any{item.Type(), int(r1 - r2), i + 1, n}
 
 	case opcode.SETITEM:
 		item := v.estack.popNoRef().value
 		key := v.estack.Pop()
 		validateMapKey(key)
 
+		r1 := v.refs
 		obj := v.estack.Pop()
+		var (
+			r2, r3 = v.refs, v.refs
+			i      = -1
+		)
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []Item.
@@ -1396,8 +1505,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			if t.(interface{ IsReferenced() bool }).IsReferenced() {
 				v.refs.Remove(arr[index])
+				r3 = v.refs
 			} else {
 				v.refs.Remove(item)
+				r2 = v.refs
 			}
 			arr[index] = item
 		case *stackitem.Map:
@@ -1405,13 +1516,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				panic(stackitem.ErrReadOnly)
 			}
 			if t.IsReferenced() {
-				if i := t.Index(key.value); i >= 0 {
+				if i = t.Index(key.value); i >= 0 {
 					v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+					r3 = v.refs
 				} else {
+					i = t.Len() - 1
 					v.refs.Add(key.value)
+					r2, r3 = v.refs, v.refs+1
 				}
 			} else {
 				v.refs.Remove(item)
+				r2 = v.refs
 			}
 
 			t.Add(key.value, item)
@@ -1434,26 +1549,41 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}
+		args = []any{int(r1 - r2), int(r2 - v.refs), int(r3 - v.refs), i + 1}
 
 	case opcode.REVERSEITEMS:
-		item := v.estack.Pop()
+		r := v.refs
+		var (
+			item = v.estack.Pop()
+			n    int
+		)
 		switch t := item.value.(type) {
 		case *stackitem.Array, *stackitem.Struct:
 			if t.(stackitem.Immutable).IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			slices.Reverse(t.Value().([]stackitem.Item))
+			arr := t.Value().([]stackitem.Item)
+			n = len(arr)
+			slices.Reverse(arr)
 		case *stackitem.Buffer:
 			b := t.Value().([]byte)
+			n = len(b)
 			slices.Reverse(b)
 		default:
 			panic(fmt.Sprintf("invalid item type %s", t))
 		}
+		args = []any{item.value.Type(), int(r - v.refs), n}
+
 	case opcode.REMOVE:
 		key := v.estack.Pop()
 		validateMapKey(key)
 
-		elem := v.estack.Pop()
+		r1 := v.refs
+		var (
+			elem  = v.estack.Pop()
+			index = -1
+		)
+		r2 := v.refs
 		switch t := elem.value.(type) {
 		case *stackitem.Array:
 			a := t.Value().([]stackitem.Item)
@@ -1476,7 +1606,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			t.Remove(k)
 		case *stackitem.Map:
-			index := t.Index(key.Item())
+			index = t.Index(key.Item())
 			// No error on missing key.
 			if index >= 0 {
 				if t.IsReferenced() {
@@ -1485,12 +1615,16 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 					v.refs.Remove(elems[index].Value)
 				}
 				t.Drop(index)
+			} else {
+				index = t.Len() - 1
 			}
 		default:
 			panic("REMOVE: invalid type")
 		}
+		args = []any{int(r1 - r2), int(r2 - v.refs), index + 1}
 
 	case opcode.CLEARITEMS:
+		r := v.refs
 		elem := v.estack.Pop()
 		switch t := elem.value.(type) {
 		case *stackitem.Array:
@@ -1528,13 +1662,16 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		default:
 			panic("CLEARITEMS: invalid type")
 		}
+		args = []any{int(r - v.refs)}
 
 	case opcode.POPITEM:
+		r1 := v.refs
 		arr := v.estack.Pop().Item()
 		elems := arr.Value().([]stackitem.Item)
 		index := len(elems) - 1
 		elem := elems[index]
 		var isReferenced bool
+		r2 := v.refs
 		v.estack.PushItem(elem) // push item on stack firstly, to match the reference behaviour.
 		switch item := arr.(type) {
 		case *stackitem.Array:
@@ -1544,6 +1681,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			item.Remove(index)
 			isReferenced = item.IsReferenced()
 		}
+		args = []any{int(r1 - r2), int(v.refs - r2)}
 		if isReferenced {
 			v.refs.Remove(elem)
 		}
@@ -1662,12 +1800,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		var res = stackitem.NewArray(arr)
 		res.IncRC()
 		v.estack.pushItemCounted(res, m.Len()+1)
+		args = []any{m.Len()}
 
 	case opcode.VALUES:
 		if v.estack.Len() == 0 {
 			panic("no argument")
 		}
-		item := v.estack.Pop()
+		r1 := v.refs
+		var (
+			item         = v.estack.Pop()
+			nClonedItems int
+		)
 
 		var arr []stackitem.Item
 		switch t := item.value.(type) {
@@ -1675,18 +1818,23 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			src := t.Value().([]stackitem.Item)
 			arr = make([]stackitem.Item, len(src))
 			for i := range src {
-				arr[i] = cloneIfStruct(src[i])
+				it, n := cloneIfStruct(src[i])
+				arr[i] = it
+				nClonedItems += n
 			}
 		case *stackitem.Map:
 			arr = make([]stackitem.Item, 0, t.Len())
 			for k := range t.Value().([]stackitem.MapElement) {
-				arr = append(arr, cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value))
+				it, n := cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value)
+				arr = append(arr, it)
+				nClonedItems += n
 			}
 		default:
 			panic("not a Map, Array or Struct")
 		}
-
+		r2 := v.refs
 		v.estack.PushItem(stackitem.NewArray(arr))
+		args = []any{int(r1 - r2), int(v.refs - r2), nClonedItems}
 
 	case opcode.HASKEY:
 		if v.estack.Len() < 2 {
@@ -1695,8 +1843,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		key := v.estack.Pop()
 		validateMapKey(key)
 
-		c := v.estack.Pop()
-		var res bool
+		r := v.refs
+		var (
+			c   = v.estack.Pop()
+			res bool
+			n   int
+		)
 		switch t := c.value.(type) {
 		case *stackitem.Array, *stackitem.Struct:
 			index := toInt(key.BigInt())
@@ -1705,7 +1857,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			res = index < len(c.Array())
 		case *stackitem.Map:
-			res = t.Has(key.Item())
+			n = t.Index(key.Item()) + 1
+			res = n > 0
+			if !res {
+				n = t.Len()
+			}
 		case *stackitem.Buffer, *stackitem.ByteArray:
 			index := toInt(key.BigInt())
 			if index < 0 {
@@ -1716,6 +1872,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("wrong collection type")
 		}
 		v.estack.PushItem(stackitem.Bool(res))
+		args = []any{int(r - v.refs), n}
 
 	case opcode.NOP:
 		// unlucky ^^
@@ -2042,16 +2199,16 @@ loop:
 	return sigok
 }
 
-func cloneIfStruct(item stackitem.Item) stackitem.Item {
+func cloneIfStruct(item stackitem.Item) (stackitem.Item, int) {
 	switch it := item.(type) {
 	case *stackitem.Struct:
-		ret, err := it.Clone()
+		ret, n, err := it.Clone()
 		if err != nil {
 			panic(err)
 		}
-		return ret
+		return ret, n
 	default:
-		return it
+		return it, 0
 	}
 }
 
