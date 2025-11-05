@@ -1,0 +1,17 @@
+type,size,ns
+Array,255,6379
+Array,511,12617
+Array,767,18348
+Array,1023,24729
+Array,1279,30192
+Array,1535,36869
+Array,1791,42421
+Array,2047,48995
+ByteString,16383,8149
+ByteString,32766,14876
+ByteString,49149,21939
+ByteString,65532,27262 
+ByteString,81915,33749
+ByteString,98298,40209
+ByteString,114681,45840
+ByteString,131064,50651
