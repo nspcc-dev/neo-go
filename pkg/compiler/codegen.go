@@ -2339,13 +2339,13 @@ func convertToken(tok token.Token, typ types.Type) (opcode.Opcode, error) {
 		return opcode.INC, nil
 	case token.NOT:
 		return opcode.NOT, nil
-	case token.AND:
+	case token.AND, token.AND_ASSIGN:
 		return opcode.AND, nil
-	case token.OR:
+	case token.OR, token.OR_ASSIGN:
 		return opcode.OR, nil
-	case token.SHL:
+	case token.SHL, token.SHL_ASSIGN:
 		return opcode.SHL, nil
-	case token.SHR:
+	case token.SHR, token.SHR_ASSIGN:
 		return opcode.SHR, nil
 	case token.XOR:
 		return opcode.XOR, nil

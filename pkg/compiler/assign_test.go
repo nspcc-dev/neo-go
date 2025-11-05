@@ -136,6 +136,46 @@ var assignTestCases = []testCase{
 		`,
 		big.NewInt(1024),
 	},
+	{
+		"left shift and assignment",
+		`func F%d() int {
+			x := 4
+			x <<= 20
+			return x
+		}
+		`,
+		big.NewInt(4194304),
+	},
+	{
+		"right shift and assignment",
+		`func F%d() int {
+			x := 4194304
+			x >>= 20
+			return x
+		}
+		`,
+		big.NewInt(4),
+	},
+	{
+		"AND and assignment",
+		`func F%d() int {
+			x := 0b_1010_1010
+			x &= 0b_1111_0000
+			return x
+		}
+		`,
+		big.NewInt(0b_1010_0000),
+	},
+	{
+		"OR and assignment",
+		`func F%d() int {
+			x := 0b_1010_1010
+			x |= 0b_1111_0000
+			return x
+		}
+		`,
+		big.NewInt(0b_1111_1010),
+	},
 }
 
 func TestAssignments(t *testing.T) {
