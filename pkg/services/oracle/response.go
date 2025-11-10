@@ -171,7 +171,7 @@ func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool, error) {
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to create test VM: %w", err)
 	}
-	ic.VM.GasLimit = o.Chain.GetMaxVerificationGAS()
+	ic.VM.SetGasLimit(o.Chain.GetMaxVerificationGAS())
 
 	o.oracleInfoLock.RLock()
 	ic.VM.LoadScriptWithHash(o.oracleScript, nativehashes.OracleContract, callflag.ReadOnly)

@@ -731,7 +731,7 @@ func prepareVM(c *cli.Context, tx *transaction.Transaction) error {
 	if c.IsSet(gasFlagFullName) {
 		gas := c.Int64(gasFlagFullName)
 		v := getVMFromContext(c.App)
-		v.GasLimit = gas
+		v.SetGasLimit(gas)
 	}
 	return nil
 }
@@ -972,8 +972,8 @@ func handleLoadTx(c *cli.Context) error {
 		return err
 	}
 	v := getVMFromContext(c.App)
-	if v.GasLimit == -1 {
-		v.GasLimit = tx.SystemFee
+	if v.GasLimit() == -1 {
+		v.SetGasLimit(tx.SystemFee)
 	}
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
@@ -1025,9 +1025,9 @@ func handleLoadDeployed(c *cli.Context) error {
 		return err
 	}
 	ic = getInteropContextFromContext(c.App) // fetch newly-created IC.
-	gasLimit := ic.VM.GasLimit
+	gasLimit := ic.VM.GasLimit()
 	ic.ReuseVM(ic.VM) // clear previously loaded program and context.
-	ic.VM.GasLimit = gasLimit
+	ic.VM.SetGasLimit(gasLimit)
 	ic.VM.LoadScriptWithHash(cs.NEF.Script, cs.Hash, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", ic.VM.Context().LenInstr())
 	setContractStateInContext(c.App, &cs.ContractBase)
@@ -1156,10 +1156,10 @@ func handleRun(c *cli.Context) error {
 			// Clear context loaded by 'loadgo', 'loadnef' or 'loaddeployed' to properly handle LoadNEFMethod.
 			// At the same time, preserve previously set gas limit and the set of breakpoints.
 			ic := getInteropContextFromContext(c.App)
-			gasLimit := v.GasLimit
+			gasLimit := v.GasLimit()
 			breaks := v.Context().BreakPoints() // We ensure that there's a context loaded.
 			ic.ReuseVM(v)
-			v.GasLimit = gasLimit
+			v.SetGasLimit(gasLimit)
 			v.LoadNEFMethod(&cs.NEF, &cs.Manifest, util.Uint160{}, cs.Hash, callflag.All, hasRet, offset, initOff, nil)
 			for _, bp := range breaks {
 				v.AddBreakPoint(bp)

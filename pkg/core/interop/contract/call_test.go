@@ -730,7 +730,7 @@ func loadScript(ic *interop.Context, script []byte, args ...any) {
 	for i := range args {
 		ic.VM.Estack().PushVal(args[i])
 	}
-	ic.VM.GasLimit = -1
+	ic.VM.SetGasLimit(-1)
 }
 
 func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f callflag.CallFlag, args ...any) {
@@ -739,5 +739,5 @@ func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Ui
 	for i := range args {
 		ic.VM.Estack().PushVal(args[i])
 	}
-	ic.VM.GasLimit = -1
+	ic.VM.SetGasLimit(-1)
 }

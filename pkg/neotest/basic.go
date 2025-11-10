@@ -326,7 +326,7 @@ func AddNetworkFee(t testing.TB, bc *core.Blockchain, tx *transaction.Transactio
 			require.NoError(t, err)
 
 			ic.UseSigners(tx.Signers)
-			ic.VM.GasLimit = bc.GetMaxVerificationGAS()
+			ic.VM.SetGasLimit(bc.GetMaxVerificationGAS())
 
 			require.NoError(t, bc.InitVerificationContext(ic, csgr.ScriptHash(), &transaction.Witness{InvocationScript: sc, VerificationScript: csgr.Script()}))
 			require.NoError(t, ic.VM.Run())

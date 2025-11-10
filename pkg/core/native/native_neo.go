@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -840,7 +841,7 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 
 func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	pub := toPublicKey(args[0])
-	if !ic.VM.AddGas(n.getRegisterPriceInternal(ic.DAO)) {
+	if !ic.VM.AddGas(n.getRegisterPriceInternal(ic.DAO) * vm.ExecFeeFactorMultiplier) {
 		panic("insufficient gas")
 	}
 	var err = n.RegisterCandidateInternal(ic, pub)
