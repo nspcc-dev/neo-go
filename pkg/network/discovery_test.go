@@ -122,7 +122,6 @@ func TestDefaultDiscoverer(t *testing.T) {
 		select {
 		case a := <-ts.dialCh:
 			dialled = append(dialled, a)
-			d.RegisterConnected(&fakeAPeer{addr: a, peer: a})
 		case <-time.After(time.Second):
 			t.Fatalf("timeout expecting for transport dial")
 		}
