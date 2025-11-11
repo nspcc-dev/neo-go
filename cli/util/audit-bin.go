@@ -108,24 +108,22 @@ func auditBin(ctx *cli.Context) error {
 				if dryRun {
 					fmt.Fprintf(ctx.App.Writer, "[dry-run] block duplicate %s / %s (%d)\n", itm.ID, curOID, prevH)
 				} else {
-					err = retry(func() error {
-						_, e := neoFSPool.ObjectDelete(ctx.Context, containerID, itm.ID, signer, client.PrmObjectDelete{})
-						return e
-					}, retries, debug)
+					err = dropBlock(ctx, neoFSPool, signer, containerID, itm.ID, retries, prevH, curOID, debug)
 					if err != nil {
-						return cli.Exit(fmt.Errorf("failed to remove block duplicate %s / %s (%d): %w", itm.ID, curOID, prevH, err), 1)
-					}
-					if debug {
-						fmt.Fprintf(ctx.App.Writer, "block duplicate %s / %s (%d) is removed\n", itm.ID, curOID, prevH)
+						return cli.Exit(err, 1)
 					}
 				}
 				continue
 			}
 
 			for ; curH < h; curH++ {
-				err = restoreMissingBlock(ctx, rpc, neoFSPool, signer, containerID, blockAttr, retries, curH, dryRun, debug)
-				if err != nil {
-					return fmt.Errorf("can't restore missing block %d: %w", curH, err)
+				if dryRun {
+					fmt.Fprintf(ctx.App.Writer, "[dry-run] block %d is missing\n", curH)
+				} else {
+					err = restoreMissingBlock(ctx, rpc, neoFSPool, signer, containerID, blockAttr, retries, curH, debug)
+					if err != nil {
+						return cli.Exit(err, 1)
+					}
 				}
 			}
 			curOID = itm.ID
@@ -141,12 +139,21 @@ func auditBin(ctx *cli.Context) error {
 	return nil
 }
 
-func restoreMissingBlock(ctx *cli.Context, rpc *rpcclient.Client, p *pool.Pool, signer user.Signer, containerID cid.ID,
-	blockAttr string, retries uint, index uint64, dryRun, debug bool) error {
-	if dryRun {
-		fmt.Fprintf(ctx.App.Writer, "[dry-run] block %d is missing\n", index)
-		return nil
+func dropBlock(ctx *cli.Context, p *pool.Pool, signer user.Signer, containerID cid.ID, objID oid.ID, retries uint, prevH uint64, curOID oid.ID, debug bool) error {
+	err := retry(func() error {
+		_, e := p.ObjectDelete(ctx.Context, containerID, objID, signer, client.PrmObjectDelete{})
+		return e
+	}, retries, debug)
+	if err != nil {
+		err = fmt.Errorf("failed to remove block duplicate %s / %s (%d): %w", objID, curOID, prevH, err)
+	} else if debug {
+		fmt.Fprintf(ctx.App.Writer, "block duplicate %s for %d is removed (%s kept)\n", objID, prevH, curOID)
 	}
+	return err
+}
+
+func restoreMissingBlock(ctx *cli.Context, rpc *rpcclient.Client, p *pool.Pool, signer user.Signer, containerID cid.ID,
+	blockAttr string, retries uint, index uint64, debug bool) error {
 	var (
 		b   *block.Block
 		err error
