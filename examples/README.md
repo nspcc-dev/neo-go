@@ -57,6 +57,3 @@ Feel free to explore neo-go smart contract development
 [workshop](https://github.com/nspcc-dev/neo-go-sc-wrkshp) to get the basic
 concepts of how to develop, compile, debug and deploy Neo smart contracts written
 in go.
-
-
-
