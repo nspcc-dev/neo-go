@@ -164,15 +164,7 @@ func TestClientRoleManagement(t *testing.T) {
 }
 
 func TestClientPolicyContract(t *testing.T) {
-	chain, _, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
-		cfg.ProtocolConfiguration.Hardforks = map[string]uint32{
-			config.HFFaun.String(): 0,
-		}
-	})
-	for _, b := range getTestBlocks(t) {
-		require.NoError(t, chain.AddBlock(b))
-	}
-
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	t.Cleanup(c.Close)
@@ -2507,6 +2499,7 @@ func TestClient_GetVersion_Hardforks(t *testing.T) {
 		config.HFCockatrice:    3,
 		config.HFDomovoi:       4,
 		config.HFEchidna:       5,
+		config.HFFaun:          6,
 	}
 	require.InDeltaMapValues(t, expected, v.Protocol.Hardforks, 0)
 }
