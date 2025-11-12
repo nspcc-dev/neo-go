@@ -192,10 +192,10 @@ Example:
 	},
 	{
 		Name:      "loadbase64",
-		Usage:     "Load a base64-encoded script string into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadbase64 [--historic <height>] [--gas <int>] <string> [-- <signer-with-scope>, ...]`,
+		Usage:     "Load a base64-encoded script string or file content into the VM optionally attaching to it provided signers with scopes",
+		UsageText: `loadbase64 [--historic <height>] [--gas <int>] <string-or-filepath> [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
-		Description: `<string> is mandatory parameter.
+		Description: `<string-or-filepath> is mandatory parameter.
 
 ` + cmdargs.SignersParsingDoc + `
 
@@ -205,8 +205,8 @@ Example:
 	},
 	{
 		Name:      "loadhex",
-		Usage:     "Load a hex-encoded script string into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadhex [--historic <height>] [--gas <int>] <string> [-- <signer-with-scope>, ...]`,
+		Usage:     "Load a hex-encoded script string or file content into the VM optionally attaching to it provided signers with scopes",
+		UsageText: `loadhex [--historic <height>] [--gas <int>] <string-or-filepath> [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<string> is mandatory parameter.
 
@@ -820,7 +820,16 @@ func handleLoadBase64(c *cli.Context) error {
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <string>", ErrMissingParameter)
 	}
-	b, err := base64.StdEncoding.DecodeString(args[0])
+	in := args[0]
+	fb, err := os.ReadFile(in) // it may be a filepath.
+	if err == nil {
+		in = string(fb)
+	}
+	b, err := base64.StdEncoding.DecodeString(in)
+	if err != nil {
+		return err
+	}
+
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 	}
@@ -860,7 +869,12 @@ func handleLoadHex(c *cli.Context) error {
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <string>", ErrMissingParameter)
 	}
-	b, err := hex.DecodeString(args[0])
+	in := args[0]
+	fb, err := os.ReadFile(in) // it may be a filepath.
+	if err == nil {
+		in = string(fb)
+	}
+	b, err := hex.DecodeString(in)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 	}
