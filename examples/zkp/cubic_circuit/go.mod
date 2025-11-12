@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/consensys/gnark v0.14.0
-	github.com/consensys/gnark-crypto v0.19.0
+	github.com/consensys/gnark-crypto v0.19.1
 	github.com/nspcc-dev/neo-go v0.106.3
 	github.com/stretchr/testify v1.10.0
 )
