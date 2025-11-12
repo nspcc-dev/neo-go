@@ -42,33 +42,30 @@ func TestParseNeoFSURL(t *testing.T) {
 	validPrefix := "neofs:" + cStr + "/" + oStr
 
 	testCases := []struct {
-		url    string
-		params []string
-		err    error
+		url  string
+		rest string
+		err  error
 	}{
-		{validPrefix, nil, nil},
-		{validPrefix + "/", []string{""}, nil},
-		{validPrefix + "/range/1|2", []string{"range", "1|2"}, nil},
-		{"neoffs:" + cStr + "/" + oStr, nil, ErrInvalidScheme},
-		{"neofs:" + cStr, nil, ErrMissingObject},
-		{"neofs:" + cStr + "ooo/" + oStr, nil, ErrInvalidContainer},
-		{"neofs:" + cStr + "/ooo" + oStr, nil, ErrInvalidObject},
+		{validPrefix, "", nil},
+		{validPrefix + "/", "", nil},
+		{validPrefix + "/range/1|2", "range/1|2", nil},
+		{"neoffs:" + cStr + "/" + oStr, "", ErrInvalidScheme},
+		{"neofs:" + cStr, "", ErrMissingObject},
+		{"neofs:" + cStr + "ooo/" + oStr, "", ErrInvalidContainer},
+		{"neofs:" + cStr + "/ooo" + oStr, "", ErrInvalidObject},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.url, func(t *testing.T) {
 			u, err := url.Parse(tc.url)
 			require.NoError(t, err)
-			oa, ps, err := parseNeoFSURL(u)
+			oa, rest, err := parseNeoFSURL(u)
 			if tc.err != nil {
 				require.ErrorIs(t, err, tc.err)
 				return
 			}
 			require.NoError(t, err)
 			require.Equal(t, objectAddr, *oa)
-			require.Equal(t, len(tc.params), len(ps))
-			if len(ps) != 0 {
-				require.Equal(t, tc.params, ps)
-			}
+			require.Equal(t, tc.rest, rest)
 		})
 	}
 }

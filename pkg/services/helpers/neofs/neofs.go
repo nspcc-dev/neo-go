@@ -69,23 +69,24 @@ func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) (i
 // If Command is not provided, full object is requested. If wrapClientCloser is true,
 // the client will be closed when the returned ReadCloser is closed.
 func GetWithClient(ctx context.Context, c Client, priv *keys.PrivateKey, u *url.URL, wrapClientCloser bool) (io.ReadCloser, error) {
-	objectAddr, ps, err := parseNeoFSURL(u)
+	objectAddr, rest, err := parseNeoFSURL(u)
 	if err != nil {
 		return nil, err
 	}
+	cmdPart, rest, _ := strings.Cut(rest, "/")
 	var (
 		res io.ReadCloser
 		s   = user.NewAutoIDSignerRFC6979(priv.PrivateKey)
 	)
-	switch {
-	case len(ps) == 0 || ps[0] == "":
+	switch cmdPart {
+	case "":
 		res, err = getPayload(ctx, s, c, objectAddr)
-	case ps[0] == rangeCmd:
-		res, err = getRange(ctx, s, c, objectAddr, ps[1:]...)
-	case ps[0] == headerCmd:
+	case rangeCmd:
+		res, err = getRange(ctx, s, c, objectAddr, rest)
+	case headerCmd:
 		res, err = getHeader(ctx, s, c, objectAddr)
-	case ps[0] == hashCmd:
-		res, err = getHash(ctx, s, c, objectAddr, ps[1:]...)
+	case hashCmd:
+		res, err = getHash(ctx, s, c, objectAddr, rest)
 	default:
 		return nil, ErrInvalidCommand
 	}
@@ -121,29 +122,30 @@ func (w clientCloseWrapper) Close() error {
 }
 
 // parseNeoFSURL returns parsed neofs address.
-func parseNeoFSURL(u *url.URL) (*oid.Address, []string, error) {
+func parseNeoFSURL(u *url.URL) (*oid.Address, string, error) {
 	if u.Scheme != URIScheme {
-		return nil, nil, ErrInvalidScheme
+		return nil, "", ErrInvalidScheme
 	}
 
-	ps := strings.Split(u.Opaque, "/")
-	if len(ps) < 2 {
-		return nil, nil, ErrMissingObject
+	cidPart, rest, found := strings.Cut(u.Opaque, "/")
+	if !found {
+		return nil, "", ErrMissingObject
 	}
+	oidPart, rest, _ := strings.Cut(rest, "/")
 
 	var containerID cid.ID
-	if err := containerID.DecodeString(ps[0]); err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrInvalidContainer, err)
+	if err := containerID.DecodeString(cidPart); err != nil {
+		return nil, "", fmt.Errorf("%w: %w", ErrInvalidContainer, err)
 	}
 
 	var objectID oid.ID
-	if err := objectID.DecodeString(ps[1]); err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrInvalidObject, err)
+	if err := objectID.DecodeString(oidPart); err != nil {
+		return nil, "", fmt.Errorf("%w: %w", ErrInvalidObject, err)
 	}
 	var objAddr = new(oid.Address)
 	objAddr.SetContainer(containerID)
 	objAddr.SetObject(objectID)
-	return objAddr, ps[2:], nil
+	return objAddr, rest, nil
 }
 
 func getPayload(ctx context.Context, s user.Signer, c Client, addr *oid.Address) (io.ReadCloser, error) {
@@ -155,12 +157,9 @@ func getPayload(ctx context.Context, s user.Signer, c Client, addr *oid.Address)
 	return iorc, err
 }
 
-func getRange(ctx context.Context, s user.Signer, c Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
+func getRange(ctx context.Context, s user.Signer, c Client, addr *oid.Address, rangePart string) (io.ReadCloser, error) {
 	var iorc io.ReadCloser
-	if len(ps) == 0 {
-		return nil, ErrInvalidRange
-	}
-	r, err := parseRange(ps[0])
+	r, err := parseRange(rangePart)
 	if err != nil {
 		return nil, err
 	}
@@ -188,8 +187,8 @@ func getHeader(ctx context.Context, s user.Signer, c Client, addr *oid.Address) 
 	return io.NopCloser(bytes.NewReader(res)), nil
 }
 
-func getHash(ctx context.Context, s user.Signer, c Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
-	if len(ps) == 0 || ps[0] == "" { // hash of the full payload
+func getHash(ctx context.Context, s user.Signer, c Client, addr *oid.Address, hashPart string) (io.ReadCloser, error) {
+	if hashPart == "" { // hash of the full payload
 		obj, err := getObjHeader(ctx, s, c, addr)
 		if err != nil {
 			return nil, err
@@ -200,7 +199,7 @@ func getHash(ctx context.Context, s user.Signer, c Client, addr *oid.Address, ps
 		}
 		return io.NopCloser(bytes.NewReader(sum.Value())), nil
 	}
-	r, err := parseRange(ps[0])
+	r, err := parseRange(hashPart)
 	if err != nil {
 		return nil, err
 	}
