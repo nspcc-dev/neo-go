@@ -233,21 +233,21 @@ func TestLedger_GetTransactionSignersInteropAPI(t *testing.T) {
 	c.CheckHalt(t, tx.Hash(), stackitem.Make(e.Chain.BlockHeight()-1))
 
 	var (
-		hashStr string
-		accStr  string
+		hashStr strings.Builder
+		accStr  strings.Builder
 		txHash  = tx.Hash().BytesBE()
 		acc     = c.Committee.ScriptHash().BytesBE()
 	)
 	for i := range util.Uint256Size {
-		hashStr += fmt.Sprintf("%#x", txHash[i])
+		fmt.Fprintf(&hashStr, "%#x", txHash[i])
 		if i != util.Uint256Size-1 {
-			hashStr += ", "
+			hashStr.WriteString(", ")
 		}
 	}
 	for i := range util.Uint160Size {
-		accStr += fmt.Sprintf("%#x", acc[i])
+		fmt.Fprintf(&accStr, "%#x", acc[i])
 		if i != util.Uint160Size-1 {
-			accStr += ", "
+			accStr.WriteString(", ")
 		}
 	}
 
@@ -259,12 +259,12 @@ func TestLedger_GetTransactionSignersInteropAPI(t *testing.T) {
 			"github.com/nspcc-dev/neo-go/pkg/interop/util"
 		)
 		func CallLedger(accessValue bool) int {
-			signers := ledger.GetTransactionSigners(interop.Hash256{` + hashStr + `})
+			signers := ledger.GetTransactionSigners(interop.Hash256{` + hashStr.String() + `})
 			if len(signers) != 1 {
 				panic("bad length")
 			}
 			s0 := signers[0]
-			expectedAcc := interop.Hash160{` + accStr + `}
+			expectedAcc := interop.Hash160{` + accStr.String() + `}
 			if !util.Equals(string(s0.Account), string(expectedAcc)) {
 				panic("bad account")
 			}
