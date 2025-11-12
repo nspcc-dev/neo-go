@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/consensys/gnark v0.14.0
-	github.com/consensys/gnark-crypto v0.19.0
+	github.com/consensys/gnark-crypto v0.19.1
 	github.com/nspcc-dev/neo-go v0.106.3
 	github.com/stretchr/testify v1.10.0
 )
@@ -29,7 +29,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20240301084351-0246b013f8b2 // indirect
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251010141739-b1fccae0ed0f // indirect
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251112080609-3c8e29c66609 // indirect
 	github.com/nspcc-dev/rfc6979 v0.2.1 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

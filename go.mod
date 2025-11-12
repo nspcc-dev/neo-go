@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/chzyer/readline v1.5.1
 	github.com/consensys/gnark v0.14.0
-	github.com/consensys/gnark-crypto v0.19.0
+	github.com/consensys/gnark-crypto v0.19.1
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/google/uuid v1.6.0
@@ -17,7 +17,7 @@ require (
 	github.com/nspcc-dev/bbolt v0.0.0-20250911202005-807225ebb0c8
 	github.com/nspcc-dev/dbft v0.4.0
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20250911084817-6fb4472993d1
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251010141739-b1fccae0ed0f
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251112080609-3c8e29c66609
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.15
 	github.com/nspcc-dev/rfc6979 v0.2.4
 	github.com/pierrec/lz4 v2.6.1+incompatible

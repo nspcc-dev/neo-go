@@ -16,8 +16,8 @@ github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UF
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/chzyer/readline v1.5.1 h1:upd/6fQk4src78LMRzh5vItIt361/o4uq553V8B5sGI=
 github.com/chzyer/readline v1.5.1/go.mod h1:Eh+b79XXUwfKfcPLepksvw2tcLE/Ct21YObkaSkeBlk=
-github.com/consensys/gnark-crypto v0.19.0 h1:zXCqeY2txSaMl6G5wFpZzMWJU9HPNh8qxPnYJ1BL9vA=
-github.com/consensys/gnark-crypto v0.19.0/go.mod h1:rT23F0XSZqE0mUA0+pRtnL56IbPxs6gp4CeRsBk4XS0=
+github.com/consensys/gnark-crypto v0.19.1 h1:FWO1JDs7A2OajswzwMG7f8l2Zrxc/yOkxSTByKTc3O0=
+github.com/consensys/gnark-crypto v0.19.1/go.mod h1:rT23F0XSZqE0mUA0+pRtnL56IbPxs6gp4CeRsBk4XS0=
 github.com/containerd/errdefs v1.0.0 h1:tg5yIfIlQIrxYtu9ajqY42W3lpS19XqdxRQeEwYG8PI=
 github.com/containerd/errdefs v1.0.0/go.mod h1:+YBYIdtsnF4Iw6nWZhJcqGSg/dwvV7tyJ/kCkyJ2k+M=
 github.com/containerd/errdefs/pkg v0.3.0 h1:9IKJ06FvyNlexW690DXuQNx2KA2cUJXx151Xdx3ZPPE=
@@ -128,8 +128,8 @@ github.com/nspcc-dev/go-ordered-json v0.0.0-20250911084817-6fb4472993d1 h1:U3wvY
 github.com/nspcc-dev/go-ordered-json v0.0.0-20250911084817-6fb4472993d1/go.mod h1:CHwf1nwquA6ecSfxmNF0YuemOPHAnRGoLuZUv/WPjeY=
 github.com/nspcc-dev/hrw/v2 v2.0.4 h1:o3Zh/2aF+IgGpvt414f46Ya20WG9u9vWxVd16ErFI8w=
 github.com/nspcc-dev/hrw/v2 v2.0.4/go.mod h1:dUjOx27zTTvoPmT5EG25vSSWL2tKS7ndAa2TPTiZwFo=
-github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250923153235-ffb84619d02f h1:EOV4T/lbNIdUwAYBay3XbV3fL2Tq4TUvwg+GnwDX5aw=
-github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250923153235-ffb84619d02f/go.mod h1:X2spkE8hK/l08CYulOF19fpK5n3p2xO0L1GnJFIywQg=
+github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251112080609-3c8e29c66609 h1:9jH0IXFw8rjBgBVWSJbWeEHf7XDjANBnmEas49rdAH8=
+github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251112080609-3c8e29c66609/go.mod h1:X2spkE8hK/l08CYulOF19fpK5n3p2xO0L1GnJFIywQg=
 github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.15 h1:KM1uenYD6BES9pW69ZNglCKTLu5WzQCziaD361YfuW4=
 github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.15/go.mod h1:Vukuf6qDOQESOWAx5yOjYtVC5wdsQp3hiZrxbJIa2fs=
 github.com/nspcc-dev/rfc6979 v0.2.4 h1:NBgsdCjhLpEPJZqmC9rciMZDcSY297po2smeaRjw57k=
