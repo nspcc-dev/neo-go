@@ -7,12 +7,3 @@ events:
         extendedtype:
           base: Struct
           name: SomeStruct
-namedtypes:
-  SomeStruct:
-    base: Struct
-    name: SomeStruct
-    fields:
-      - field: Field
-        base: Integer
-      - field: field
-        base: Integer

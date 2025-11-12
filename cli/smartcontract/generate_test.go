@@ -686,7 +686,7 @@ func TestGenerateRPCBindings_Errors(t *testing.T) {
 		}
 
 		t.Run("event", func(t *testing.T) {
-			check(t, "invalid6", false, "error during generation: named type `SomeStruct` has two fields with identical resulting binding name `Field`")
+			check(t, "invalid6", false, "error during generation: named type `invalid6.SomeStruct` has two fields with identical resulting binding name `Field`")
 		})
 		t.Run("autogen event", func(t *testing.T) {
 			check(t, "invalid7", true, "error during generation: named type `invalid7.SomeStruct` has two fields with identical resulting binding name `Field`")
