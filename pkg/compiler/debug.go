@@ -245,8 +245,8 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope, exts map[st
 			})
 		}
 	}
-	ss := strings.Split(name, ".")
-	name = ss[len(ss)-1]
+	nameStart := strings.LastIndexByte(name, '.') + 1
+	name = name[nameStart:]
 	r, n := utf8.DecodeRuneInString(name)
 	st, vt, rt, et := c.scAndVMReturnTypeFromScope(scope, exts)
 

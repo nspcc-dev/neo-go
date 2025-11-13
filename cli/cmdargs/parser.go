@@ -173,19 +173,18 @@ func parseCosigner(c string) (transaction.Signer, error) {
 			Scopes: transaction.CalledByEntry,
 		}
 	)
-	data := strings.SplitN(c, ":", 2)
-	s := data[0]
-	res.Account, err = flags.ParseAddress(s)
+	address, scopes, _ := strings.Cut(c, ":")
+	res.Account, err = flags.ParseAddress(address)
 	if err != nil {
 		return res, err
 	}
 
-	if len(data) == 1 {
+	if scopes == "" {
 		return res, nil
 	}
 
 	res.Scopes = 0
-	for s := range strings.SplitSeq(data[1], ",") {
+	for s := range strings.SplitSeq(scopes, ",") {
 		sub := strings.Split(s, ":")
 		scope, err := transaction.ScopesFromString(sub[0])
 		if err != nil {
