@@ -105,6 +105,11 @@ func NewCommands() []*cli.Command {
 			Usage: "If set, the command will not delete any objects, but will print the list of objects to be deleted",
 			Value: false,
 		},
+		&cli.UintFlag{
+			Name:  "workers",
+			Usage: "Number of workers to delete and upload blocks concurrently",
+			Value: 20,
+		},
 		&cli.IntFlag{
 			Name:  "skip",
 			Usage: "Number of blocks to skip audit for",

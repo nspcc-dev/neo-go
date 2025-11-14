@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
@@ -25,6 +26,53 @@ func auditBin(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
+	var (
+		numWorkers = ctx.Uint("workers")
+
+		err        error
+		errs       = make(chan error, numWorkers)
+		haveErrors bool
+		tasks      = make(chan func() error)
+		wg         sync.WaitGroup
+	)
+	for range numWorkers {
+		wg.Add(1)
+		go func() {
+			for f := range tasks {
+				err := f()
+				if err != nil {
+					errs <- err
+					break
+				}
+			}
+		}()
+	}
+
+	err = auditBinInt(ctx, tasks, errs)
+	close(tasks)
+	wg.Wait()
+
+drainErrors:
+	for {
+		select {
+		case anotherErr := <-errs:
+			fmt.Fprintf(ctx.App.Writer, "error in worker thread: %s", anotherErr)
+			haveErrors = true
+		default:
+			break drainErrors
+		}
+	}
+	if err == nil {
+		if haveErrors {
+			err = cli.Exit(errors.New("audit failed"), 1) // Change return code to signal thread errors.
+		} else {
+			fmt.Fprintln(ctx.App.Writer, "Audit is completed.")
+		}
+	}
+	return err
+}
+
+func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) error {
 	retries := ctx.Uint("retries")
 	cnrID := ctx.String("container")
 	debug := ctx.Bool("debug")
@@ -93,6 +141,8 @@ func auditBin(ctx *cli.Context) error {
 			select {
 			case <-ctx.Done():
 				return cli.Exit("context cancelled", 1)
+			case err := <-errs:
+				return cli.Exit(fmt.Errorf("error in worker thread: %w", err), 1)
 			default:
 			}
 			if len(itm.Attributes) != 1 {
@@ -108,24 +158,16 @@ func auditBin(ctx *cli.Context) error {
 				if dryRun {
 					fmt.Fprintf(ctx.App.Writer, "[dry-run] block duplicate %s / %s (%d)\n", itm.ID, curOID, prevH)
 				} else {
-					err = retry(func() error {
-						_, e := neoFSPool.ObjectDelete(ctx.Context, containerID, itm.ID, signer, client.PrmObjectDelete{})
-						return e
-					}, retries, debug)
-					if err != nil {
-						return cli.Exit(fmt.Errorf("failed to remove block duplicate %s / %s (%d): %w", itm.ID, curOID, prevH, err), 1)
-					}
-					if debug {
-						fmt.Fprintf(ctx.App.Writer, "block duplicate %s / %s (%d) is removed\n", itm.ID, curOID, prevH)
-					}
+					tasks <- wrapDropBlock(ctx, neoFSPool, signer, containerID, itm.ID, retries, prevH, curOID, debug)
 				}
 				continue
 			}
 
 			for ; curH < h; curH++ {
-				err = restoreMissingBlock(ctx, rpc, neoFSPool, signer, containerID, blockAttr, retries, curH, dryRun, debug)
-				if err != nil {
-					return fmt.Errorf("can't restore missing block %d: %w", curH, err)
+				if dryRun {
+					fmt.Fprintf(ctx.App.Writer, "[dry-run] block %d is missing\n", curH)
+				} else {
+					tasks <- wrapRestoreMissingBlock(ctx, rpc, neoFSPool, signer, containerID, blockAttr, retries, curH, debug)
 				}
 			}
 			curOID = itm.ID
@@ -137,16 +179,36 @@ func auditBin(ctx *cli.Context) error {
 		}
 	}
 
-	fmt.Fprintln(ctx.App.Writer, "Audit is completed.")
 	return nil
 }
 
-func restoreMissingBlock(ctx *cli.Context, rpc *rpcclient.Client, p *pool.Pool, signer user.Signer, containerID cid.ID,
-	blockAttr string, retries uint, index uint64, dryRun, debug bool) error {
-	if dryRun {
-		fmt.Fprintf(ctx.App.Writer, "[dry-run] block %d is missing\n", index)
-		return nil
+func wrapDropBlock(ctx *cli.Context, p *pool.Pool, signer user.Signer, containerID cid.ID, objID oid.ID, retries uint, prevH uint64, curOID oid.ID, debug bool) func() error {
+	return func() error {
+		return dropBlock(ctx, p, signer, containerID, objID, retries, prevH, curOID, debug)
 	}
+}
+
+func dropBlock(ctx *cli.Context, p *pool.Pool, signer user.Signer, containerID cid.ID, objID oid.ID, retries uint, prevH uint64, curOID oid.ID, debug bool) error {
+	err := retry(func() error {
+		_, e := p.ObjectDelete(ctx.Context, containerID, objID, signer, client.PrmObjectDelete{})
+		return e
+	}, retries, debug)
+	if err != nil {
+		err = fmt.Errorf("failed to remove block duplicate %s / %s (%d): %w", objID, curOID, prevH, err)
+	} else if debug {
+		fmt.Fprintf(ctx.App.Writer, "block duplicate %s for %d is removed (%s kept)\n", objID, prevH, curOID)
+	}
+	return err
+}
+
+func wrapRestoreMissingBlock(ctx *cli.Context, rpc *rpcclient.Client, p *pool.Pool, signer user.Signer, containerID cid.ID,
+	blockAttr string, retries uint, index uint64, debug bool) func() error {
+	return func() error {
+		return restoreMissingBlock(ctx, rpc, p, signer, containerID, blockAttr, retries, index, debug)
+	}
+}
+func restoreMissingBlock(ctx *cli.Context, rpc *rpcclient.Client, p *pool.Pool, signer user.Signer, containerID cid.ID,
+	blockAttr string, retries uint, index uint64, debug bool) error {
 	var (
 		b   *block.Block
 		err error
