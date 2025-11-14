@@ -1010,3 +1010,10 @@ func TestNeo_GasPerBlockUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, len(aer[0].Events))
 }
+
+// TestNeo_TransferNegative ensures that transfer of a negative NEO amount leads to
+// a VM FAULT, ref. #4072.
+func TestNeo_TransferNegative(t *testing.T) {
+	c := newNeoCommitteeClient(t, 10_0000_0000)
+	c.InvokeFail(t, "negative amount", "transfer", c.Signers[0].ScriptHash(), c.Signers[0].ScriptHash(), -1, nil)
+}
