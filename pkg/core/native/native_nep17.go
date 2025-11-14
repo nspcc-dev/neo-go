@@ -221,7 +221,7 @@ func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.U
 	var postF1, postF2 func()
 
 	if amount.Sign() == -1 {
-		return errors.New("negative amount")
+		panic(errors.New("negative amount"))
 	}
 
 	caller := ic.VM.GetCallingScriptHash()

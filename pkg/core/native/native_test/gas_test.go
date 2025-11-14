@@ -144,3 +144,12 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 	tsExpected := tsInitial + 5000_0000 - tx.SystemFee
 	require.Equal(t, tsExpected, tsUpdated)
 }
+
+// TestGAS_TransferNegative ensures that transfer of a negative GAS amount leads to
+// a VM FAULT, ref. #4072.
+func TestGas_TransferNegative(t *testing.T) {
+	c := newGasClient(t)
+	acc := c.NewAccount(t)
+	gasInvoker := c.WithSigners(acc)
+	gasInvoker.InvokeFail(t, "negative amount", "transfer", acc.ScriptHash(), acc.ScriptHash(), -1, nil)
+}

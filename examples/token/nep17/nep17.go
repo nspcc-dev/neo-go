@@ -47,6 +47,10 @@ func (t Token) BalanceOf(ctx storage.Context, holder []byte) int {
 
 // Transfer token from one user to another.
 func (t Token) Transfer(ctx storage.Context, from, to interop.Hash160, amount int, data any) bool {
+	if amount < 0 {
+		panic("negative amount")
+	}
+
 	amountFrom := t.CanTransfer(ctx, from, to, amount)
 	if amountFrom == -1 {
 		return false
