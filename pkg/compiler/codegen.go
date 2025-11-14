@@ -878,6 +878,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.currentSwitch = label
 		c.pushStackLabel(label, 1)
 
+		last := len(n.Body.List) - 1
+		for i := range n.Body.List {
+			if i < last && len(n.Body.List[i].(*ast.CaseClause).List) == 0 { // early default
+				n.Body.List[i], n.Body.List[last] = n.Body.List[last], n.Body.List[i]
+				break
+			}
+		}
+
 		startLabels := make([]uint16, len(n.Body.List))
 		for i := range startLabels {
 			startLabels[i] = c.newLabel()
