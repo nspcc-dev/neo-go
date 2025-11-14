@@ -96,11 +96,11 @@ ApplicationConfiguration:
   Prometheus:
     Enabled: true
     Addresses:
-      - ":2112"
+      - ":1112"
   Pprof:
     Enabled: false
     Addresses:
-      - ":2113"
+      - ":1113"
   NeoFSBlockFetcher:
     Enabled: true
     Addresses:
