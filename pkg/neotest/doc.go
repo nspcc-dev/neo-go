@@ -17,7 +17,7 @@ of transaction creation for the most part, but there are lower-level methods as
 well that can be used for specific tasks.
 
 It's recommended to have a separate folder/package for tests, because having
-them in the same package with the smart contract iself can lead to unxpected
+them in the same package with the smart contract itself can lead to unexpected
 results if smart contract has any init() functions. If that's the case they
 will be compiled into the testing binary even when using package_test and their
 execution can affect tests. See https://github.com/nspcc-dev/neo-go/issues/3120 for details.

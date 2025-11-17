@@ -143,7 +143,7 @@ func (s *NEOBalance) FromStackItem(item stackitem.Item) error {
 	s.Balance = *balance
 	h, err := structItem[1].TryInteger()
 	if err != nil {
-		return fmt.Errorf("invalid heigh stackitem")
+		return fmt.Errorf("invalid height stackitem")
 	}
 	s.BalanceHeight = uint32(h.Int64())
 	if _, ok := structItem[2].(stackitem.Null); ok {

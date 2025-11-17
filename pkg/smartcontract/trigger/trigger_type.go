@@ -18,7 +18,7 @@ const (
 	OnPersist Type = 0x01
 
 	// PostPersist is a trigger type that indicates that the script is being invoked
-	// by the system after block persistence (transcation processing) has
+	// by the system after block persistence (transaction processing) has
 	// finished.
 	PostPersist Type = 0x02
 

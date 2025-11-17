@@ -116,7 +116,7 @@ func (p *ProtocolConfiguration) Validate() error {
 			return fmt.Errorf("missing previous hardfork configuration with %s present", cfgHf.String())
 		}
 		if h != 0 && h < prev {
-			return fmt.Errorf("hardfork %s has inconsistent enabling height %d (lower than the previouse one)", cfgHf.String(), h)
+			return fmt.Errorf("hardfork %s has inconsistent enabling height %d (lower than the previous one)", cfgHf.String(), h)
 		}
 		if h != 0 {
 			prev = h

@@ -1281,7 +1281,7 @@ func (s *Server) invokeReadOnlyMulti(bw *io.BufBinWriter, h util.Uint160, method
 	tx := &transaction.Transaction{Script: script}
 	ic, err := s.chain.GetTestVM(trigger.Application, tx, nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("faile to prepare test VM: %w", err)
+		return nil, nil, fmt.Errorf("failed to prepare test VM: %w", err)
 	}
 	ic.VM.GasLimit = core.HeaderVerificationGasLimit
 	ic.VM.LoadScriptWithFlags(script, callflag.All)

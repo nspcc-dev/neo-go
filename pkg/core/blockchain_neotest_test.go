@@ -1113,7 +1113,7 @@ func TestBlockchain_Close(t *testing.T) {
 	e.GenerateNewBlocks(t, 10)
 	bc.Close()
 	// It's a hack, but we use internal knowledge of MemoryStore
-	// implementation which makes it completely unusable (up to panicing)
+	// implementation which makes it completely unusable (up to panicking)
 	// after Close().
 	require.Panics(t, func() {
 		_ = st.PutChangeSet(map[string][]byte{"0": {1}}, nil)
