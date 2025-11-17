@@ -24,13 +24,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## SessionExpirationTime of RPC server configuration
-
-RPC server configuration setting SessionExpirationTime of `int` type has been
-replaced by SessionLifetime of `Duration` type.
-
-Removal of SessionExpirationTime is scheduled for 0.113.0 release.
-
 ## Candidate registration via `registerCandidate` method of native NeoToken contract
 
 The original way of Neo candidate registration via `wallet candidate register` CLI

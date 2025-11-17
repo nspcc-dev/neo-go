@@ -284,13 +284,8 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	orc OracleHandler, log *zap.Logger, errChan chan<- error) *Server {
 	protoCfg := chain.GetConfig().ProtocolConfiguration
 	if conf.SessionEnabled {
-		//nolint:staticcheck // SessionExpirationTime will not be used since version 0.113.0 release.
-		if conf.SessionExpirationTime <= 0 {
-			conf.SessionExpirationTime = int(max(protoCfg.TimePerBlock, 5*time.Second))
-		}
 		if conf.SessionLifetime <= 0 {
-			//nolint:staticcheck // SessionExpirationTime will not be used since version 0.113.0 release.
-			conf.SessionLifetime = time.Duration(conf.SessionExpirationTime)
+			conf.SessionLifetime = max(protoCfg.TimePerBlock, 5*time.Second)
 			log.Info("SessionLifetime is not set or wrong, setting default value", zap.Duration("SessionLifetime", conf.SessionLifetime))
 		}
 		if conf.SessionPoolSize <= 0 {
