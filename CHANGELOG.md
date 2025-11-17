@@ -2,6 +2,54 @@
 
 This document outlines major changes between releases.
 
+## 0.114.0 "Chemosorption" (17 Nov 2025)
+
+This version fixes the state difference at block 11074661 of testnet caused by
+improper handling of native NEP-17 token transfer. It also fixes a deadlock
+caused by inability to terminate an expired iterator session. It's fully
+compatible with the C# node 3.8+ and delivers a set of improvements for
+compiler, NeoFS block storage audit and uploader along with a preview of Faun
+changes.
+
+Deprecated functionality has been removed according to the schedule (`math.Max`
+and `math.Min` interop functions along with `SessionExpirationTime` RPC server
+config), consider upgrading affected smart contracts and node config
+correspondingly. The default ports of Prometheus and pprof services have been
+changed for mainnet config. Testnet node resynchronisation (or state reset to
+block 11074660 for full nodes) is recommended but not required since the state
+is the same at higher block (starting from 11091272), and the only real
+difference now is two application logs for two transactions.
+
+New features:
+ * local analogs of `System.Storage.*` interop API added to Faun preview (#4031)
+
+Behavior changes:
+ * migrate to single threaded search in NeoFS block storage uploader (#4030)
+ * adjust Prometheus and pprof ports in default mainnet config (#4074) 
+ * removal of deprecated `math.Max` and `math.Min` interop functions (#4083)
+ * removal of deprecated `SessionExpirationTime` RPC server config (#4083)
+
+Improvements:
+ * documentation updates (#4035, #4045, #4079)
+ * NeoFS SDK Go update to RC15 (#4028)
+ * dependencies upgrade (#4067)
+ * support assignment operators `&=`, `|=`, `>>=`, `<<=` in compiler (#4059)
+ * add an example of NeoFS usage to smart contracts (#4064)
+ * refactor NeoFS block storage uploader (#4070, #4080)
+ * improve NeoFS block storage audit CLI tool (#4019)
+ * properly handle circular reference in stackitem JSON serialization (#4044)
+
+Bugs fixed:
+ * RPC bindings generator generates incorrect bindings for NEP-22/NEP-31 (#4022,
+   #4024, #4048)
+ * panic in the compiler on missing external package in the imported one (#4027)
+ * execution error caused by iteration over nil slice (#4026)
+ * add source URL to NEF file on compilation in neotest (#4042)
+ * `getnextblockvalidator` RPC handler returns result only for enrollments
+   (#4047)
+ * negative native NEP-17 transfer doesn't lead to VM FAULT (#4073)
+ * inability to force-terminate expired iterator session (#4082)
+
 ## 0.113.0 "Circumnavigation" (24 Sept 2025)
 
 This version includes an upgrade to Go 1.24 and adds a couple of new native

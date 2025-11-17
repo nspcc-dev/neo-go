@@ -375,10 +375,6 @@ where:
   via `traverseiterator`. If disabled, iterators are either expanded up to 
   `MaxIteratorResultItems` or require explicit traversal via session-based calls.
   By default, `SessionExpansionEnabled` is set to `false`.
-- `SessionExpirationTime` is a lifetime of iterator session in seconds. It is set
-  to `TimePerBlock` seconds (but not less than 5s) by default and is relevant
-  only if `SessionEnabled` is set to `true`. Deprecated: use `SessionLifetime`
-  instead.
 - `SessionLifetime` (`Duration`) is a lifetime of iterator session. It is set to
   `TimePerBlock` seconds (but not less than 5s) by default and is relevant
   only if `SessionEnabled` is set to `true`.

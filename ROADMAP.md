@@ -7,12 +7,11 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.113.0 (~Sept 2025)
+## Version 0.115.0 (~Dec 2025)
  * protocol updates
  * bug fixes
- * StateRootInHeader protocol extension
 
-## Version 1.0 (2025, TBD)
+## Version 1.0 (2026, TBD)
  * stable version
 
 # Deprecated functionality
@@ -23,13 +22,6 @@ it's impossible to do for some reason. But eventually old
 APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
-
-## SessionExpirationTime of RPC server configuration
-
-RPC server configuration setting SessionExpirationTime of `int` type has been
-replaced by SessionLifetime of `Duration` type.
-
-Removal of SessionExpirationTime is scheduled for 0.113.0 release.
 
 ## Candidate registration via `registerCandidate` method of native NeoToken contract
 
@@ -42,10 +34,3 @@ registration way via `registerCandidate` method call is supported via
 Removal of `registerCandidate`–based support of candidate registration will be
 done once `registerCandidate` method is officially deprecated and removed from
 the NeoToken manifest with the subsequent hardfork.
-
-## math.Max and math.Min interop functions
-
-Interop functions `math.Min` and `math.Max` have been replaced by built-in `min`
-and `max` functions.
-
-The old functions are deprecated and their removal is scheduled for 0.113.0 release.

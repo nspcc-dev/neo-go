@@ -30,18 +30,6 @@ func Abs(a int) int {
 	return neogointernal.Opcode1("ABS", a).(int)
 }
 
-// Max returns the maximum of a, b.
-// Deprecated: Use Go built-in max instead.
-func Max(a, b int) int {
-	return neogointernal.Opcode2("MAX", a, b).(int)
-}
-
-// Min returns the minimum of a, b.
-// Deprecated: Use Go built-in min instead.
-func Min(a, b int) int {
-	return neogointernal.Opcode2("MIN", a, b).(int)
-}
-
 // Within returns true if a <= x < b.
 func Within(x, a, b int) bool {
 	return neogointernal.Opcode3("WITHIN", x, a, b).(bool)

@@ -314,22 +314,6 @@ func TestOpcode(t *testing.T) {
 		}`
 		eval(t, src, big.NewInt(3))
 	})
-	t.Run("MAX", func(t *testing.T) {
-		src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
-		func Main() int {
-			return math.Max(1, 2) + math.Max(8, 3)
-		}`
-		eval(t, src, big.NewInt(10))
-	})
-	t.Run("MIN", func(t *testing.T) {
-		src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
-		func Main() int {
-			return math.Min(1, 2) + math.Min(8, 3)
-		}`
-		eval(t, src, big.NewInt(4))
-	})
 	t.Run("WITHIN", func(t *testing.T) {
 		src := `package foo
 		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
