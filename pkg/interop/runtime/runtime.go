@@ -1,6 +1,6 @@
 /*
 Package runtime provides various service functions related to execution environment.
-It has similar function to Runtime class in .net framwork for Neo.
+It has similar function to Runtime class in .net framework for Neo.
 */
 package runtime
 

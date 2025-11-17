@@ -331,7 +331,7 @@ func TestWSClientNonBlockingEvents(t *testing.T) {
 	bCh := make(chan *block.Block, chCap)
 
 	// Events from RPC server testchain. Require events len to be larger than chCap to reach
-	// subscriber's chanel overflow.
+	// subscriber's channel overflow.
 	var events = []string{
 		fmt.Sprintf(`{"jsonrpc":"2.0","method":"block_added","params":[%s]}`, b1Verbose),
 		fmt.Sprintf(`{"jsonrpc":"2.0","method":"block_added","params":[%s]}`, b1Verbose),

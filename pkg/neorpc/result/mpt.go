@@ -14,7 +14,7 @@ type StateHeight struct {
 	Validated uint32 `json:"validatedrootindex"`
 }
 
-// ProofWithKey represens a key-proof pair.
+// ProofWithKey represents a key-proof pair.
 type ProofWithKey struct {
 	Key   []byte
 	Proof [][]byte

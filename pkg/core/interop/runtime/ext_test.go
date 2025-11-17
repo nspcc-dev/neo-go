@@ -424,7 +424,7 @@ func TestLoadScript(t *testing.T) {
 		script := wrapDynamicScript(t, []byte{byte(opcode.MUL)}, callflag.All, 2, 2)
 		e.InvokeScriptCheckHALT(t, script, []neotest.Signer{acc}, stackitem.Make(4))
 	})
-	t.Run("two retrun values", func(t *testing.T) {
+	t.Run("two return values", func(t *testing.T) {
 		script := wrapDynamicScript(t, []byte{byte(opcode.PUSH1), byte(opcode.PUSH1)}, callflag.All, 2, 2)
 		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "multiple return values in a cross-contract call")
 	})

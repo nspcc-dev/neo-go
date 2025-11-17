@@ -47,7 +47,7 @@ import (
 // See https://github.com/nspcc-dev/neo-go/blob/master/docs/notifications.md#ordering-and-persistence-guarantees
 // for more details on this topic.
 //
-// Any received subscription items (blocks/transactions/nofitications) are passed
+// Any received subscription items (blocks/transactions/notifications) are passed
 // via pointers for efficiency, but the actual structures MUST NOT be changed, as
 // it may affect the functionality of other notification receivers. If multiple
 // subscriptions share the same receiver channel, then matching notification is

@@ -62,7 +62,7 @@ type Contract struct {
 }
 
 // OnNEP17PaymentData is the data set that is accepted by the notary contract
-// onNEP17Payment handler. It's mandatory for GAS tranfers to this contract.
+// onNEP17Payment handler. It's mandatory for GAS transfers to this contract.
 type OnNEP17PaymentData struct {
 	// Account can be nil, in this case transfer sender (from) account is used.
 	Account *util.Uint160

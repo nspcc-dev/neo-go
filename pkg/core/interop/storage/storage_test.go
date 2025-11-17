@@ -169,7 +169,7 @@ func TestFind(t *testing.T) {
 		var iter *stackitem.Interop
 		require.NotPanics(t, func() { iter = v.Estack().Pop().Interop() })
 
-		for i := range expected { // sorted indices with mathing prefix
+		for i := range expected { // sorted indices with matching prefix
 			v.Estack().PushVal(iter)
 			require.NoError(t, iterator.Next(context))
 			require.True(t, v.Estack().Pop().Bool())

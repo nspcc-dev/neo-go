@@ -44,7 +44,7 @@ const (
 	emptyFeatures = "{}"
 )
 
-// Manifest represens contract metadata.
+// Manifest represents contract metadata.
 type Manifest struct {
 	// Name is a contract's name.
 	Name string `json:"name"`

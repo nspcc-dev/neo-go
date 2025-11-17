@@ -2031,7 +2031,7 @@ func (v *VM) checkInvocationStackSize() {
 	}
 }
 
-// bytesToPublicKey is a helper deserializing keys using cache and panicing on
+// bytesToPublicKey is a helper deserializing keys using cache and panicking on
 // error.
 func bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
 	pkey, err := keys.NewPublicKeyFromBytes(b, curve)

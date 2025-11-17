@@ -359,7 +359,7 @@ var sliceTestCases = []testCase{
 		[]stackitem.Item{stackitem.Make(0), stackitem.Make(1), stackitem.Make(2)},
 	},
 	{
-		"assigment with another operator",
+		"assignment with another operator",
 		`func F%d() []int {
 				a := []int{1, 2}
 				a[0], a[1] = a[1], a[0] + 10

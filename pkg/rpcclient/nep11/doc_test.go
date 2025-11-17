@@ -116,7 +116,7 @@ func ExampleNonDivisible() {
 
 	tgtAcc, _ := address.StringToUint160("NdypBhqkz2CMMnwxBgvoC9X2XjKF5axgKo")
 
-	// Let's tranfer all of account's tokens to some other account.
+	// Let's transfer all of account's tokens to some other account.
 	tokIter, _ := n11.TokensOf(a.Sender())
 	for toks, err := tokIter.Next(10); err == nil && len(toks) > 0; toks, err = tokIter.Next(10) {
 		for i := range toks {
@@ -149,7 +149,7 @@ func ExampleDivisible() {
 
 	tgtAcc, _ := address.StringToUint160("NdypBhqkz2CMMnwxBgvoC9X2XjKF5axgKo")
 
-	// Let's tranfer all of account's tokens to some other account.
+	// Let's transfer all of account's tokens to some other account.
 	tokIter, _ := n11.TokensOf(a.Sender())
 	for toks, err := tokIter.Next(10); err == nil && len(toks) > 0; toks, err = tokIter.Next(10) {
 		for i := range toks {
