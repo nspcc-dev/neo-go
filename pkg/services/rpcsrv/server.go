@@ -177,11 +177,8 @@ type (
 	// session holds a set of iterators got after invoke* call with corresponding
 	// finalizer and session expiration timer.
 	session struct {
-		// iteratorsLock protects iteratorIdentifiers of the current session.
-		iteratorsLock sync.Mutex
 		// iteratorIdentifiers stores the set of Iterator stackitems got either from original invocation
-		// or from historic MPT-based invocation. In the second case, iteratorIdentifiers are supposed
-		// to be filled during the first `traverseiterator` call using corresponding params.
+		// or from historic MPT-based invocation.
 		iteratorIdentifiers []*iteratorIdentifier
 		timer               *time.Timer
 		finalize            func()
@@ -189,6 +186,8 @@ type (
 	// iteratorIdentifier represents Iterator on the server side, holding iterator ID and Iterator stackitem.
 	iteratorIdentifier struct {
 		ID string
+		// Lock protects Curr from update by concurrent Item traversal routines.
+		Lock sync.Mutex
 		// Item represents Iterator stackitem.
 		Item stackitem.Item
 		// Curr represents current Iterator value got after initial iterator traversal if in-place iterator
@@ -490,11 +489,8 @@ func (s *Server) Shutdown() {
 	if s.config.SessionEnabled {
 		s.sessionsLock.Lock()
 		for _, session := range s.sessions {
-			// Concurrent iterator traversal may still be in process, thus need to protect iteratorIdentifiers access.
-			session.iteratorsLock.Lock()
 			session.timer.Stop() // cancel session's finalizer.
 			session.finalize()
-			session.iteratorsLock.Unlock()
 		}
 		s.sessions = nil
 		s.sessionsLock.Unlock()
@@ -2557,10 +2553,8 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 			if !ok {
 				return
 			}
-			sess.iteratorsLock.Lock()
 			sess.finalize()
 			delete(s.sessions, sessionID)
-			sess.iteratorsLock.Unlock()
 		})
 		s.sessionsLock.Lock()
 		if len(s.sessions) >= s.config.SessionPoolSize {
@@ -2681,9 +2675,6 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 		s.sessionsLock.Unlock()
 		return nil, neorpc.ErrUnknownSession
 	}
-	session.iteratorsLock.Lock()
-	// Perform `till` update only after session.iteratorsLock is taken in order to have more
-	// precise session lifetime.
 	session.timer.Reset(s.config.SessionLifetime)
 	s.sessionsLock.Unlock()
 
@@ -2695,8 +2686,10 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 	for _, it := range session.iteratorIdentifiers {
 		if iIDStr == it.ID {
 			found = true
+			it.Lock.Lock()
 			if it.Curr != nil {
 				if count <= 0 {
+					it.Lock.Unlock()
 					break
 				}
 				iVals = append(iVals, it.Curr)
@@ -2704,10 +2697,10 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 				count--
 			}
 			iVals = append(iVals, iterator.Values(it.Item, count)...)
+			it.Lock.Unlock()
 			break
 		}
 	}
-	session.iteratorsLock.Unlock()
 	if !found {
 		return nil, neorpc.ErrUnknownIterator
 	}
@@ -2737,13 +2730,9 @@ func (s *Server) terminateSession(reqParams params.Params) (any, *neorpc.Error) 
 	if !ok {
 		return nil, neorpc.ErrUnknownSession
 	}
-	// Iterators access Seek channel under the hood; finalizer closes this channel, thus,
-	// we need to perform finalisation under iteratorsLock.
-	session.iteratorsLock.Lock()
 	session.timer.Stop() // cancel session's finalizer.
 	session.finalize()
 	delete(s.sessions, strSID)
-	session.iteratorsLock.Unlock()
 	return ok, nil
 }
 
