@@ -45,6 +45,7 @@ func auditBin(ctx *cli.Context) error {
 					break
 				}
 			}
+			wg.Done()
 		}()
 	}
 
