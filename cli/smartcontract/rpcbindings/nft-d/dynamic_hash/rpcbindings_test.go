@@ -12,10 +12,10 @@ import (
 )
 
 // NEP22Contract is an alias for nep22.Contract.
-type NEP22Contract nep22.Contract
+type NEP22Contract = nep22.Contract
 
 // NEP31Contract is an alias for nep31.Contract.
-type NEP31Contract nep31.Contract
+type NEP31Contract = nep31.Contract
 
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {

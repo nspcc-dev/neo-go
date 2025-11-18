@@ -21,10 +21,10 @@ import (
 var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
 
 // NEP22Contract is an alias for nep22.Contract.
-type NEP22Contract nep22.Contract
+type NEP22Contract = nep22.Contract
 
 // NEP31Contract is an alias for nep31.Contract.
-type NEP31Contract nep31.Contract
+type NEP31Contract = nep31.Contract
 
 // NftRoyaltyRecipientShare is a contract-specific nft.RoyaltyRecipientShare type used by its methods.
 type NftRoyaltyRecipientShare struct {

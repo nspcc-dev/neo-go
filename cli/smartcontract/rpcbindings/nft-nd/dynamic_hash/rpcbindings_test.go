@@ -18,10 +18,10 @@ import (
 )
 
 // NEP22Contract is an alias for nep22.Contract.
-type NEP22Contract nep22.Contract
+type NEP22Contract = nep22.Contract
 
 // NEP31Contract is an alias for nep31.Contract.
-type NEP31Contract nep31.Contract
+type NEP31Contract = nep31.Contract
 
 // NftRoyaltyRecipientShare is a contract-specific nft.RoyaltyRecipientShare type used by its methods.
 type NftRoyaltyRecipientShare struct {

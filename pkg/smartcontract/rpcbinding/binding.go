@@ -127,7 +127,7 @@ var Hash = {{ .Hash }}
 {{end -}}
 {{- range $index, $name := .ContractWriterStandards }}
 // {{toTypeNameUpper $name}}Contract is an alias for {{toTypeNameLower $name}}.Contract.
-type {{toTypeNameUpper $name}}Contract {{toTypeNameLower $name}}.Contract
+type {{toTypeNameUpper $name}}Contract = {{toTypeNameLower $name}}.Contract
 {{end -}}
 {{- range $index, $typ := .NamedTypes }}
 // {{toTypeName $typ.Name}} is a contract-specific {{$typ.Name}} type used by its methods.
