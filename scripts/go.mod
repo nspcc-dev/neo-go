@@ -32,7 +32,7 @@ require (
 	github.com/nspcc-dev/bbolt v0.0.0-20250911202005-807225ebb0c8 // indirect
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20250911084817-6fb4472993d1 // indirect
 	github.com/nspcc-dev/hrw/v2 v2.0.4 // indirect
-	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.15 // indirect
+	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.16 // indirect
 	github.com/nspcc-dev/rfc6979 v0.2.4 // indirect
 	github.com/nspcc-dev/tzhash v1.8.3 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
