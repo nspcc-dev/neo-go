@@ -115,3 +115,21 @@ func Bls12381Pairing(g1, g2 Bls12381Point) Bls12381Point {
 func Keccak256(b []byte) interop.Hash256 {
 	return neogointernal.CallWithToken(Hash, "keccak256", int(contract.NoneFlag), b).(interop.Hash256)
 }
+
+// Bn254Add represents `bn254Add` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bn254Add(input []byte) []byte {
+	return neogointernal.CallWithToken(Hash, "bn254Add", int(contract.NoneFlag), input).([]byte)
+}
+
+// Bn254Mul represents `bn254Mul` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bn254Mul(input []byte) []byte {
+	return neogointernal.CallWithToken(Hash, "bn254Mul", int(contract.NoneFlag), input).([]byte)
+}
+
+// Bn254Pairing represents `bn254Pairing` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bn254Pairing(input []byte) []byte {
+	return neogointernal.CallWithToken(Hash, "bn254Pairing", int(contract.NoneFlag), input).([]byte)
+}

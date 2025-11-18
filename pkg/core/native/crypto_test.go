@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
@@ -392,4 +393,131 @@ func TestKeccak256(t *testing.T) {
 	actual := hex.EncodeToString(data.BytesBE())
 
 	require.Equal(t, expected, actual)
+}
+
+func TestBn254(t *testing.T) {
+	const (
+		Bn254G1X              = "1"
+		Bn254G1Y              = "2"
+		Bn254DoubleX          = "030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3"
+		Bn254DoubleY          = "15ed738c0e0a7c92e7845f96b2ae9c0a68a6a449e3538fc7ff3ebf7a5a18a2c4"
+		Bn254G2XIm            = "1800deef121f1e7641a819fe67140f7f8f87b140996fbbd1ba87fb145641f404"
+		Bn254G2XRe            = "198e9393920d483a7260bfb731fb5db382322bc5b47fbf6c80f6321231df581"
+		Bn254G2YIm            = "12c85ea5db8c6deb43baf7868f1c5341fd8ed84a82f89ed36e80b6a4a8dd22e1"
+		Bn254G2YRe            = "090689d0585ff0756c27a122072274f89d4d1c6d2f9d3af03d86c6b29b53e2b"
+		Bn254PairingPositive  = "0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002203e205db4f19b37b60121b83a7333706db86431c6d835849957ed8c3928ad7927dc7234fd11d3e8c36c59277c3e6f149d5cd3cfa9a62aee49f8130962b4b3b9195e8aa5b7827463722b8c153931579d3505566b4edf48d498e185f0509de15204bb53b8977e5f92a0bc372742c4830944a59b4fe6b1c0466e2a6dad122b5d2e104316c97997c17267a1bb67365523b4388e1306d66ea6e4d8f4a4a4b65f5c7d06e286b49c56f6293b2cea30764f0d5eabe5817905468a41f09b77588f692e8b081070efe3d4913dde35bba2513c426d065dee815c478700cef07180fb6146182432428b1490a4f25053d4c20c8723a73de6f0681bd3a8fca41008a6c3c288252d50f18403272e96c10135f96db0f8d0aec25033ebdffb88d2e7956c9bb198ec072462211ebc0a2f042f993d5bd76caf4adb5e99610dcf7c1d992595e6976aa3"
+		Bn254PairingNegative  = "0x142c9123c08a0d7f66d95f3ad637a06b95700bc525073b75610884ef45416e1610104c796f40bfeef3588e996c040d2a88c0b4b85afd2578327b99413c6fe820198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed275dc4a288d1afb3cbb1ac09187524c7db36395df7be3b99e673b13a075a65ec1d9befcd05a5323e6da4d435f3b617cdb3af83285c2df711ef39c01571827f9d"
+		Bn254PairingInvalidG1 = "0x00000000000000000000000000000000000000000000000000000000000000000000000000be00be00bebebebebebe00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+	)
+	crypto := newCrypto()
+
+	t.Run("Add", func(t *testing.T) {
+		input := make([]byte, 128)
+		writeBn254Field(t, Bn254G1X, input, 0)
+		writeBn254Field(t, Bn254G1Y, input, 32)
+		writeBn254Field(t, Bn254G1X, input, 64)
+		writeBn254Field(t, Bn254G1Y, input, 96)
+
+		resItem := crypto.bn254Add(nil, []stackitem.Item{stackitem.NewByteArray(input)})
+		resBytes, err := resItem.TryBytes()
+		require.NoError(t, err)
+
+		expected := make([]byte, 64)
+		writeBn254Field(t, Bn254DoubleX, expected, 0)
+		writeBn254Field(t, Bn254DoubleY, expected, 32)
+		require.Equal(t, expected, resBytes)
+	})
+
+	t.Run("Mul", func(t *testing.T) {
+		input := make([]byte, 96)
+		writeBn254Field(t, Bn254G1X, input, 0)
+		writeBn254Field(t, Bn254G1Y, input, 32)
+		writeBn254Field(t, "2", input, 64)
+
+		resItem := crypto.bn254Mul(nil, []stackitem.Item{stackitem.NewByteArray(input)})
+		resBytes, err := resItem.TryBytes()
+		require.NoError(t, err)
+
+		expected := make([]byte, 64)
+		writeBn254Field(t, Bn254DoubleX, expected, 0)
+		writeBn254Field(t, Bn254DoubleY, expected, 32)
+		require.Equal(t, expected, resBytes)
+	})
+
+	t.Run("PairingGenerator", func(t *testing.T) {
+		input := make([]byte, 192)
+		writeBn254Field(t, Bn254G1X, input, 0)
+		writeBn254Field(t, Bn254G1Y, input, 32)
+		writeBn254Field(t, Bn254G2XIm, input, 64)
+		writeBn254Field(t, Bn254G2XRe, input, 96)
+		writeBn254Field(t, Bn254G2YIm, input, 128)
+		writeBn254Field(t, Bn254G2YRe, input, 160)
+
+		resItem := crypto.bn254Pairing(nil, []stackitem.Item{stackitem.NewByteArray(input)})
+		resBytes, err := resItem.TryBytes()
+		require.NoError(t, err)
+		require.Equal(t, make([]byte, FieldElementLength), resBytes)
+	})
+
+	t.Run("PairingEmpty", func(t *testing.T) {
+		resItem := crypto.bn254Pairing(nil, []stackitem.Item{stackitem.NewByteArray(nil)})
+		resBytes, err := resItem.TryBytes()
+		require.NoError(t, err)
+		expected := [FieldElementLength]byte{FieldElementLength - 1: 1}
+		require.Equal(t, expected[:], resBytes)
+	})
+
+	t.Run("PairingVectors", func(t *testing.T) {
+		testCases := []struct {
+			hexStr   string
+			lastByte byte
+		}{
+			{Bn254PairingPositive, 1},
+			{Bn254PairingNegative, 0},
+			{Bn254PairingInvalidG1, 0},
+		}
+
+		hexToBytes := func(hexStr string) []byte {
+			if strings.HasPrefix(strings.ToLower(hexStr), "0x") {
+				hexStr = hexStr[2:]
+			}
+			b, err := hex.DecodeString(hexStr)
+			require.NoError(t, err)
+			return b
+		}
+
+		for _, tc := range testCases {
+			input := hexToBytes(tc.hexStr)
+
+			resItem := crypto.bn254Pairing(nil, []stackitem.Item{stackitem.NewByteArray(input)})
+			resBytes, err := resItem.TryBytes()
+			require.NoError(t, err)
+
+			expected := [FieldElementLength]byte{FieldElementLength - 1: tc.lastByte}
+			require.Equal(t, expected[:], resBytes)
+		}
+	})
+
+	t.Run("InvalidInputs", func(t *testing.T) {
+		require.Panics(t, func() {
+			crypto.bn254Add(nil, []stackitem.Item{stackitem.NewByteArray(nil)})
+		})
+		require.Panics(t, func() {
+			crypto.bn254Mul(nil, []stackitem.Item{stackitem.NewByteArray(nil)})
+		})
+		require.Panics(t, func() {
+			crypto.bn254Pairing(nil, []stackitem.Item{stackitem.NewByteArray([]byte{0})})
+		})
+	})
+}
+
+func writeBn254Field(t *testing.T, hexStr string, buf []byte, offset int) {
+	if strings.HasPrefix(strings.ToLower(hexStr), "0x") {
+		hexStr = hexStr[2:]
+	}
+	require.LessOrEqual(t, len(hexStr), 2*FieldElementLength)
+	hexStr = strings.Repeat("0", 2*FieldElementLength-len(hexStr)) + hexStr
+	b, err := hex.DecodeString(hexStr)
+	require.NoError(t, err)
+	copy(buf[offset:offset+FieldElementLength], b)
 }
