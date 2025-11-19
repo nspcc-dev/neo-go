@@ -57,7 +57,7 @@ drainErrors:
 	for {
 		select {
 		case anotherErr := <-errs:
-			fmt.Fprintf(ctx.App.Writer, "error in worker thread: %s", anotherErr)
+			fmt.Fprintf(ctx.App.Writer, "error in worker thread: %s\n", anotherErr)
 			haveErrors = true
 		default:
 			break drainErrors
