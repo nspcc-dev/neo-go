@@ -47,11 +47,6 @@ type paramContext struct {
 	Items map[string]json.RawMessage `json:"items"`
 }
 
-type sigWithIndex struct {
-	index int
-	sig   []byte
-}
-
 // NewParameterContext returns ParameterContext with the specified type and item to sign.
 func NewParameterContext(typ string, network netmode.Magic, verif crypto.VerifiableDecodable) *ParameterContext {
 	return &ParameterContext{
@@ -119,27 +114,19 @@ func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pu
 		}
 		item.AddSignature(pub, sig)
 		if len(item.Signatures) >= len(ctr.Parameters) {
-			indexMap := map[string]int{}
-			for i := range pubs {
-				indexMap[hex.EncodeToString(pubs[i])] = i
-			}
-			sigs := make([]sigWithIndex, len(item.Parameters))
-			var i int
-			for pub, sig := range item.Signatures {
-				sigs[i] = sigWithIndex{index: indexMap[pub], sig: sig}
-				i++
-				if i == len(sigs) {
-					break
+			var paramIndex int
+			for i := len(pubs) - 1; i >= 0 && paramIndex < len(ctr.Parameters); i-- { // Reverse parameter order, see C# implementation.
+				var sig = item.Signatures[hex.EncodeToString(pubs[i])]
+				if sig != nil {
+					item.Parameters[paramIndex] = smartcontract.Parameter{
+						Type:  smartcontract.SignatureType,
+						Value: sig,
+					}
+					paramIndex++
 				}
 			}
-			slices.SortFunc(sigs, func(a, b sigWithIndex) int {
-				return b.index - a.index // C#-style.
-			})
-			for i := range sigs {
-				item.Parameters[i] = smartcontract.Parameter{
-					Type:  smartcontract.SignatureType,
-					Value: sigs[i].sig,
-				}
+			if paramIndex != len(ctr.Parameters) {
+				return errors.New("broken signature set (wrong keys?)")
 			}
 		}
 		return nil
