@@ -18,17 +18,32 @@ var (
 	ErrSafeMethodMismatch    = errors.New("method has wrong safe flag")
 )
 
-var checks = map[string][]*Standard{
-	manifest.NEP11StandardName: {Nep11NonDivisible, Nep11Divisible},
-	manifest.NEP17StandardName: {Nep17},
-	manifest.NEP22StandardName: {Nep22},
-	manifest.NEP26StandardName: {Nep26},
-	manifest.NEP27StandardName: {Nep27},
-	manifest.NEP24StandardName: {Nep24},
-	manifest.NEP24Payable:      {Nep24Payable},
-	manifest.NEP29StandardName: {Nep29},
-	manifest.NEP30StandardName: {Nep30},
-	manifest.NEP31StandardName: {Nep31},
+type extendedStandard struct {
+	// extendedName is a user-facing name of the standard in case if this
+	// standard is a sub-standard of some base standard.
+	extendedName string
+	*Standard
+}
+
+var checks = map[string][]extendedStandard{
+	manifest.NEP11StandardName: {
+		extendedStandard{
+			extendedName: "non-divisible",
+			Standard:     Nep11NonDivisible,
+		},
+		extendedStandard{
+			extendedName: "divisible",
+			Standard:     Nep11Divisible,
+		}},
+	manifest.NEP17StandardName: {{Standard: Nep17}},
+	manifest.NEP22StandardName: {{Standard: Nep22}},
+	manifest.NEP26StandardName: {{Standard: Nep26}},
+	manifest.NEP27StandardName: {{Standard: Nep27}},
+	manifest.NEP24StandardName: {{Standard: Nep24}},
+	manifest.NEP24Payable:      {{Standard: Nep24Payable}},
+	manifest.NEP29StandardName: {{Standard: Nep29}},
+	manifest.NEP30StandardName: {{Standard: Nep30}},
+	manifest.NEP31StandardName: {{Standard: Nep31}},
 }
 
 // Check checks if the manifest complies with all provided standards.
@@ -48,14 +63,24 @@ func check(m *manifest.Manifest, checkNames bool, standards ...string) error {
 	for i := range standards {
 		ss, ok := checks[standards[i]]
 		if ok {
-			var err error
+			var errs []error
 			for i := range ss {
-				if err = comply(m, checkNames, ss[i]); err == nil {
+				var err error
+				if err = comply(m, checkNames, ss[i].Standard); err == nil {
+					errs = nil
 					break
 				}
+				if len(ss) > 1 {
+					err = fmt.Errorf("%s: %w", ss[i].extendedName, err)
+				}
+				errs = append(errs, err)
 			}
-			if err != nil {
-				return fmt.Errorf("manifest is not compliant with '%s': %w", standards[i], err)
+			if len(errs) > 0 {
+				err := fmt.Errorf("manifest is not compliant with '%s': %w", standards[i], errs[0])
+				for _, e := range errs[1:] {
+					err = fmt.Errorf("%w; %w", err, e)
+				}
+				return err
 			}
 		}
 	}
