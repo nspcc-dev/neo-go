@@ -89,7 +89,7 @@ func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, err
 		return nil, errors.New("witness not found")
 	}
 	bw := io.NewBufBinWriter()
-	for i := range item.Parameters {
+	for i := len(item.Parameters) - 1; i >= 0; i-- {
 		if item.Parameters[i].Type != smartcontract.SignatureType {
 			return nil, fmt.Errorf("unsupported %s parameter #%d", item.Parameters[i].Type.String(), i)
 		} else if item.Parameters[i].Value == nil {
@@ -133,7 +133,7 @@ func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pu
 				}
 			}
 			slices.SortFunc(sigs, func(a, b sigWithIndex) int {
-				return a.index - b.index
+				return b.index - a.index // C#-style.
 			})
 			for i := range sigs {
 				item.Parameters[i] = smartcontract.Parameter{
