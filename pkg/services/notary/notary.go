@@ -246,7 +246,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 
 	nvbFallback := payload.FallbackTransaction.GetAttributes(transaction.NotValidBeforeT)[0].Value.(*transaction.NotValidBefore).Height
 	nKeys := payload.MainTransaction.GetAttributes(transaction.NotaryAssistedT)[0].Value.(*transaction.NotaryAssisted).NKeys
-	newInfo, validationErr := n.verifyIncompleteWitnesses(payload.MainTransaction, nKeys)
+	newInfo, validationErr := verifyIncompleteWitnesses(payload.MainTransaction, nKeys)
 	if validationErr != nil {
 		n.Config.Log.Info("verification of main notary transaction failed; fallback transaction will be completed",
 			zap.String("main hash", payload.MainTransaction.Hash().StringLE()),
@@ -508,7 +508,7 @@ func updateTxSize(tx *transaction.Transaction) (*transaction.Transaction, error)
 // verifyIncompleteWitnesses checks that the tx either doesn't have all witnesses attached (in this case none of them
 // can be multisignature) or it only has a partial multisignature. It returns the request type (sig/multisig), the
 // number of signatures to be collected, sorted public keys (for multisig request only) and an error.
-func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8) ([]witnessInfo, error) {
+func verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8) ([]witnessInfo, error) {
 	var nKeysActual uint8
 	if len(tx.Signers) < 2 {
 		return nil, errors.New("transaction should have at least 2 signers")
