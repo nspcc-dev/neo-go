@@ -2638,6 +2638,10 @@ func (s *Server) registerOrDumpIterator(item stackitem.Item) (stackitem.Item, uu
 		resIterator.ID = &iterID
 	}
 
+	if s.config.SessionEnabled && s.config.SessionExpansionEnabled {
+		resIterator.Truncated = false // no sense in this field for session-based iterators.
+	}
+
 	return stackitem.NewInterop(resIterator), iterID, curr
 }
 
