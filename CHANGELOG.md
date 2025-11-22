@@ -25,7 +25,7 @@ New features:
 
 Behavior changes:
  * migrate to single threaded search in NeoFS block storage uploader (#4030)
- * adjust Prometheus and pprof ports in default mainnet config (#4074) 
+ * adjust Prometheus and pprof ports in default mainnet config (#4074)
  * removal of deprecated `math.Max` and `math.Min` interop functions (#4083)
  * removal of deprecated `SessionExpirationTime` RPC server config (#4083)
 
@@ -224,12 +224,12 @@ Bugs fixed:
  * intermediate state synchronisation stages are not persisted to the DB (#3900)
  * intermediate state jump stages are not persisted to the DB (#3895)
  * excessive logging in Notary service (#3896)
- * missing block height initialization for statesync module (#3933) 
+ * missing block height initialization for statesync module (#3933)
 
 ## 0.109.1 "Transformation" (14 May 2025)
 
 An urgent patch version that fixes state difference at block 5894663 of testnet.
-It also contains a couple of other bug fixes including CommitteeChanged events 
+It also contains a couple of other bug fixes including CommitteeChanged events
 emission (that affects application execution results compatibility with C# node,
 but likely not critical for anyone).
 
@@ -252,7 +252,7 @@ Bugs fixed:
 
 Long-awaited version that is fully compatible with the C# node 3.8.0. It extends
 and enables Echidna hardfork, introduces a set of RPC extensions and new node
-configuration settings and fixes a couple of critical bugs. 
+configuration settings and fixes a couple of critical bugs.
 
 Node operators should review and update node configuration. For N3 chains Echidna
 hardfork is enabled at block `7300000` of Mainnet and `5870000` block of Testnet;
