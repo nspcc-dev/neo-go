@@ -25,6 +25,7 @@ ProtocolConfiguration:
     Cockatrice: 3
     Domovoi: 4
     Echidna: 5
+    Faun: 6
 
 ApplicationConfiguration:
   SkipBlockVerification: false

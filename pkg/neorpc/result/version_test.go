@@ -108,7 +108,6 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 			ValidatorsCount:             7,
 			// Unmarshalled InitialGasDistribution should always be a valid Fixed8 for both old and new clients.
 			InitialGasDistribution: fixedn.Fixed8FromInt64(52000000),
-			StateRootInHeader:      false,
 			Hardforks:              map[config.Hardfork]uint32{config.HFAspidochelone: 123, config.HFBasilisk: 1234},
 			StandbyCommittee:       standbyCommittee,
 			SeedList: []string{

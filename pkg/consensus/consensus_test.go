@@ -344,23 +344,24 @@ func TestService_PrepareRequest(t *testing.T) {
 	checkRequest(t, errInvalidVersion, &prepareRequest{version: 0xFF, prevHash: prevHash})
 	checkRequest(t, errInvalidPrevHash, &prepareRequest{prevHash: random.Uint256()})
 	checkRequest(t, errInvalidStateRoot, &prepareRequest{
-		stateRootEnabled: true,
-		prevHash:         prevHash,
+		version:  coreb.VersionFaun,
+		prevHash: prevHash,
 	})
 
 	sr, err := srv.Chain.GetStateRoot(srv.dbft.BlockIndex - 1)
 	require.NoError(t, err)
 
-	checkRequest(t, errInvalidTransactionsCount, &prepareRequest{stateRootEnabled: true,
+	checkRequest(t, errInvalidTransactionsCount, &prepareRequest{
+		version:           coreb.VersionFaun,
 		prevHash:          prevHash,
 		stateRoot:         sr.Root,
 		transactionHashes: make([]util.Uint256, srv.ProtocolConfiguration.MaxTransactionsPerBlock+1),
 	})
 
 	checkRequest(t, nil, &prepareRequest{
-		stateRootEnabled: true,
-		prevHash:         prevHash,
-		stateRoot:        sr.Root,
+		version:   coreb.VersionFaun,
+		prevHash:  prevHash,
+		stateRoot: sr.Root,
 	})
 }
 
@@ -550,7 +551,11 @@ func newSingleTestChain(t *testing.T) *core.Blockchain {
 func newTestChain(t *testing.T, stateRootInHeader bool) *core.Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", netmode.UnitTestNet)
 	require.NoError(t, err)
-	unitTestNetCfg.ProtocolConfiguration.StateRootInHeader = stateRootInHeader
+	if stateRootInHeader {
+		unitTestNetCfg.ProtocolConfiguration.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	}
 
 	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.Blockchain(), zaptest.NewLogger(t))
 	require.NoError(t, err)

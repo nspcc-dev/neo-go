@@ -56,8 +56,6 @@ type (
 
 		SeedList         []string `yaml:"SeedList"`
 		StandbyCommittee []string `yaml:"StandbyCommittee"`
-		// StateRootInHeader enables storing state root in block header.
-		StateRootInHeader bool `yaml:"StateRootInHeader"`
 		// StateSyncInterval is the number of blocks between state heights available for MPT state data synchronization.
 		// It is valid only if P2PStateExchangeExtensions are enabled.
 		StateSyncInterval int `yaml:"StateSyncInterval"`
@@ -243,7 +241,6 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		p.P2PSigExtensions != o.P2PSigExtensions ||
 		p.P2PStateExchangeExtensions != o.P2PStateExchangeExtensions ||
 		p.ReservedAttributes != o.ReservedAttributes ||
-		p.StateRootInHeader != o.StateRootInHeader ||
 		p.StateSyncInterval != o.StateSyncInterval ||
 		p.TimePerBlock != o.TimePerBlock ||
 		p.Genesis.MaxValidUntilBlockIncrement != o.Genesis.MaxValidUntilBlockIncrement ||

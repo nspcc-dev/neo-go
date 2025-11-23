@@ -9,12 +9,12 @@ import (
 
 // prepareRequest represents dBFT prepareRequest message.
 type prepareRequest struct {
+	// TODO: extend prepare request verification code that hsould check that version is properly set
 	version           uint32
 	prevHash          util.Uint256
 	timestamp         uint64
 	nonce             uint64
 	transactionHashes []util.Uint256
-	stateRootEnabled  bool
 	stateRoot         util.Uint256
 }
 
@@ -26,12 +26,12 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(p.prevHash[:])
 	w.WriteU64LE(p.timestamp)
 	w.WriteU64LE(p.nonce)
+	if p.version == block.VersionFaun {
+		w.WriteBytes(p.stateRoot[:])
+	}
 	w.WriteVarUint(uint64(len(p.transactionHashes)))
 	for i := range p.transactionHashes {
 		w.WriteBytes(p.transactionHashes[i][:])
-	}
-	if p.stateRootEnabled {
-		w.WriteBytes(p.stateRoot[:])
 	}
 }
 
@@ -41,10 +41,10 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(p.prevHash[:])
 	p.timestamp = r.ReadU64LE()
 	p.nonce = r.ReadU64LE()
-	r.ReadArray(&p.transactionHashes, block.MaxTransactionsPerBlock)
-	if p.stateRootEnabled {
+	if p.version == block.VersionFaun {
 		r.ReadBytes(p.stateRoot[:])
 	}
+	r.ReadArray(&p.transactionHashes, block.MaxTransactionsPerBlock)
 }
 
 // Timestamp implements the payload.PrepareRequest interface.

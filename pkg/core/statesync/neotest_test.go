@@ -21,7 +21,9 @@ func TestStateSyncModule_Init(t *testing.T) {
 		maxTraceable      = 3
 	)
 	spoutCfg := func(c *config.Blockchain) {
-		c.StateRootInHeader = true
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
 		c.StateSyncInterval = stateSyncInterval
 		c.MaxTraceableBlocks = maxTraceable
 	}
@@ -366,7 +368,6 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		spoutCfg := func(c *config.Blockchain) {
 			c.KeepOnlyLatestState = spoutEnableGC
 			c.RemoveUntraceableBlocks = spoutEnableGC
-			c.StateRootInHeader = true
 			c.StateSyncInterval = stateSyncInterval
 			c.MaxTraceableBlocks = maxTraceable
 			c.P2PStateExchangeExtensions = true // a tiny hack to avoid removal of untraceable headers from spout chain.
@@ -376,6 +377,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 				config.HFCockatrice.String():    0,
 				config.HFDomovoi.String():       0,
 				config.HFEchidna.String():       0,
+				config.HFFaun.String():          0, // required to check stateroot-dependent functionality.
 			}
 			if !enableStorageSync {
 				c.P2PStateExchangeExtensions = true
@@ -548,21 +550,12 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			require.NoError(t, err)
 			require.Error(t, module.AddBlock(b))
 		})
-		t.Run("error: missing state root in block header", func(t *testing.T) {
-			b := &block.Block{
-				Header: block.Header{
-					Index:            uint32(stateSyncPoint) - maxTraceable + 1,
-					StateRootEnabled: false,
-				},
-			}
-			require.Error(t, module.AddBlock(b))
-		})
 		t.Run("error: invalid block merkle root", func(t *testing.T) {
 			b := &block.Block{
 				Header: block.Header{
-					Index:            uint32(stateSyncPoint) - maxTraceable + 1,
-					StateRootEnabled: true,
-					MerkleRoot:       util.Uint256{1, 2, 3},
+					Version:    block.VersionFaun,
+					Index:      uint32(stateSyncPoint) - maxTraceable + 1,
+					MerkleRoot: util.Uint256{1, 2, 3},
 				},
 			}
 			require.Error(t, module.AddBlock(b))
@@ -639,7 +632,9 @@ func TestStateSyncModule_SetOnStageChanged(t *testing.T) {
 		maxTraceable      = 3
 	)
 	spoutCfg := func(c *config.Blockchain) {
-		c.StateRootInHeader = true
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
 		c.StateSyncInterval = stateSyncInterval
 		c.MaxTraceableBlocks = maxTraceable
 	}

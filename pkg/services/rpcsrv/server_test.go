@@ -98,13 +98,13 @@ const (
 	verifyWithArgsContractHash = "6261b3bf753bdc3d24c1327a23fd891e1c8a7ccd"
 	// nnsContractHash is an LE hash of NEP-11 non-divisible "examples/nft-nd-nns"
 	// contract deployed at block #11 of basic testing chain.
-	nnsContractHash = "450d1918a72fef97b48096bfec8d749961deef55"
+	nnsContractHash = "5e8ded26f9ec24bad7da2e037d91ca1392537f9d"
 	// nnsToken1ID is a hex-encoded ID of the first NEP-11 NNS token minted at block
 	// #14 of basic testing chain.
 	nnsToken1ID = "6e656f2e636f6d"
 	// nfsoContractHash is an LE hash of NEP-11 divisible "examples/nft-d" ("NeoFS
 	// Object") contract deployed at block #17 of basic testing chain.
-	nfsoContractHash = "914246ab7888ba4eb3ddebc9cb5433c2edcc1671"
+	nfsoContractHash = "757f59f240b30704fb10cfa34ae96406bab191a8"
 	// nfsoToken1ID is a hex-encoded ID of the first NEP-11 NFSO token minted at
 	// block #18 of basic testing chain.
 	nfsoToken1ID = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
@@ -122,7 +122,7 @@ const (
 	// not yet deployed to the testing basic chain.
 	invokescriptContractAVM = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
 	// block20StateRootLE is an LE stateroot of block #20 of basic testing chain.
-	block20StateRootLE = "c4317d7941e5d4d072bc7e6672c78b9bd7aa217fc19ee779e02968dd43cc9927"
+	block20StateRootLE = "94d544f44f34cb24538ace6a22999fb6d907e0d95525891bdb7fcea5950912a4"
 )
 
 var (
@@ -654,7 +654,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 
 				require.Equal(t, e.chain.BlockHeight(), sh.Local)
-				require.Equal(t, uint32(0), sh.Validated)
+				require.Equal(t, e.chain.BlockHeight()-1, sh.Validated) // StateRootInHeader starting from Faun.
 			},
 		},
 	},
@@ -1464,7 +1464,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				chg := []dboper.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
-					Value: []byte{0xba, 0xaa, 0x3d, 0x19, 0x5e, 0x79, 0x12},
+					Value: []byte{0xd6, 0x2c, 0x36, 0x19, 0x5e, 0x79, 0x12},
 				}, {
 					State: "Added",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
@@ -1476,7 +1476,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0xea, 0x97, 0xb4, 0x54, 0x15},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x72, 0xce, 0xaa, 0x54, 0x15},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -1492,7 +1492,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   13969170,
+					GasConsumed:   14460630,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -1611,7 +1611,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   13969170,
+					GasConsumed:   14460630,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -3850,7 +3850,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc any) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "90615454730",
+				Amount:      "90614813330",
 				LastUpdated: 23,
 				Decimals:    8,
 				Name:        "GasToken",

@@ -30,7 +30,7 @@ type (
 	Module struct {
 		Store    *storage.MemCachedStore
 		network  netmode.Magic
-		srInHead bool
+		srInHead bool // TODO: deal with it, should be dependent from Faun height
 		mode     mpt.TrieMode
 		mpt      *mpt.Trie
 		verifier VerifierFunc
@@ -65,7 +65,6 @@ func NewModule(cfg config.Blockchain, verif VerifierFunc, log *zap.Logger, s *st
 	}
 	return &Module{
 		network:  cfg.Magic,
-		srInHead: cfg.StateRootInHeader,
 		mode:     mode,
 		verifier: verif,
 		log:      log,

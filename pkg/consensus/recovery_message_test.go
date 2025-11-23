@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -30,20 +31,24 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 	const msgHeight = 10
 
-	r := &recoveryMessage{stateRootEnabled: enableStateRoot}
-	p := NewPayload(netmode.UnitTestNet, enableStateRoot)
+	r := new(recoveryMessage)
+	p := NewPayload(netmode.UnitTestNet)
 	p.message.Type = messageType(dbft.RecoveryMessageType)
 	p.BlockIndex = msgHeight
 	p.payload = r
 	// sign payload to have verification script
 	require.NoError(t, p.Sign(privs[0]))
 
+	v := block.VersionInitial
+	if enableStateRoot {
+		v = block.VersionFaun
+	}
 	req := &prepareRequest{
+		version:           v,
 		timestamp:         87,
 		transactionHashes: []util.Uint256{{1}},
-		stateRootEnabled:  enableStateRoot,
 	}
-	p1 := NewPayload(netmode.UnitTestNet, enableStateRoot)
+	p1 := NewPayload(netmode.UnitTestNet)
 	p1.message.Type = messageType(dbft.PrepareRequestType)
 	p1.BlockIndex = msgHeight
 	p1.payload = req
@@ -52,7 +57,7 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	require.NoError(t, p1.Sign(privs[0]))
 
 	t.Run("prepare response is added", func(t *testing.T) {
-		p2 := NewPayload(netmode.UnitTestNet, enableStateRoot)
+		p2 := NewPayload(netmode.UnitTestNet)
 		p2.message.Type = messageType(dbft.PrepareResponseType)
 		p2.BlockIndex = msgHeight
 		p2.payload = &prepareResponse{
@@ -90,7 +95,7 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	})
 
 	t.Run("change view is added", func(t *testing.T) {
-		p3 := NewPayload(netmode.UnitTestNet, enableStateRoot)
+		p3 := NewPayload(netmode.UnitTestNet)
 		p3.message.Type = messageType(dbft.ChangeViewType)
 		p3.BlockIndex = msgHeight
 		p3.payload = &changeView{
@@ -114,7 +119,7 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	})
 
 	t.Run("commit is added", func(t *testing.T) {
-		p4 := NewPayload(netmode.UnitTestNet, enableStateRoot)
+		p4 := NewPayload(netmode.UnitTestNet)
 		p4.message.Type = messageType(dbft.CommitType)
 		p4.BlockIndex = msgHeight
 		p4.payload = randomMessage(t, commitType)

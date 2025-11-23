@@ -348,9 +348,6 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		log.Info("TrustedHeader is not set, headers synchronisation will start from latest stored header")
 	}
 	if cfg.P2PStateExchangeExtensions {
-		if !cfg.StateRootInHeader {
-			return nil, errors.New("P2PStatesExchangeExtensions are enabled, but StateRootInHeader is off")
-		}
 		if cfg.KeepOnlyLatestState && !cfg.RemoveUntraceableBlocks {
 			return nil, errors.New("P2PStateExchangeExtensions can be enabled either on MPT-complete node (KeepOnlyLatestState=false) or on light GC-enabled node (RemoveUntraceableBlocks=true)")
 		}
@@ -405,8 +402,8 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 
 	bc := &Blockchain{
 		config:      cfg,
-		dao:         dao.NewSimple(s, cfg.StateRootInHeader),
-		persistent:  dao.NewSimple(s, cfg.StateRootInHeader),
+		dao:         dao.NewSimple(s),
+		persistent:  dao.NewSimple(s),
 		store:       s,
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
@@ -576,7 +573,6 @@ func (bc *Blockchain) init() error {
 		bc.log.Info("no storage version found! creating genesis block")
 		ver = dao.Version{
 			StoragePrefix:              storage.STStorage,
-			StateRootInHeader:          bc.config.StateRootInHeader,
 			P2PSigExtensions:           bc.config.P2PSigExtensions,
 			P2PStateExchangeExtensions: bc.config.P2PStateExchangeExtensions,
 			KeepOnlyLatestState:        bc.config.KeepOnlyLatestState,
@@ -611,10 +607,6 @@ func (bc *Blockchain) init() error {
 	}
 	if ver.Value != version {
 		return fmt.Errorf("storage version mismatch (expected=%s, actual=%s)", version, ver.Value)
-	}
-	if ver.StateRootInHeader != bc.config.StateRootInHeader {
-		return fmt.Errorf("StateRootInHeader setting mismatch (config=%t, db=%t)",
-			bc.config.StateRootInHeader, ver.StateRootInHeader)
 	}
 	if ver.P2PSigExtensions != bc.config.P2PSigExtensions {
 		return fmt.Errorf("P2PSigExtensions setting mismatch (old=%t, new=%t)",
@@ -1832,10 +1824,6 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		}
 		return fmt.Errorf("%w: block with index %d is already on chain", ErrAlreadyExists, block.Index)
 	}
-	if bc.config.StateRootInHeader != block.StateRootEnabled {
-		return fmt.Errorf("%w: %v != %v",
-			ErrHdrStateRootSetting, bc.config.StateRootInHeader, block.StateRootEnabled)
-	}
 
 	if block.Index == bc.HeaderHeight()+1 {
 		err := bc.addHeaders(!bc.config.SkipBlockVerification, &block.Header)
@@ -2096,7 +2084,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		// because changes applied are the ones from HALTed transactions.
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
 	}
-	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index && sr.Index > bc.config.TrustedHeader.Index {
+	var hff = config.HFFaun
+	if bc.IsHardforkEnabled(&hff, sr.Index) && bc.HeaderHeight() > sr.Index && sr.Index > bc.config.TrustedHeader.Index {
 		h, err := bc.GetHeader(bc.GetHeaderHash(sr.Index + 1))
 		if err != nil {
 			err = fmt.Errorf("failed to get next header %d to verify stateroot: %w", sr.Index+1, err)
@@ -2885,12 +2874,10 @@ var (
 )
 
 func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
-	if bc.config.StateRootInHeader {
-		if bc.stateRoot.CurrentLocalHeight() == prevHeader.Index {
-			if sr := bc.stateRoot.CurrentLocalStateRoot(); currHeader.PrevStateRoot != sr {
-				return fmt.Errorf("%w: %s != %s",
-					ErrHdrInvalidStateRoot, currHeader.PrevStateRoot.StringLE(), sr.StringLE())
-			}
+	if currHeader.Version > block.VersionInitial && bc.stateRoot.CurrentLocalHeight() == prevHeader.Index {
+		if sr := bc.stateRoot.CurrentLocalStateRoot(); currHeader.PrevStateRoot != sr {
+			return fmt.Errorf("%w: %s != %s",
+				ErrHdrInvalidStateRoot, currHeader.PrevStateRoot.StringLE(), sr.StringLE())
 		}
 	}
 	if prevHeader.Hash() != currHeader.PrevHash {
@@ -3243,7 +3230,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 		return nil, fmt.Errorf("failed to retrieve stateroot for height %d: %w", b.Index, err)
 	}
 	s := mpt.NewTrieStore(sr.Root, mode, storage.NewPrivateMemCachedStore(bc.dao.Store))
-	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader)
+	dTrie := dao.NewSimple(s)
 	dTrie.Version = bc.dao.Version
 	// Initialize native cache before passing DAO to interop context constructor, because
 	// the constructor will call BaseExecFee/StoragePrice policy methods on the passed DAO.
@@ -3258,7 +3245,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 
 // GetFakeNextBlock returns fake block with the specified index and pre-filled Timestamp field.
 func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) {
-	b := block.New(bc.config.StateRootInHeader)
+	b := &block.Block{}
 	b.Index = nextBlockHeight
 	hdr, err := bc.GetHeader(bc.GetHeaderHash(nextBlockHeight - 1))
 	if err != nil {

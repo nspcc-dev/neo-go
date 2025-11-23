@@ -16,7 +16,6 @@ ProtocolConfiguration:
   - 0272350def90715494b857315c9b9c70181739eeec52d777424fef2891c3396cad
   - 03a8cee2d3877bcce5b4595578714d77ca2d47673150b8b9cd4e391b7c73b6bda3
   - 0215e735a657f6e23478728d1d0718d516bf50c06c2abd92ec7c00eba2bd7a2552
-  StateRootInHeader: false
   ValidatorsCount: 7
   SeedList:
   - morph1.t5.fs.neo.org:50333
