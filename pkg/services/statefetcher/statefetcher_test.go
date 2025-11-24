@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -21,7 +22,7 @@ func (m *mockLedger) GetConfig() config.Blockchain { return config.Blockchain{} 
 
 func (m *mockLedger) GetLastStoredKey() []byte { return m.lastStoredKey }
 
-func (m *mockLedger) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256) error {
+func (m *mockLedger) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256, witness transaction.Witness) error {
 	return nil
 }
 
