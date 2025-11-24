@@ -912,6 +912,7 @@ func (bc *Blockchain) resetRAMState(height uint32, resetHeaders bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize natives cache: %w", err)
 	}
+	bc.designate.NotifyServices(bc.dao)
 
 	if err := bc.updateExtensibleWhitelist(height); err != nil {
 		return fmt.Errorf("failed to update extensible whitelist: %w", err)
