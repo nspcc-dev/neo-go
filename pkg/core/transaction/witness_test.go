@@ -35,6 +35,15 @@ func TestWitnessSerDes(t *testing.T) {
 	require.NoError(t, err)
 	require.Error(t, testserdes.DecodeBinary(bin1, exp))
 	require.Error(t, testserdes.DecodeBinary(bin2, exp))
+
+	require.NoError(t, testserdes.DecodeBinary(good1.Bytes(), exp))
+	require.Equal(t, good1, exp)
+	require.NoError(t, testserdes.DecodeBinary(good2.Bytes(), exp))
+	require.Equal(t, good2, exp)
+	require.NoError(t, exp.FromBytes(good1.Bytes()))
+	require.Equal(t, good1, exp)
+	require.NoError(t, exp.FromBytes(good2.Bytes()))
+	require.Equal(t, good2, exp)
 }
 
 func TestWitnessCopy(t *testing.T) {

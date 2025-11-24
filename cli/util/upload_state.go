@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"time"
@@ -143,6 +144,9 @@ loop:
 				object.NewAttribute("BlockTime", strconv.FormatUint(h.Timestamp, 10)),
 			}
 		)
+		if len(stateRoot.Witness) > 0 {
+			attrs = append(attrs, object.NewAttribute(neofs.DefaultWitnessAttribute, base64.StdEncoding.EncodeToString(stateRoot.Witness[0].Bytes())))
+		}
 		hdr.SetContainerID(containerID)
 		hdr.SetOwner(signer.UserID())
 		hdr.SetAttributes(attrs...)
