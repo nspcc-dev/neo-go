@@ -139,7 +139,7 @@ loop:
 			attrs            = []object.Attribute{
 				object.NewAttribute(attr, strconv.Itoa(int(height))),
 				object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
-				object.NewAttribute("StateRoot", stateRoot.Root.StringLE()),
+				object.NewAttribute(neofs.DefaultStateRootAttribute, stateRoot.Root.StringLE()),
 				object.NewAttribute("StateSyncInterval", strconv.Itoa(syncInterval)),
 				object.NewAttribute("BlockTime", strconv.FormatUint(h.Timestamp, 10)),
 			}

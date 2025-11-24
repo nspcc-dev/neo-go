@@ -868,14 +868,17 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		}
 		root = blk.PrevStateRoot
 	}
-	bc.stateRoot.JumpToState(&state.MPTRoot{
+	err := bc.stateRoot.JumpToState(&state.MPTRoot{
 		Index: p,
 		Root:  root,
 	})
+	if err != nil {
+		return fmt.Errorf("failed to update stateroot module state: %w", err)
+	}
 
 	bc.dao.Store.Delete(jumpStageKey)
 	bc.dao.Store.Delete([]byte{byte(storage.SYSStateSyncCheckpoint)})
-	_, err := bc.dao.Store.Persist()
+	_, err = bc.dao.Store.Persist()
 	if err != nil {
 		return fmt.Errorf("failed to persist %d stage of state jump: %w", staleBlocksRemoved, err)
 	}
