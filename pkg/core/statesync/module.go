@@ -21,6 +21,7 @@ package statesync
 //go:generate stringer -type=StorageSyncMode
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -34,6 +35,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -89,6 +92,7 @@ type Ledger interface {
 	GetHeaderHash(uint32) util.Uint256
 	HeaderHeight() uint32
 	NativePolicyID() int32
+	VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error)
 }
 
 // Module represents state sync module and aimed to gather state-related data to
@@ -540,7 +544,7 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 }
 
 // AddContractStorageItems adds a batch of key-value pairs for storage-based sync.
-func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256) error {
+func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256, witness transaction.Witness) error {
 	if s.mode == MPTBased {
 		panic("contract storage items are not expected in MPT-based mode")
 	}
@@ -582,6 +586,7 @@ func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint
 		MPTRoot:       s.localTrie.StateRoot(),
 		LastStoredKey: kvs[len(kvs)-1].Key,
 		IsMPTSynced:   computedRoot.Equals(expectedRoot),
+		Witness:       witness,
 	}
 	s.dao.PutStateSyncCheckpoint(ckpt)
 	if _, err := s.dao.Store.PersistSync(); err != nil {
@@ -598,6 +603,14 @@ func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint
 		}
 		if !header.PrevStateRoot.Equals(expectedRoot) {
 			return fmt.Errorf("state root mismatch: %s != %s", header.PrevStateRoot.StringLE(), expectedRoot.StringLE())
+		}
+	} else if len(witness.VerificationScript) > 0 {
+		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(s.syncPoint))
+		if err != nil {
+			return fmt.Errorf("failed to get header to check state root: %w", err)
+		}
+		if !bytes.Equal(header.Script.VerificationScript, witness.VerificationScript) {
+			return fmt.Errorf("state root witness mismatch: %s != %s", hex.EncodeToString(header.Script.VerificationScript), hex.EncodeToString(witness.VerificationScript))
 		}
 	}
 	s.syncStage |= mptSynced
@@ -773,4 +786,9 @@ func (s *Module) GetStateSyncPoint() uint32 {
 	defer s.lock.RUnlock()
 
 	return s.syncPoint
+}
+
+// VerifyWitness implements [network.StateSync] interface.
+func (s *Module) VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error) {
+	return s.bc.VerifyWitness(h, c, w, gas)
 }

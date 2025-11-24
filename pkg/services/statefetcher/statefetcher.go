@@ -3,6 +3,7 @@ package statefetcher
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +13,11 @@ import (
 	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	gio "github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -27,8 +32,9 @@ import (
 type Ledger interface {
 	GetConfig() config.Blockchain
 	HeaderHeight() uint32
-	AddContractStorageItems(kv []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256) error
+	AddContractStorageItems(kv []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256, witness transaction.Witness) error
 	GetLastStoredKey() []byte
+	VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error)
 }
 
 // Service fetches contract storage state from NeoFS.
@@ -45,6 +51,7 @@ type Service struct {
 	lock                 sync.RWMutex
 	lastStateObjectIndex uint32
 	lastStateOID         oid.ID
+	lastStateRootWitness transaction.Witness
 
 	chain Ledger
 	log   *zap.Logger
@@ -136,11 +143,13 @@ func (s *Service) LatestStateObjectHeight(h ...uint32) (uint32, error) {
 	ctx, cancel := context.WithTimeout(s.Ctx, s.cfg.Timeout)
 	defer cancel()
 
-	results, errs := neofs.ObjectSearch(ctx, s.Pool, s.Account.PrivateKey(), s.ContainerID, filters, []string{s.cfg.StateAttribute})
+	results, errs := neofs.ObjectSearch(ctx, s.Pool, s.Account.PrivateKey(), s.ContainerID, filters, []string{s.cfg.StateAttribute, neofs.DefaultStateRootAttribute, neofs.DefaultWitnessAttribute})
 
 	var (
 		lastItem     *client.SearchResultItem
 		lastFoundIdx uint64
+		witness      *transaction.Witness
+		err          error
 	)
 
 loop:
@@ -152,7 +161,7 @@ loop:
 			}
 			lastItem = &item
 
-		case err := <-errs:
+		case err = <-errs:
 			if err != nil && !neofs.IsContextCanceledErr(err) {
 				s.isActive.CompareAndSwap(true, false)
 				return 0, fmt.Errorf("failed to search state object at height %d: %w", height, err)
@@ -161,15 +170,44 @@ loop:
 		}
 	}
 
-	lastFoundIdx, err := strconv.ParseUint(lastItem.Attributes[0], 10, 32)
+	lastFoundIdx, err = strconv.ParseUint(lastItem.Attributes[0], 10, 32)
 	if err != nil || lastFoundIdx == 0 {
 		s.isActive.CompareAndSwap(true, false)
 		return 0, fmt.Errorf("failed to parse state object index: %w", err)
+	}
+	root, err := util.Uint256DecodeStringLE(lastItem.Attributes[1])
+	if err != nil {
+		s.isActive.CompareAndSwap(true, false)
+		return 0, fmt.Errorf("failed to decode state root from attribute: %w", err)
+	}
+	if len(lastItem.Attributes[2]) > 0 {
+		b, err := hex.DecodeString(lastItem.Attributes[2])
+		if err != nil {
+			s.isActive.CompareAndSwap(true, false)
+			return 0, fmt.Errorf("failed to decode state root witness from hex: %w", err)
+		}
+		witness = new(transaction.Witness)
+		err = witness.FromBytes(b)
+		if err != nil {
+			s.isActive.CompareAndSwap(true, false)
+			return 0, fmt.Errorf("failed to decode state root witness: %w", err)
+		}
+		_, err = s.chain.VerifyWitness(hash.Hash160(witness.VerificationScript), &state.MPTRoot{
+			Version: 0,
+			Index:   uint32(lastFoundIdx),
+			Root:    root,
+			Witness: []transaction.Witness{*witness},
+		}, witness, stateroot.MaxVerificationGAS)
+		if err != nil {
+			s.isActive.CompareAndSwap(true, false)
+			return 0, fmt.Errorf("state root witness check failed: %w", err)
+		}
 	}
 
 	s.lock.Lock()
 	s.lastStateObjectIndex = uint32(lastFoundIdx)
 	s.lastStateOID = lastItem.ID
+	s.lastStateRootWitness = *witness
 	s.lock.Unlock()
 
 	return s.lastStateObjectIndex, nil
@@ -242,6 +280,8 @@ func (s *Service) run() {
 	var (
 		syncHeight   uint32
 		expectedRoot util.Uint256
+		witness      transaction.Witness
+		oidStr       string
 	)
 
 	s.lock.RLock()
@@ -256,7 +296,8 @@ func (s *Service) run() {
 		}
 	}
 	s.lock.RLock()
-	oidStr := s.lastStateOID.String()
+	witness = s.lastStateRootWitness
+	oidStr = s.lastStateOID.String()
 	s.lock.RUnlock()
 	reader, err := s.objectGet(s.Ctx, oidStr)
 	if err != nil {
@@ -352,7 +393,7 @@ func (s *Service) run() {
 			if len(batch) == 0 {
 				continue
 			}
-			if err = s.chain.AddContractStorageItems(batch, syncHeight, expectedRoot); err != nil {
+			if err = s.chain.AddContractStorageItems(batch, syncHeight, expectedRoot, witness); err != nil {
 				s.log.Error("failed to add storage batch", zap.Error(err))
 				s.stopService(true)
 				return

@@ -607,6 +607,9 @@ func (dao *Simple) GetStateSyncPoint() (uint32, error) {
 type StateSyncCheckpoint struct {
 	// MPTRoot is a computed intermediate MPT root at the StateSyncCheckpoint.
 	MPTRoot util.Uint256
+	// Witness is the actual witness of state root at the StateSyncPoint, it
+	// may be empty if the state object doesn't contain it.
+	Witness transaction.Witness
 	// IsMPTSynced indicates whether sync process is completed.
 	IsMPTSynced bool
 	// LastStoredKey is the last processed storage key.
@@ -618,6 +621,7 @@ func (s *StateSyncCheckpoint) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(s.MPTRoot[:])
 	w.WriteBool(s.IsMPTSynced)
 	w.WriteVarBytes(s.LastStoredKey)
+	s.Witness.EncodeBinary(w)
 }
 
 // DecodeBinary decodes StateSyncCheckpoint from binary format.
@@ -625,6 +629,7 @@ func (s *StateSyncCheckpoint) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(s.MPTRoot[:])
 	s.IsMPTSynced = br.ReadBool()
 	s.LastStoredKey = br.ReadVarBytes()
+	s.Witness.DecodeBinary(br)
 }
 
 // GetStateSyncCheckpoint returns the current StateSyncCheckpoint.

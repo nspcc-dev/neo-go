@@ -450,6 +450,10 @@ func TestPutGetStateSyncCheckPoint(t *testing.T) {
 		MPTRoot:       util.Uint256{1, 2, 3},
 		IsMPTSynced:   true,
 		LastStoredKey: []byte{1, 2, 3},
+		Witness: transaction.Witness{
+			InvocationScript:   []byte{1, 2, 3},
+			VerificationScript: []byte{1, 2, 3},
+		},
 	}
 	dao.PutStateSyncCheckpoint(expected)
 	actual, err := dao.GetStateSyncCheckpoint()
