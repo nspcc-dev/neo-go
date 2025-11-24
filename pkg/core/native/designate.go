@@ -184,9 +184,24 @@ func (s *Designate) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements the Contract interface.
 func (s *Designate) PostPersist(ic *interop.Context) error {
-	cache := ic.DAO.GetRWCache(s.ID).(*DesignationCache)
-	if !cache.rolesChangedFlag {
-		return nil
+	s.notifyServicesInternal(ic.DAO, false)
+	return nil
+}
+
+// NotifyServices notifies dependent services about changes in the node roles.
+// It does not check whether roles were updated in the last block. It modifies
+// Designate cache accordingly.
+func (s *Designate) NotifyServices(dao *dao.Simple) {
+	s.notifyServicesInternal(dao, true)
+}
+
+// notifyServicesInternal is the internal implementation of NotifyServices. It
+// accepts an additional force flag to force services notification even if no
+// roles were updated in the last block.
+func (s *Designate) notifyServicesInternal(dao *dao.Simple, force bool) {
+	cache := dao.GetRWCache(s.ID).(*DesignationCache)
+	if !cache.rolesChangedFlag && !force {
+		return
 	}
 
 	s.notifyRoleChanged(&cache.oracles, noderoles.Oracle)
@@ -195,7 +210,6 @@ func (s *Designate) PostPersist(ic *interop.Context) error {
 	s.notifyRoleChanged(&cache.notaries, noderoles.P2PNotary)
 
 	cache.rolesChangedFlag = false
-	return nil
 }
 
 // Metadata returns contract metadata.

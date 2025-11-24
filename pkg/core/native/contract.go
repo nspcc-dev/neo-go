@@ -100,6 +100,7 @@ type (
 		SetOracleService(o OracleService)
 		SetNotaryService(n NotaryService)
 		SetStateRootService(s StateRootService)
+		NotifyServices(dao *dao.Simple)
 	}
 
 	// INotary is an interface required from native Notary contract for
