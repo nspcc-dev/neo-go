@@ -461,51 +461,54 @@ func (n *Notary) newTxCallbackLoop() {
 	for {
 		select {
 		case tx := <-n.newTxs:
-			isMain := tx.tx.Hash() == tx.mainHash
-
 			n.reqMtx.RLock()
 			r, ok := n.requests[tx.mainHash]
 			n.reqMtx.RUnlock()
 			if !ok {
 				continue
 			}
-			r.lock.Lock()
-			if isMain && (r.isSent || r.minNotValidBefore <= n.Config.Chain.BlockHeight()) {
-				r.lock.Unlock()
-				continue
-			}
-			if !isMain {
-				// Ensure that fallback was not already completed.
-				var isPending = slices.ContainsFunc(r.fallbacks, func(fb *transaction.Transaction) bool {
-					return fb.Hash() == tx.tx.Hash()
-				})
-				if !isPending {
-					r.lock.Unlock()
-					continue
-				}
-			}
-
-			err := n.onTransaction(tx.tx)
-			if err != nil {
-				n.Config.Log.Error("new transaction callback finished with error",
-					zap.Error(err),
-					zap.Bool("is main", isMain))
-				r.lock.Unlock()
-				continue
-			}
-			if isMain {
-				r.isSent = true
-			} else {
-				for i := range r.fallbacks {
-					if r.fallbacks[i].Hash() == tx.tx.Hash() {
-						r.fallbacks = append(r.fallbacks[:i], r.fallbacks[i+1:]...)
-						break
-					}
-				}
-			}
-			r.lock.Unlock()
+			n.handleNewTx(r, tx)
 		case <-n.stopCh:
 			return
+		}
+	}
+}
+
+// handleNewTx tries to send a finalized transaction (either main or fallback) to the network.
+func (n *Notary) handleNewTx(r *request, tx txHashPair) {
+	isMain := tx.tx.Hash() == tx.mainHash
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if isMain && (r.isSent || r.minNotValidBefore <= n.Config.Chain.BlockHeight()) {
+		return
+	}
+
+	if !isMain {
+		// Ensure that fallback was not already completed.
+		var isPending = slices.ContainsFunc(r.fallbacks, func(fb *transaction.Transaction) bool {
+			return fb.Hash() == tx.tx.Hash()
+		})
+		if !isPending {
+			return
+		}
+	}
+
+	err := n.onTransaction(tx.tx)
+	if err != nil {
+		n.Config.Log.Error("new transaction callback finished with error",
+			zap.Error(err),
+			zap.Bool("is main", isMain))
+		return
+	}
+	if isMain {
+		r.isSent = true
+	} else {
+		for i := range r.fallbacks {
+			if r.fallbacks[i].Hash() == tx.tx.Hash() {
+				r.fallbacks = append(r.fallbacks[:i], r.fallbacks[i+1:]...)
+				break
+			}
 		}
 	}
 }
