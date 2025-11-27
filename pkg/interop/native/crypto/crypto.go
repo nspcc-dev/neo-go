@@ -70,6 +70,14 @@ func RecoverSecp256K1(msgHash []byte, sig []byte) []byte {
 // serializing it with Bls12381Serialize method call.
 type Bls12381Point struct{}
 
+// Bls12381Pair represents a point/scalar pair used by Bls12381MultiExp. It combines
+// an opaque Bls12381Point with a little-endian serialized scalar (32 or 64 bytes).
+// Each pair contributes point * scalar to the multi-exponentiation result.
+type Bls12381Pair struct {
+	Point  Bls12381Point
+	Scalar []byte
+}
+
 // Bls12381Serialize calls `bls12381Serialize` method of native CryptoLib contract
 // and serializes given BLS12-381 point into byte array.
 func Bls12381Serialize(g Bls12381Point) []byte {
@@ -114,4 +122,10 @@ func Bls12381Pairing(g1, g2 Bls12381Point) Bls12381Point {
 // computes Keccak256 hash of b.
 func Keccak256(b []byte) interop.Hash256 {
 	return neogointernal.CallWithToken(Hash, "keccak256", int(contract.NoneFlag), b).(interop.Hash256)
+}
+
+// Bls12381MultiExp represents `bls12381MultiExp` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381MultiExp(pairs []Bls12381Pair) Bls12381Point {
+	return neogointernal.CallWithToken(Hash, "bls12381MultiExp", int(contract.NoneFlag), pairs).(Bls12381Point)
 }
