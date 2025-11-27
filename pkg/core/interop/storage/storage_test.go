@@ -36,7 +36,7 @@ func TestPut(t *testing.T) {
 	initVM := func(t *testing.T, key, value []byte, gas int64) {
 		v := ic.SpawnVM()
 		v.LoadScript(cs.NEF.Script)
-		v.GasLimit = gas
+		v.SetGasLimit(gas)
 		v.Estack().PushVal(value)
 		v.Estack().PushVal(key)
 		require.NoError(t, istorage.GetContext(ic))

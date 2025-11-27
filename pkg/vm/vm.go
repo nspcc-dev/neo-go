@@ -87,8 +87,12 @@ type VM struct {
 
 	refs refCounter
 
+	// gasConsumed is the amount of gas consumed by the current execution in
+	// picoGAS units.
 	gasConsumed int64
-	GasLimit    int64
+	// gasLimit is the maximum amount of gas that can be consumed by the
+	// execution in picoGAS units.
+	gasLimit int64
 
 	// SyscallHandler handles SYSCALL opcode.
 	SyscallHandler func(v *VM, id uint32) error
@@ -145,6 +149,23 @@ func (v *VM) SetPriceGetter(f func(opcode.Opcode, []byte) int64) {
 	v.getPrice = f
 }
 
+// SetGasLimit sets the execution gas limit in Datoshi units.
+func (v *VM) SetGasLimit(datoshi int64) {
+	v.gasLimit = datoshi
+	if datoshi > 0 {
+		v.gasLimit *= ExecFeeFactorMultiplier
+	}
+}
+
+// GasLimit returns the execution gas limit in Datoshi units.
+func (v *VM) GasLimit() int64 {
+	res := v.gasLimit
+	if res > 0 {
+		res /= ExecFeeFactorMultiplier // gasLimit is divisible by ExecFeeFactorMultiplier by definition.
+	}
+	return res
+}
+
 // Reset allows to reuse existing VM for subsequent executions making them somewhat
 // more efficient. It reuses invocation and evaluation stacks as well as VM structure
 // itself.
@@ -156,22 +177,48 @@ func (v *VM) Reset(t trigger.Type) {
 	v.uncaughtException = nil
 	v.refs = 0
 	v.gasConsumed = 0
-	v.GasLimit = 0
+	v.gasLimit = 0
 	v.SyscallHandler = nil
 	v.LoadToken = nil
 	v.trigger = t
 	v.invTree = nil
 }
 
-// GasConsumed returns the amount of GAS consumed during execution.
+// ExecFeeFactorMultiplier is a multiplier applied to ExecFeeFactor starting
+// from [config.HFFaun] hardfork to provide fractional ExecFeeFactor
+// functionality.
+const ExecFeeFactorMultiplier = 10000
+
+// GasConsumed returns the amount of GAS consumed during execution in Datoshi
+// units rounded from picoGAS to the upper integer.
 func (v *VM) GasConsumed() int64 {
-	return v.gasConsumed
+	return DivideCeiling(v.gasConsumed, ExecFeeFactorMultiplier).Int64()
 }
 
-// AddGas consumes the specified amount of gas. It returns true if gas limit wasn't exceeded.
-func (v *VM) AddGas(gas int64) bool {
-	v.gasConsumed += gas
-	return v.GasLimit < 0 || v.gasConsumed <= v.GasLimit
+// GasLeft returns the amount of GAS left in Datoshi units rounded from picoGAS
+// to the lower integer (if positive).
+func (v *VM) GasLeft() *big.Int {
+	if v.gasLimit == -1 {
+		return big.NewInt(v.gasLimit)
+	}
+	return big.NewInt((v.gasLimit - v.gasConsumed) / ExecFeeFactorMultiplier)
+}
+
+// DivideCeiling divides x by y and rounds the result up to the larger integer
+// in case of non-zero remnant.
+func DivideCeiling(x int64, y int64) *big.Int {
+	q, r := new(big.Int).DivMod(big.NewInt(x), big.NewInt(y), new(big.Int))
+	if r.Sign() != 0 {
+		q.Add(q, big.NewInt(1))
+	}
+	return q
+}
+
+// AddGas consumes the specified amount of gas in picoGAS precision. It returns
+// true if the gas limit wasn't exceeded.
+func (v *VM) AddGas(picoGas int64) bool {
+	v.gasConsumed += picoGas
+	return v.gasLimit < 0 || v.gasConsumed <= v.gasLimit
 }
 
 // Estack returns the evaluation stack, so interop hooks can utilize this.
@@ -635,7 +682,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	if v.getPrice != nil && ctx.ip < len(ctx.sc.prog) {
 		v.gasConsumed += v.getPrice(op, parameter)
-		if v.GasLimit >= 0 && v.gasConsumed > v.GasLimit {
+		if v.gasLimit >= 0 && v.gasConsumed > v.gasLimit {
 			panic("gas limit is exceeded")
 		}
 	}

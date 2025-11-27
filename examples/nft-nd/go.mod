@@ -2,4 +2,4 @@ module github.com/nspcc-dev/neo-go/examples/nft-nd
 
 go 1.24
 
-require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251112080609-3c8e29c66609
+require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251127130354-e9b99cb9c066

@@ -27,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -377,7 +378,7 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	if err != nil {
 		panic(err)
 	}
-	if !ic.VM.AddGas(o.getPriceInternal(ic.DAO)) {
+	if !ic.VM.AddGas(o.getPriceInternal(ic.DAO) * vm.ExecFeeFactorMultiplier) {
 		panic("insufficient gas")
 	}
 	if err := o.RequestInternal(ic, url, filter, cb, userData, gas); err != nil {
@@ -398,7 +399,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return errors.New("disallowed callback method (starts with '_')")
 	}
 
-	if !ic.VM.AddGas(gas.Int64()) {
+	if !ic.VM.AddGas(gas.Int64() * vm.ExecFeeFactorMultiplier) {
 		return ErrNotEnoughGas
 	}
 	callingHash := ic.VM.GetCallingScriptHash()

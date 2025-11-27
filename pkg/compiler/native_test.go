@@ -189,6 +189,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 	runNativeTestCases(t, *cs.Policy().Metadata(), "policy", []nativeTestCase{
 		{"blockAccount", []string{u160}},
 		{"getExecFeeFactor", nil},
+		{"getExecPicoFeeFactor", nil},
 		{"getFeePerByte", nil},
 		{"getStoragePrice", nil},
 		{"isBlocked", []string{u160}},

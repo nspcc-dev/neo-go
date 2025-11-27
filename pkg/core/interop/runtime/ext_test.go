@@ -78,7 +78,7 @@ func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Ui
 	for i := range args {
 		ic.VM.Estack().PushVal(args[i])
 	}
-	ic.VM.GasLimit = -1
+	ic.VM.SetGasLimit(-1)
 }
 
 func wrapDynamicScript(t *testing.T, script []byte, flags callflag.CallFlag, args ...any) []byte {
@@ -613,7 +613,7 @@ func TestGetRandomCompatibility(t *testing.T) {
 
 	ic.VM = vm.New()
 	ic.VM.LoadScript([]byte{0x01})
-	ic.VM.GasLimit = 1100_00000000
+	ic.VM.SetGasLimit(1100_00000000)
 
 	require.NoError(t, runtime.GetRandom(ic))
 	require.Equal(t, "271339657438512451304577787170704246350", ic.VM.Estack().Pop().BigInt().String())

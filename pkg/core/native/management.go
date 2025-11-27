@@ -318,7 +318,7 @@ func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stac
 
 	gas := ic.BaseStorageFee() * int64(len(nefBytes)+len(manifestBytes))
 	if isDeploy {
-		fee := m.minimumDeploymentFee(ic.DAO)
+		fee := m.minimumDeploymentFee(ic.DAO) * vm.ExecFeeFactorMultiplier
 		if fee > gas {
 			gas = fee
 		}
