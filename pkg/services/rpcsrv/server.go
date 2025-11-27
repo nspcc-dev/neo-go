@@ -2628,16 +2628,16 @@ func (s *Server) registerOrDumpIterator(item stackitem.Item) (stackitem.Item, uu
 		resIterator result.Iterator
 		curr        stackitem.Item
 	)
-
-	if s.config.SessionEnabled {
-		iterID = uuid.New()
-		resIterator.ID = &iterID
-		if s.config.SessionExpansionEnabled {
-			resIterator.Values, resIterator.Truncated, curr = iterator.ValuesTruncated(item, s.config.MaxIteratorResultItems)
-		}
-	} else {
+	if !s.config.SessionEnabled || s.config.SessionExpansionEnabled {
 		resIterator.Values, resIterator.Truncated, curr = iterator.ValuesTruncated(item, s.config.MaxIteratorResultItems)
 	}
+
+	// No point in holding iterator for further traversal if no more elements left after expansion.
+	if s.config.SessionEnabled && (!s.config.SessionExpansionEnabled || resIterator.Truncated) {
+		iterID = uuid.New()
+		resIterator.ID = &iterID
+	}
+
 	return stackitem.NewInterop(resIterator), iterID, curr
 }
 
