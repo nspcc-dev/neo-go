@@ -70,7 +70,9 @@ type Iterator struct {
 	// Values contains deserialized VM iterator values with a truncated flag. It may be non-nil
 	// if session expansion is enabled (even when ID is set), or if the JSON-RPC server does not
 	// support sessions but allows in-place iterator traversal.
-	Values    []stackitem.Item
+	Values []stackitem.Item
+	// Truncated indicates whether the iterator has more elements. It is set only if sessions
+	// are disabled.
 	Truncated bool
 }
 
