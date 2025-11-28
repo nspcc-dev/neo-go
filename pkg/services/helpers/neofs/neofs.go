@@ -26,7 +26,7 @@ const (
 	URIScheme = "neofs"
 
 	// rangeSep is a separator between offset and length.
-	rangeSep = '|'
+	rangeSep = "|"
 
 	rangeCmd  = "range"
 	headerCmd = "header"
@@ -223,15 +223,15 @@ func getHash(ctx context.Context, s user.Signer, c Client, addr *oid.Address, ha
 }
 
 func parseRange(s string) (*object.Range, error) {
-	sepIndex := strings.IndexByte(s, rangeSep)
-	if sepIndex < 0 {
+	offsetPart, lengthPart, ok := strings.Cut(s, rangeSep)
+	if !ok {
 		return nil, ErrInvalidRange
 	}
-	offset, err := strconv.ParseUint(s[:sepIndex], 10, 64)
+	offset, err := strconv.ParseUint(offsetPart, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("%w: invalid offset", ErrInvalidRange)
 	}
-	length, err := strconv.ParseUint(s[sepIndex+1:], 10, 64)
+	length, err := strconv.ParseUint(lengthPart, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("%w: invalid length", ErrInvalidRange)
 	}
