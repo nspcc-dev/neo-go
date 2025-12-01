@@ -10,8 +10,10 @@ import (
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
@@ -594,4 +596,70 @@ func TestCryptoLib_RecoverSecp256K1_EIP2098Compat(t *testing.T) {
 		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigExpanded)
 		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigCompact)
 	}
+}
+
+func TestCryptoLib_Bls12381MultiExp(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 2,
+		}
+	})
+
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	c := e.CommitteeInvoker(nativehashes.CryptoLib)
+
+	var g1Point bls12381.G1Affine
+	_, err := g1Point.SetBytes(g1)
+	require.NoError(t, err)
+
+	c.InvokeFail(t, "method not found: bls12381MultiExp/1", "bls12381MultiExp", stackitem.NewArray(nil))
+
+	script := io.NewBufBinWriter()
+	multiplier := make([]byte, fr.Bytes)
+	multiplier[0] = 1
+	emit.Bytes(script.BinWriter, multiplier)
+	emit.AppCall(script.BinWriter, c.Hash, "bls12381Deserialize", callflag.All, g1)
+	emit.Opcodes(script.BinWriter, opcode.PUSH2, opcode.PACK, opcode.PUSH1, opcode.PACK, opcode.PUSH1, opcode.PACK)
+	emit.AppCallNoArgs(script.BinWriter, c.Hash, "bls12381MultiExp", callflag.All)
+
+	e.AddNewBlock(t)
+	stack, err := c.TestInvokeScript(t, script.Bytes(), c.Signers)
+	require.NoError(t, err)
+	require.Equal(t, 1, stack.Len())
+	itm := stack.Pop().Item()
+	require.Equal(t, stackitem.InteropT, itm.Type())
+	actual, ok := itm.(*stackitem.Interop).Value().(serializable)
+	require.True(t, ok)
+	require.Equal(t, hex.EncodeToString(g1), hex.EncodeToString(actual.Bytes()))
+}
+
+func TestCryptoLib_Bls12381MultiExpInteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package testcryptolib
+		import "github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
+		func Bls12381MultiExp(point, scalar []byte) []byte {
+			pairs := []crypto.Bls12381Pair{
+				{
+					Point: crypto.Bls12381Deserialize(point),
+					Scalar: scalar,
+				},
+			}
+			return crypto.Bls12381Serialize(crypto.Bls12381MultiExp(pairs))
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "testcryptolib_contract",
+	})
+	e.DeployContract(t, ctr, nil)
+
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+	multiplier := make([]byte, fr.Bytes)
+	multiplier[0] = 1
+	ctrInvoker.Invoke(t, g1, "bls12381MultiExp", g1, multiplier)
 }
