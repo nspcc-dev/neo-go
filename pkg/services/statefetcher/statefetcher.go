@@ -3,7 +3,7 @@ package statefetcher
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -32,7 +32,8 @@ import (
 type Ledger interface {
 	GetConfig() config.Blockchain
 	HeaderHeight() uint32
-	AddContractStorageItems(kv []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256, witness transaction.Witness) error
+	AddContractStorageItems(kv []storage.KeyValue) error
+	InitContractStorageSync(r state.MPTRoot) error
 	GetLastStoredKey() []byte
 	VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error)
 }
@@ -40,7 +41,6 @@ type Ledger interface {
 // Service fetches contract storage state from NeoFS.
 type Service struct {
 	neofs.BasicService
-	containerMagic int
 
 	isActive   atomic.Bool
 	isShutdown atomic.Bool
@@ -48,10 +48,11 @@ type Service struct {
 	cfg               config.NeoFSStateFetcher
 	stateSyncInterval uint32
 
-	lock                 sync.RWMutex
-	lastStateObjectIndex uint32
-	lastStateOID         oid.ID
-	lastStateRootWitness transaction.Witness
+	// lock protects stateRoot and stateObjectID from concurrent update by
+	// network server.
+	lock          sync.RWMutex
+	stateRoot     state.MPTRoot
+	stateObjectID oid.ID
 
 	chain Ledger
 	log   *zap.Logger
@@ -120,101 +121,113 @@ func New(chain Ledger, cfg config.NeoFSStateFetcher, stateSyncInterval int, logg
 		s.isActive.CompareAndSwap(true, false)
 		return nil, fmt.Errorf("container magic mismatch: expected %d, got %s", s.chain.GetConfig().Magic, containerMagic)
 	}
-	s.containerMagic, err = strconv.Atoi(containerMagic)
 	return s, nil
 }
 
-// LatestStateObjectHeight returns the height of the most recent state object found in the container.
-func (s *Service) LatestStateObjectHeight(h ...uint32) (uint32, error) {
+// Init initializes Service to fetch the most recent state from NeoFS within
+// [minH, maxH] height range. If max is 0, the latest available state object is
+// returned. If the cached state object doesn't match the search criteria, a new
+// search will be initiated followed by the Service's cache update. The object
+// height is returned.
+func (s *Service) Init(minH uint32, maxH uint32) (uint32, error) {
+	if maxH > 0 && maxH < minH {
+		return 0, fmt.Errorf("max height must be greater than min height, got %d/%d", minH, maxH)
+	}
+
 	s.lock.RLock()
-	if s.lastStateObjectIndex != 0 {
-		idx := s.lastStateObjectIndex
+	if s.stateRoot.Index != 0 && s.stateRoot.Index >= minH && (maxH == 0 || s.stateRoot.Index <= maxH) {
+		h := s.stateRoot.Index
 		s.lock.RUnlock()
-		return idx, nil
+		return h, nil
 	}
 	s.lock.RUnlock()
 
-	var height uint32
-	if len(h) > 0 {
-		height = h[0]
+	oid, r, err := s.findStateObject(minH, maxH)
+	if err != nil {
+		s.isActive.CompareAndSwap(true, false)
+		return 0, fmt.Errorf("failed to find state object within [%d; %d] range: %w", minH, maxH, err)
 	}
+
+	s.log.Info("initializing NeoFS StateFetcher service",
+		zap.Stringer("oid", oid),
+		zap.Uint32("height", r.Index),
+		zap.String("root", r.Root.StringLE()),
+		zap.Bool("witnessed", len(r.Witness) > 0))
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.stateRoot = *r
+	s.stateObjectID = oid
+
+	return r.Index, nil
+}
+
+// findStateObject returns the ID of the most recent state object and the
+// corresponding stateroot (with optional witness attached) within [minH, maxH]
+// height range. If max is 0, the latest available object is returned.
+func (s *Service) findStateObject(minH uint32, maxH uint32) (oid.ID, *state.MPTRoot, error) {
+	var (
+		obj *client.SearchResultItem
+		r   = new(state.MPTRoot)
+		err error
+	)
 	filters := object.NewSearchFilters()
-	filters.AddFilter(s.cfg.StateAttribute, fmt.Sprintf("%d", height), object.MatchNumGE)
+	filters.AddFilter(s.cfg.StateAttribute, fmt.Sprintf("%d", minH), object.MatchNumGE)
+	if maxH > 0 {
+		filters.AddFilter(s.cfg.StateAttribute, fmt.Sprintf("%d", maxH), object.MatchNumLE)
+	}
 	ctx, cancel := context.WithTimeout(s.Ctx, s.cfg.Timeout)
 	defer cancel()
 
 	results, errs := neofs.ObjectSearch(ctx, s.Pool, s.Account.PrivateKey(), s.ContainerID, filters, []string{s.cfg.StateAttribute, neofs.DefaultStateRootAttribute, neofs.DefaultWitnessAttribute})
-
-	var (
-		lastItem     *client.SearchResultItem
-		lastFoundIdx uint64
-		witness      *transaction.Witness
-		err          error
-	)
-
 loop:
 	for {
 		select {
-		case item, ok := <-results:
+		case res, ok := <-results:
 			if !ok {
 				break loop
 			}
-			lastItem = &item
+			obj = &res
 
 		case err = <-errs:
-			if err != nil && !neofs.IsContextCanceledErr(err) {
-				s.isActive.CompareAndSwap(true, false)
-				return 0, fmt.Errorf("failed to search state object at height %d: %w", height, err)
-			}
-			break loop
+			return oid.ID{}, nil, fmt.Errorf("failed to search state object: %w", err)
 		}
 	}
 
-	lastFoundIdx, err = strconv.ParseUint(lastItem.Attributes[0], 10, 32)
-	if err != nil || lastFoundIdx == 0 {
-		s.isActive.CompareAndSwap(true, false)
-		return 0, fmt.Errorf("failed to parse state object index: %w", err)
+	h, err := strconv.ParseUint(obj.Attributes[0], 10, 32)
+	if err != nil || h == 0 {
+		return oid.ID{}, nil, fmt.Errorf("invalid state object index: %w", err)
 	}
-	root, err := util.Uint256DecodeStringLE(lastItem.Attributes[1])
+	r.Index = uint32(h)
+
+	r.Root, err = util.Uint256DecodeStringLE(obj.Attributes[1])
 	if err != nil {
-		s.isActive.CompareAndSwap(true, false)
-		return 0, fmt.Errorf("failed to decode state root from attribute: %w", err)
+		return oid.ID{}, nil, fmt.Errorf("failed to decode state root from state object attribute: %w", err)
 	}
-	if len(lastItem.Attributes[2]) > 0 {
-		b, err := hex.DecodeString(lastItem.Attributes[2])
+
+	if len(obj.Attributes[2]) > 0 {
+		b, err := base64.StdEncoding.DecodeString(obj.Attributes[2])
 		if err != nil {
-			s.isActive.CompareAndSwap(true, false)
-			return 0, fmt.Errorf("failed to decode state root witness from hex: %w", err)
+			return oid.ID{}, nil, fmt.Errorf("failed to decode state root witness from hex: %w", err)
 		}
-		witness = new(transaction.Witness)
-		err = witness.FromBytes(b)
+		w := new(transaction.Witness)
+		err = w.FromBytes(b)
 		if err != nil {
-			s.isActive.CompareAndSwap(true, false)
-			return 0, fmt.Errorf("failed to decode state root witness: %w", err)
+			return oid.ID{}, nil, fmt.Errorf("failed to decode state root witness: %w", err)
 		}
-		_, err = s.chain.VerifyWitness(hash.Hash160(witness.VerificationScript), &state.MPTRoot{
-			Version: 0,
-			Index:   uint32(lastFoundIdx),
-			Root:    root,
-			Witness: []transaction.Witness{*witness},
-		}, witness, stateroot.MaxVerificationGAS)
+		r.Witness = []transaction.Witness{*w}
+		_, err = s.chain.VerifyWitness(hash.Hash160(w.VerificationScript), r, w, stateroot.MaxVerificationGAS)
 		if err != nil {
-			s.isActive.CompareAndSwap(true, false)
-			return 0, fmt.Errorf("state root witness check failed: %w", err)
+			return oid.ID{}, nil, fmt.Errorf("invalid state root witness: %w", err)
 		}
 	}
 
-	s.lock.Lock()
-	s.lastStateObjectIndex = uint32(lastFoundIdx)
-	s.lastStateOID = lastItem.ID
-	s.lastStateRootWitness = *witness
-	s.lock.Unlock()
-
-	return s.lastStateObjectIndex, nil
+	return obj.ID, r, nil
 }
 
-// Start begins state fetching.
-func (s *Service) Start() error {
+// Start starts state fetcher service. If syncPoint is 0, the latest available
+// state object will be fetched.
+func (s *Service) Start(syncPoint uint32) error {
 	if s.IsShutdown() {
 		return errors.New("service is already shut down")
 	}
@@ -223,7 +236,7 @@ func (s *Service) Start() error {
 	}
 	s.log.Info("starting NeoFS StateFetcher service")
 	go s.exiter()
-	go s.run()
+	go s.run(syncPoint)
 	return nil
 }
 
@@ -274,64 +287,95 @@ func (s *Service) exiter() {
 	close(s.exiterToShutdown)
 }
 
-func (s *Service) run() {
+func (s *Service) run(syncPoint uint32) {
 	defer close(s.runToExiter)
 
-	var (
-		syncHeight   uint32
-		expectedRoot util.Uint256
-		witness      transaction.Witness
-		oidStr       string
-	)
-
-	s.lock.RLock()
-	isZero := s.lastStateOID.IsZero()
-	s.lock.RUnlock()
-	if isZero {
-		_, err := s.LatestStateObjectHeight(s.chain.HeaderHeight() - 1)
-		if err != nil {
-			s.log.Error("failed to get state object", zap.Error(err))
-			s.stopService(true)
-			return
-		}
-	}
-	s.lock.RLock()
-	witness = s.lastStateRootWitness
-	oidStr = s.lastStateOID.String()
-	s.lock.RUnlock()
-	reader, err := s.objectGet(s.Ctx, oidStr)
+	// Ensure Service is initialized at the proper height before accessing state
+	// object OID. The node may be recovering after previously interrupted state
+	// sync at some older state sync point, hence the initial state object may
+	// be too fresh for the StateSync module.
+	_, err := s.Init(s.chain.HeaderHeight()-1, syncPoint)
 	if err != nil {
-		s.log.Error("failed to get state object", zap.Error(err), zap.String("oid", s.lastStateOID.String()))
+		s.log.Error("failed to find the latest state object",
+			zap.Uint32("minHeight", s.chain.HeaderHeight()-1),
+			zap.Uint32("maxHeight", syncPoint),
+			zap.Error(err))
+		s.stopService(true)
+		return
+	}
+
+	var (
+		oid oid.ID
+		r   state.MPTRoot
+	)
+	s.lock.RLock()
+	r = s.stateRoot
+	oid = s.stateObjectID
+	s.lock.RUnlock()
+
+	reader, err := s.objectGet(s.Ctx, oid)
+	if err != nil {
+		s.log.Error("failed to get state object",
+			zap.Uint32("height", r.Index),
+			zap.Stringer("oid", oid),
+			zap.Error(err))
 		s.stopService(true)
 		return
 	}
 	defer func() {
 		if err = reader.Close(); err != nil {
-			s.log.Warn("failed to close reader", zap.Error(err))
+			s.log.Warn("failed to close state object reader", zap.Error(err))
 		}
 	}()
+
+	br := gio.NewBinReaderFromIO(reader)
+	version := br.ReadB()
+	if version != 0 || br.Err != nil {
+		s.log.Error("invalid state object version",
+			zap.Uint32("expected", 0),
+			zap.Uint8("actual", version),
+			zap.Error(br.Err))
+		return
+	}
+	magic := br.ReadU32LE()
+	if magic != uint32(s.chain.GetConfig().Magic) || br.Err != nil {
+		s.log.Error("invalid state object magic",
+			zap.Uint32("expected", uint32(s.chain.GetConfig().Magic)),
+			zap.Uint32("actual", magic),
+			zap.Error(br.Err))
+		return
+	}
+	h := br.ReadU32LE()
+	if h != r.Index || br.Err != nil {
+		s.log.Error("invalid state object height",
+			zap.Uint32("expected", r.Index),
+			zap.Uint32("actual", h),
+			zap.Error(br.Err))
+		return
+	}
+	root := util.Uint256{}
+	br.ReadBytes(root[:])
+	if !root.Equals(r.Root) || br.Err != nil {
+		s.log.Error("invalid state object root hash",
+			zap.String("expected", r.Root.StringLE()),
+			zap.String("actual", root.StringLE()),
+			zap.Error(br.Err))
+		return
+	}
+
+	s.log.Info("initializing contract storage sync",
+		zap.Uint32("height", s.stateRoot.Index),
+		zap.String("root", s.stateRoot.Root.StringLE()),
+		zap.Bool("witnessed", len(r.Witness) > 0))
+	err = s.chain.InitContractStorageSync(r)
+	if err != nil {
+		s.log.Error("failed to initialize contract storage sync", zap.Error(err))
+		return
+	}
+
 	batches := make(chan []storage.KeyValue, 2)
 	go func() {
 		defer close(batches)
-
-		br := gio.NewBinReaderFromIO(reader)
-		version := br.ReadB()
-		if version != 0 || br.Err != nil {
-			s.log.Error("invalid state object version", zap.Uint8("version", version), zap.Error(br.Err))
-			return
-		}
-		magic := br.ReadU32LE()
-		if magic != uint32(s.containerMagic) || br.Err != nil {
-			s.log.Error("invalid state object magic", zap.Uint32("magic", magic))
-			return
-		}
-		syncHeight = br.ReadU32LE()
-		br.ReadBytes(expectedRoot[:])
-		if br.Err != nil {
-			s.log.Error("failed to read state root", zap.Error(br.Err))
-			return
-		}
-		s.log.Info("contract storage state object found", zap.String("root", expectedRoot.StringLE()), zap.Uint32("height", syncHeight))
 
 		var (
 			lastKey = s.chain.GetLastStoredKey()
@@ -393,7 +437,7 @@ func (s *Service) run() {
 			if len(batch) == 0 {
 				continue
 			}
-			if err = s.chain.AddContractStorageItems(batch, syncHeight, expectedRoot, witness); err != nil {
+			if err = s.chain.AddContractStorageItems(batch); err != nil {
 				s.log.Error("failed to add storage batch", zap.Error(err))
 				s.stopService(true)
 				return
@@ -402,7 +446,7 @@ func (s *Service) run() {
 	}
 }
 
-func (s *Service) objectGet(ctx context.Context, oid string) (io.ReadCloser, error) {
+func (s *Service) objectGet(ctx context.Context, oid oid.ID) (io.ReadCloser, error) {
 	u, err := url.Parse(fmt.Sprintf("%s:%s/%s", neofs.URIScheme, s.cfg.ContainerID, oid))
 	if err != nil {
 		return nil, err
