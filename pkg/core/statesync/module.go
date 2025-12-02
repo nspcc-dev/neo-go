@@ -98,11 +98,13 @@ type Ledger interface {
 // Module represents state sync module and aimed to gather state-related data to
 // perform an atomic state jump.
 type Module struct {
-	lock     sync.RWMutex
 	log      *zap.Logger
 	mode     StorageSyncMode
 	policyID int32
 
+	// lock protects syncStage and all dependent fields that may be updated concurrently
+	// via Module callbacks along with the change of the synchronisation stage.
+	lock sync.RWMutex
 	// syncPoint is the state synchronisation point P we're currently working against.
 	syncPoint uint32
 	// syncStage is the stage of the sync process.
@@ -165,11 +167,12 @@ func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Si
 // Init initializes state sync module for the current chain's height with given
 // callback for MPT nodes requests.
 func (s *Module) Init(currChainHeight uint32) error {
-	oldStage := s.syncStage
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
+		newStage := s.syncStage
 		s.lock.Unlock()
-		if s.syncStage != oldStage {
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
@@ -404,11 +407,12 @@ func (s *Module) getLatestSavedBlock(p uint32) uint32 {
 
 // AddHeaders validates and adds specified headers to the chain.
 func (s *Module) AddHeaders(hdrs ...*block.Header) error {
-	oldStage := s.syncStage
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
+		newStage := s.syncStage
 		s.lock.Unlock()
-		if s.syncStage != oldStage {
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
@@ -433,14 +437,15 @@ func (s *Module) AddHeaders(hdrs ...*block.Header) error {
 
 // AddBlock verifies and saves block skipping executable scripts.
 func (s *Module) AddBlock(block *block.Block) error {
-	oldStage := s.syncStage
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
-		if s.syncStage != oldStage {
+		newStage := s.syncStage
+		s.lock.Unlock()
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
 	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced == 0 || s.syncStage&blocksSynced != 0 {
 		return nil
@@ -503,14 +508,16 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 	if s.mode == ContractStorageBased {
 		panic("MPT nodes are not expected in storage-based sync mode")
 	}
-	oldStage := s.syncStage
+
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
-		if s.syncStage != oldStage {
+		newStage := s.syncStage
+		s.lock.Unlock()
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
 	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 {
 		return fmt.Errorf("MPT nodes were not requested: current state sync stage is %d", s.syncStage)
@@ -548,14 +555,16 @@ func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint
 	if s.mode == MPTBased {
 		panic("contract storage items are not expected in MPT-based mode")
 	}
-	oldStage := s.syncStage
+
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
-		if s.syncStage != oldStage {
+		newStage := s.syncStage
+		s.lock.Unlock()
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
 	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 || expectedRoot.Equals(s.localTrie.StateRoot()) {
 		return errors.New("contract storage items were not requested")
