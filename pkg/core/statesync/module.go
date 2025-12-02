@@ -233,10 +233,10 @@ func (s *Module) Init(currChainHeight uint32) error {
 	return s.defineSyncStage()
 }
 
-// SetOnStageChanged sets callback that is triggered whenever the sync stage changes.
+// SetOnStageChanged sets a callback that is triggered whenever the sync stage
+// changes. It is not protected by the Module's mutex, so it must only be called
+// before the Module starts.
 func (s *Module) SetOnStageChanged(cb func()) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	s.stageChangedCallback = cb
 }
 
