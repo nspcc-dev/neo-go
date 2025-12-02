@@ -231,10 +231,12 @@ func (s *Module) Init(currChainHeight uint32) error {
 	return s.defineSyncStage()
 }
 
+func (s *Module) InitContractStorageItemsSync(syncHeight uint32, expectedRoot util.Uint256, witness transaction.Witness) {
+
+}
+
 // SetOnStageChanged sets callback that is triggered whenever the sync stage changes.
 func (s *Module) SetOnStageChanged(cb func()) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	s.stageChangedCallback = cb
 }
 
