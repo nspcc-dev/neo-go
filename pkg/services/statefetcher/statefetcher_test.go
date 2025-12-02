@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -23,7 +24,11 @@ func (m *mockLedger) GetConfig() config.Blockchain { return config.Blockchain{} 
 
 func (m *mockLedger) GetLastStoredKey() []byte { return m.lastStoredKey }
 
-func (m *mockLedger) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256, witness transaction.Witness) error {
+func (m *mockLedger) AddContractStorageItems(kvs []storage.KeyValue) error {
+	return nil
+}
+
+func (m *mockLedger) InitContractStorageSync(r state.MPTRoot) error {
 	return nil
 }
 

@@ -447,9 +447,9 @@ func TestPutGetStateSyncCheckPoint(t *testing.T) {
 
 	// non-empty store
 	expected := StateSyncCheckpoint{
-		MPTRoot:       util.Uint256{1, 2, 3},
-		IsMPTSynced:   true,
-		LastStoredKey: []byte{1, 2, 3},
+		IntermediateRoot: util.Uint256{1, 2, 3},
+		Root:             util.Uint256{4, 5, 6},
+		LastStoredKey:    []byte{1, 2, 3},
 		Witness: transaction.Witness{
 			InvocationScript:   []byte{1, 2, 3},
 			VerificationScript: []byte{1, 2, 3},
