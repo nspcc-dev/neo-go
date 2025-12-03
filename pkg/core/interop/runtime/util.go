@@ -18,11 +18,7 @@ import (
 
 // GasLeft returns the remaining amount of GAS.
 func GasLeft(ic *interop.Context) error {
-	if ic.VM.GasLimit == -1 {
-		ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(ic.VM.GasLimit)))
-	} else {
-		ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(ic.VM.GasLimit - ic.VM.GasConsumed())))
-	}
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(ic.VM.GasLeft()))
 	return nil
 }
 
@@ -105,7 +101,7 @@ func GetRandom(ic *interop.Context) error {
 	if !isHF {
 		ic.NonceData = [interop.ContextNonceDataLen]byte(res)
 	}
-	if !ic.VM.AddGas(ic.BaseExecFee() * price) {
+	if !ic.VM.AddPicoGas(ic.BaseExecFee() * price) {
 		return errors.New("gas limit exceeded")
 	}
 	// Resulting data is interpreted as an unsigned LE integer.

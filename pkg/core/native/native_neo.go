@@ -840,7 +840,7 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 
 func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	pub := toPublicKey(args[0])
-	if !ic.VM.AddGas(n.getRegisterPriceInternal(ic.DAO)) {
+	if !ic.VM.AddDatoshi(n.getRegisterPriceInternal(ic.DAO)) {
 		panic("insufficient gas")
 	}
 	var err = n.RegisterCandidateInternal(ic, pub)

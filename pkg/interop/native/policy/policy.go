@@ -25,11 +25,21 @@ func SetFeePerByte(value int) {
 }
 
 // GetExecFeeFactor represents `getExecFeeFactor` method of Policy native contract.
+// It returns the execution fee factor in Datoshi units.
 func GetExecFeeFactor() int {
 	return neogointernal.CallWithToken(Hash, "getExecFeeFactor", int(contract.ReadStates)).(int)
 }
 
+// GetExecPicoFeeFactor represents `getExecPicoFeeFactor` method of Policy native contract.
+// It returns the execution fee factor in picoGAS units. Note that this method is available
+// starting from [config.HFFaun] hardfork.
+func GetExecPicoFeeFactor() int {
+	return neogointernal.CallWithToken(Hash, "getExecPicoFeeFactor", int(contract.ReadStates)).(int)
+}
+
 // SetExecFeeFactor represents `setExecFeeFactor` method of Policy native contract.
+// Note that starting from [config.HFFaun] hardfork this method accepts the value
+// in picoGAS units instead of Datoshi units.
 func SetExecFeeFactor(value int) {
 	neogointernal.CallWithTokenNoRet(Hash, "setExecFeeFactor", int(contract.States), value)
 }

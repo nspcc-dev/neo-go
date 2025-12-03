@@ -38,7 +38,7 @@ func CreateMultisigAccount(ic *interop.Context) error {
 		invokeFee = 1 << 8
 	}
 	invokeFee *= ic.BaseExecFee()
-	if !ic.VM.AddGas(invokeFee) {
+	if !ic.VM.AddPicoGas(invokeFee) {
 		return errors.New("gas limit exceeded")
 	}
 	script, err := smartcontract.CreateMultiSigRedeemScript(int(mu64), pubs)
@@ -63,7 +63,7 @@ func CreateStandardAccount(ic *interop.Context) error {
 		invokeFee = 1 << 8
 	}
 	invokeFee *= ic.BaseExecFee()
-	if !ic.VM.AddGas(invokeFee) {
+	if !ic.VM.AddPicoGas(invokeFee) {
 		return errors.New("gas limit exceeded")
 	}
 	ic.VM.Estack().PushItem(stackitem.NewByteArray(p.GetScriptHash().BytesBE()))

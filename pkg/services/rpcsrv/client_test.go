@@ -60,6 +60,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -216,7 +217,7 @@ func TestClientPolicyContract(t *testing.T) {
 
 	polis := policy.New(act)
 
-	txexec, err := polis.SetExecFeeFactorUnsigned(100)
+	txexec, err := polis.SetExecFeeFactorUnsigned(100 * vm.ExecFeeFactorMultiplier)
 	require.NoError(t, err)
 
 	txnetfee, err := polis.SetFeePerByteUnsigned(500)

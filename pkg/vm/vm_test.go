@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand/v2"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -28,7 +29,7 @@ import (
 
 func fooInteropHandler(v *VM, id uint32) error {
 	if id == interopnames.ToID([]byte("foo")) {
-		if !v.AddGas(1) {
+		if !v.AddDatoshi(1) {
 			return errors.New("invalid gas amount")
 		}
 		v.Estack().PushVal(1)
@@ -68,9 +69,9 @@ func TestVM_SetPriceGetter(t *testing.T) {
 
 	v.SetPriceGetter(func(op opcode.Opcode, p []byte) int64 {
 		if op == opcode.PUSH4 {
-			return 1
+			return 1 * ExecFeeFactorMultiplier
 		} else if op == opcode.PUSHDATA1 && bytes.Equal(p, []byte{0xCA, 0xFE}) {
-			return 7
+			return 7 * ExecFeeFactorMultiplier
 		}
 
 		return 0
@@ -85,7 +86,7 @@ func TestVM_SetPriceGetter(t *testing.T) {
 
 	t.Run("with sufficient gas limit", func(t *testing.T) {
 		v.Load(prog)
-		v.GasLimit = 9
+		v.SetGasLimit(9)
 		runVM(t, v)
 
 		require.EqualValues(t, 9, v.GasConsumed())
@@ -93,17 +94,27 @@ func TestVM_SetPriceGetter(t *testing.T) {
 
 	t.Run("with small gas limit", func(t *testing.T) {
 		v.Load(prog)
-		v.GasLimit = 8
+		v.SetGasLimit(8)
 		checkVMFailed(t, v)
 	})
 }
 
 func TestAddGas(t *testing.T) {
-	v := newTestVM()
-	v.GasLimit = 10
-	require.True(t, v.AddGas(5))
-	require.True(t, v.AddGas(5))
-	require.False(t, v.AddGas(5))
+	t.Run("AddDatoshi", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		require.True(t, v.AddDatoshi(5))
+		require.True(t, v.AddDatoshi(5))
+		require.False(t, v.AddDatoshi(1))
+	})
+
+	t.Run("AddPicoGas", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		require.True(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
+		require.True(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
+		require.False(t, v.AddPicoGas(1))
+	})
 }
 
 func TestPushBytes1to75(t *testing.T) {
@@ -2940,6 +2951,30 @@ func randomBytes(n int) []byte {
 
 func newTestVM() *VM {
 	v := New()
-	v.GasLimit = -1
+	v.SetGasLimit(-1)
 	return v
+}
+
+func TestGasLimit_GetSet(t *testing.T) {
+	v := New()
+
+	for _, limit := range []int64{-1, 0, 10} {
+		t.Run(strconv.Itoa(int(limit)), func(t *testing.T) {
+			v.SetGasLimit(limit)
+			require.Equal(t, limit, v.GasLimit())
+		})
+	}
+}
+
+func TestPicoGasToDatoshi(t *testing.T) {
+	for in, out := range map[int64]int64{
+		0:     0,
+		999:   1,
+		10000: 1,
+		10001: 2,
+	} {
+		t.Run(strconv.Itoa(int(in)), func(t *testing.T) {
+			require.Equal(t, out, PicoGasToDatoshi(in))
+		})
+	}
 }

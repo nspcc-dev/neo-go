@@ -134,7 +134,7 @@ func putWithContext(ic *interop.Context, stc *Context, key []byte, value []byte)
 			sizeInc = (len(si)-1)/4 + 1 + len(value) - len(si)
 		}
 	}
-	if !ic.VM.AddGas(int64(sizeInc) * ic.BaseStorageFee()) {
+	if !ic.VM.AddPicoGas(int64(sizeInc) * ic.BaseStorageFee()) {
 		return ErrGasLimitExceeded
 	}
 	ic.DAO.PutStorageItem(stc.ID, key, value)

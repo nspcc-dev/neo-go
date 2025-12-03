@@ -377,7 +377,7 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	if err != nil {
 		panic(err)
 	}
-	if !ic.VM.AddGas(o.getPriceInternal(ic.DAO)) {
+	if !ic.VM.AddDatoshi(o.getPriceInternal(ic.DAO)) {
 		panic("insufficient gas")
 	}
 	if err := o.RequestInternal(ic, url, filter, cb, userData, gas); err != nil {
@@ -398,7 +398,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return errors.New("disallowed callback method (starts with '_')")
 	}
 
-	if !ic.VM.AddGas(gas.Int64()) {
+	if !ic.VM.AddDatoshi(gas.Int64()) {
 		return ErrNotEnoughGas
 	}
 	callingHash := ic.VM.GetCallingScriptHash()

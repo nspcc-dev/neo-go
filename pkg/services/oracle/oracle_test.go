@@ -30,6 +30,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
@@ -103,7 +104,7 @@ func TestCreateResponseTx(t *testing.T) {
 	e.CheckHalt(t, tx.Hash())
 	cInvoker := e.ValidatorInvoker(cs.Hash)
 
-	require.Equal(t, int64(30), bc.GetBaseExecFee())
+	require.Equal(t, int64(30)*vm.ExecFeeFactorMultiplier, bc.GetBaseExecFee())
 	require.Equal(t, int64(1000), bc.FeePerByte())
 	acc, orc, _, _ := getTestOracle(t, bc, "./testdata/oracle1.json", "one")
 	req := &state.OracleRequest{

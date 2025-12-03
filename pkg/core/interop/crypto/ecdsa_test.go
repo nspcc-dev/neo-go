@@ -73,7 +73,7 @@ func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 		trigger.Verification,
 		fakechain.NewFakeChain(),
 		dao.NewSimple(storage.NewMemoryStore(), false),
-		interop.DefaultBaseExecFee, native.DefaultStoragePrice, nil, nil, nil, nil,
+		interop.DefaultBaseExecFee*vm.ExecFeeFactorMultiplier, native.DefaultStoragePrice*vm.ExecFeeFactorMultiplier, nil, nil, nil, nil,
 		container,
 		nil)
 	ic.Container = container
@@ -147,7 +147,7 @@ func testCurveCHECKMULTISIGBad(t *testing.T) {
 	t.Run("1_2 too many signatures", func(t *testing.T) { testCHECKMULTISIGBad(t, true, 2, []int{0}, []int{0, 1}) })
 	t.Run("gas limit exceeded", func(t *testing.T) {
 		v := initCHECKMULTISIGVM(t, 1, []int{0}, []int{0})
-		v.GasLimit = fee.ECDSAVerifyPrice - 1
+		v.SetGasLimit(fee.ECDSAVerifyPrice - 1)
 		require.Error(t, v.Run())
 	})
 
