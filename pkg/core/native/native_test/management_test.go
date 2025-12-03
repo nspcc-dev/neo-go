@@ -177,7 +177,7 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 		})
 		check(t, mgmt, cockatriceCSS)
 	})
-	t.Run("Cockatrice enabled", func(t *testing.T) {
+	t.Run("Domovoi enabled", func(t *testing.T) {
 		mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
 			cfg.Hardforks = map[string]uint32{
 				config.HFAspidochelone.String(): 0,
@@ -194,6 +194,7 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 				config.HFAspidochelone.String(): 0,
 				config.HFBasilisk.String():      0,
 				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       0,
 				config.HFEchidna.String():       0,
 			}
 		})
