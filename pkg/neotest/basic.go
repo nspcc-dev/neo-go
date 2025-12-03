@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -32,8 +33,16 @@ type Executor struct {
 	Validator     Signer
 	Committee     Signer
 	CommitteeHash util.Uint160
+
 	// collectCoverage is true if coverage is being collected when running this executor.
 	collectCoverage bool
+	// scheduleCoverageReport is a cleanup function that schedules the report of
+	// collected coverage data for this Executor.
+	scheduleCoverageReport     func()
+	scheduleCoverageReportOnce sync.Once
+
+	coverageLock sync.RWMutex
+	rawCoverage  map[util.Uint160]*scriptRawCoverage
 }
 
 // NewExecutor creates a new executor instance from the provided blockchain and committee.
@@ -43,13 +52,17 @@ func NewExecutor(t testing.TB, bc *core.Blockchain, validator, committee Signer)
 	checkMultiSigner(t, validator)
 	checkMultiSigner(t, committee)
 
-	return &Executor{
-		Chain:           bc,
-		Validator:       validator,
-		Committee:       committee,
-		CommitteeHash:   committee.ScriptHash(),
-		collectCoverage: isCoverageEnabled(t),
+	e := &Executor{
+		Chain:         bc,
+		Validator:     validator,
+		Committee:     committee,
+		CommitteeHash: committee.ScriptHash(),
+		rawCoverage:   make(map[util.Uint160]*scriptRawCoverage),
 	}
+
+	e.EnableCoverage(t)
+
+	return e
 }
 
 // TopBlock returns the block with the highest index.
@@ -148,7 +161,7 @@ func (e *Executor) DeployContract(t testing.TB, c *Contract, data any) util.Uint
 // data is an optional argument to `_deploy`.
 // It returns the hash of the deploy transaction.
 func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, data any) util.Uint256 {
-	e.trackCoverage(t, c)
+	e.trackCoverage(c)
 	tx := e.NewDeployTxBy(t, signer, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
@@ -168,19 +181,17 @@ func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, da
 // DeployContractCheckFAULT compiles and deploys a contract to the bc using the validator
 // account. It checks that the deploy transaction FAULTed with the specified error.
 func (e *Executor) DeployContractCheckFAULT(t testing.TB, c *Contract, data any, errMessage string) {
-	e.trackCoverage(t, c)
+	e.trackCoverage(c)
 	tx := e.NewDeployTx(t, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckFault(t, tx.Hash(), errMessage)
 }
 
 // trackCoverage switches on coverage tracking for provided script if `go test` is running with coverage enabled.
-func (e *Executor) trackCoverage(t testing.TB, c *Contract) {
+func (e *Executor) trackCoverage(c *Contract) {
 	if e.collectCoverage {
 		addScriptToCoverage(c)
-		t.Cleanup(func() {
-			reportCoverage(t)
-		})
+		e.scheduleCoverageReportOnce.Do(e.scheduleCoverageReport)
 	}
 }
 
@@ -417,7 +428,7 @@ func (e *Executor) TestInvoke(tx *transaction.Transaction) (*vm.VM, error) {
 	ic, _ := e.Chain.GetTestVM(trigger.Application, &ttx, b)
 
 	if e.collectCoverage {
-		ic.VM.SetOnExecHook(coverageHook)
+		ic.VM.SetOnExecHook(e.coverageHook)
 	}
 
 	defer ic.Finalize()
@@ -454,6 +465,9 @@ func (e *Executor) GetTxExecResult(t testing.TB, h util.Uint256) *state.AppExecR
 // EnableCoverage enables coverage collection for this executor, but only when `go test` is running with coverage enabled.
 func (e *Executor) EnableCoverage(t testing.TB) {
 	e.collectCoverage = isCoverageEnabled(t)
+	if e.collectCoverage && e.scheduleCoverageReport == nil {
+		e.scheduleCoverageReport = func() { t.Cleanup(func() { e.reportCoverage(t) }) }
+	}
 }
 
 // DisableCoverage disables coverage collection for this executor until enabled explicitly through EnableCoverage.

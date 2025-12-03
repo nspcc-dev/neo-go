@@ -13,7 +13,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
@@ -118,17 +117,30 @@ func isCoverageEnabled(t testing.TB) bool {
 	return coverageEnabled
 }
 
-var coverageHook vm.OnExecHook = func(scriptHash util.Uint160, offset int, opcode opcode.Opcode) {
-	coverageLock.Lock()
-	defer coverageLock.Unlock()
-	if cov, ok := rawCoverage[scriptHash]; ok {
+func (e *Executor) coverageHook(scriptHash util.Uint160, offset int, _ opcode.Opcode) {
+	e.coverageLock.Lock()
+	defer e.coverageLock.Unlock()
+	if cov, ok := e.rawCoverage[scriptHash]; ok {
 		cov.offsetsVisited = append(cov.offsetsVisited, offset)
 	}
 }
 
-func reportCoverage(t testing.TB) {
+func (e *Executor) reportCoverage(t testing.TB) {
 	coverageLock.Lock()
 	defer coverageLock.Unlock()
+
+	for h, cov := range e.rawCoverage {
+		fullCov := rawCoverage[h]
+		if fullCov == nil {
+			fullCov = &scriptRawCoverage{
+				debugInfo: cov.debugInfo,
+			}
+			rawCoverage[h] = fullCov
+		}
+
+		fullCov.offsetsVisited = append(fullCov.offsetsVisited, cov.offsetsVisited...)
+	}
+
 	f, err := os.Create(coverProfile)
 	if err != nil {
 		t.Fatalf("coverage: can't create file '%s' to write coverage report", coverProfile)
