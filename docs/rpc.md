@@ -461,9 +461,10 @@ applicationlog. This behaviour differs from notifications which are omitted for 
 The `SessionExpansionEnabled` configuration setting enforces RPC server to expand any iterator
 returned by `invoke*` calls. Specifically, up to `MaxIteratorResultItems` elements are 
 returned in the initial response, and the returned iterator is marked as `Truncated` if the 
-iterator contains more elements beyond the returned batch. In this case, if `SessionEnabled`
-is also `true`, an iterator `ID` and session `ID` is provided allowing clients to retrieve additional elements via
-`traverseiterator`. If SessionExpansionEnabled is false, the iterator behavior depends on 
+iterator contains more elements beyond the returned batch and if iterator sessions are disabled.
+In this case, if `SessionEnabled` is also `true`, an iterator `ID` and session `ID` is provided
+instead of `Truncated` field allowing clients to retrieve additional elements via
+`traverseiterator`. If `SessionExpansionEnabled` is false, the iterator behavior depends on 
 `SessionEnabled`: if `SessionEnabled` is `true`, a full iterator object with an ID is returned.
 If `SessionEnabled` is `false`, the iterator is expanded up to `MaxIteratorResultItems`.
 

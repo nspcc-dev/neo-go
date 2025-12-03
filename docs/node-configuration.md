@@ -330,8 +330,10 @@ where:
   (normally the limit for it is MaxVerificationGAS from Policy, but if MaxGasInvoke
   is lower than that then this limit is respected).
 - `MaxIteratorResultItems` - maximum number of elements extracted from iterator
-   returned by `invoke*` call. When the `MaxIteratorResultItems` value is set to
-   `n`, only `n` iterations are returned and truncated is true, indicating that
+   returned by `invoke*` call in cases if `SessionEnabled` is false or
+  `SessionExpansionEnabled` is true. When the `MaxIteratorResultItems` value is
+  set to `n`, only `n` iterations are returned and truncated is true (if
+  `SessionEnabled` is false, see `SessionEnabled` setting), indicating that
    there is still data to be returned.
 - `MaxFindResultItems` - the maximum number of elements for `findstates` response.
 - `MaxFindStoragePageSize` - the maximum number of elements for `findstorage` response per single page.
@@ -358,23 +360,26 @@ where:
   on the server side available for further traverse. `traverseiterator` and
   `terminatesession` JSON-RPC calls will be handled by the server. It is not
   recommended to enable this setting for public RPC servers due to possible DoS
-  attack. Set to `false` by default. If `false`, iterators are expanded into a
-  set of values (see `MaxIteratorResultItems` setting). Implementation note: when
-  BoltDB storage is used as a node backend DB, then enabling iterator sessions may
-  cause blockchain persist delays up to 2*`SessionLifetime` on
-  early blockchain lifetime stages with relatively small DB size. It can happen
-  due to BoltDB re-mmapping behaviour traits. If regular persist is a critical
-  requirement, then we recommend either to decrease `SessionLifetime` or to
-  enable `SessionBackedByMPT`, see `SessionBackedByMPT` documentation for more
+  attack. Set to `false` by default. If `false` or `SessionExpansionEnabled`,
+  iterators are expanded into a set of values (see `MaxIteratorResultItems` and
+  `SessionExpansionEnabled` settings). Implementation note: when BoltDB storage
+  is used as a node backend DB, then enabling iterator sessions may cause
+  blockchain persist delays up to 2*`SessionLifetime` on early blockchain
+  lifetime stages with relatively small DB size. It can happen due to BoltDB
+  re-mmapping behaviour traits. If regular persist is a critical requirement,
+  then we recommend either to decrease `SessionLifetime` or to enable
+  `SessionBackedByMPT`, see `SessionBackedByMPT` documentation for more
   details.
 - `SessionExpansionEnabled` enables partial expansion of iterators returned by 
   `invoke*` calls. When enabled, the server returns up to `MaxIteratorResultItems`
   values from the iterator in the initial response. If more items are available, 
-  the result is marked as truncated. When `SessionEnabled` is also true, the 
-  remaining iterator state is stored in a session, allowing further traversal 
-  via `traverseiterator`. If disabled, iterators are either expanded up to 
-  `MaxIteratorResultItems` or require explicit traversal via session-based calls.
-  By default, `SessionExpansionEnabled` is set to `false`.
+  the result is marked as truncated (if `SessionEnabled` is false). When
+  `SessionEnabled` is also true, the remaining iterator state (if so) is stored
+  in a session, allowing further traversal via `traverseiterator`; iterator ID
+  field remains empty for cases when the iterator doesn't have more items after
+  expansion. If disabled, iterators are either expanded up to
+  `MaxIteratorResultItems` or require explicit traversal via session-based
+  calls. By default, `SessionExpansionEnabled` is set to `false`.
 - `SessionLifetime` (`Duration`) is a lifetime of iterator session. It is set to
   `TimePerBlock` seconds (but not less than 5s) by default and is relevant
   only if `SessionEnabled` is set to `true`.

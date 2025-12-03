@@ -229,7 +229,6 @@ func iterateNext(rpc RPCSessions, sessionID uuid.UUID, iterator *result.Iterator
 	}
 
 	var result []stackitem.Item
-
 	if iterator.Values != nil {
 		count := min(num, len(iterator.Values))
 		result = append(result, iterator.Values[:count]...)
