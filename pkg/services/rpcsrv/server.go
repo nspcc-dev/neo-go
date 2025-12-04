@@ -984,7 +984,7 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 			if len(w.VerificationScript) == 0 { // Contract-based verification
 				cs := s.chain.GetContractState(signer.Account)
 				if cs == nil {
-					return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidVerificationFunction, fmt.Sprintf("signer %d has no verification script and no deployed contract", i))
+					return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidVerificationFunction, fmt.Sprintf("signer %d (%s) has no verification script and no deployed contract", i, address.Uint160ToString(signer.Account)))
 				}
 				md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify, -1)
 				if md == nil || md.ReturnType != smartcontract.BoolType {
