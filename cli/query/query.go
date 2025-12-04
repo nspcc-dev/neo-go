@@ -35,6 +35,13 @@ func NewCommands() []*cli.Command {
 			Usage:   "Output full tx info and execution logs",
 		},
 	}, options.RPC...)
+	queryNotaryPoolFlags := append([]cli.Flag{
+		&cli.BoolFlag{
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "Output full main tx info",
+		},
+	}, options.RPC...)
 	return []*cli.Command{{
 		Name:  "query",
 		Usage: "Query data from RPC node",
@@ -59,6 +66,13 @@ func NewCommands() []*cli.Command {
 				UsageText: "neo-go query height -r endpoint [-s timeout]",
 				Action:    queryHeight,
 				Flags:     options.RPC,
+			},
+			{
+				Name:      "notarypool",
+				Usage:     "Query the content of the notary pool",
+				UsageText: "neo-go query notarypool -r endpoint [-s timeout] [-v]",
+				Action:    queryNotaryPool,
+				Flags:     queryNotaryPoolFlags,
 			},
 			{
 				Name:      "tx",
@@ -124,13 +138,17 @@ func DumpApplicationLog(
 	res *result.ApplicationLog,
 	tx *transaction.Transaction,
 	txMeta *result.TransactionMetadata,
-	verbose bool) error {
+	verbose bool,
+	fallbacks ...int) error {
 	var buf []byte
 
 	buf = fmt.Appendf(buf, "Hash:\t%s\n", tx.Hash().StringLE())
 	buf = fmt.Appendf(buf, "OnChain:\t%t\n", res != nil)
 	if res == nil {
 		buf = fmt.Appendf(buf, "ValidUntil:\t%s\n", strconv.FormatUint(uint64(tx.ValidUntilBlock), 10))
+		if len(fallbacks) != 0 {
+			buf = fmt.Appendf(buf, "Fallbacks:\t%d\n", fallbacks[0])
+		}
 	} else {
 		if txMeta != nil {
 			buf = fmt.Appendf(buf, "BlockHash:\t%s\n", txMeta.Blockhash.StringLE())
@@ -148,15 +166,17 @@ func DumpApplicationLog(
 		buf = fmt.Appendf(buf, "SystemFee:\t%s GAS\n", fixedn.Fixed8(tx.SystemFee).String())
 		buf = fmt.Appendf(buf, "NetworkFee:\t%s GAS\n", fixedn.Fixed8(tx.NetworkFee).String())
 		buf = fmt.Appendf(buf, "Script:\t%s\n", base64.StdEncoding.EncodeToString(tx.Script))
-		v := vm.New()
-		v.Load(tx.Script)
-		opts := bytes.NewBuffer(nil)
-		v.PrintOps(opts)
-		buf = append(buf, opts.Bytes()...)
-		if res != nil {
-			for _, e := range res.Executions {
-				if e.VMState != vmstate.Halt {
-					buf = fmt.Appendf(buf, "Exception:\t%s\n", e.FaultException)
+		if len(fallbacks) == 0 {
+			v := vm.New()
+			v.Load(tx.Script)
+			opts := bytes.NewBuffer(nil)
+			v.PrintOps(opts)
+			buf = append(buf, opts.Bytes()...)
+			if res != nil {
+				for _, e := range res.Executions {
+					if e.VMState != vmstate.Halt {
+						buf = fmt.Appendf(buf, "Exception:\t%s\n", e.FaultException)
+					}
 				}
 			}
 		}
@@ -315,5 +335,45 @@ func queryVoter(ctx *cli.Context) error {
 	fmt.Fprintf(ctx.App.Writer, "\tVoted: %s\n", voted)
 	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", fixedn.ToString(&st.Balance, int(dec)))
 	fmt.Fprintf(ctx.App.Writer, "\tBlock: %d\n", st.BalanceHeight)
+	return nil
+}
+
+func queryNotaryPool(ctx *cli.Context) error {
+	var err error
+
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.Exit(err, 1)
+	}
+
+	h, err := c.GetBlockCount()
+	if err != nil {
+		return cli.Exit(err, 1)
+	}
+	fmt.Fprintf(ctx.App.Writer, "Current height: %d\n", h)
+
+	p, err := c.GetRawNotaryPool()
+	if err != nil {
+		return cli.Exit(err, 1)
+	}
+	for m, fbs := range p.Hashes {
+		tx, err := c.GetRawNotaryTransaction(m)
+		if err != nil {
+			fmt.Fprintf(ctx.App.Writer, "%s (%d fallbacks): %s\n", m.StringLE(), len(fbs), err)
+			continue
+		}
+		err = DumpApplicationLog(ctx, nil, tx, nil, ctx.Bool("verbose"), len(fbs))
+		if err != nil {
+			return cli.Exit(err, 1)
+		}
+	}
+
 	return nil
 }
