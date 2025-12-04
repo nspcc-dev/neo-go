@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -56,7 +57,7 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		return nsigs, nil, false
 	}
 
-	ctx := NewContext(script)
+	ctx := scparser.NewContext(script, 0)
 	instr, param, err := ctx.Next()
 	if err != nil {
 		return nsigs, nil, false
@@ -98,7 +99,7 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		return nsigs, nil, false
 	}
 	instr, _, err = ctx.Next()
-	if err != nil || instr != opcode.RET || ctx.ip != len(script) {
+	if err != nil || instr != opcode.RET || ctx.IP() != len(script) {
 		return nsigs, nil, false
 	}
 	return nsigs, pubs, true
@@ -143,13 +144,13 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 		instrs = bitfield.New(l)
 		jumps  = bitfield.New(l)
 	)
-	ctx := NewContext(script)
-	for ctx.nextip < l {
+	ctx := scparser.NewContext(script, 0)
+	for ctx.NextIP() < l {
 		op, param, err := ctx.Next()
 		if err != nil {
 			return err
 		}
-		instrs.Set(ctx.ip)
+		instrs.Set(ctx.IP())
 		switch op {
 		case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
@@ -185,10 +186,10 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 		case opcode.NEWARRAYT, opcode.ISTYPE, opcode.CONVERT:
 			typ := stackitem.Type(param[0])
 			if !typ.IsValid() {
-				return fmt.Errorf("invalid type specification at offset %d", ctx.ip)
+				return fmt.Errorf("invalid type specification at offset %d", ctx.IP())
 			}
 			if typ == stackitem.AnyT && op != opcode.NEWARRAYT {
-				return fmt.Errorf("using type ANY is incorrect at offset %d", ctx.ip)
+				return fmt.Errorf("using type ANY is incorrect at offset %d", ctx.IP())
 			}
 		default:
 		}

@@ -1,19 +1,17 @@
 package vm
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -57,11 +55,7 @@ type scriptContext struct {
 
 // Context represents the current execution context of the VM.
 type Context struct {
-	// Instruction pointer.
-	ip int
-
-	// The next instruction pointer.
-	nextip int
+	scparser.Context
 
 	sc *scriptContext
 
@@ -85,8 +79,6 @@ type contextAux struct {
 // ContextUnloadCallback is a callback method used on context unloading from istack.
 type ContextUnloadCallback func(v *VM, ctx *Context, commit bool) error
 
-var errNoInstParam = errors.New("failed to read instruction parameter")
-
 // ErrMultiRet is returned when caller does not expect multiple return values
 // from callee.
 var ErrMultiRet = errors.New("multiple return values in a cross-contract call")
@@ -100,134 +92,17 @@ func NewContext(b []byte) *Context {
 // return value count and initial position in script.
 func NewContextWithParams(b []byte, rvcount int, pos int) *Context {
 	return &Context{
+		Context: *scparser.NewContext(b, pos),
 		sc: &scriptContext{
 			prog: b,
 		},
 		retCount: rvcount,
-		nextip:   pos,
 	}
 }
 
 // Estack returns the evaluation stack of c.
 func (c *Context) Estack() *Stack {
 	return c.sc.estack
-}
-
-// NextIP returns the next instruction pointer.
-func (c *Context) NextIP() int {
-	return c.nextip
-}
-
-// Jump unconditionally moves the next instruction pointer to the specified location.
-func (c *Context) Jump(pos int) {
-	if pos < 0 || pos >= len(c.sc.prog) {
-		panic("instruction offset is out of range")
-	}
-	c.nextip = pos
-}
-
-// Next returns the next instruction to execute with its parameter if any.
-// The parameter is not copied and shouldn't be written to. After its invocation,
-// the instruction pointer points to the instruction returned.
-func (c *Context) Next() (opcode.Opcode, []byte, error) {
-	var err error
-
-	c.ip = c.nextip
-	prog := c.sc.prog
-	if c.ip >= len(prog) {
-		return opcode.RET, nil, nil
-	}
-
-	var instrbyte = prog[c.ip]
-	instr := opcode.Opcode(instrbyte)
-	if !opcode.IsValid(instr) {
-		return instr, nil, fmt.Errorf("incorrect opcode %s", instr.String())
-	}
-	c.nextip++
-
-	var numtoread int
-	switch instr {
-	case opcode.PUSHDATA1:
-		if c.nextip >= len(prog) {
-			err = errNoInstParam
-		} else {
-			numtoread = int(prog[c.nextip])
-			c.nextip++
-		}
-	case opcode.PUSHDATA2:
-		if c.nextip+1 >= len(prog) {
-			err = errNoInstParam
-		} else {
-			numtoread = int(binary.LittleEndian.Uint16(prog[c.nextip : c.nextip+2]))
-			c.nextip += 2
-		}
-	case opcode.PUSHDATA4:
-		if c.nextip+3 >= len(prog) {
-			err = errNoInstParam
-		} else {
-			var n = binary.LittleEndian.Uint32(prog[c.nextip : c.nextip+4])
-			if n > stackitem.MaxSize {
-				return instr, nil, errors.New("parameter is too big")
-			}
-			numtoread = int(n)
-			c.nextip += 4
-		}
-	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
-		opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
-		opcode.CALL, opcode.ISTYPE, opcode.CONVERT, opcode.NEWARRAYT,
-		opcode.ENDTRY,
-		opcode.INITSSLOT, opcode.LDSFLD, opcode.STSFLD, opcode.LDARG, opcode.STARG, opcode.LDLOC, opcode.STLOC:
-		numtoread = 1
-	case opcode.INITSLOT, opcode.TRY, opcode.CALLT:
-		numtoread = 2
-	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
-		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
-		opcode.ENDTRYL,
-		opcode.CALLL, opcode.SYSCALL, opcode.PUSHA:
-		numtoread = 4
-	case opcode.TRYL:
-		numtoread = 8
-	default:
-		if instr <= opcode.PUSHINT256 {
-			numtoread = 1 << instr
-		} else {
-			// No parameters, can just return.
-			return instr, nil, nil
-		}
-	}
-	if c.nextip+numtoread-1 >= len(prog) {
-		err = errNoInstParam
-	}
-	if err != nil {
-		return instr, nil, err
-	}
-	parameter := prog[c.nextip : c.nextip+numtoread]
-	c.nextip += numtoread
-	return instr, parameter, nil
-}
-
-// IP returns the current instruction offset in the context script.
-func (c *Context) IP() int {
-	return c.ip
-}
-
-// LenInstr returns the number of instructions loaded.
-func (c *Context) LenInstr() int {
-	return len(c.sc.prog)
-}
-
-// CurrInstr returns the current instruction and opcode.
-func (c *Context) CurrInstr() (int, opcode.Opcode) {
-	return c.ip, opcode.Opcode(c.sc.prog[c.ip])
-}
-
-// NextInstr returns the next instruction and opcode.
-func (c *Context) NextInstr() (int, opcode.Opcode) {
-	op := opcode.RET
-	if c.nextip < len(c.sc.prog) {
-		op = opcode.Opcode(c.sc.prog[c.nextip])
-	}
-	return c.nextip, op
 }
 
 // GetCallFlags returns the calling flags which the context was created with.
@@ -264,7 +139,7 @@ func (c *Context) NumOfReturnVals() int {
 }
 
 func (c *Context) atBreakPoint() bool {
-	return slices.Contains(c.sc.breakPoints, c.nextip)
+	return slices.Contains(c.sc.breakPoints, c.NextIP())
 }
 
 // IsDeployed returns whether this context contains a deployed contract.
@@ -299,8 +174,8 @@ func (v *VM) PushContextScriptHash(n int) error {
 func (c *Context) MarshalJSON() ([]byte, error) {
 	var aux = contextAux{
 		Script: c.ScriptHash().StringLE(),
-		IP:     c.ip,
-		NextIP: c.nextip,
+		IP:     c.IP(),
+		NextIP: c.NextIP(),
 		Caller: c.sc.callingScriptHash.StringLE(),
 	}
 	return json.Marshal(aux)
