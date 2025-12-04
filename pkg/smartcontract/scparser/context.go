@@ -148,3 +148,25 @@ func (c *Context) NextInstr() (int, opcode.Opcode) {
 	}
 	return c.nextip, op
 }
+
+// CalcJumpOffset returns an absolute (wrt bytecode loaded into [Context])
+// and a relative (wrt current [Context.IP]) offset of JMP/CALL/TRY
+// instructions (and their long forms). 1 or 4 byte parameters are accepted.
+func (c *Context) CalcJumpOffset(parameter []byte) (int, int, error) {
+	var rOffset int32
+	switch l := len(parameter); l {
+	case 1:
+		rOffset = int32(int8(parameter[0]))
+	case 4:
+		rOffset = int32(binary.LittleEndian.Uint32(parameter))
+	default:
+		_, curr := c.CurrInstr()
+		return 0, 0, fmt.Errorf("invalid %s parameter length: %d", curr, l)
+	}
+	offset := c.IP() + int(rOffset)
+	if offset < 0 || offset > c.LenInstr() {
+		return 0, 0, fmt.Errorf("invalid offset %d ip at %d", offset, c.IP())
+	}
+
+	return offset, int(rOffset), nil
+}

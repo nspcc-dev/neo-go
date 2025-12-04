@@ -1,4 +1,4 @@
-package vm
+package scparser
 
 import (
 	"encoding/binary"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -57,7 +56,7 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		return nsigs, nil, false
 	}
 
-	ctx := scparser.NewContext(script, 0)
+	ctx := NewContext(script, 0)
 	instr, param, err := ctx.Next()
 	if err != nil {
 		return nsigs, nil, false
@@ -144,7 +143,7 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 		instrs = bitfield.New(l)
 		jumps  = bitfield.New(l)
 	)
-	ctx := scparser.NewContext(script, 0)
+	ctx := NewContext(script, 0)
 	for ctx.NextIP() < l {
 		op, param, err := ctx.Next()
 		if err != nil {
@@ -158,7 +157,7 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 			opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
 			opcode.ENDTRYL, opcode.CALLL, opcode.PUSHA:
-			off, _, err := calcJumpOffset(ctx, param)
+			off, _, err := ctx.CalcJumpOffset(param)
 			if err != nil {
 				return err
 			}
@@ -168,15 +167,15 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 				jumps.Set(off)
 			}
 		case opcode.TRY, opcode.TRYL:
-			catchP, finallyP := getTryParams(op, param)
-			off, _, err := calcJumpOffset(ctx, catchP)
+			catchP, finallyP := GetTryParams(op, param)
+			off, _, err := ctx.CalcJumpOffset(catchP)
 			if err != nil {
 				return err
 			}
 			if off != len(script) {
 				jumps.Set(off)
 			}
-			off, _, err = calcJumpOffset(ctx, finallyP)
+			off, _, err = ctx.CalcJumpOffset(finallyP)
 			if err != nil {
 				return err
 			}
@@ -201,4 +200,14 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 		return errors.New("some methods point to wrong offsets (not to instruction boundary)")
 	}
 	return nil
+}
+
+// GetTryParams splits [opcode.TRY] and [opcode.TRYL] instruction parameter
+// into offsets for catch and finally blocks.
+func GetTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
+	i := 1
+	if op == opcode.TRYL {
+		i = 4
+	}
+	return p[:i], p[i:]
 }

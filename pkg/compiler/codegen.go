@@ -22,7 +22,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -2516,7 +2515,7 @@ func codeGen(info *buildInfo) (*nef.File, *DebugInfo, error) {
 		f.Source = info.options.SourceURL
 	}
 	f.Checksum = f.CalculateChecksum()
-	return f, di, vm.IsScriptCorrect(buf, methods)
+	return f, di, scparser.IsScriptCorrect(buf, methods)
 }
 
 func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {

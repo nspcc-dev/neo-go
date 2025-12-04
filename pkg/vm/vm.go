@@ -266,7 +266,7 @@ func (v *VM) PrintOps(out io.Writer) {
 				opcode.PUSHA, opcode.ENDTRY, opcode.ENDTRYL:
 				desc = getOffsetDesc(ctx, parameter)
 			case opcode.TRY, opcode.TRYL:
-				catchP, finallyP := getTryParams(instr, parameter)
+				catchP, finallyP := scparser.GetTryParams(instr, parameter)
 				desc = fmt.Sprintf("catch %s, finally %s",
 					getOffsetDesc(ctx, catchP), getOffsetDesc(ctx, finallyP))
 			case opcode.INITSSLOT:
@@ -313,7 +313,7 @@ func (v *VM) PrintOps(out io.Writer) {
 }
 
 func getOffsetDesc(ctx *Context, parameter []byte) string {
-	offset, rOffset, err := calcJumpOffset(&ctx.Context, parameter)
+	offset, rOffset, err := ctx.CalcJumpOffset(parameter)
 	if err != nil {
 		return fmt.Sprintf("ERROR: %v", err)
 	}
@@ -1704,7 +1704,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.TRY, opcode.TRYL:
-		catchP, finallyP := getTryParams(op, parameter)
+		catchP, finallyP := scparser.GetTryParams(op, parameter)
 		if ctx.tryStack.Len() >= MaxTryNestingDepth {
 			panic("maximum TRY depth exceeded")
 		}
@@ -1774,15 +1774,6 @@ func (v *VM) unloadContext(ctx *Context) {
 	}
 }
 
-// getTryParams splits TRY(L) instruction parameter into offsets for catch and finally blocks.
-func getTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
-	i := 1
-	if op == opcode.TRYL {
-		i = 4
-	}
-	return p[:i], p[i:]
-}
-
 // getJumpCondition performs opcode specific comparison of a and b.
 func getJumpCondition(op opcode.Opcode, a, b *big.Int) bool {
 	cmp := a.Cmp(b)
@@ -1836,32 +1827,11 @@ func (v *VM) call(ctx *Context, offset int) {
 // parameter should have length either 1 or 4 and
 // is interpreted as little-endian.
 func getJumpOffset(ctx *Context, parameter []byte) int {
-	offset, _, err := calcJumpOffset(&ctx.Context, parameter)
+	offset, _, err := ctx.CalcJumpOffset(parameter)
 	if err != nil {
 		panic(err)
 	}
 	return offset
-}
-
-// calcJumpOffset returns an absolute and a relative offset of JMP/CALL/TRY instructions
-// either in a short (1-byte) or a long (4-byte) form.
-func calcJumpOffset(ctx *scparser.Context, parameter []byte) (int, int, error) {
-	var rOffset int32
-	switch l := len(parameter); l {
-	case 1:
-		rOffset = int32(int8(parameter[0]))
-	case 4:
-		rOffset = int32(binary.LittleEndian.Uint32(parameter))
-	default:
-		_, curr := ctx.CurrInstr()
-		return 0, 0, fmt.Errorf("invalid %s parameter length: %d", curr, l)
-	}
-	offset := ctx.IP() + int(rOffset)
-	if offset < 0 || offset > ctx.LenInstr() {
-		return 0, 0, fmt.Errorf("invalid offset %d ip at %d", offset, ctx.IP())
-	}
-
-	return offset, int(rOffset), nil
 }
 
 func (v *VM) handleException() {

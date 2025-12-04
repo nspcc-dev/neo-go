@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -125,7 +125,7 @@ func LoadScript(ic *interop.Context) error {
 		return errors.New("call flags out of range")
 	}
 	args := ic.VM.Estack().Pop().Array()
-	err := vm.IsScriptCorrect(script, nil)
+	err := scparser.IsScriptCorrect(script, nil)
 	if err != nil {
 		return fmt.Errorf("invalid script: %w", err)
 	}

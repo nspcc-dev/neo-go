@@ -1,6 +1,7 @@
-package vm
+package scparser
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"slices"
 	"testing"
@@ -27,7 +28,8 @@ func testSignatureContract() []byte {
 
 func TestParseSignatureContract(t *testing.T) {
 	prog := testSignatureContract()
-	pub := randomBytes(33)
+	pub := make([]byte, 33)
+	_, _ = rand.Read(pub)
 	copy(prog[2:], pub)
 	actual, ok := ParseSignatureContract(prog)
 	require.True(t, ok)
