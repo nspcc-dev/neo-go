@@ -43,7 +43,7 @@ jobs:
 
   gomodcheck:
     name: Check internal dependencies
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +52,9 @@ jobs:
       - name: Check dependencies
         run: |
           ./scripts/check_deps.sh
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
       - name: Check go.mod is tidy
         run: |
           go mod tidy
@@ -63,7 +66,7 @@ jobs:
 
   codegencheck:
     name: Check code generated with 'go generate' is up-to-date
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     steps:
       - uses: actions/checkout@v4
