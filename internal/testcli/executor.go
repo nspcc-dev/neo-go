@@ -47,6 +47,7 @@ const (
 
 	TestWalletPath    = "../testdata/testwallet.json"
 	TestWalletAccount = "Nfyz4KcsgYepRJw1W5C2uKCi6QWKf7v6gG"
+	TestWalletPass    = "testpass"
 
 	TestWalletMultiPath     = "../testdata/testwallet_multi.json"
 	TestWalletMultiAccount1 = "NgHcPxgEKZQV4QBedzyASJrgiANhJqBVLw"

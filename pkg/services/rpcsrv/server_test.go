@@ -3274,7 +3274,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				}},
 			}
 			body := calcReq(t, tx)
-			_ = checkErrGetResult(t, body, true, neorpc.ErrInvalidVerificationFunctionCode, "signer 0 has no verification script and no deployed contract")
+			_ = checkErrGetResult(t, body, true, neorpc.ErrInvalidVerificationFunctionCode, fmt.Sprintf("signer 0 (%s) has no verification script and no deployed contract", address.Uint160ToString(util.Uint160{1, 2, 3})))
 		})
 		t.Run("contract with no verify", func(t *testing.T) {
 			tx := &transaction.Transaction{
