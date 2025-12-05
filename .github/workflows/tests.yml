@@ -170,13 +170,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-14]
+        os: [ubuntu-22.04, windows-2022, macos-latest]
         go_versions: [ '1.24', '1.25' ]
         exclude:
           # Only latest Go version for Windows and MacOS.
           - os: windows-2022
             go_versions: '1.24'
-          - os: macos-14
+          - os: macos-latest
             go_versions: '1.24'
           # Exclude latest Go version for Ubuntu as Coverage uses it.
           - os: ubuntu-22.04
