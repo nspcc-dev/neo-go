@@ -278,9 +278,11 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	_, _, _ = deployContractFromPriv0(t, storagePath, "Storage", storageCfg, StorageContractID)
 
 	// Block #23: add FAULTed transaction to check WSClient waitloops.
-	faultedInvoker := e.NewInvoker(cHash, acc0)
-	faultedH := faultedInvoker.InvokeScriptCheckFAULT(t, []byte{byte(opcode.ABORT)}, []neotest.Signer{acc0}, "at instruction 0 (ABORT): ABORT")
-	t.Logf("FAULTed transaction:\n\thash LE: %s\n\tblock index: %d", faultedH.StringLE(), e.Chain.BlockHeight())
+	faultedTx := e.PrepareInvocationNoSign(t, []byte{byte(opcode.ABORT)}, e.Chain.BlockHeight()+2) // use larger VUB for TestClient_Wait.
+	e.SignTx(t, faultedTx, -1, acc0)
+	e.AddNewBlock(t, faultedTx)
+	e.CheckFault(t, faultedTx.Hash(), "at instruction 0 (ABORT): ABORT")
+	t.Logf("FAULTed transaction:\n\thash LE: %s\n\tblock index: %d", faultedTx.Hash().StringLE(), e.Chain.BlockHeight())
 
 	// Compile contract to test `invokescript` RPC call
 	invokePath := filepath.Join(testDataPrefix, "invoke", "invokescript_contract.go")

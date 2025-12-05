@@ -1834,9 +1834,12 @@ func TestClient_Wait(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		b, err := chain.GetBlock(chain.GetHeaderHash(1))
+		b1, err := chain.GetBlock(chain.GetHeaderHash(1))
 		require.NoError(t, err)
-		require.True(t, len(b.Transactions) > 0)
+		require.True(t, len(b1.Transactions) > 0)
+		b23, err := chain.GetBlock(chain.GetHeaderHash(23)) // block with faulted tx and extended VUB.
+		require.NoError(t, err)
+		require.True(t, len(b23.Transactions) > 0)
 
 		// Ensure Waiter constructor works properly.
 		if ws {
@@ -1847,10 +1850,15 @@ func TestClient_Wait(t *testing.T) {
 			require.True(t, ok)
 		}
 
-		check := func(t *testing.T, h util.Uint256, vub uint32, errExpected bool) {
+		check := func(t *testing.T, tx *transaction.Transaction, h util.Uint256, vub uint32, errExpected bool) {
 			rcvr := make(chan struct{})
 			go func() {
-				aer, err := act.Wait(context.Background(), h, vub, nil)
+				var err error
+				if tx != nil {
+					// Send one more time to ensure [neorpc.ErrAlreadyExists] is properly handled by Waiter.
+					h, vub, err = act.Send(tx)
+				}
+				aer, err := act.Wait(context.Background(), h, vub, err)
 				if errExpected {
 					require.Error(t, err)
 				} else {
@@ -1870,15 +1878,17 @@ func TestClient_Wait(t *testing.T) {
 			}
 		}
 
+		// Wait for a transaction that is already on-chain and double-sent.
+		check(t, b23.Transactions[0], util.Uint256{}, 0, false)
 		// Wait for transaction that has been persisted and VUB block has been persisted.
-		check(t, b.Transactions[0].Hash(), chain.BlockHeight()-1, false)
+		check(t, nil, b1.Transactions[0].Hash(), chain.BlockHeight()-1, false)
 		// Wait for transaction that has been persisted and VUB block hasn't yet been persisted.
-		check(t, b.Transactions[0].Hash(), chain.BlockHeight()+1, false)
+		check(t, nil, b1.Transactions[0].Hash(), chain.BlockHeight()+1, false)
 		if !ws {
 			// Wait for transaction that hasn't been persisted and VUB block has been persisted.
 			// WS client waits for the next block to be accepted to ensure that transaction wasn't
 			// persisted, and this test doesn't run chain, thus, don't run this test for WS client.
-			check(t, util.Uint256{1, 2, 3}, chain.BlockHeight()-1, true)
+			check(t, nil, util.Uint256{1, 2, 3}, chain.BlockHeight()-1, true)
 		}
 	}
 

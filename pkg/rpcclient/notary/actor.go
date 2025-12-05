@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
@@ -328,13 +328,12 @@ func (a *Actor) SendRequestExactly(mainTx *transaction.Transaction, fbTx *transa
 // the resulting application execution result or actor.ErrTxNotAccepted if both transactions
 // failed to persist. Wait can be used if underlying Actor supports transaction awaiting,
 // see actor.Actor and actor.Waiter documentation for details. Wait may be used as a wrapper
-// for Notarize, SendRequest or SendRequestExactly. Notice that "already exists" or "already
-// on chain" answers are not treated as errors by this routine because they mean that some
+// for Notarize, SendRequest or SendRequestExactly. Notice that [neorpc.ErrAlreadyExists]
+// answer is not treated as an error by this routine because they mean that some
 // of the transactions given might be already accepted or soon going to be accepted. These
 // transactions can be waited for in a usual way potentially with positive result.
 func (a *Actor) Wait(mainHash, fbHash util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
-	// #2248 will eventually remove this garbage from the code.
-	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "already exists") && !strings.Contains(strings.ToLower(err.Error()), "already on chain") {
+	if err != nil && !errors.Is(err, neorpc.ErrAlreadyExists) {
 		return nil, err
 	}
 	return a.WaitAny(context.TODO(), vub, mainHash, fbHash)
