@@ -459,7 +459,17 @@ func (s *FakeStateSync) AddMPTNodes(nodes [][]byte) error {
 }
 
 // AddContractStorageItems implements the StateSync interface.
-func (s *FakeStateSync) AddContractStorageItems(kv []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256) error {
+func (s *FakeStateSync) AddContractStorageItems(kv []storage.KeyValue) error {
+	panic("TODO")
+}
+
+// InitContractStorageSync implements the StateSync interface.
+func (s *FakeStateSync) InitContractStorageSync(r state.MPTRoot) error {
+	panic("TODO")
+}
+
+// VerifyWitness implements the StateSync interface.
+func (s *FakeStateSync) VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error) {
 	panic("TODO")
 }
 
