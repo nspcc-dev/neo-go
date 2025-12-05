@@ -50,9 +50,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -992,9 +992,9 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 				}
 				paramz = md.Parameters // Might as well have none params and it's OK.
 			} else { // Regular signature verification.
-				if vm.IsSignatureContract(w.VerificationScript) {
+				if scparser.IsSignatureContract(w.VerificationScript) {
 					paramz = []manifest.Parameter{{Type: smartcontract.SignatureType}}
-				} else if nSigs, _, ok := vm.ParseMultiSigContract(w.VerificationScript); ok {
+				} else if nSigs, _, ok := scparser.ParseMultiSigContract(w.VerificationScript); ok {
 					paramz = make([]manifest.Parameter, nSigs)
 					for j := range paramz {
 						paramz[j] = manifest.Parameter{Type: smartcontract.SignatureType}

@@ -12,8 +12,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -59,7 +59,7 @@ type multiSigner struct {
 // NewSingleSigner creates a [SingleSigner] from the provided account. It has
 // just one key, see [NewMultiSigner] for multisignature accounts.
 func NewSingleSigner(acc *wallet.Account) SingleSigner {
-	if !vm.IsSignatureContract(acc.Contract.Script) {
+	if !scparser.IsSignatureContract(acc.Contract.Script) {
 		panic("account must have simple-signature verification script")
 	}
 	return (*signer)(acc)
@@ -98,7 +98,7 @@ func NewMultiSigner(accs ...*wallet.Account) MultiSigner {
 		panic("empty account list")
 	}
 	script := accs[0].Contract.Script
-	m, _, ok := vm.ParseMultiSigContract(script)
+	m, _, ok := scparser.ParseMultiSigContract(script)
 	if !ok {
 		panic("all accounts must have multi-signature verification script")
 	}

@@ -22,8 +22,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli/v2"
 )
@@ -819,7 +819,7 @@ func dumpKeys(ctx *cli.Context) error {
 
 	hasPrinted := false
 	for _, acc := range accounts {
-		pub, ok := vm.ParseSignatureContract(acc.Contract.Script)
+		pub, ok := scparser.ParseSignatureContract(acc.Contract.Script)
 		if ok {
 			if hasPrinted {
 				fmt.Fprintln(ctx.App.Writer)
@@ -829,7 +829,7 @@ func dumpKeys(ctx *cli.Context) error {
 			hasPrinted = true
 			continue
 		}
-		n, bs, ok := vm.ParseMultiSigContract(acc.Contract.Script)
+		n, bs, ok := scparser.ParseMultiSigContract(acc.Contract.Script)
 		if ok {
 			if hasPrinted {
 				fmt.Fprintln(ctx.App.Writer)

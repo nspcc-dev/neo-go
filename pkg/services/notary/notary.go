@@ -21,8 +21,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
@@ -536,7 +536,7 @@ func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExp
 				return nil, fmt.Errorf("witness #%d: invocation script should have length = 66 and be of the form [PUSHDATA1, 64, signatureBytes...]", i)
 			}
 		}
-		if nSigs, pubsBytes, ok := vm.ParseMultiSigContract(w.VerificationScript); ok {
+		if nSigs, pubsBytes, ok := scparser.ParseMultiSigContract(w.VerificationScript); ok {
 			result[i] = witnessInfo{
 				typ:       MultiSignature,
 				nSigsLeft: uint8(nSigs),
@@ -552,7 +552,7 @@ func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExp
 			nKeysActual += uint8(len(pubsBytes))
 			continue
 		}
-		if pBytes, ok := vm.ParseSignatureContract(w.VerificationScript); ok {
+		if pBytes, ok := scparser.ParseSignatureContract(w.VerificationScript); ok {
 			pub, err := keys.NewPublicKeyFromBytes(pBytes, elliptic.P256())
 			if err != nil {
 				return nil, fmt.Errorf("witness #%d: invalid bytes of public key: %s", i, hex.EncodeToString(pBytes))

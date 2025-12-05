@@ -13,8 +13,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -155,11 +155,11 @@ func newTunedActor(c RPCActor, signers []actor.SignerAccount, simpleAcc *wallet.
 		if sa.Account.Contract.Deployed {
 			continue
 		}
-		if vm.IsSignatureContract(sa.Account.Contract.Script) {
+		if scparser.IsSignatureContract(sa.Account.Contract.Script) {
 			nKeys++
 			continue
 		}
-		_, pubs, ok := vm.ParseMultiSigContract(sa.Account.Contract.Script)
+		_, pubs, ok := scparser.ParseMultiSigContract(sa.Account.Contract.Script)
 		if !ok {
 			return nil, fmt.Errorf("signer %s is not a contract- or signature-based", sa.Account.Address)
 		}
@@ -174,7 +174,7 @@ func newTunedActor(c RPCActor, signers []actor.SignerAccount, simpleAcc *wallet.
 	if !simpleAcc.CanSign() {
 		return nil, errors.New("bad simple account: can't sign")
 	}
-	if !vm.IsSignatureContract(simpleAcc.Contract.Script) && !simpleAcc.Contract.Deployed {
+	if !scparser.IsSignatureContract(simpleAcc.Contract.Script) && !simpleAcc.Contract.Deployed {
 		return nil, errors.New("bad simple account: neither plain signature, nor contract")
 	}
 	// Not reusing mainActor/fbActor for ContractReader to make requests a bit lighter.

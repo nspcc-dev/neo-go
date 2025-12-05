@@ -39,6 +39,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -2921,7 +2922,7 @@ var (
 func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.Pool, feer mempool.Feer, data ...any) error {
 	// This code can technically be moved out of here, because it doesn't
 	// really require a chain lock.
-	err := vm.IsScriptCorrect(t.Script, nil)
+	err := scparser.IsScriptCorrect(t.Script, nil)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrInvalidScript, err)
 	}
@@ -3118,7 +3119,7 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 		return false
 	}
 	for i := range t.Scripts {
-		if !vm.IsStandardContract(t.Scripts[i].VerificationScript) {
+		if !scparser.IsStandardContract(t.Scripts[i].VerificationScript) {
 			recheckWitness = true
 			break
 		}
@@ -3330,7 +3331,7 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 		if bc.contracts.ByHash(hash) != nil {
 			return ErrNativeContractWitness
 		}
-		err := vm.IsScriptCorrect(witness.VerificationScript, nil)
+		err := scparser.IsScriptCorrect(witness.VerificationScript, nil)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrInvalidVerificationScript, err)
 		}
@@ -3355,7 +3356,7 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 			true, verifyOffset, initOffset, nil)
 	}
 	if len(witness.InvocationScript) != 0 {
-		err := vm.IsScriptCorrect(witness.InvocationScript, nil)
+		err := scparser.IsScriptCorrect(witness.InvocationScript, nil)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrInvalidInvocationScript, err)
 		}

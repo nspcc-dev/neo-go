@@ -19,9 +19,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -2515,7 +2515,7 @@ func codeGen(info *buildInfo) (*nef.File, *DebugInfo, error) {
 		f.Source = info.options.SourceURL
 	}
 	f.Checksum = f.CalculateChecksum()
-	return f, di, vm.IsScriptCorrect(buf, methods)
+	return f, di, scparser.IsScriptCorrect(buf, methods)
 }
 
 func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
@@ -2529,7 +2529,7 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 }
 
 func (c *codegen) writeJumps(b []byte) ([]byte, error) {
-	ctx := vm.NewContext(b)
+	ctx := scparser.NewContext(b, 0)
 	var nopOffsets []int
 	for op, param, err := ctx.Next(); err == nil && ctx.IP() < len(b); op, param, err = ctx.Next() {
 		switch op {
@@ -2649,7 +2649,7 @@ func removeNOPs(b []byte, nopOffsets []int, sequencePoints map[string][]DebugSeq
 	}
 
 	// 1. Alter existing jump offsets.
-	ctx := vm.NewContext(b)
+	ctx := scparser.NewContext(b, 0)
 	for op, _, err := ctx.Next(); err == nil && ctx.IP() < len(b); op, _, err = ctx.Next() {
 		// we can't use arg returned by ctx.Next() because it is copied
 		nextIP := ctx.NextIP()

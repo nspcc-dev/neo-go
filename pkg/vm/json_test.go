@@ -167,11 +167,11 @@ func testFile(t *testing.T, filename string) {
 					if len(result.InvocationStack) > 0 {
 						for i, s := range result.InvocationStack {
 							ctx := vm.istack[len(vm.istack)-1-i]
-							if ctx.nextip < len(ctx.sc.prog) {
-								require.Equal(t, s.InstructionPointer, ctx.nextip)
+							if ctx.NextIP() < ctx.LenInstr() {
+								require.Equal(t, s.InstructionPointer, ctx.NextIP())
 								op, err := opcode.FromString(s.Instruction)
 								require.NoError(t, err)
-								require.Equal(t, op, opcode.Opcode(ctx.sc.prog[ctx.nextip]))
+								require.Equal(t, op, opcode.Opcode(prog[ctx.NextIP()]))
 							}
 							compareStacks(t, s.EStack, vm.estack)
 							compareSlots(t, s.StaticFields, ctx.sc.static)

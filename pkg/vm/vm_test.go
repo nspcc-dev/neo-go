@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -1553,7 +1554,7 @@ func TestKEYS(t *testing.T) {
 
 func TestTry_ENDFINALLY_before_ENDTRY(t *testing.T) {
 	prog := makeProgram(opcode.TRY, 0, 3, opcode.ENDFINALLY)
-	require.NoError(t, IsScriptCorrect(prog, nil))
+	require.NoError(t, scparser.IsScriptCorrect(prog, nil))
 
 	v := load(prog)
 

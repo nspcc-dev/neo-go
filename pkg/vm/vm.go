@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
@@ -242,15 +243,15 @@ func (v *VM) PrintOps(out io.Writer) {
 	w := tabwriter.NewWriter(out, 0, 0, 4, ' ', 0)
 	fmt.Fprintln(w, "INDEX\tOPCODE\tPARAMETER")
 	realctx := v.Context()
-	ctx := &Context{sc: realctx.sc}
+	ctx := &Context{Context: *scparser.NewContext(realctx.sc.prog, 0), sc: realctx.sc}
 	for {
 		cursor := ""
 		instr, parameter, err := ctx.Next()
-		if ctx.ip == realctx.ip {
+		if ctx.IP() == realctx.IP() {
 			cursor = "\t<<"
 		}
 		if err != nil {
-			fmt.Fprintf(w, "%d\t%s\tERROR: %s%s\n", ctx.ip, instr, err, cursor)
+			fmt.Fprintf(w, "%d\t%s\tERROR: %s%s\n", ctx.IP(), instr, err, cursor)
 			break
 		}
 		var desc = ""
@@ -265,7 +266,7 @@ func (v *VM) PrintOps(out io.Writer) {
 				opcode.PUSHA, opcode.ENDTRY, opcode.ENDTRYL:
 				desc = getOffsetDesc(ctx, parameter)
 			case opcode.TRY, opcode.TRYL:
-				catchP, finallyP := getTryParams(instr, parameter)
+				catchP, finallyP := scparser.GetTryParams(instr, parameter)
 				desc = fmt.Sprintf("catch %s, finally %s",
 					getOffsetDesc(ctx, catchP), getOffsetDesc(ctx, finallyP))
 			case opcode.INITSSLOT:
@@ -303,8 +304,8 @@ func (v *VM) PrintOps(out io.Writer) {
 			}
 		}
 
-		fmt.Fprintf(w, "%d\t%s\t%s%s\n", ctx.ip, instr, desc, cursor)
-		if ctx.nextip >= len(ctx.sc.prog) {
+		fmt.Fprintf(w, "%d\t%s\t%s%s\n", ctx.IP(), instr, desc, cursor)
+		if ctx.NextIP() >= ctx.LenInstr() {
 			break
 		}
 	}
@@ -312,7 +313,7 @@ func (v *VM) PrintOps(out io.Writer) {
 }
 
 func getOffsetDesc(ctx *Context, parameter []byte) string {
-	offset, rOffset, err := calcJumpOffset(ctx, parameter)
+	offset, rOffset, err := ctx.CalcJumpOffset(parameter)
 	if err != nil {
 		return fmt.Sprintf("ERROR: %v", err)
 	}
@@ -337,7 +338,7 @@ func (v *VM) RemoveBreakPoint(n int) {
 // instruction pointer.
 func (v *VM) AddBreakPointRel(n int) {
 	ctx := v.Context()
-	v.AddBreakPoint(ctx.nextip + n)
+	v.AddBreakPoint(ctx.NextIP() + n)
 }
 
 // LoadFileWithFlags loads a program in NEF format from the given path, ready to execute it.
@@ -554,7 +555,7 @@ func (v *VM) Step() error {
 
 // step executes one instruction in the given context.
 func (v *VM) step(ctx *Context) error {
-	ip := ctx.nextip
+	ip := ctx.NextIP()
 	op, param, err := ctx.Next()
 	if v.hooks.onExec != nil {
 		scriptHash := v.GetCurrentScriptHash()
@@ -562,7 +563,7 @@ func (v *VM) step(ctx *Context) error {
 	}
 	if err != nil {
 		v.state = vmstate.Fault
-		return newError(ctx.ip, op, err)
+		return newError(ctx.IP(), op, err)
 	}
 	return v.execute(ctx, op, param)
 }
@@ -584,7 +585,7 @@ func (v *VM) StepInto() error {
 		op, param, err := ctx.Next()
 		if err != nil {
 			v.state = vmstate.Fault
-			return newError(ctx.ip, op, err)
+			return newError(ctx.IP(), op, err)
 		}
 		vErr := v.execute(ctx, op, param)
 		if vErr != nil {
@@ -676,14 +677,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	defer func() {
 		if errRecover := recover(); errRecover != nil {
 			v.state = vmstate.Fault
-			err = newError(ctx.ip, op, errRecover)
+			err = newError(ctx.IP(), op, errRecover)
 		} else if v.refs > MaxStackSize {
 			v.state = vmstate.Fault
-			err = newError(ctx.ip, op, fmt.Sprintf("stack is too big: %d vs %d", int(v.refs), MaxStackSize))
+			err = newError(ctx.IP(), op, fmt.Sprintf("stack is too big: %d vs %d", int(v.refs), MaxStackSize))
 		}
 	}()
 
-	if v.getPrice != nil && ctx.ip < len(ctx.sc.prog) {
+	if v.getPrice != nil && ctx.IP() < len(ctx.sc.prog) {
 		v.gasConsumed += v.getPrice(op, parameter)
 		if v.gasLimit >= 0 && v.gasConsumed > v.gasLimit {
 			panic("gas limit is exceeded")
@@ -1703,17 +1704,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.TRY, opcode.TRYL:
-		catchP, finallyP := getTryParams(op, parameter)
+		catchP, finallyP := scparser.GetTryParams(op, parameter)
 		if ctx.tryStack.Len() >= MaxTryNestingDepth {
 			panic("maximum TRY depth exceeded")
 		}
 		cOffset := getJumpOffset(ctx, catchP)
 		fOffset := getJumpOffset(ctx, finallyP)
-		if cOffset == ctx.ip && fOffset == ctx.ip {
+		if cOffset == ctx.IP() && fOffset == ctx.IP() {
 			panic("invalid offset for TRY*")
-		} else if cOffset == ctx.ip {
+		} else if cOffset == ctx.IP() {
 			cOffset = -1
-		} else if fOffset == ctx.ip {
+		} else if fOffset == ctx.IP() {
 			fOffset = -1
 		}
 		eCtx := newExceptionHandlingContext(cOffset, fOffset)
@@ -1773,15 +1774,6 @@ func (v *VM) unloadContext(ctx *Context) {
 	}
 }
 
-// getTryParams splits TRY(L) instruction parameter into offsets for catch and finally blocks.
-func getTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
-	i := 1
-	if op == opcode.TRYL {
-		i = 4
-	}
-	return p[:i], p[i:]
-}
-
 // getJumpCondition performs opcode specific comparison of a and b.
 func getJumpCondition(op opcode.Opcode, a, b *big.Int) bool {
 	cmp := a.Cmp(b)
@@ -1819,6 +1811,7 @@ func (v *VM) Call(offset int) {
 func (v *VM) call(ctx *Context, offset int) {
 	v.checkInvocationStackSize()
 	newCtx := &Context{
+		Context:  *scparser.NewContext(ctx.sc.prog, 0),
 		sc:       ctx.sc,
 		retCount: -1,
 		tryStack: ctx.tryStack,
@@ -1834,32 +1827,11 @@ func (v *VM) call(ctx *Context, offset int) {
 // parameter should have length either 1 or 4 and
 // is interpreted as little-endian.
 func getJumpOffset(ctx *Context, parameter []byte) int {
-	offset, _, err := calcJumpOffset(ctx, parameter)
+	offset, _, err := ctx.CalcJumpOffset(parameter)
 	if err != nil {
 		panic(err)
 	}
 	return offset
-}
-
-// calcJumpOffset returns an absolute and a relative offset of JMP/CALL/TRY instructions
-// either in a short (1-byte) or a long (4-byte) form.
-func calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
-	var rOffset int32
-	switch l := len(parameter); l {
-	case 1:
-		rOffset = int32(int8(parameter[0]))
-	case 4:
-		rOffset = int32(binary.LittleEndian.Uint32(parameter))
-	default:
-		_, curr := ctx.CurrInstr()
-		return 0, 0, fmt.Errorf("invalid %s parameter length: %d", curr, l)
-	}
-	offset := ctx.ip + int(rOffset)
-	if offset < 0 || offset > len(ctx.sc.prog) {
-		return 0, 0, fmt.Errorf("invalid offset %d ip at %d", offset, ctx.ip)
-	}
-
-	return offset, int(rOffset), nil
 }
 
 func (v *VM) handleException() {

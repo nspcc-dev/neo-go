@@ -10,8 +10,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 const (
@@ -237,7 +237,7 @@ func (w *Wallet) GetChangeAddress() util.Uint160 {
 
 	for i := range w.Accounts {
 		if acc == nil || w.Accounts[i].Default {
-			if w.Accounts[i].Contract != nil && vm.IsSignatureContract(w.Accounts[i].Contract.Script) {
+			if w.Accounts[i].Contract != nil && scparser.IsSignatureContract(w.Accounts[i].Contract.Script) {
 				acc = w.Accounts[i]
 				if w.Accounts[i].Default {
 					break

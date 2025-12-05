@@ -2,6 +2,7 @@ package fee
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -16,10 +17,10 @@ func Calculate(base int64, script []byte) (int64, int) {
 		netFee int64
 		size   int
 	)
-	if vm.IsSignatureContract(script) {
+	if scparser.IsSignatureContract(script) {
 		size += 67 + io.GetVarSize(script)
 		netFee += Opcode(base, opcode.PUSHDATA1, opcode.PUSHDATA1) + base*ECDSAVerifyPrice
-	} else if m, pubs, ok := vm.ParseMultiSigContract(script); ok {
+	} else if m, pubs, ok := scparser.ParseMultiSigContract(script); ok {
 		n := len(pubs)
 		sizeInv := 66 * m
 		size += io.GetVarSize(sizeInv) + sizeInv + io.GetVarSize(script)

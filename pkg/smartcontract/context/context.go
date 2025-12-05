@@ -15,8 +15,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
@@ -101,7 +101,7 @@ func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, err
 // AddSignature adds a signature for the specified contract and public key.
 func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pub *keys.PublicKey, sig []byte) error {
 	item := c.getItemForContract(h, ctr)
-	if _, pubs, ok := vm.ParseMultiSigContract(ctr.Script); ok {
+	if _, pubs, ok := scparser.ParseMultiSigContract(ctr.Script); ok {
 		if item.GetSignature(pub) != nil {
 			return errors.New("signature is already added")
 		}

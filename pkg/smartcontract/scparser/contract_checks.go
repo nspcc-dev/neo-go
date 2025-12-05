@@ -1,4 +1,4 @@
-package vm
+package scparser
 
 import (
 	"encoding/binary"
@@ -56,7 +56,7 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		return nsigs, nil, false
 	}
 
-	ctx := NewContext(script)
+	ctx := NewContext(script, 0)
 	instr, param, err := ctx.Next()
 	if err != nil {
 		return nsigs, nil, false
@@ -98,7 +98,7 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		return nsigs, nil, false
 	}
 	instr, _, err = ctx.Next()
-	if err != nil || instr != opcode.RET || ctx.ip != len(script) {
+	if err != nil || instr != opcode.RET || ctx.IP() != len(script) {
 		return nsigs, nil, false
 	}
 	return nsigs, pubs, true
@@ -143,13 +143,13 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 		instrs = bitfield.New(l)
 		jumps  = bitfield.New(l)
 	)
-	ctx := NewContext(script)
-	for ctx.nextip < l {
+	ctx := NewContext(script, 0)
+	for ctx.NextIP() < l {
 		op, param, err := ctx.Next()
 		if err != nil {
 			return err
 		}
-		instrs.Set(ctx.ip)
+		instrs.Set(ctx.IP())
 		switch op {
 		case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
@@ -157,7 +157,7 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 			opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
 			opcode.ENDTRYL, opcode.CALLL, opcode.PUSHA:
-			off, _, err := calcJumpOffset(ctx, param)
+			off, _, err := ctx.CalcJumpOffset(param)
 			if err != nil {
 				return err
 			}
@@ -167,15 +167,15 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 				jumps.Set(off)
 			}
 		case opcode.TRY, opcode.TRYL:
-			catchP, finallyP := getTryParams(op, param)
-			off, _, err := calcJumpOffset(ctx, catchP)
+			catchP, finallyP := GetTryParams(op, param)
+			off, _, err := ctx.CalcJumpOffset(catchP)
 			if err != nil {
 				return err
 			}
 			if off != len(script) {
 				jumps.Set(off)
 			}
-			off, _, err = calcJumpOffset(ctx, finallyP)
+			off, _, err = ctx.CalcJumpOffset(finallyP)
 			if err != nil {
 				return err
 			}
@@ -185,10 +185,10 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 		case opcode.NEWARRAYT, opcode.ISTYPE, opcode.CONVERT:
 			typ := stackitem.Type(param[0])
 			if !typ.IsValid() {
-				return fmt.Errorf("invalid type specification at offset %d", ctx.ip)
+				return fmt.Errorf("invalid type specification at offset %d", ctx.IP())
 			}
 			if typ == stackitem.AnyT && op != opcode.NEWARRAYT {
-				return fmt.Errorf("using type ANY is incorrect at offset %d", ctx.ip)
+				return fmt.Errorf("using type ANY is incorrect at offset %d", ctx.IP())
 			}
 		default:
 		}
@@ -200,4 +200,14 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 		return errors.New("some methods point to wrong offsets (not to instruction boundary)")
 	}
 	return nil
+}
+
+// GetTryParams splits [opcode.TRY] and [opcode.TRYL] instruction parameter
+// into offsets for catch and finally blocks.
+func GetTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
+	i := 1
+	if op == opcode.TRYL {
+		i = 4
+	}
+	return p[:i], p[i:]
 }

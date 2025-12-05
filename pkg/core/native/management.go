@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -844,7 +845,7 @@ func checkScriptAndMethods(ic *interop.Context, script []byte, methods []manifes
 	if !ic.IsHardforkEnabled(config.HFBasilisk) {
 		return nil
 	}
-	err := vm.IsScriptCorrect(script, offsets)
+	err := scparser.IsScriptCorrect(script, offsets)
 	if err != nil {
 		return fmt.Errorf("invalid contract script: %w", err)
 	}
