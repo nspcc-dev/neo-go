@@ -37,10 +37,10 @@ jobs:
     runs-on: ${{matrix.os.name}}
     strategy:
       matrix:
-        os: [{ name: ubuntu-22.04, bin-name: linux }, { name: windows-2022, bin-name: windows }, { name: macos-14, bin-name: darwin }]
+        os: [{ name: ubuntu-latest, bin-name: linux }, { name: windows-latest, bin-name: windows }, { name: macos-latest, bin-name: darwin }]
         arch: [amd64, arm64]
         exclude:
-          - os: { name: windows-2022, bin-name: windows }
+          - os: { name: windows-latest, bin-name: windows }
             arch: 'arm64'
 
     steps:
@@ -79,7 +79,7 @@ jobs:
   build_image:
     needs: build_cli
     name: Build and push docker image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     if: ${{ github.event_name != 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
@@ -123,7 +123,7 @@ jobs:
   build_image_wsc:
     needs: build_cli
     name: Build and push docker image (Windows Server Core)
-    runs-on: windows-2022
+    runs-on: windows-latest
     if: ${{ github.event_name != 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
