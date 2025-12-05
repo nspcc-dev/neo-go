@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -111,12 +110,6 @@ type EventBased struct {
 	polling Waiter
 }
 
-// errIsAlreadyExists is a temporary helper until we have #2248 solved. Both C#
-// and Go nodes return this string (possibly among other data).
-func errIsAlreadyExists(err error) bool {
-	return strings.Contains(strings.ToLower(err.Error()), "already exists")
-}
-
 // New creates Waiter instance. It can be either websocket-based or
 // polling-base, otherwise Waiter stub is returned. As a first argument
 // it accepts RPCEventBased implementation, RPCPollingBased implementation
@@ -195,7 +188,7 @@ func newCustomPollingBased(waiter RPCPollingBased, v *result.Version, config Pol
 
 // Wait implements Waiter interface.
 func (w *PollingBased) Wait(ctx context.Context, h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
-	if err != nil && !errIsAlreadyExists(err) {
+	if err != nil && !errors.Is(err, neorpc.ErrAlreadyExists) {
 		return nil, err
 	}
 	return w.WaitAny(ctx, vub, h)
@@ -268,7 +261,7 @@ func NewCustomEventBased(waiter RPCEventBased, config Config) (*EventBased, erro
 
 // Wait implements Waiter interface.
 func (w *EventBased) Wait(ctx context.Context, h util.Uint256, vub uint32, err error) (res *state.AppExecResult, waitErr error) {
-	if err != nil && !errIsAlreadyExists(err) {
+	if err != nil && !errors.Is(err, neorpc.ErrAlreadyExists) {
 		return nil, err
 	}
 	return w.WaitAny(ctx, vub, h)
