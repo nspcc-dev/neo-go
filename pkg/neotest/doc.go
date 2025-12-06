@@ -28,6 +28,9 @@ EnableCoverage and DisableCoverage. Be aware that coverage data collected by `go
 itself will not be saved because it will be replaced with contracts coverage instead.
 In case `go test` coverage is wanted DISABLE_NEOTEST_COVER=1 variable can be set.
 Coverage is gathered by capturing VM instructions during test contract execution and
-mapping them to the contract source code using the DebugInfo information.
+mapping them to the contract source code using the DebugInfo information. Parallel
+coverage collection is properly supported for different Executor instances only; do
+not run a parallel coverage collection for a single Executor instance if
+EnableCoverage or DisableCoverage is used (ref. #4108).
 */
 package neotest
