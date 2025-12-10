@@ -47,9 +47,7 @@ func TestWallet(t *testing.T) {
 }
 
 func TestVerifyIncompleteRequest(t *testing.T) {
-	bc := fakechain.NewFakeChain()
 	notaryContractHash := nativehashes.Notary
-	_, ntr, _ := getTestNotary(t, bc, "./testdata/notary1.json", "one")
 	sig := append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...) // we're not interested in signature correctness
 	acc1, _ := keys.NewPrivateKey()
 	acc2, _ := keys.NewPrivateKey()
@@ -65,7 +63,7 @@ func TestVerifyIncompleteRequest(t *testing.T) {
 	multisigScriptHash2 := hash.Hash160(multisigScript2)
 
 	checkErr := func(t *testing.T, tx *transaction.Transaction, nKeys uint8) {
-		witnessInfo, err := ntr.verifyIncompleteWitnesses(tx, nKeys)
+		witnessInfo, err := verifyIncompleteWitnesses(tx, nKeys)
 		require.Error(t, err)
 		require.Nil(t, witnessInfo)
 	}
@@ -475,7 +473,7 @@ func TestVerifyIncompleteRequest(t *testing.T) {
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {
-			actualInfo, err := ntr.verifyIncompleteWitnesses(testCase.tx, testCase.nKeys)
+			actualInfo, err := verifyIncompleteWitnesses(testCase.tx, testCase.nKeys)
 			require.NoError(t, err)
 			require.Equal(t, len(testCase.expectedInfo), len(actualInfo))
 			for i, expected := range testCase.expectedInfo {
