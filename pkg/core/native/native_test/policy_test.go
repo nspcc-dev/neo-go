@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -608,4 +609,70 @@ func TestPolicy_WhitelistContracts(t *testing.T) {
 			stackitem.Null{},
 		}),
 	})
+}
+
+func TestPolicy_WhitelistContractsInteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package policywrapper
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+			"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+		)
+		func SetWhitelistFeeContract(contract interop.Hash160, method string, argCnt int, fee int) {
+			policy.SetWhitelistFeeContract(contract, method, argCnt, fee)
+		}
+		func RemoveWhitelistFeeContract(contract interop.Hash160, method string, argCnt int) {
+			policy.RemoveWhitelistFeeContract(contract, method, argCnt)
+		}
+		func GetWhitelistedContracts() [][]byte {
+			i := policy.GetWhitelistFeeContracts()
+			var res [][]byte
+			for iterator.Next(i) {
+				res = append(res, iterator.Value(i).([]byte))
+			}
+			return res
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "whitelisted wrapper",
+		Permissions: []manifest.Permission{
+			{
+				Methods: manifest.WildStrings{
+					Value: []string{"setWhitelistFeeContract", "removeWhitelistFeeContract", "getWhitelistedContracts"},
+				},
+			},
+		},
+	})
+	e.DeployContract(t, ctr, nil)
+
+	var stdM *manifest.Manifest
+	for _, cs := range e.Chain.GetNatives() {
+		if cs.Manifest.Name == nativenames.StdLib {
+			stdM = &cs.Manifest
+			break
+		}
+	}
+	m1 := stdM.ABI.GetMethod("hexDecode", 1)
+	m2 := stdM.ABI.GetMethod("hexEncode", 1)
+	require.NotNil(t, m1)
+	require.NotNil(t, m2)
+
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+	ctrInvoker.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1, 0)
+	ctrInvoker.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexDecode", 1, 0)
+	ctrInvoker.Invoke(t, stackitem.Make([]stackitem.Item{
+		stackitem.NewBuffer(append(nativehashes.StdLib.BytesBE(), 0, 0, 0, byte(m1.Offset))),
+		stackitem.NewBuffer(append(nativehashes.StdLib.BytesBE(), 0, 0, 0, byte(m2.Offset))),
+	}), "getWhitelistedContracts")
+	ctrInvoker.Invoke(t, stackitem.Null{}, "removeWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1)
+	ctrInvoker.Invoke(t, stackitem.Make([]stackitem.Item{
+		stackitem.NewBuffer(append(nativehashes.StdLib.BytesBE(), 0, 0, 0, byte(m1.Offset))),
+	}), "getWhitelistedContracts")
 }
