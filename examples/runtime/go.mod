@@ -2,4 +2,4 @@ module github.com/nspcc-dev/neo-go/examples/runtime
 
 go 1.24
 
-require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251203103451-fcbc971adee9
+require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20251211114251-fcdc14479f2c
