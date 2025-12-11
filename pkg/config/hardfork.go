@@ -54,6 +54,8 @@ const (
 	// https://github.com/neo-project/neo/pull/4147,
 	// https://github.com/neo-project/neo/pull/4150), #4057 (ported from
 	// https://github.com/neo-project/neo/pull/4278).
+	// https://github.com/neo-project/neo/pull/4150), #4050 (ported from
+	// https://github.com/neo-project/neo/pull/4186).
 	HFFaun // Faun
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
