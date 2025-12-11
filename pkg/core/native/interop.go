@@ -64,10 +64,13 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("missing call flags for native %d `%s` operation call: %05b vs %05b",
 			version, m.MD.Name, ic.VM.Context().GetCallFlags(), reqFlags)
 	}
-	invokeFee := m.CPUFee*ic.BaseExecFee() +
-		m.StorageFee*ic.BaseStorageFee()
-	if !ic.VM.AddPicoGas(invokeFee) {
-		return errors.New("gas limit exceeded")
+	// Filter out whitelisted contracts since the fee was already charged by the System.Contract.Call handler.
+	if !ic.IsHardforkEnabled(config.HFFaun) ||
+		ic.PolicyChecker == nil || ic.PolicyChecker.WhitelistedFee(ic.DAO, curr, m.MD.Offset) == -1 {
+		invokeFee := m.CPUFee*ic.BaseExecFee() + m.StorageFee*ic.BaseStorageFee()
+		if !ic.VM.AddPicoGas(invokeFee) {
+			return errors.New("gas limit exceeded")
+		}
 	}
 	ctx := ic.VM.Context()
 	args := make([]stackitem.Item, len(m.MD.Parameters))

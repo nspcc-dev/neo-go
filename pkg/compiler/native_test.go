@@ -204,6 +204,9 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"getMillisecondsPerBlock", nil},
 		{"setMillisecondsPerBlock", []string{"10"}},
 		{"getBlockedAccounts", nil},
+		{"setWhitelistFeeContract", []string{u160, `"method"`, "1", "2"}},
+		{"removeWhitelistFeeContract", []string{u160, `"method"`, "1"}},
+		{"getWhitelistFeeContracts", nil},
 	})
 	runNativeTestCases(t, *cs.ByName(nativenames.Ledger).Metadata(), "ledger", []nativeTestCase{
 		{"currentHash", nil},

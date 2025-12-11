@@ -108,3 +108,23 @@ func SetMillisecondsPerBlock(value int) {
 func GetBlockedAccounts() iterator.Iterator {
 	return neogointernal.CallWithToken(Hash, "getBlockedAccounts", int(contract.ReadStates)).(iterator.Iterator)
 }
+
+// SetWhitelistFeeContract represents the `setWhitelistFeeContract` method of Policy native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func SetWhitelistFeeContract(hash interop.Hash160, method string, argCnt int, fixedFee int) {
+	neogointernal.CallWithTokenNoRet(Hash, "setWhitelistFeeContract", int(contract.States|contract.AllowNotify),
+		hash, method, argCnt, fixedFee)
+}
+
+// RemoveWhitelistFeeContract represents the `removeWhitelistFeeContract` method of Policy native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func RemoveWhitelistFeeContract(hash interop.Hash160, method string, argCnt int) {
+	neogointernal.CallWithTokenNoRet(Hash, "removeWhitelistFeeContract", int(contract.States|contract.AllowNotify),
+		hash, method, argCnt)
+}
+
+// GetWhitelistFeeContracts represents the `getWhitelistFeeContracts` method of Policy native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func GetWhitelistFeeContracts() iterator.Iterator {
+	return neogointernal.CallWithToken(Hash, "getWhitelistFeeContracts", int(contract.ReadStates)).(iterator.Iterator)
+}

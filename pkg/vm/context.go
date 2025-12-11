@@ -51,6 +51,9 @@ type scriptContext struct {
 	// onUnload is a callback that should be called after current context unloading
 	// if no exception occurs.
 	onUnload ContextUnloadCallback
+	// whitelisted denotes whether execution fee charging should be omitted for
+	// the current context.
+	whitelisted bool
 }
 
 // Context represents the current execution context of the VM.

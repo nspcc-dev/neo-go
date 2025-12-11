@@ -41,6 +41,16 @@ func (a *ABI) GetMethod(name string, paramCount int) *Method {
 	return nil
 }
 
+// GetMethodByOffset returns a method by the specified offset.
+func (a *ABI) GetMethodByOffset(offset int) *Method {
+	for i := range a.Methods {
+		if a.Methods[i].Offset == offset {
+			return &a.Methods[i]
+		}
+	}
+	return nil
+}
+
 // GetEvent returns the event with the specified name.
 func (a *ABI) GetEvent(name string) *Event {
 	for i := range a.Events {

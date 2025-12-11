@@ -8,9 +8,8 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -19,10 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
-
-type policyChecker interface {
-	IsBlocked(*dao.Simple, util.Uint160) bool
-}
 
 // LoadToken calls method specified by the token id.
 func LoadToken(ic *interop.Context, id int32) error {
@@ -110,18 +105,24 @@ func callInternal(ic *interop.Context, cs *state.Contract, name string, f callfl
 // callExFromNative calls a contract with flags using the provided calling hash.
 func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract,
 	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool, isDynamic bool, callFromNative bool) error {
-	for _, nc := range ic.Natives {
-		if nc.Metadata().Name == nativenames.Policy {
-			var pch = nc.(policyChecker)
-			if pch.IsBlocked(ic.DAO, cs.Hash) {
-				return fmt.Errorf("contract %s is blocked", cs.Hash.StringLE())
-			}
-			break
-		}
-	}
 	md := cs.Manifest.ABI.GetMethod(name, len(args))
 	if md == nil {
 		return fmt.Errorf("method '%s' not found", name)
+	}
+	var whitelisted bool
+	if ic.PolicyChecker != nil {
+		if ic.PolicyChecker.IsBlocked(ic.DAO, cs.Hash) {
+			return fmt.Errorf("contract %s is blocked", cs.Hash.StringLE())
+		}
+		if ic.IsHardforkEnabled(config.HFFaun) {
+			fee := ic.PolicyChecker.WhitelistedFee(ic.DAO, cs.Hash, md.Offset)
+			if fee >= 0 {
+				if !ic.VM.AddPicoGas(fee) {
+					return fmt.Errorf("%w during whitelisted contract execution", storage.ErrGasLimitExceeded)
+				}
+				whitelisted = true
+			}
+		}
 	}
 
 	if len(args) != len(md.Parameters) {
@@ -165,7 +166,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 		return nil
 	}
 	ic.VM.LoadNEFMethod(&cs.NEF, &cs.Manifest, caller, cs.Hash, f,
-		hasReturn, methodOff, initOff, onUnload)
+		hasReturn, methodOff, initOff, onUnload, whitelisted)
 
 	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
 		e.PushItem(args[i])

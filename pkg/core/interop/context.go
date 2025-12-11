@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -49,15 +50,26 @@ type Ledger interface {
 	NativeManagementID() int32
 }
 
+// PolicyChecker is an interface required for checking native Policy constraints.
+type PolicyChecker interface {
+	// IsBlocked returns whether the provided account is blocked by network policy.
+	IsBlocked(d *dao.Simple, hash util.Uint160) bool
+	// WhitelistedFee returns whether the specified contract method is whitelisted.
+	// Non-negative return value defines the execution fee of a whitelisted method
+	// call in picoGAS units.
+	WhitelistedFee(d *dao.Simple, hash util.Uint160, offset int) int64
+}
+
 // Context represents context in which interops are executed.
 type Context struct {
-	Chain     Ledger
-	Container hash.Hashable
-	Network   uint32
-	Hardforks map[string]uint32
-	Natives   []Contract
-	Trigger   trigger.Type
-	Block     *block.Block
+	Chain         Ledger
+	Container     hash.Hashable
+	Network       uint32
+	Hardforks     map[string]uint32
+	Natives       []Contract
+	PolicyChecker PolicyChecker
+	Trigger       trigger.Type
+	Block         *block.Block
 	// IsBlockPersisted denotes whether current Block was persisted by native
 	// Ledger contract via PostPersist method.
 	IsBlockPersisted bool
@@ -89,13 +101,22 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
 	loadTokenFunc func(ic *Context, id int32) error,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
-	dao := d.GetPrivate()
-	cfg := bc.GetConfig()
+	var (
+		dao = d.GetPrivate()
+		cfg = bc.GetConfig()
+		pch PolicyChecker
+	)
+	for _, c := range natives {
+		if c.Metadata().Name == nativenames.Policy {
+			pch = c.(PolicyChecker)
+		}
+	}
 	return &Context{
 		Chain:           bc,
 		Network:         uint32(cfg.Magic),
 		Hardforks:       cfg.Hardforks,
 		Natives:         natives,
+		PolicyChecker:   pch,
 		Trigger:         trigger,
 		Block:           block,
 		Tx:              tx,

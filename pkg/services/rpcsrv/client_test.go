@@ -236,12 +236,31 @@ func TestClientPolicyContract(t *testing.T) {
 	require.NoError(t, err)
 	txblock3, err := polis.BlockAccountUnsigned(blocked[2])
 	require.NoError(t, err)
+	var stdM *manifest.Manifest
+	for _, cs := range chain.GetNatives() {
+		if cs.Manifest.Name == nativenames.StdLib {
+			stdM = &cs.Manifest
+			break
+		}
+	}
+	m1 := stdM.ABI.GetMethod("hexDecode", 1)
+	m2 := stdM.ABI.GetMethod("hexEncode", 1)
+	require.NotNil(t, m1)
+	require.NotNil(t, m2)
+	whitelisted := []policy.WhitelistedContract{
+		{Hash: nativehashes.StdLib, Offset: uint32(m1.Offset)},
+		{Hash: nativehashes.StdLib, Offset: uint32(m2.Offset)},
+	}
+	txwhitelist1, err := polis.SetWhitelistFeeContractUnsigned(whitelisted[0].Hash, "hexDecode", 1, 0)
+	require.NoError(t, err)
+	txwhitelist2, err := polis.SetWhitelistFeeContractUnsigned(whitelisted[1].Hash, "hexEncode", 1, 0)
+	require.NoError(t, err)
 
-	for _, tx := range []*transaction.Transaction{txattr, txblock1, txblock2, txblock3, txstorage, txnetfee, txexec} {
+	for _, tx := range []*transaction.Transaction{txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txstorage, txnetfee, txexec} {
 		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
 	}
 
-	bl := testchain.NewBlock(t, chain, 1, 0, txattr, txblock1, txblock2, txblock3, txstorage, txnetfee, txexec)
+	bl := testchain.NewBlock(t, chain, 1, 0, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txstorage, txnetfee, txexec)
 	_, err = c.SubmitBlock(*bl)
 	require.NoError(t, err)
 
@@ -277,6 +296,30 @@ func TestClientPolicyContract(t *testing.T) {
 	all, err = it.Next(100)
 	require.NoError(t, err)
 	require.Equal(t, blocked, all)
+
+	allWhitelisted, err := polizei.GetWhitelistFeeContractsExpanded(100)
+	require.NoError(t, err)
+	require.Equal(t, whitelisted, allWhitelisted)
+
+	whitelistedIt, err := polizei.GetWhitelistFeeContracts()
+	require.NoError(t, err)
+	allWhitelisted, err = whitelistedIt.Next(100)
+	require.NoError(t, err)
+	require.Equal(t, whitelisted, allWhitelisted)
+	require.NoError(t, whitelistedIt.Terminate())
+
+	txwhitelist3, err := polis.RemoveWhitelistFeeContractUnsigned(whitelisted[0].Hash, "hexDecode", 1)
+	require.NoError(t, err)
+	for _, tx := range []*transaction.Transaction{txwhitelist3} {
+		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
+	}
+	bl = testchain.NewBlock(t, chain, 1, 0, txwhitelist3)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	allWhitelisted, err = polizei.GetWhitelistFeeContractsExpanded(100)
+	require.NoError(t, err)
+	require.Equal(t, []policy.WhitelistedContract{whitelisted[1]}, allWhitelisted)
 }
 
 func TestClientManagementContract(t *testing.T) {

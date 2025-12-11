@@ -74,8 +74,9 @@ type (
 
 		// Methods required for proper cross-native communication.
 		BlockAccountInternal(d *dao.Simple, hash util.Uint160) bool
-		IsBlocked(dao *dao.Simple, hash util.Uint160) bool
 		GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uint32
+		CleanWhitelist(ic *interop.Context, cs *state.Contract) error
+		interop.PolicyChecker
 	}
 
 	// IOracle is an interface required from native OracleContract contract for

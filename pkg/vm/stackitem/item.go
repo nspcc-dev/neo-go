@@ -161,6 +161,8 @@ func TryMake(v any) (Item, error) {
 		return TryMake(*val)
 	case nil:
 		return Null{}, nil
+	case Convertible:
+		return val.ToStackItem()
 	default:
 		i64T := reflect.TypeOf(int64(0))
 		if reflect.TypeOf(val).ConvertibleTo(i64T) {

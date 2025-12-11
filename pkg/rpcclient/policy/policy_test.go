@@ -73,6 +73,8 @@ func TestReader(t *testing.T) {
 	require.Error(t, err)
 	_, err = pc.GetAttributeFee(transaction.ConflictsT)
 	require.Error(t, err)
+	_, err = pc.GetWhitelistFeeContracts()
+	require.Error(t, err)
 
 	ta.err = nil
 	ta.res = &result.Invoke{
@@ -98,6 +100,26 @@ func TestReader(t *testing.T) {
 	val, err := pc.IsBlocked(util.Uint160{1, 2, 3})
 	require.NoError(t, err)
 	require.True(t, val)
+	iid := uuid.New()
+	ta.res = &result.Invoke{
+		Session: uuid.New(),
+		State:   "HALT",
+		Stack: []stackitem.Item{
+			stackitem.NewInterop(result.Iterator{
+				ID: &iid,
+			}),
+		},
+	}
+	iter, err := pc.GetWhitelistFeeContracts()
+	require.NoError(t, err)
+	ta.res = &result.Invoke{
+		Stack: []stackitem.Item{
+			stackitem.Make(append(util.Uint160{1, 2, 3}.BytesBE(), []byte{0, 0, 0, 1}...)),
+		},
+	}
+	whitelisted, err := iter.Next(10)
+	require.NoError(t, err)
+	require.Equal(t, []WhitelistedContract{{Hash: util.Uint160{1, 2, 3}, Offset: 1}}, whitelisted)
 }
 
 func TestGetBlockedAccounts(t *testing.T) {
@@ -246,6 +268,29 @@ func TestUint160Setters(t *testing.T) {
 	}
 }
 
+func TestWhitelistedSetters(t *testing.T) {
+	ta := new(testAct)
+	pc := New(ta)
+
+	ta.err = errors.New("")
+	_, _, err := pc.SetWhitelistFeeContract(util.Uint160{}, "someMethod", 1, 0)
+	require.Error(t, err)
+	_, _, err = pc.RemoveWhitelistFeeContract(util.Uint160{}, "someMethod", 1)
+	require.Error(t, err)
+
+	ta.err = nil
+	ta.txh = util.Uint256{1, 2, 3}
+	ta.vub = 42
+	h, vub, err := pc.SetWhitelistFeeContract(util.Uint160{}, "someMethod", 1, 0)
+	require.NoError(t, err)
+	require.Equal(t, ta.txh, h)
+	require.Equal(t, ta.vub, vub)
+	h, vub, err = pc.RemoveWhitelistFeeContract(util.Uint160{}, "someMethod", 1)
+	require.NoError(t, err)
+	require.Equal(t, ta.txh, h)
+	require.Equal(t, ta.vub, vub)
+}
+
 func TestIntTransactions(t *testing.T) {
 	ta := new(testAct)
 	pc := New(ta)
@@ -293,5 +338,112 @@ func TestUint160Transactions(t *testing.T) {
 		tx, err := fun(util.Uint160{1})
 		require.NoError(t, err)
 		require.Equal(t, ta.tx, tx)
+	}
+}
+
+func TestWhitelistedTransactions(t *testing.T) {
+	ta := new(testAct)
+	pc := New(ta)
+
+	ta.err = errors.New("")
+	_, err := pc.SetWhitelistFeeContractTransaction(util.Uint160{}, "someMethod", 1, 0)
+	require.Error(t, err)
+	_, err = pc.SetWhitelistFeeContractUnsigned(util.Uint160{}, "someMethod", 1, 0)
+	require.Error(t, err)
+	_, err = pc.RemoveWhitelistFeeContractTransaction(util.Uint160{}, "someMethod", 1)
+	require.Error(t, err)
+	_, err = pc.RemoveWhitelistFeeContractUnsigned(util.Uint160{}, "someMethod", 1)
+	require.Error(t, err)
+
+	ta.err = nil
+	ta.tx = &transaction.Transaction{Nonce: 100500, ValidUntilBlock: 42}
+	tx, err := pc.SetWhitelistFeeContractTransaction(util.Uint160{}, "someMethod", 1, 0)
+	require.NoError(t, err)
+	require.Equal(t, ta.tx, tx)
+	tx, err = pc.SetWhitelistFeeContractUnsigned(util.Uint160{}, "someMethod", 1, 0)
+	require.NoError(t, err)
+	require.Equal(t, ta.tx, tx)
+	tx, err = pc.RemoveWhitelistFeeContractTransaction(util.Uint160{}, "someMethod", 1)
+	require.NoError(t, err)
+	require.Equal(t, ta.tx, tx)
+	tx, err = pc.RemoveWhitelistFeeContractUnsigned(util.Uint160{}, "someMethod", 1)
+	require.NoError(t, err)
+	require.Equal(t, ta.tx, tx)
+}
+
+func TestWhitelistFeeChangedEvent_FromStackItem(t *testing.T) {
+	var fee int64 = 2
+	tcs := []struct {
+		name     string
+		in       []stackitem.Item
+		expected *WhitelistFeeChangedEvent
+		err      string
+	}{
+		{
+			name: "nil item",
+			in:   nil,
+			err:  "nil item",
+		},
+		{
+			name: "wrong number of elements",
+			in:   []stackitem.Item{},
+			err:  "wrong number of event parameters",
+		},
+		{
+			name: "invalid hash",
+			in:   []stackitem.Item{stackitem.NewInterop(nil), stackitem.Make(1), stackitem.Make(2), stackitem.Make(3)},
+			err:  "invalid hash",
+		},
+		{
+			name: "failed to unwrap hash",
+			in:   []stackitem.Item{stackitem.Make([]byte{1, 2, 3}), stackitem.Make(1), stackitem.Make(2), stackitem.Make(3)},
+			err:  "failed to unwrap hash",
+		},
+		{
+			name: "invalid method",
+			in:   []stackitem.Item{stackitem.Make(util.Uint160{1, 2, 3}), stackitem.NewInterop(nil), stackitem.Make(2), stackitem.Make(3)},
+			err:  "invalid method",
+		},
+		{
+			name: "invalid arg count",
+			in:   []stackitem.Item{stackitem.Make(util.Uint160{1, 2, 3}), stackitem.Make("someMethod"), stackitem.NewInterop(nil), stackitem.Make(3)},
+			err:  "invalid arg count",
+		},
+		{
+			name: "nil fee",
+			in:   []stackitem.Item{stackitem.Make(util.Uint160{1, 2, 3}), stackitem.Make("someMethod"), stackitem.Make(1), stackitem.Null{}},
+			expected: &WhitelistFeeChangedEvent{
+				Hash:   util.Uint160{1, 2, 3},
+				Method: "someMethod",
+				ArgCnt: 1,
+			},
+		},
+		{
+			name: "non-nil fee",
+			in:   []stackitem.Item{stackitem.Make(util.Uint160{1, 2, 3}), stackitem.Make("someMethod"), stackitem.Make(1), stackitem.Make(2)},
+			expected: &WhitelistFeeChangedEvent{
+				Hash:   util.Uint160{1, 2, 3},
+				Method: "someMethod",
+				ArgCnt: 1,
+				Fee:    &fee,
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := new(WhitelistFeeChangedEvent)
+			var in *stackitem.Array
+			if tc.in != nil {
+				in = stackitem.NewArray(tc.in)
+			}
+			err := actual.FromStackItem(in)
+			if len(tc.err) != 0 {
+				require.ErrorContains(t, err, tc.err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, actual)
+			}
+		})
 	}
 }
