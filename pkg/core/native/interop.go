@@ -90,7 +90,7 @@ func Call(ic *interop.Context) error {
 // OnPersist calls OnPersist methods for all native contracts.
 func OnPersist(ic *interop.Context) error {
 	if ic.Trigger != trigger.OnPersist {
-		return errors.New("onPersist must be trigered by system")
+		return errors.New("onPersist must be triggered by system")
 	}
 	for _, c := range ic.Natives {
 		activeIn := c.ActiveIn()
@@ -108,7 +108,7 @@ func OnPersist(ic *interop.Context) error {
 // PostPersist calls PostPersist methods for all native contracts.
 func PostPersist(ic *interop.Context) error {
 	if ic.Trigger != trigger.PostPersist {
-		return errors.New("postPersist must be trigered by system")
+		return errors.New("postPersist must be triggered by system")
 	}
 	for _, c := range ic.Natives {
 		activeIn := c.ActiveIn()

@@ -346,7 +346,7 @@ Success:		true
 if it has been executed successfully.
 
 #### Committee members
-`query commitee` returns a list of current committee members:
+`query committee` returns a list of current committee members:
 ```
 $ ./bin/neo-go query committee -r http://localhost:20332
 03009b7540e10f2562e5fd8fac9eaec25166a58b26e412348ff5a86927bfac22a2

@@ -331,7 +331,7 @@ func NewDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Para
 }
 
 // NewMethodAndPrice builds method with the provided descriptor and ActiveFrom/ActiveTill hardfork
-// values consequently specified via activations. [config.HFDefault] specfied as ActiveFrom is treated
+// values consequently specified via activations. [config.HFDefault] specified as ActiveFrom is treated
 // as active starting from the genesis block.
 func NewMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag, activations ...config.Hardfork) *interop.MethodAndPrice {
 	md := &interop.MethodAndPrice{

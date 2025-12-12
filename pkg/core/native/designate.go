@@ -52,7 +52,7 @@ type roleData struct {
 
 type DesignationCache struct {
 	// rolesChangedFlag shows whether any of designated nodes were changed within the current block.
-	// It is used to notify dependant services about updated node roles during PostPersist.
+	// It is used to notify dependent services about updated node roles during PostPersist.
 	rolesChangedFlag bool
 	oracles          roleData
 	stateVals        roleData
