@@ -77,7 +77,11 @@ func copyNotaryCache(src, dst *NotaryCache) {
 func newNotary() *Notary {
 	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary, nativeids.Notary, func(m *manifest.Manifest, hf config.Hardfork) {
 		m.SupportedStandards = []string{manifest.NEP27StandardName}
+		if hf.Cmp(config.HFFaun) >= 0 {
+			m.SupportedStandards = append(m.SupportedStandards, manifest.NEP30StandardName)
+		}
 	})}
+	n.RegisterActivationHardfork(config.HFFaun) // supported standards update.
 	defer n.BuildHFSpecificMD(n.ActiveIn())
 
 	desc := NewDescriptor("onNEP17Payment", smartcontract.VoidType,
