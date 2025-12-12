@@ -512,12 +512,17 @@ func (s *Std) ActiveIn() *config.Hardfork {
 }
 
 func toLimitedBytes(item stackitem.Item) []byte {
+	src := toBytes(item)
+	if len(src) > stdMaxInputLength {
+		panic(ErrTooBigInput)
+	}
+	return src
+}
+
+func toBytes(item stackitem.Item) []byte {
 	src, err := item.TryBytes()
 	if err != nil {
 		panic(err)
-	}
-	if len(src) > stdMaxInputLength {
-		panic(ErrTooBigInput)
 	}
 	return src
 }

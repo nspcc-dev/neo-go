@@ -2828,6 +2828,7 @@ func TestNativenames(t *testing.T) {
 			config.HFCockatrice.String():    0,
 			config.HFDomovoi.String():       0,
 			config.HFEchidna.String():       0,
+			config.HFFaun.String():          0,
 		}
 	})
 	natives := bc.GetNatives()

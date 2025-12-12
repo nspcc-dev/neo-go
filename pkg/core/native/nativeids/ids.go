@@ -27,4 +27,6 @@ const (
 	OracleContract int32 = -9
 	// Notary is an ID of native Notary contract.
 	Notary int32 = -10
+	// Treasury is an ID of native Treasury contract.
+	Treasury int32 = -11
 )

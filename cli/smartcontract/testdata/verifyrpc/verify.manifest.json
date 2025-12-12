@@ -55,7 +55,7 @@
                },
                {
                   "type" : "ByteArray",
-                  "name" : "tokenid"
+                  "name" : "tokenId"
                },
                {
                   "type" : "Any",
