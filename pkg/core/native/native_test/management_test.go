@@ -72,8 +72,9 @@ var (
 	// faunCSS holds serialized native contract states built for genesis block (with UpdateCounter 0)
 	// under assumption that hardforks from Aspidochelone to Faun (included) are enabled.
 	faunCSS = map[string]string{
-		nativenames.StdLib: `{"id":-2,"hash":"0xacce6fd80d44e1796aa0c2c625e9e4e0ce39efc0","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":2426471238},"manifest":{"name":"StdLib","abi":{"methods":[{"name":"atoi","offset":0,"parameters":[{"name":"value","type":"String"}],"returntype":"Integer","safe":true},{"name":"atoi","offset":7,"parameters":[{"name":"value","type":"String"},{"name":"base","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"base58CheckDecode","offset":14,"parameters":[{"name":"s","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"base58CheckEncode","offset":21,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"base58Decode","offset":28,"parameters":[{"name":"s","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"base58Encode","offset":35,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"base64Decode","offset":42,"parameters":[{"name":"s","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"base64Encode","offset":49,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"base64UrlDecode","offset":56,"parameters":[{"name":"s","type":"String"}],"returntype":"String","safe":true},{"name":"base64UrlEncode","offset":63,"parameters":[{"name":"data","type":"String"}],"returntype":"String","safe":true},{"name":"deserialize","offset":70,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"Any","safe":true},{"name":"hexDecode","offset":77,"parameters":[{"name":"str","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"hexEncode","offset":84,"parameters":[{"name":"bytes","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"itoa","offset":91,"parameters":[{"name":"value","type":"Integer"}],"returntype":"String","safe":true},{"name":"itoa","offset":98,"parameters":[{"name":"value","type":"Integer"},{"name":"base","type":"Integer"}],"returntype":"String","safe":true},{"name":"jsonDeserialize","offset":105,"parameters":[{"name":"json","type":"ByteArray"}],"returntype":"Any","safe":true},{"name":"jsonSerialize","offset":112,"parameters":[{"name":"item","type":"Any"}],"returntype":"ByteArray","safe":true},{"name":"memoryCompare","offset":119,"parameters":[{"name":"str1","type":"ByteArray"},{"name":"str2","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"memorySearch","offset":126,"parameters":[{"name":"mem","type":"ByteArray"},{"name":"value","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"memorySearch","offset":133,"parameters":[{"name":"mem","type":"ByteArray"},{"name":"value","type":"ByteArray"},{"name":"start","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"memorySearch","offset":140,"parameters":[{"name":"mem","type":"ByteArray"},{"name":"value","type":"ByteArray"},{"name":"start","type":"Integer"},{"name":"backward","type":"Boolean"}],"returntype":"Integer","safe":true},{"name":"serialize","offset":147,"parameters":[{"name":"item","type":"Any"}],"returntype":"ByteArray","safe":true},{"name":"strLen","offset":154,"parameters":[{"name":"str","type":"String"}],"returntype":"Integer","safe":true},{"name":"stringSplit","offset":161,"parameters":[{"name":"str","type":"String"},{"name":"separator","type":"String"}],"returntype":"Array","safe":true},{"name":"stringSplit","offset":168,"parameters":[{"name":"str","type":"String"},{"name":"separator","type":"String"},{"name":"removeEmptyEntries","type":"Boolean"}],"returntype":"Array","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
-		nativenames.Policy: `{"id":-7,"hash":"0xcc5e4edd9f5f8dba8bb65734541df7a1c081c67b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":751055395},"manifest":{"name":"PolicyContract","abi":{"methods":[{"name":"blockAccount","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false},{"name":"getAttributeFee","offset":7,"parameters":[{"name":"attributeType","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"getBlockedAccounts","offset":14,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"getExecFeeFactor","offset":21,"parameters":[],"returntype":"Integer","safe":true},{"name":"getExecPicoFeeFactor","offset":28,"parameters":[],"returntype":"Integer","safe":true},{"name":"getFeePerByte","offset":35,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxTraceableBlocks","offset":42,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxValidUntilBlockIncrement","offset":49,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMillisecondsPerBlock","offset":56,"parameters":[],"returntype":"Integer","safe":true},{"name":"getStoragePrice","offset":63,"parameters":[],"returntype":"Integer","safe":true},{"name":"getWhitelistFeeContracts","offset":70,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"isBlocked","offset":77,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"removeWhitelistFeeContract","offset":84,"parameters":[{"name":"contractHash","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setAttributeFee","offset":91,"parameters":[{"name":"attributeType","type":"Integer"},{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setExecFeeFactor","offset":98,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setFeePerByte","offset":105,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxTraceableBlocks","offset":112,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxValidUntilBlockIncrement","offset":119,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMillisecondsPerBlock","offset":126,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setStoragePrice","offset":133,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setWhitelistFeeContract","offset":140,"parameters":[{"name":"contractHash","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"},{"name":"fixedFee","type":"Integer"}],"returntype":"Void","safe":false},{"name":"unblockAccount","offset":147,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[{"name":"MillisecondsPerBlockChanged","parameters":[{"name":"old","type":"Integer"},{"name":"new","type":"Integer"}]},{"name":"WhitelistFeeChanged","parameters":[{"name":"contract","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"},{"name":"fee","type":"Any"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+		nativenames.StdLib:   `{"id":-2,"hash":"0xacce6fd80d44e1796aa0c2c625e9e4e0ce39efc0","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":2426471238},"manifest":{"name":"StdLib","abi":{"methods":[{"name":"atoi","offset":0,"parameters":[{"name":"value","type":"String"}],"returntype":"Integer","safe":true},{"name":"atoi","offset":7,"parameters":[{"name":"value","type":"String"},{"name":"base","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"base58CheckDecode","offset":14,"parameters":[{"name":"s","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"base58CheckEncode","offset":21,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"base58Decode","offset":28,"parameters":[{"name":"s","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"base58Encode","offset":35,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"base64Decode","offset":42,"parameters":[{"name":"s","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"base64Encode","offset":49,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"base64UrlDecode","offset":56,"parameters":[{"name":"s","type":"String"}],"returntype":"String","safe":true},{"name":"base64UrlEncode","offset":63,"parameters":[{"name":"data","type":"String"}],"returntype":"String","safe":true},{"name":"deserialize","offset":70,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"Any","safe":true},{"name":"hexDecode","offset":77,"parameters":[{"name":"str","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"hexEncode","offset":84,"parameters":[{"name":"bytes","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"itoa","offset":91,"parameters":[{"name":"value","type":"Integer"}],"returntype":"String","safe":true},{"name":"itoa","offset":98,"parameters":[{"name":"value","type":"Integer"},{"name":"base","type":"Integer"}],"returntype":"String","safe":true},{"name":"jsonDeserialize","offset":105,"parameters":[{"name":"json","type":"ByteArray"}],"returntype":"Any","safe":true},{"name":"jsonSerialize","offset":112,"parameters":[{"name":"item","type":"Any"}],"returntype":"ByteArray","safe":true},{"name":"memoryCompare","offset":119,"parameters":[{"name":"str1","type":"ByteArray"},{"name":"str2","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"memorySearch","offset":126,"parameters":[{"name":"mem","type":"ByteArray"},{"name":"value","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"memorySearch","offset":133,"parameters":[{"name":"mem","type":"ByteArray"},{"name":"value","type":"ByteArray"},{"name":"start","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"memorySearch","offset":140,"parameters":[{"name":"mem","type":"ByteArray"},{"name":"value","type":"ByteArray"},{"name":"start","type":"Integer"},{"name":"backward","type":"Boolean"}],"returntype":"Integer","safe":true},{"name":"serialize","offset":147,"parameters":[{"name":"item","type":"Any"}],"returntype":"ByteArray","safe":true},{"name":"strLen","offset":154,"parameters":[{"name":"str","type":"String"}],"returntype":"Integer","safe":true},{"name":"stringSplit","offset":161,"parameters":[{"name":"str","type":"String"},{"name":"separator","type":"String"}],"returntype":"Array","safe":true},{"name":"stringSplit","offset":168,"parameters":[{"name":"str","type":"String"},{"name":"separator","type":"String"},{"name":"removeEmptyEntries","type":"Boolean"}],"returntype":"Array","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+		nativenames.Policy:   `{"id":-7,"hash":"0xcc5e4edd9f5f8dba8bb65734541df7a1c081c67b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":751055395},"manifest":{"name":"PolicyContract","abi":{"methods":[{"name":"blockAccount","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false},{"name":"getAttributeFee","offset":7,"parameters":[{"name":"attributeType","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"getBlockedAccounts","offset":14,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"getExecFeeFactor","offset":21,"parameters":[],"returntype":"Integer","safe":true},{"name":"getExecPicoFeeFactor","offset":28,"parameters":[],"returntype":"Integer","safe":true},{"name":"getFeePerByte","offset":35,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxTraceableBlocks","offset":42,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxValidUntilBlockIncrement","offset":49,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMillisecondsPerBlock","offset":56,"parameters":[],"returntype":"Integer","safe":true},{"name":"getStoragePrice","offset":63,"parameters":[],"returntype":"Integer","safe":true},{"name":"getWhitelistFeeContracts","offset":70,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"isBlocked","offset":77,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"removeWhitelistFeeContract","offset":84,"parameters":[{"name":"contractHash","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setAttributeFee","offset":91,"parameters":[{"name":"attributeType","type":"Integer"},{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setExecFeeFactor","offset":98,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setFeePerByte","offset":105,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxTraceableBlocks","offset":112,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxValidUntilBlockIncrement","offset":119,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMillisecondsPerBlock","offset":126,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setStoragePrice","offset":133,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setWhitelistFeeContract","offset":140,"parameters":[{"name":"contractHash","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"},{"name":"fixedFee","type":"Integer"}],"returntype":"Void","safe":false},{"name":"unblockAccount","offset":147,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[{"name":"MillisecondsPerBlockChanged","parameters":[{"name":"old","type":"Integer"},{"name":"new","type":"Integer"}]},{"name":"WhitelistFeeChanged","parameters":[{"name":"contract","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"},{"name":"fee","type":"Any"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+		nativenames.Treasury: `{"id":-11,"hash":"0x156326f25b1b5d839a4d326aeaa75383c9563ac1","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":1592866325},"manifest":{"name":"Treasury","abi":{"methods":[{"name":"onNEP11Payment","offset":0,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"tokenId","type":"ByteArray"},{"name":"data","type":"Any"}],"returntype":"Void","safe":true},{"name":"onNEP17Payment","offset":7,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Void","safe":true},{"name":"verify","offset":14,"parameters":[],"returntype":"Boolean","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":["NEP-26","NEP-27","NEP-30"],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
 )
 
@@ -148,6 +149,7 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 				config.HFCockatrice.String():    100500,
 				config.HFDomovoi.String():       100500,
 				config.HFEchidna.String():       100500,
+				config.HFFaun.String():          100500,
 			}
 		})
 		check(t, mgmt, defaultCSS)
@@ -223,6 +225,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 		cockatriceHeight = 3
 		domovoiHeight    = 4
 		echidnaHeight    = 5
+		faunHeight       = 6
 	)
 	mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
@@ -231,10 +234,11 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 			config.HFCockatrice.String():    cockatriceHeight,
 			config.HFDomovoi.String():       domovoiHeight,
 			config.HFEchidna.String():       echidnaHeight,
+			config.HFFaun.String():          faunHeight,
 		}
 	})
 	e := mgmt.Executor
-	mgmt.GenerateNewBlocks(t, echidnaHeight)
+	mgmt.GenerateNewBlocks(t, faunHeight)
 
 	// Check Deploy notifications.
 	aer, err := mgmt.Chain.GetAppExecResults(e.GetBlockByIndex(t, 0).Hash(), trigger.OnPersist)
@@ -243,7 +247,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	var expected []state.NotificationEvent
 	for _, name := range nativenames.All {
 		switch name {
-		case nativenames.Notary:
+		case nativenames.Notary, nativenames.Treasury:
 			continue
 		case nativenames.Gas:
 			expected = append(expected, state.NotificationEvent{
@@ -321,12 +325,36 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 		}),
 	})
 	require.Equal(t, expected, aer[0].Events)
+
+	// Check notifications for Faun hardfork.
+	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(faunHeight), trigger.OnPersist)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
+	expected = expected[:0]
+	for _, h := range []util.Uint160{nativehashes.StdLib, nativehashes.PolicyContract} {
+		expected = append(expected, state.NotificationEvent{
+			ScriptHash: nativehashes.ContractManagement,
+			Name:       "Update",
+			Item: stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(h),
+			}),
+		})
+	}
+	expected = append(expected, state.NotificationEvent{
+		ScriptHash: nativehashes.ContractManagement,
+		Name:       "Deploy",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(nativehashes.Treasury),
+		}),
+	})
+	require.Equal(t, expected, aer[0].Events)
 }
 
 func TestManagement_NativeUpdate(t *testing.T) {
 	const (
 		cockatriceHeight = 3
 		echidnaHeight    = 6
+		faunHeight       = 7
 	)
 
 	c := newCustomManagementClient(t, func(cfg *config.Blockchain) {
@@ -335,6 +363,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 			config.HFBasilisk.String():      0,
 			config.HFCockatrice.String():    cockatriceHeight,
 			config.HFEchidna.String():       echidnaHeight,
+			config.HFFaun.String():          faunHeight,
 		}
 	})
 
@@ -344,7 +373,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 		for _, name := range nativenames.All {
 			h := state.CreateNativeContractHash(name)
 			cs := c.Chain.GetContractState(h)
-			if name == nativenames.Notary {
+			if name == nativenames.Notary || name == nativenames.Treasury {
 				require.Nil(t, cs, name)
 				continue
 			} else {
@@ -361,7 +390,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 	for _, name := range nativenames.All {
 		h := state.CreateNativeContractHash(name)
 		cs := c.Chain.GetContractState(h)
-		if name == nativenames.Notary {
+		if name == nativenames.Notary || name == nativenames.Treasury {
 			require.Nil(t, cs, name)
 			continue
 		} else {
@@ -387,7 +416,12 @@ func TestManagement_NativeUpdate(t *testing.T) {
 	for _, name := range nativenames.All {
 		h := state.CreateNativeContractHash(name)
 		cs := c.Chain.GetContractState(h)
-		require.NotNil(t, cs, name)
+		if name == nativenames.Treasury {
+			require.Nil(t, cs, name)
+			continue
+		} else {
+			require.NotNil(t, cs, name)
+		}
 		// A tiny hack to reuse echidnaCSS map in the check below.
 		cp := *cs
 		actual := &cp // avoid Management cache corruption.
@@ -395,6 +429,23 @@ func TestManagement_NativeUpdate(t *testing.T) {
 		jBytes, err := ojson.Marshal(actual)
 		require.NoError(t, err, name)
 		require.Equal(t, echidnaCSS[name], string(jBytes), fmt.Errorf("contract %s state mismatch", name))
+	}
+
+	// Add some blocks up to the Faun enabling height and check the natives state.
+	for i := c.Chain.BlockHeight(); i < faunHeight; i++ {
+		c.AddNewBlock(t)
+	}
+	for _, name := range nativenames.All {
+		h := state.CreateNativeContractHash(name)
+		cs := c.Chain.GetContractState(h)
+		require.NotNil(t, cs, name)
+		// A tiny hack to reuse faunCSS map in the check below.
+		cp := *cs
+		actual := &cp // avoid Management cache corruption.
+		actual.UpdateCounter = 0
+		jBytes, err := ojson.Marshal(actual)
+		require.NoError(t, err, name)
+		require.Equal(t, faunCSS[name], string(jBytes), fmt.Errorf("contract %s state mismatch", name))
 	}
 }
 
@@ -434,6 +485,7 @@ func TestBlockchain_GetNatives(t *testing.T) {
 		cockatriceHeight = 3
 		domovoiHeight    = 5
 		echidnaHeight    = 6
+		faunHeight       = 7
 	)
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
@@ -442,13 +494,14 @@ func TestBlockchain_GetNatives(t *testing.T) {
 			config.HFCockatrice.String():    cockatriceHeight,
 			config.HFDomovoi.String():       domovoiHeight,
 			config.HFEchidna.String():       echidnaHeight,
+			config.HFFaun.String():          faunHeight,
 		}
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
 
 	// Check genesis-based native contract states.
 	natives := bc.GetNatives()
-	require.Equal(t, len(nativenames.All)-1, len(natives)) // Notary is deployed starting from D hardfork.
+	require.Equal(t, len(nativenames.All)-2, len(natives)) // Notary is deployed starting from D hardfork, Treasury - starting from Faun.
 	for _, cs := range natives {
 		csFull := state.Contract{
 			ContractBase:  cs.ContractBase,
@@ -462,7 +515,7 @@ func TestBlockchain_GetNatives(t *testing.T) {
 	// Check native state after Cockatrice.
 	e.GenerateNewBlocks(t, cockatriceHeight)
 	natives = bc.GetNatives()
-	require.Equal(t, len(nativenames.All)-1, len(natives)) // Notary is deployed starting from D hardfork.
+	require.Equal(t, len(nativenames.All)-2, len(natives)) // Notary is deployed starting from D hardfork.
 	for _, cs := range natives {
 		csFull := state.Contract{
 			ContractBase:  cs.ContractBase,
@@ -476,7 +529,7 @@ func TestBlockchain_GetNatives(t *testing.T) {
 	// Check native state after Echidna.
 	e.GenerateNewBlocks(t, echidnaHeight-cockatriceHeight)
 	natives = bc.GetNatives()
-	require.Equal(t, len(nativenames.All), len(natives))
+	require.Equal(t, len(nativenames.All)-1, len(natives))
 	for _, cs := range natives {
 		csFull := state.Contract{
 			ContractBase:  cs.ContractBase,
@@ -485,6 +538,20 @@ func TestBlockchain_GetNatives(t *testing.T) {
 		jBytes, err := ojson.Marshal(csFull)
 		require.NoError(t, err, cs.Manifest.Name)
 		require.Equal(t, echidnaCSS[cs.Manifest.Name], string(jBytes), fmt.Errorf("contract %s state mismatch", cs.Manifest.Name))
+	}
+
+	// Check native state after Faun.
+	e.GenerateNewBlocks(t, faunHeight-echidnaHeight)
+	natives = bc.GetNatives()
+	require.Equal(t, len(nativenames.All), len(natives))
+	for _, cs := range natives {
+		csFull := state.Contract{
+			ContractBase:  cs.ContractBase,
+			UpdateCounter: 0, // Since we're comparing only state.NativeContract part, set the update counter to 0 to match the echidnaCSS.
+		}
+		jBytes, err := ojson.Marshal(csFull)
+		require.NoError(t, err, cs.Manifest.Name)
+		require.Equal(t, faunCSS[cs.Manifest.Name], string(jBytes), fmt.Errorf("contract %s state mismatch", cs.Manifest.Name))
 	}
 }
 

@@ -214,7 +214,7 @@ func newCustomNatives(cfg config.ProtocolConfiguration) []interop.Contract {
 	mgmt := native.NewManagement()
 	ledger := native.NewLedger()
 
-	// Don't even create CryptoLib, StdLib, Notary, Oracle contracts since they are useless.
+	// Don't even create CryptoLib, StdLib, Notary, Oracle and Treasury contracts since they are useless.
 
 	// Use custom GasToken, NeoToken and Policy implementations:
 	g := newGAS()

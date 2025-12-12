@@ -257,6 +257,9 @@ func NewDefaultContracts(cfg config.ProtocolConfiguration) []interop.Contract {
 	notary.Desig = desig
 	notary.Policy = policy
 
+	treasury := newTreasury()
+	treasury.NEO = neo
+
 	return []interop.Contract{
 		mgmt,
 		s,
@@ -268,5 +271,6 @@ func NewDefaultContracts(cfg config.ProtocolConfiguration) []interop.Contract {
 		desig,
 		oracle,
 		notary,
+		treasury,
 	}
 }
