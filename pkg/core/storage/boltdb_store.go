@@ -18,14 +18,16 @@ var Bucket = []byte("DB")
 // BoltDBStore it is the storage implementation for storing and retrieving
 // blockchain data.
 type BoltDBStore struct {
-	db *bbolt.DB
+	db  *bbolt.DB
+	bkt []byte
 }
 
 // defaultOpenTimeout is the default timeout for performing flock on a bbolt database.
 // bbolt does retries every 50ms during this interval.
 const defaultOpenTimeout = 1 * time.Second
 
-// NewBoltDBStore returns a new ready to use BoltDB storage with created bucket.
+// NewBoltDBStore returns a new ready to use BoltDB storage with new bucket
+// named [Bucket]. In RO mode this bucket is checked for presence only.
 func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
 	cp := *bbolt.DefaultOptions // Do not change bbolt's global variable.
 	opts := &cp
@@ -44,23 +46,7 @@ func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open BoltDB instance: %w", err)
 	}
-	if opts.ReadOnly {
-		err = db.View(func(tx *bbolt.Tx) error {
-			b := tx.Bucket(Bucket)
-			if b == nil {
-				return errors.New("root bucket does not exist")
-			}
-			return nil
-		})
-	} else {
-		err = db.Update(func(tx *bbolt.Tx) error {
-			_, err = tx.CreateBucketIfNotExists(Bucket)
-			if err != nil {
-				return fmt.Errorf("could not create root bucket: %w", err)
-			}
-			return nil
-		})
-	}
+	b, err := NewBoltDBStoreFromBucket(db, Bucket)
 	if err != nil {
 		closeErr := db.Close()
 		err = fmt.Errorf("failed to initialize BoltDB instance: %w", err)
@@ -70,13 +56,44 @@ func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
 		return nil, err
 	}
 
-	return &BoltDBStore{db: db}, nil
+	return b, nil
+}
+
+// NewBoltDBStoreFromBucket creates an instance of [BoltDBStore] from already
+// existing and opened DB. Effectively it allows to have multiple [BoltDBStore]
+// in the same DB given that user manages buckets properly. If the DB is
+// opened in read-only mode the bucket is checked for presence, otherwise
+// it's auto-created.
+func NewBoltDBStoreFromBucket(db *bbolt.DB, bucket []byte) (*BoltDBStore, error) {
+	var err error
+
+	if db.IsReadOnly() {
+		err = db.View(func(tx *bbolt.Tx) error {
+			b := tx.Bucket(bucket)
+			if b == nil {
+				return errors.New("root bucket does not exist")
+			}
+			return nil
+		})
+	} else {
+		err = db.Update(func(tx *bbolt.Tx) error {
+			_, err = tx.CreateBucketIfNotExists(bucket)
+			if err != nil {
+				return fmt.Errorf("could not create root bucket: %w", err)
+			}
+			return nil
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &BoltDBStore{db: db, bkt: bucket}, nil
 }
 
 // Get implements the Store interface.
 func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 	err = s.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
+		b := tx.Bucket(s.bkt)
 		// Value from Get is only valid for the lifetime of transaction, #1482
 		val = bytes.Clone(b.Get(key))
 		return nil
@@ -92,7 +109,7 @@ func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]b
 	var err error
 
 	return s.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
+		b := tx.Bucket(s.bkt)
 		for _, m := range []map[string][]byte{puts, stores} {
 			for k, v := range m {
 				if v != nil {
@@ -111,7 +128,7 @@ func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]b
 
 // SeekGC implements the Store interface.
 func (s *BoltDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
-	return boltSeek(s.db.Update, rng, func(c *bbolt.Cursor, k, v []byte) (bool, error) {
+	return boltSeek(s.db.Update, s.bkt, rng, func(c *bbolt.Cursor, k, v []byte) (bool, error) {
 		keep, cont := keepCont(k, v)
 		if !keep {
 			if err := c.Delete(); err != nil {
@@ -124,7 +141,7 @@ func (s *BoltDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bo
 
 // Seek implements the Store interface.
 func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
-	err := boltSeek(s.db.View, rng, func(_ *bbolt.Cursor, k, v []byte) (bool, error) {
+	err := boltSeek(s.db.View, s.bkt, rng, func(_ *bbolt.Cursor, k, v []byte) (bool, error) {
 		return f(k, v), nil
 	})
 	if err != nil {
@@ -132,7 +149,7 @@ func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	}
 }
 
-func boltSeek(txopener func(func(*bbolt.Tx) error) error, rng SeekRange, f func(c *bbolt.Cursor, k, v []byte) (bool, error)) error {
+func boltSeek(txopener func(func(*bbolt.Tx) error) error, bucket []byte, rng SeekRange, f func(c *bbolt.Cursor, k, v []byte) (bool, error)) error {
 	rang := seekRangeToPrefixes(rng)
 	return txopener(func(tx *bbolt.Tx) error {
 		var (
@@ -140,7 +157,7 @@ func boltSeek(txopener func(func(*bbolt.Tx) error) error, rng SeekRange, f func(
 			next func() ([]byte, []byte)
 		)
 
-		c := tx.Bucket(Bucket).Cursor()
+		c := tx.Bucket(bucket).Cursor()
 
 		if !rng.Backwards {
 			k, v = c.Seek(rang.Start)
