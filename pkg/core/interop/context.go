@@ -392,6 +392,14 @@ func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 	c.mdCache[hf] = md
 }
 
+// RegisterActivationHardfork registers a hardfork that the contract should react to
+// and that is not included into the list of ActiveFrom/ActiveTill hardforks of the
+// contract's methods, events and activation forks. The contract will be updated on
+// activation of the specified hardfork.
+func (c *ContractMD) RegisterActivationHardfork(hf config.Hardfork) {
+	c.ActiveHFs[hf] = struct{}{}
+}
+
 // AddMethod adds a new method to a native contract.
 func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	md.MD = desc
