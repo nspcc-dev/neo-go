@@ -30,9 +30,9 @@ const (
 	// NEP24Payable represents the name of the contract interface for handling royalty payments in accordance
 	// with the NEP-24 standard.
 	NEP24Payable = "NEP-24-Payable"
-	// NEP26StandardName represents the name of NEP-26 smartcontract standard.
+	// NEP26StandardName represents the name of NEP-26 smartcontract standard describing onNEP11Payment callback.
 	NEP26StandardName = "NEP-26"
-	// NEP27StandardName represents the name of NEP-27 smartcontract standard.
+	// NEP27StandardName represents the name of NEP-27 smartcontract standard describing onNEP17Payment callback.
 	NEP27StandardName = "NEP-27"
 	// NEP29StandardName represents the name of NEP-29 smartcontract standard describing _deploy method specification.
 	NEP29StandardName = "NEP-29"
