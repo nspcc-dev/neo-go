@@ -23,7 +23,7 @@ node-related settings described in the table below.
 | LogEncoding | `string` | "console" | Logs output format (can be "console" or "json"). |
 | LogLevel | `string` | "info" | Minimal logged messages level (can be "debug", "info", "warn", "error", "dpanic", "panic" or "fatal"). |
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
-| LogTimestamp | `bool` | Defined by TTY probe on stdout channel.  | Defines whether to enable timestamp logging. If not set, then timestamp logging enabled iff the program is running in TTY (but this behaviour may be overriden by `--force-timestamp-logs` CLI flag if specified). Note that this option, if combined with `LogEncoding: "json"`, can't completely disable timestamp logging. |
+| LogTimestamp | `bool` | Defined by TTY probe on stdout channel.  | Defines whether to enable timestamp logging. If not set, then timestamp logging enabled iff the program is running in TTY (but this behaviour may be overridden by `--force-timestamp-logs` CLI flag if specified). Note that this option, if combined with `LogEncoding: "json"`, can't completely disable timestamp logging. |
 | NeoFSBlockFetcher | [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) | | NeoFS BlockFetcher module configuration. See the [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) section for details. |
 | NeoFSStateFetcher | [NeoFS StateFetcher Configuration](#NeoFS-StateFetcher-Configuration) | | NeoFS StateFetcher module configuration.  It requires both `NeoFSStateSyncExtensions` and `NeoFSBlockFetcher` to be enabled to use `NeoFSStateFetcher` for node synchronisation. See the [NeoFS StateFetcher Configuration](#NeoFS-StateFetcher-Configuration) section for details. |
 | Oracle | [Oracle Configuration](#Oracle-Configuration) | | Oracle module configuration. See the [Oracle Configuration](#Oracle-Configuration) section for details. |
@@ -348,7 +348,7 @@ where:
   lead to websocket handshake failures. Use "-1" to disable websocket
   connections (0 will lead to using the default value).
 - `MaxWebSocketFeeds` -- the maximum simultaneous event subscriptions number
-  for a single client (16 by default). Attemps to create additional subscriptions
+  for a single client (16 by default). Attempts to create additional subscriptions
   will lead to error.
 - `MempoolSubscriptionsEnabled` - denotes whether JSON-RPC websocket subscription
   for mempool events is enabled. If not set, a call to `subscribe` JSON-RPC handler
@@ -481,7 +481,7 @@ protocol-related settings described in the table below.
 | StateRootInHeader | `bool` | `false` | Enables storing state root in block header. | Experimental protocol extension! |
 | StateSyncInterval | `int` | `40000` | The number of blocks between state heights available for MPT state data synchronization. | `P2PStateExchangeExtensions` should be enabled to use this setting. |
 | TimePerBlock | `Duration` | `15s` | Minimal (and targeted for) time interval between blocks if MaxTimePerBlock is not set. Must be an integer number of milliseconds. This setting is replaced by [`Genesis`-level](#Genesis-Configuration) `TimePerBlock` protocol configuration setting and corresponding Policy value starting from `Echidna` hardfork. |
-| MaxTimePerBlock | `Duration` | `0s` | Maximum (and targeted for) time interval between blocks for cases when there's no transactoins in the node's memory pool. Must be an integer number of milliseconds. If set, time interval between blocks will vary from TimePerBlock (when there are some transactions in the network) and MaxTimePerBlock. | An extension of NeoGo node that enables dynamic block time as described in https://github.com/neo-project/neo/issues/4018. |
+| MaxTimePerBlock | `Duration` | `0s` | Maximum (and targeted for) time interval between blocks for cases when there's no transactions in the node's memory pool. Must be an integer number of milliseconds. If set, time interval between blocks will vary from TimePerBlock (when there are some transactions in the network) and MaxTimePerBlock. | An extension of NeoGo node that enables dynamic block time as described in https://github.com/neo-project/neo/issues/4018. |
 | ValidatorsCount | `uint32` | `0` | Number of validators set for the whole network lifetime, can't be set if `ValidatorsHistory` setting is used. |
 | ValidatorsHistory | map[uint32]uint32 | none | Number of consensus nodes to use after given height (see `CommitteeHistory` also). Heights where the change occurs must be divisible by the number of committee members at that height. Can't be used with `ValidatorsCount` not equal to zero. Initial validators count for genesis block must always be specified. |
 | VerifyTransactions | `bool` | `false` | Denotes whether to verify transactions in the received blocks. |

@@ -643,7 +643,7 @@ func TestCompile_GuessEventTypes(t *testing.T) {
 		// TODO: this on is a controversial one. If event information is provided in the config file, then conversion code
 		// will be emitted by the compiler according to the parameter type provided via config. Thus, we can be sure that
 		// either event parameter has the type specified in the config file or the execution of the contract will fail.
-		// Thus, this testcase is always failing (no compilation error occures).
+		// Thus, this testcase is always failing (no compilation error occurs).
 		// Question: do we want to compare `RealType` of the emitted parameter with the one expected in the manifest?
 		t.Run("SC parameter type mismatch", func(t *testing.T) {
 			check(t, filepath.Join("testdata", "rpcbindings", "invalid3"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")

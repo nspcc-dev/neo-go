@@ -459,7 +459,7 @@ func TestBlockchain_InitHeaderHashes(t *testing.T) {
 }
 
 // TestBlockchain_InitializeNeoCache_Bug3181 is aimed to reproduce and check situation
-// when panic occures on native Neo cache initialization due to access to native Policy
+// when panic occurs on native Neo cache initialization due to access to native Policy
 // cache when it's not yet initialized to recalculate candidates.
 func TestBlockchain_InitializeNeoCache_Bug3181(t *testing.T) {
 	ps, path := newLevelDBForTestingWithPath(t, "")

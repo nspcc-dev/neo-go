@@ -463,7 +463,7 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 		eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{2}}, // sslot for A, B
 			opcode.PUSH2, opcode.STSFLD0, // store A
 			opcode.PUSH3, opcode.LDSFLD0, opcode.PUSH1, opcode.PUSH3, opcode.PACK, opcode.PUSH1, opcode.PICKITEM, opcode.STSFLD1, // evaluate B
-			opcode.PUSH1, []any{opcode.CALL, []byte{8}}, opcode.LDSFLD1, opcode.ADD, opcode.DROP, opcode.RET, // evalute C and drop
+			opcode.PUSH1, []any{opcode.CALL, []byte{8}}, opcode.LDSFLD1, opcode.ADD, opcode.DROP, opcode.RET, // evaluate C and drop
 			opcode.PUSH1, opcode.RET, // Main
 			[]any{opcode.INITSLOT, []byte{0, 1}}, opcode.LDARG0, opcode.RET) // f
 	})
@@ -602,7 +602,7 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 						return nested1.C
 					}`
 			eval(t, src, big.NewInt(81))
-			checkInstrCount(t, src, 6 /* dependant vars of nested1.C */, 3, 1, 1)
+			checkInstrCount(t, src, 6 /* dependent vars of nested1.C */, 3, 1, 1)
 		})
 		t.Run("nested func call", func(t *testing.T) {
 			src := `package foo

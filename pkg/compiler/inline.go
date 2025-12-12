@@ -231,7 +231,7 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool)
 		Params:   params,
 	})
 	// Do not enforce perfect expected/actual events match on this step, the final
-	// check wil be performed after compilation if --no-events option is off.
+	// check will be performed after compilation if --no-events option is off.
 	if eventFound && !c.buildInfo.options.NoEventsCheck {
 		return vParams
 	}

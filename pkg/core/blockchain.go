@@ -499,7 +499,7 @@ func validateNative(n interop.Contract, expectedID int32, expectedName string, e
 // relevant for the next block.
 func (bc *Blockchain) GetDesignatedByRole(r noderoles.Role) (keys.PublicKeys, uint32, error) {
 	// Retrieve designated nodes starting from the next block, because the current
-	// block is already stored, thus, dependant services can't use PostPersist callback
+	// block is already stored, thus, dependent services can't use PostPersist callback
 	// to fetch relevant information at their start.
 	res, h, err := bc.designate.GetDesignatedByRole(bc.dao, r, bc.BlockHeight()+1)
 	return res, h, err

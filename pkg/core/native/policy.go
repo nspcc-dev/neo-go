@@ -960,7 +960,7 @@ func makeWhitelistedKey(h util.Uint160, offset uint32) []byte {
 	return k
 }
 
-// iterator provides an iterator over a slice of T. T must be convertable to
+// iterator provides an iterator over a slice of T. T must be convertible to
 // [stackitem.Item] via [stackitem.Make].
 type iterator[T any] struct {
 	keys []T

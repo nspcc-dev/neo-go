@@ -86,7 +86,7 @@ func main() { // nolint: unused
 	// 	GosumOutput:  fSum, // go.sum file for the Verifier contract
 	// })
 	//
-	// Create arguments to invoke `verifyProof` mathod of Verifier contract:
+	// Create arguments to invoke `verifyProof` method of Verifier contract:
 	// verifyProofArgs, err := zkpbinding.GetVerifyProofArgs(proof, publicWitness)
 	//
 	// For end-to-end usage example, please, see the TestCubicCircuit_EndToEnd test.
