@@ -223,7 +223,7 @@ func (s *Module) CleanStorage() error {
 }
 
 // JumpToState performs jump to the state specified by given stateroot index.
-func (s *Module) JumpToState(sr *state.MPTRoot) {
+func (s *Module) JumpToState(sr *state.MPTRoot) error {
 	s.addLocalStateRoot(s.Store, sr)
 
 	data := make([]byte, 4)
@@ -234,6 +234,8 @@ func (s *Module) JumpToState(sr *state.MPTRoot) {
 	s.currentLocal.Store(sr.Root)
 	s.localHeight.Store(sr.Index)
 	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), s.mode, s.Store)
+
+	return nil
 }
 
 // ResetState resets MPT state to the given height.
@@ -371,13 +373,15 @@ func (s *Module) VerifyStateRoot(r *state.MPTRoot) error {
 	return s.verifyWitness(r)
 }
 
-const maxVerificationGAS = 2_00000000
+// MaxVerificationGAS is the maximum amount of GAS that can be spent for stateroot
+// witness verification.
+const MaxVerificationGAS = 2_00000000
 
 // verifyWitness verifies state root witness.
 func (s *Module) verifyWitness(r *state.MPTRoot) error {
 	s.mtx.Lock()
 	h := s.getKeyCacheForHeight(r.Index).validatorsHash
 	s.mtx.Unlock()
-	_, err := s.verifier(h, r, &r.Witness[0], maxVerificationGAS)
+	_, err := s.verifier(h, r, &r.Witness[0], MaxVerificationGAS)
 	return err
 }
