@@ -64,7 +64,7 @@ func (c *ContractInvoker) TestInvokeScript(t testing.TB, script []byte, signers 
 	t.Cleanup(ic.Finalize)
 
 	if c.collectCoverage {
-		ic.VM.SetOnExecHook(coverageHook)
+		ic.VM.SetOnExecHook(c.coverageHook)
 	}
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
@@ -83,7 +83,7 @@ func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...any) (
 	t.Cleanup(ic.Finalize)
 
 	if c.collectCoverage {
-		ic.VM.SetOnExecHook(coverageHook)
+		ic.VM.SetOnExecHook(c.coverageHook)
 	}
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
