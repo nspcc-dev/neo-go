@@ -208,7 +208,12 @@ func newPolicy() *Policy {
 
 	desc = NewDescriptor("blockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States, config.HFDefault, config.HFFaun)
+	p.AddMethod(md, desc)
+
+	desc = NewDescriptor("blockAccount", smartcontract.BoolType,
+		manifest.NewParameter("account", smartcontract.Hash160Type))
+	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States|callflag.AllowNotify, config.HFFaun)
 	p.AddMethod(md, desc)
 
 	desc = NewDescriptor("unblockAccount", smartcontract.BoolType,
