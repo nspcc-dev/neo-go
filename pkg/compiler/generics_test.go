@@ -20,7 +20,7 @@ func TestGenericMethodReceiver(t *testing.T) {
 		}
 `
 		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
-		require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
+		require.ErrorIs(t, err, compiler.ErrGenericsUnsupported)
 	})
 	t.Run("ident expression", func(t *testing.T) {
 		src := `
@@ -33,7 +33,7 @@ func TestGenericMethodReceiver(t *testing.T) {
 		}
 `
 		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
-		require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
+		require.ErrorIs(t, err, compiler.ErrGenericsUnsupported)
 	})
 }
 
@@ -49,7 +49,7 @@ func TestGenericFuncArgument(t *testing.T) {
 		}
 `
 	_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
-	require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
+	require.ErrorIs(t, err, compiler.ErrGenericsUnsupported)
 }
 
 func TestGenericTypeDecl(t *testing.T) {
@@ -67,7 +67,7 @@ func TestGenericTypeDecl(t *testing.T) {
 		}
 `
 		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
-		require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
+		require.ErrorIs(t, err, compiler.ErrGenericsUnsupported)
 	})
 	t.Run("local scope", func(t *testing.T) {
 		src := `
@@ -86,6 +86,6 @@ func TestGenericTypeDecl(t *testing.T) {
 		}
 `
 		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
-		require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
+		require.ErrorIs(t, err, compiler.ErrGenericsUnsupported)
 	})
 }
