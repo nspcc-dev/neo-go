@@ -285,7 +285,7 @@ func NewMultiWithOptionsNoCheck(t testing.TB, options *Options) (*core.Blockchai
 		logger = zaptest.NewLogger(t)
 	}
 
-	bc, err := core.NewBlockchain(store, bcfg, logger)
+	bc, err := core.NewBlockchain(store, bcfg, logger, options.NewNatives)
 	if err == nil && !options.SkipRun {
 		go bc.Run()
 		t.Cleanup(bc.Close)
