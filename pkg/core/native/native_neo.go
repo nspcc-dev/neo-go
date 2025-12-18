@@ -895,7 +895,7 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 		emitEvent = !c.Registered
 		c.Registered = true
 	}
-	err := putConvertibleToDAO(n.ID, ic.DAO, key, c)
+	err := ic.DAO.PutStorageConvertible(n.ID, key, c)
 	if err != nil {
 		return err
 	}
@@ -946,7 +946,7 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 	c.Registered = false
 	ok := n.dropCandidateIfZero(ic.DAO, cache, pub, c)
 	if !ok {
-		err = putConvertibleToDAO(n.ID, ic.DAO, key, c)
+		err = ic.DAO.PutStorageConvertible(n.ID, key, c)
 	}
 	if err != nil {
 		return err
@@ -1093,7 +1093,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *bi
 				return nil
 			}
 		}
-		return putConvertibleToDAO(n.ID, d, key, cd)
+		return d.PutStorageConvertible(n.ID, key, cd)
 	}
 	return nil
 }

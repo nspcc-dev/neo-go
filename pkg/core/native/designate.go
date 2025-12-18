@@ -425,7 +425,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 	nl := NodeList(pubs)
 
-	err := putConvertibleToDAO(s.ID, ic.DAO, key, &nl)
+	err := ic.DAO.PutStorageConvertible(s.ID, key, &nl)
 	if err != nil {
 		return err
 	}

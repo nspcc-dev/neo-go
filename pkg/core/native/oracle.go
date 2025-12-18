@@ -190,7 +190,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 		reqKey := makeRequestKey(resp.ID)
 		req := new(state.OracleRequest)
-		if err := o.getConvertibleFromDAO(ic.DAO, reqKey, req); err != nil {
+		if err := ic.DAO.GetStorageConvertible(o.ID, reqKey, req); err != nil {
 			continue
 		}
 		ic.DAO.DeleteStorageItem(o.ID, reqKey)
@@ -200,7 +200,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 
 		idKey := makeIDListKey(req.URL)
 		idList := new(IDList)
-		if err := o.getConvertibleFromDAO(ic.DAO, idKey, idList); err != nil {
+		if err := ic.DAO.GetStorageConvertible(o.ID, idKey, idList); err != nil {
 			return err
 		}
 		if !idList.Remove(resp.ID) {
@@ -211,7 +211,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		if len(*idList) == 0 {
 			ic.DAO.DeleteStorageItem(o.ID, idKey)
 		} else {
-			err = putConvertibleToDAO(o.ID, ic.DAO, idKey, idList)
+			err = ic.DAO.PutStorageConvertible(o.ID, idKey, idList)
 		}
 		if err != nil {
 			return err
@@ -454,7 +454,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 // PutRequestInternal puts the oracle request with the specified id to d.
 func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d *dao.Simple) error {
 	reqKey := makeRequestKey(id)
-	if err := putConvertibleToDAO(o.ID, d, reqKey, req); err != nil {
+	if err := d.PutStorageConvertible(o.ID, reqKey, req); err != nil {
 		return err
 	}
 	orc, _ := o.Module.Load().(*OracleService)
@@ -465,14 +465,14 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d *dao.
 	// Add request ID to the id list.
 	lst := new(IDList)
 	key := makeIDListKey(req.URL)
-	if err := o.getConvertibleFromDAO(d, key, lst); err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+	if err := d.GetStorageConvertible(o.ID, key, lst); err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
 		return err
 	}
 	if len(*lst) >= maxRequestsCount {
 		return fmt.Errorf("there are too many pending requests for %s url", req.URL)
 	}
 	*lst = append(*lst, id)
-	return putConvertibleToDAO(o.ID, d, key, lst)
+	return d.PutStorageConvertible(o.ID, key, lst)
 }
 
 // GetScriptHash returns script hash of oracle nodes.
@@ -490,14 +490,14 @@ func (o *Oracle) GetOracleNodes(d *dao.Simple) (keys.PublicKeys, error) {
 func (o *Oracle) GetRequestInternal(d *dao.Simple, id uint64) (*state.OracleRequest, error) {
 	key := makeRequestKey(id)
 	req := new(state.OracleRequest)
-	return req, o.getConvertibleFromDAO(d, key, req)
+	return req, d.GetStorageConvertible(o.ID, key, req)
 }
 
 // GetIDListInternal returns the request by ID and key under which it is stored.
 func (o *Oracle) GetIDListInternal(d *dao.Simple, url string) (*IDList, error) {
 	key := makeIDListKey(url)
 	idList := new(IDList)
-	return idList, o.getConvertibleFromDAO(d, key, idList)
+	return idList, d.GetStorageConvertible(o.ID, key, idList)
 }
 
 func (o *Oracle) verify(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
@@ -571,10 +571,6 @@ func makeRequestKey(id uint64) []byte {
 
 func makeIDListKey(url string) []byte {
 	return append(prefixIDList, hash.Hash160([]byte(url)).BytesBE()...)
-}
-
-func (o *Oracle) getConvertibleFromDAO(d *dao.Simple, key []byte, item stackitem.Convertible) error {
-	return getConvertibleFromDAO(o.ID, d, key, item)
 }
 
 // updateCache updates cached Oracle values if they've been changed.
