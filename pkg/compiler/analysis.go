@@ -20,8 +20,8 @@ var (
 	ErrMissingExportedParamName = errors.New("exported method is not allowed to have unnamed parameter")
 	// ErrInvalidExportedRetCount is returned when exported contract method has invalid return values count.
 	ErrInvalidExportedRetCount = errors.New("exported method is not allowed to have more than one return value")
-	// ErrGenericsUnsuppored is returned when generics-related tokens are encountered.
-	ErrGenericsUnsuppored = errors.New("generics are currently unsupported, please, see the https://github.com/nspcc-dev/neo-go/issues/2376")
+	// ErrGenericsUnsupported is returned when generics-related tokens are encountered.
+	ErrGenericsUnsupported = errors.New("generics are currently unsupported, please, see the https://github.com/nspcc-dev/neo-go/issues/2376")
 )
 
 var (
@@ -378,7 +378,7 @@ func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 				if isMain && n.Name.IsExported() || isInitFunc(n) || isDeployFunc(n) {
 					diff[name] = true
 				}
-				// exported functions are not allowed to have unnamed parameters  or multiple return values
+				// exported functions are not allowed to have unnamed parameters or multiple return values
 				if isMain && n.Name.IsExported() && n.Recv == nil {
 					if n.Type.Params.List != nil {
 						for i, param := range n.Type.Params.List {
@@ -580,7 +580,7 @@ func (c *codegen) checkGenericsFuncDecl(n *ast.FuncDecl, funcName string) error 
 	}
 
 	if errGenerics != nil {
-		return fmt.Errorf("%w: %s has %s", ErrGenericsUnsuppored, funcName, errGenerics.Error())
+		return fmt.Errorf("%w: %s has %s", ErrGenericsUnsupported, funcName, errGenerics.Error())
 	}
 
 	return nil
@@ -595,7 +595,7 @@ func (c *codegen) checkGenericsGenDecl(n *ast.GenDecl, pkgPath string) error {
 		for _, s := range n.Specs {
 			typeSpec := s.(*ast.TypeSpec)
 			if typeSpec.TypeParams != nil {
-				return fmt.Errorf("%w: type %s is generic", ErrGenericsUnsuppored, c.getIdentName(pkgPath, typeSpec.Name.Name))
+				return fmt.Errorf("%w: type %s is generic", ErrGenericsUnsupported, c.getIdentName(pkgPath, typeSpec.Name.Name))
 			}
 		}
 	}

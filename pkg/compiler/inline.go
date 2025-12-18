@@ -165,7 +165,7 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool)
 
 	// Sometimes event name is stored in a var. Or sometimes event args are provided
 	// via ellipses (`slice...`).
-	// Skip in this case.  Also, don't enforce runtime.Notify parameters conversion.
+	// Skip in this case. Also, don't enforce runtime.Notify parameters conversion.
 	tv := c.typeAndValueOf(args[0])
 	if tv.Value == nil || hasEllipsis {
 		return nil

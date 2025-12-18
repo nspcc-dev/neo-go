@@ -137,7 +137,7 @@ func TestTypeAssertionWithOK(t *testing.T) {
 					a := 1
 					var u any
 					u = a
-					var _, ok = u.(int)	//	*ast.GenDecl
+					var _, ok = u.(int)	// *ast.GenDecl
 					return ok
 				}`
 		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)

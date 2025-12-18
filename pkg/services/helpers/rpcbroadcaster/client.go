@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// RPCClient represent an rpc client for a single node.
+// RPCClient represents an rpc client for a single node.
 type RPCClient struct {
 	client      *rpcclient.Client
 	addr        string
