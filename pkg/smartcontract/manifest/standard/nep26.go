@@ -14,7 +14,7 @@ var Nep26 = &Standard{
 				Parameters: []manifest.Parameter{
 					{Name: "from", Type: smartcontract.Hash160Type},
 					{Name: "amount", Type: smartcontract.IntegerType},
-					{Name: "tokenid", Type: smartcontract.ByteArrayType},
+					{Name: "tokenId", Type: smartcontract.ByteArrayType},
 					{Name: "data", Type: smartcontract.AnyType},
 				},
 				ReturnType: smartcontract.VoidType,

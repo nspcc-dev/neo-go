@@ -59,7 +59,8 @@ func (e *Executor) TopBlock(t testing.TB) *block.Block {
 	return b
 }
 
-// NativeHash returns a native contract hash by the name.
+// NativeHash returns a native contract hash by the name. It fails if the contract is not
+// active yet.
 func (e *Executor) NativeHash(t testing.TB, name string) util.Uint160 {
 	h, err := e.Chain.GetNativeContractScriptHash(name)
 	require.NoError(t, err)

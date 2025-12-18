@@ -12,6 +12,7 @@ const (
 	Notary      = "Notary"
 	CryptoLib   = "CryptoLib"
 	StdLib      = "StdLib"
+	Treasury    = "Treasury"
 )
 
 // All contains the list of all native contract names ordered by the contract ID.
@@ -26,6 +27,7 @@ var All = []string{
 	Designation,
 	Oracle,
 	Notary,
+	Treasury,
 }
 
 // IsValid checks if the name is a valid native contract's name.
@@ -39,5 +41,6 @@ func IsValid(name string) bool {
 		name == Designation ||
 		name == Notary ||
 		name == CryptoLib ||
-		name == StdLib
+		name == StdLib ||
+		name == Treasury
 }
