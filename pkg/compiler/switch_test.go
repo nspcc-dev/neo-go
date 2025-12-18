@@ -123,6 +123,46 @@ var switchTestCases = []testCase{
 		big.NewInt(1),
 	},
 	{
+		"case after first default",
+		`func F%d() int {
+			a := 5
+			switch a {
+			default: return 4
+			case 5: return 2
+			}
+		}
+		`,
+		big.NewInt(2),
+	},
+	{
+		"case after intermediate default",
+		`func F%d() int {
+			a := 6
+			switch a {
+			case 5: return 2
+			default: return 4
+			case 6:
+			}
+			return 1
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"intermediate default",
+		`func F%d() int {
+			a := 3
+			switch a {
+			case 5: return 2
+			default: return 4
+			case 6:
+			}
+			return 1
+		}
+		`,
+		big.NewInt(4),
+	},
+	{
 		"expression in case clause",
 		`func F%d() int {
 			a := 6
