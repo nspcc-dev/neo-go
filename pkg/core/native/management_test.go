@@ -1,6 +1,7 @@
 package native
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -8,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -16,9 +18,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type neo struct{}
+
+func (n neo) Initialize(context *interop.Context, hardfork *config.Hardfork, md *interop.HFSpecificContractMD) error {
+	panic("TODO")
+}
+func (n neo) ActiveIn() *config.Hardfork { panic("TODO") }
+func (n neo) InitializeCache(isHardforkEnabled interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
+	panic("TODO")
+}
+func (n neo) Metadata() *interop.ContractMD                                { panic("TODO") }
+func (n neo) OnPersist(context *interop.Context) error                     { panic("TODO") }
+func (n neo) PostPersist(context *interop.Context) error                   { panic("TODO") }
+func (n neo) GetCommitteeAddress(d *dao.Simple) util.Uint160               { panic("TODO") }
+func (n neo) GetNextBlockValidatorsInternal(d *dao.Simple) keys.PublicKeys { panic("TODO") }
+func (n neo) BalanceOf(d *dao.Simple, acc util.Uint160) (*big.Int, uint32) { panic("TODO") }
+func (n neo) CalculateBonus(ic *interop.Context, acc util.Uint160, endHeight uint32) (*big.Int, error) {
+	panic("TODO")
+}
+func (n neo) GetCommitteeMembers(d *dao.Simple) keys.PublicKeys        { panic("TODO") }
+func (n neo) ComputeNextBlockValidators(d *dao.Simple) keys.PublicKeys { panic("TODO") }
+func (n neo) GetCandidates(d *dao.Simple) ([]state.Validator, error)   { panic("TODO") }
+func (n neo) CheckCommittee(ic *interop.Context) bool                  { panic("TODO") }
+func (n neo) RevokeVotes(ic *interop.Context, h util.Uint160) error    { return nil }
+
 func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := NewManagement()
-	mgmt.Policy = newPolicy()
+	p := newPolicy()
+	p.NEO = neo{}
+	mgmt.Policy = p
+
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
 	ic := &interop.Context{DAO: d}
 	err := mgmt.Initialize(ic, nil, nil)
@@ -72,7 +101,7 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, refContract, upContract)
 
-	_, err = mgmt.Destroy(d, h)
+	_, err = mgmt.Destroy(ic, h)
 	require.NoError(t, err)
 	_, err = GetContract(d, mgmt.ID, h)
 	require.Error(t, err)

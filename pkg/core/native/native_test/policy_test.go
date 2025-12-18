@@ -372,6 +372,39 @@ func TestPolicy_BlockedAccounts(t *testing.T) {
 		committeeInvoker.Invoke(t, true, "unblockAccount", helper.Hash)
 		helperInvoker.Invoke(t, true, "do")
 	})
+
+	t.Run("block voter", func(t *testing.T) {
+		acc := c.NewAccount(t, 1001_0000_0000)
+		candidate := c.NewAccount(t, 1)
+		pub := candidate.(neotest.SingleSigner).Account().PublicKey()
+
+		// Transfer some NEO to the account.
+		tx := e.NewTx(t, []neotest.Signer{e.Validator}, e.NativeHash(t, nativenames.Neo), "transfer", e.Validator.ScriptHash(), acc.ScriptHash(), 1_000, nil)
+		e.AddNewBlock(t, tx)
+		e.CheckHalt(t, tx.Hash())
+
+		// Register a candidate and vote.
+		g := c.NewInvoker(nativehashes.GasToken, acc, candidate)
+		n := c.NewInvoker(nativehashes.NeoToken, acc)
+		nCommittee := c.NewInvoker(nativehashes.NeoToken, e.Committee)
+		g.Invoke(t, true, "transfer", acc.ScriptHash(), nativehashes.NeoToken, 1000*native.GASFactor, pub.Bytes())
+		n.Invoke(t, true, "vote", acc.ScriptHash(), pub.Bytes())
+		n.Invoke(t, 1_000, "getCandidateVote", pub.Bytes())
+
+		// Block the account and check notification and revoked votes.
+		h := committeeInvoker.Invoke(t, true, "blockAccount", acc.ScriptHash())
+		e.CheckTxNotificationEvent(t, h, 0, state.NotificationEvent{
+			ScriptHash: nativehashes.NeoToken,
+			Name:       "Vote",
+			Item: stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(acc.ScriptHash()),
+				stackitem.Make(pub.Bytes()),
+				stackitem.Null{},
+				stackitem.Make(1_000),
+			}),
+		})
+		nCommittee.Invoke(t, 0, "getCandidateVote", pub.Bytes())
+	})
 }
 
 func TestPolicy_GetBlockedAccounts(t *testing.T) {

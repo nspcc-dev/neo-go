@@ -984,6 +984,18 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	} else if !ok {
 		return errors.New("invalid signature")
 	}
+	return n.voteInternalUnchecked(ic, h, pub)
+}
+
+// RevokeVotes implements INEO interface. It revokes votes of account h and
+// doesn't check the h's witness.
+func (n *NEO) RevokeVotes(ic *interop.Context, h util.Uint160) error {
+	return n.voteInternalUnchecked(ic, h, nil)
+}
+
+// VoteInternalUnchecked it's an internal representation of VoteInternal that
+// votes of the specified account without checking the voter's signature.
+func (n *NEO) voteInternalUnchecked(ic *interop.Context, h util.Uint160, pub *keys.PublicKey) error {
 	key := makeAccountKey(h)
 	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {

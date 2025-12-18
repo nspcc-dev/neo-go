@@ -164,6 +164,7 @@ func (n *neo) CheckCommittee(ic *interop.Context) bool {
 func (n *neo) getBool(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewBool(true)
 }
+func (n *neo) RevokeVotes(ic *interop.Context, acc util.Uint160) error { return nil }
 
 func newPolicy() *policy {
 	p := &policy{}
@@ -200,7 +201,7 @@ func (p *policy) GetAttributeFeeInternal(d *dao.Simple, attrType transaction.Att
 }
 func (p *policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error      { return nil }
 func (p *policy) GetFeePerByteInternal(d *dao.Simple) int64                         { return 1 }
-func (p *policy) BlockAccountInternal(d *dao.Simple, hash util.Uint160) bool        { return false }
+func (p *policy) BlockAccountInternal(ic *interop.Context, hash util.Uint160) bool  { return false }
 func (p *policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool                 { return false }
 func (p *policy) WhitelistedFee(d *dao.Simple, hash util.Uint160, offset int) int64 { return -1 }
 func (p *policy) CleanWhitelist(ic *interop.Context, cs *state.Contract) error      { return nil }

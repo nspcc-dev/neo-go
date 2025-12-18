@@ -507,7 +507,7 @@ func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.Fi
 // VM protections, so it's OK for it to panic instead of returning errors.
 func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackitem.Item {
 	hash := ic.VM.GetCallingScriptHash()
-	cs, err := m.Destroy(ic.DAO, hash)
+	cs, err := m.Destroy(ic, hash)
 	if err != nil {
 		panic(err)
 	}
@@ -523,22 +523,22 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 }
 
 // Destroy drops the given contract from DAO along with its storage. It doesn't emit notification.
-func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
-	contract, err := GetContract(d, m.ID, hash)
+func (m *Management) Destroy(ic *interop.Context, hash util.Uint160) (*state.Contract, error) {
+	contract, err := GetContract(ic.DAO, m.ID, hash)
 	if err != nil {
 		return nil, err
 	}
 	key := MakeContractKey(hash)
-	d.DeleteStorageItem(m.ID, key)
+	ic.DAO.DeleteStorageItem(m.ID, key)
 	key = putHashKey(key, contract.ID)
-	d.DeleteStorageItem(m.ID, key)
+	ic.DAO.DeleteStorageItem(m.ID, key)
 
-	d.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
-		d.DeleteStorageItem(contract.ID, k)
+	ic.DAO.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
+		ic.DAO.DeleteStorageItem(contract.ID, k)
 		return true
 	})
-	m.Policy.BlockAccountInternal(d, hash)
-	markUpdated(d, m.ID, hash, nil)
+	m.Policy.BlockAccountInternal(ic, hash)
+	markUpdated(ic.DAO, m.ID, hash, nil)
 	return contract, nil
 }
 

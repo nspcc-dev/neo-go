@@ -71,7 +71,7 @@ func IsBlocked(addr interop.Hash160) bool {
 
 // BlockAccount represents `blockAccount` method of Policy native contract.
 func BlockAccount(addr interop.Hash160) bool {
-	return neogointernal.CallWithToken(Hash, "blockAccount", int(contract.States), addr).(bool)
+	return neogointernal.CallWithToken(Hash, "blockAccount", int(contract.States|contract.AllowNotify), addr).(bool)
 }
 
 // UnblockAccount represents `unblockAccount` method of Policy native contract.

@@ -43,6 +43,7 @@ type (
 
 		// Methods required for proper cross-native communication.
 		CheckCommittee(ic *interop.Context) bool
+		RevokeVotes(ic *interop.Context, h util.Uint160) error
 	}
 
 	// IGAS is an interface required from native GasToken contract for
@@ -73,7 +74,7 @@ type (
 		GetFeePerByteInternal(d *dao.Simple) int64
 
 		// Methods required for proper cross-native communication.
-		BlockAccountInternal(d *dao.Simple, hash util.Uint160) bool
+		BlockAccountInternal(ic *interop.Context, hash util.Uint160) bool
 		GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uint32
 		CleanWhitelist(ic *interop.Context, cs *state.Contract) error
 		interop.PolicyChecker

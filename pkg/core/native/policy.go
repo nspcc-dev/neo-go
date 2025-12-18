@@ -208,7 +208,12 @@ func newPolicy() *Policy {
 
 	desc = NewDescriptor("blockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States)
+	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States, config.HFDefault, config.HFFaun)
+	p.AddMethod(md, desc)
+
+	desc = NewDescriptor("blockAccount", smartcontract.BoolType,
+		manifest.NewParameter("account", smartcontract.Hash160Type))
+	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States|callflag.AllowNotify, config.HFFaun)
 	p.AddMethod(md, desc)
 
 	desc = NewDescriptor("unblockAccount", smartcontract.BoolType,
@@ -647,17 +652,18 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 			panic("cannot block native contract")
 		}
 	}
-	return stackitem.NewBool(p.BlockAccountInternal(ic.DAO, hash))
+	return stackitem.NewBool(p.BlockAccountInternal(ic, hash))
 }
 
-func (p *Policy) BlockAccountInternal(d *dao.Simple, hash util.Uint160) bool {
-	i, blocked := p.isBlockedInternal(d.GetROCache(p.ID).(*PolicyCache), hash)
+func (p *Policy) BlockAccountInternal(ic *interop.Context, hash util.Uint160) bool {
+	i, blocked := p.isBlockedInternal(ic.DAO.GetROCache(p.ID).(*PolicyCache), hash)
 	if blocked {
 		return false
 	}
+	var _ = p.NEO.RevokeVotes(ic, hash) // ignore error, as in the reference.
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
-	d.PutStorageItem(p.ID, key, state.StorageItem{})
-	cache := d.GetRWCache(p.ID).(*PolicyCache)
+	ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	if len(cache.blockedAccounts) == i {
 		cache.blockedAccounts = append(cache.blockedAccounts, hash)
 	} else {
