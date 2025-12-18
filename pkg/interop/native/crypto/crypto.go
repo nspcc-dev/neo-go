@@ -70,6 +70,14 @@ func RecoverSecp256K1(msgHash []byte, sig []byte) []byte {
 // serializing it with Bls12381Serialize method call.
 type Bls12381Point struct{}
 
+// Bls12381Pair represents a point/scalar pair used by Bls12381MultiExp. It combines
+// an opaque Bls12381Point with a little-endian serialized scalar (32 or 64 bytes).
+// Each pair contributes point * scalar to the multi-exponentiation result.
+type Bls12381Pair struct {
+	Point  Bls12381Point
+	Scalar int
+}
+
 // Bls12381Serialize calls `bls12381Serialize` method of native CryptoLib contract
 // and serializes given BLS12-381 point into byte array.
 func Bls12381Serialize(g Bls12381Point) []byte {
@@ -114,4 +122,70 @@ func Bls12381Pairing(g1, g2 Bls12381Point) Bls12381Point {
 // computes Keccak256 hash of b.
 func Keccak256(b []byte) interop.Hash256 {
 	return neogointernal.CallWithToken(Hash, "keccak256", int(contract.NoneFlag), b).(interop.Hash256)
+}
+
+// Bls12381SerializeEthereum represents `bls12381SerializeEth` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381SerializeEthereum(g Bls12381Point) []byte {
+	return neogointernal.CallWithToken(Hash, "bls12381SerializeEthereum", int(contract.NoneFlag), g).([]byte)
+}
+
+// Bls12381DeserializeEthereum represents `bls12381DeserializeEth` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381DeserializeEthereum(data []byte) Bls12381Point {
+	return neogointernal.CallWithToken(Hash, "bls12381DeserializeEthereum", int(contract.NoneFlag), data).(Bls12381Point)
+}
+
+// Bls12381SerializeList represents `bls12381SerializeList` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381SerializeList(list []Bls12381Pair) []byte {
+	return neogointernal.CallWithToken(Hash, "bls12381SerializeList", int(contract.NoneFlag), list).([]byte)
+}
+
+// Bls12381SerializeEthereumhList represents `bls12381SerializeEthList` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381SerializeEthereumList(list []Bls12381Pair) []byte {
+	return neogointernal.CallWithToken(Hash, "bls12381SerializeEthereumList", int(contract.NoneFlag), list).([]byte)
+}
+
+// Bls12381DeserializeList represents `bls12381DeserializeList` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381DeserializeList(data []byte) []Bls12381Point {
+	return neogointernal.CallWithToken(Hash, "bls12381DeserializeList", int(contract.NoneFlag), data).([]Bls12381Point)
+}
+
+// Bls12381DeserializeEthereumList represents `bls12381DeserializeEthereumList` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381DeserializeEthereumList(data []byte) []Bls12381Point {
+	return neogointernal.CallWithToken(Hash, "bls12381DeserializeEthereumList", int(contract.NoneFlag), data).([]Bls12381Point)
+}
+
+// Bls12381DeserializeG1ScalarPairs represents `bls12381DeserializeG1ScalarPairs` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381DeserializeG1ScalarPairs(data []byte) []Bls12381Pair {
+	return neogointernal.CallWithToken(Hash, "bls12381DeserializeG1ScalarPairs", int(contract.NoneFlag), data).([]Bls12381Pair)
+}
+
+// Bls12381DeserializeG2ScalarPairs represents `bls12381DeserializeG2ScalarPairs` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381DeserializeG2ScalarPairs(data []byte) []Bls12381Pair {
+	return neogointernal.CallWithToken(Hash, "bls12381DeserializeG2ScalarPairs", int(contract.NoneFlag), data).([]Bls12381Pair)
+}
+
+// Bls12381DeserializeEthereumG1ScalarPairs represents `bls12381DeserializeEthereumG1ScalarPairs` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381DeserializeEthereumG1ScalarPairs(data []byte) []Bls12381Pair {
+	return neogointernal.CallWithToken(Hash, "bls12381DeserializeEthereumG1ScalarPairs", int(contract.NoneFlag), data).([]Bls12381Pair)
+}
+
+// Bls12381DeserializeEthereumG2ScalarPairs represents `bls12381DeserializeEthereumG2ScalarPairs` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381DeserializeEthereumG2ScalarPairs(data []byte) []Bls12381Pair {
+	return neogointernal.CallWithToken(Hash, "bls12381DeserializeEthereumG2ScalarPairs", int(contract.NoneFlag), data).([]Bls12381Pair)
+}
+
+// Bls12381MultiExp represents `bls12381MultiExp` method of CryptoLib native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func Bls12381MultiExp(pairs []Bls12381Pair) Bls12381Point {
+	return neogointernal.CallWithToken(Hash, "bls12381MultiExp", int(contract.NoneFlag), pairs).(Bls12381Point)
 }

@@ -6,7 +6,26 @@ import (
 	"math/big"
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fp"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+)
+
+const (
+	// bls12FieldElementLength is EIP-2537 ABI encoding length for a single Fp element.
+	bls12FieldElementLength = fp.Bytes + 16
+	// bls12G1EncodedLength is uncompressed encoding length for an Ethereum G1 point.
+	bls12G1EncodedLength = 2 * bls12FieldElementLength
+	// bls12G2EncodedLength is uncompressed encoding length for an Ethereum G2 point.
+	bls12G2EncodedLength = 4 * bls12FieldElementLength
+	// bls12381MultiExpMaxPairs is the maximum number of (point, scalar) pairs
+	// accepted by the CryptoLib native contract method `bls12381MultiExp`.
+	bls12381MultiExpMaxPairs = 128
+	// bls12381PairingMaxPairs is the maximum number of (G1, G2) pairs
+	// accepted by the CryptoLib native contract method `bls12381PairingList`.
+	bls12381PairingMaxPairs = bls12381MultiExpMaxPairs
+	// bls12ScalarLength is encoding length for an Ethereum scalar.
+	bls12ScalarLength = fr.Bytes
 )
 
 // blsPoint is a wrapper around bls12381 point types that must be used as
@@ -104,6 +123,40 @@ func (p blsPoint) Bytes() []byte {
 	}
 }
 
+// BytesEth returns serialized representation of the provided point in Ethereum form.
+func (p blsPoint) BytesEth() []byte {
+	switch p := p.point.(type) {
+	case *bls12381.G1Affine:
+		if p.IsInfinity() {
+			return make([]byte, bls12G1EncodedLength)
+		}
+		bytes := p.RawBytes()
+		return addPadding(bytes[:])
+	case *bls12381.G1Jac:
+		g1 := new(bls12381.G1Affine).FromJacobian(p)
+		if g1.IsInfinity() {
+			return make([]byte, bls12G1EncodedLength)
+		}
+		bytes := g1.RawBytes()
+		return addPadding(bytes[:])
+	case *bls12381.G2Affine:
+		if p.IsInfinity() {
+			return make([]byte, bls12G2EncodedLength)
+		}
+		bytes := p.RawBytes()
+		return g2ToEthereum(bytes[:])
+	case *bls12381.G2Jac:
+		g2 := new(bls12381.G2Affine).FromJacobian(p)
+		if g2.IsInfinity() {
+			return make([]byte, bls12G2EncodedLength)
+		}
+		bytes := g2.RawBytes()
+		return g2ToEthereum(bytes[:])
+	default:
+		panic(errors.New("invalid bls12381 point type"))
+	}
+}
+
 // FromBytes deserializes BLS12-381 point from the given byte slice in compressed form.
 func (p *blsPoint) FromBytes(buf []byte) error {
 	switch l := len(buf); l {
@@ -131,6 +184,81 @@ func (p *blsPoint) FromBytes(buf []byte) error {
 	}
 
 	return nil
+}
+
+// FromBytesEth deserializes BLS12-381 point from the given byte slice in Ethereum form.
+func (p *blsPoint) FromBytesEth(buf []byte) error {
+	switch l := len(buf); l {
+	case bls12G1EncodedLength:
+		g1Affine := new(bls12381.G1Affine)
+		_, err := g1Affine.SetBytes(removePadding(buf))
+		if err != nil {
+			return fmt.Errorf("failed to decode bls12381 G1Affine point: %w", err)
+		}
+		p.point = g1Affine
+	case bls12G2EncodedLength:
+		g2Affine := new(bls12381.G2Affine)
+		_, err := g2Affine.SetBytes(g2FromEthereum(buf))
+		if err != nil {
+			return fmt.Errorf("failed to decode bls12381 G2Affine point: %w", err)
+		}
+		p.point = g2Affine
+	default:
+		return errors.New("invalid buf length")
+	}
+
+	return nil
+}
+
+func removePadding(data []byte) []byte {
+	var (
+		count = len(data) / bls12FieldElementLength
+		res   = make([]byte, count*fp.Bytes)
+	)
+	for i := range count {
+		for _, b := range data[i*bls12FieldElementLength : (i+1)*bls12FieldElementLength-fp.Bytes] {
+			if b != 0 {
+				panic("bls12-381 field element overflow")
+			}
+		}
+		copy(res[i*fp.Bytes:(i+1)*fp.Bytes], data[(i+1)*bls12FieldElementLength-fp.Bytes:(i+1)*bls12FieldElementLength])
+	}
+	return res
+}
+
+func g2FromEthereum(data []byte) []byte {
+	buf := removePadding(data)
+	for l := 0; l < len(buf); l += 2 * fp.Bytes {
+		j := l + fp.Bytes
+		for i := l; i < l+fp.Bytes; i++ {
+			buf[i], buf[j] = buf[j], buf[i]
+			j++
+		}
+	}
+	return buf
+}
+
+func addPadding(data []byte) []byte {
+	var (
+		count = len(data) / fp.Bytes
+		res   = make([]byte, count*bls12FieldElementLength)
+	)
+	for i := range count {
+		copy(res[(i+1)*bls12FieldElementLength-fp.Bytes:(i+1)*bls12FieldElementLength], data[i*fp.Bytes:(i+1)*fp.Bytes])
+	}
+	return res
+}
+
+func g2ToEthereum(data []byte) []byte {
+	buf := addPadding(data)
+	for l := bls12FieldElementLength - fp.Bytes; l < len(buf); l += 2 * bls12FieldElementLength {
+		j := l + bls12FieldElementLength
+		for i := l; i < l+fp.Bytes; i++ {
+			buf[i], buf[j] = buf[j], buf[i]
+			j++
+		}
+	}
+	return buf
 }
 
 // blsPointAdd performs addition of two BLS12-381 points.

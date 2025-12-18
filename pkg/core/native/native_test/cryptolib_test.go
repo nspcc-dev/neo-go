@@ -12,6 +12,7 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
@@ -29,6 +30,9 @@ var (
 	g2           []byte
 	gt           []byte
 	notG1, notG2 []byte
+	g1Eth        []byte
+	g2Eth        []byte
+	negG1Eth     []byte
 )
 
 func init() {
@@ -37,6 +41,9 @@ func init() {
 	gt, _ = hex.DecodeString("0f41e58663bf08cf068672cbd01a7ec73baca4d72ca93544deff686bfd6df543d48eaa24afe47e1efde449383b67663104c581234d086a9902249b64728ffd21a189e87935a954051c7cdba7b3872629a4fafc05066245cb9108f0242d0fe3ef03350f55a7aefcd3c31b4fcb6ce5771cc6a0e9786ab5973320c806ad360829107ba810c5a09ffdd9be2291a0c25a99a211b8b424cd48bf38fcef68083b0b0ec5c81a93b330ee1a677d0d15ff7b984e8978ef48881e32fac91b93b47333e2ba5706fba23eb7c5af0d9f80940ca771b6ffd5857baaf222eb95a7d2809d61bfe02e1bfd1b68ff02f0b8102ae1c2d5d5ab1a19f26337d205fb469cd6bd15c3d5a04dc88784fbb3d0b2dbdea54d43b2b73f2cbb12d58386a8703e0f948226e47ee89d018107154f25a764bd3c79937a45b84546da634b8f6be14a8061e55cceba478b23f7dacaa35c8ca78beae9624045b4b601b2f522473d171391125ba84dc4007cfbf2f8da752f7c74185203fcca589ac719c34dffbbaad8431dad1c1fb597aaa5193502b86edb8857c273fa075a50512937e0794e1e65a7617c90d8bd66065b1fffe51d7a579973b1315021ec3c19934f1368bb445c7c2d209703f239689ce34c0378a68e72a6b3b216da0e22a5031b54ddff57309396b38c881c4c849ec23e87089a1c5b46e5110b86750ec6a532348868a84045483c92b7af5af689452eafabf1a8943e50439f1d59882a98eaa0170f1250ebd871fc0a92a7b2d83168d0d727272d441befa15c503dd8e90ce98db3e7b6d194f60839c508a84305aaca1789b6")
 	notG1, _ = hex.DecodeString("8123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	notG2, _ = hex.DecodeString("8123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	g1Eth, _ = hex.DecodeString("0000000000000000000000000000000017f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb0000000000000000000000000000000008b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1")
+	g2Eth, _ = hex.DecodeString("00000000000000000000000000000000024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb80000000000000000000000000000000013e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e000000000000000000000000000000000ce5d527727d6e118cc9cdc6da2e351aadfd9baa8cbdd3a76d429a695160d12c923ac9cc3baca289e193548608b82801000000000000000000000000000000000606c4a02ea734cc32acd2b02bc28b99cb3e287e85a763af267492ab572e99ab3f370d275cec1da1aaa9075ff05f79be")
+	negG1Eth, _ = hex.DecodeString("0000000000000000000000000000000017f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb00000000000000000000000000000000114d1d6855d545a8aa7d76c8cf2e21f267816aef1db507c96655b9d5caac42364e6f38ba0ecb751bad54dcd6b939c2ca")
 }
 
 func newCryptolibClient(t *testing.T) *neotest.ContractInvoker {
@@ -594,4 +601,101 @@ func TestCryptoLib_RecoverSecp256K1_EIP2098Compat(t *testing.T) {
 		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigExpanded)
 		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigCompact)
 	}
+}
+
+func TestCryptoLib_Bls12381SerializeEth(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 3,
+		}
+	})
+
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	c := e.CommitteeInvoker(nativehashes.CryptoLib)
+	c.InvokeFail(t, "method not found: bls12381DeserializeEthereum/1", "bls12381DeserializeEthereum", stackitem.NewArray(nil))
+	c.InvokeFail(t, "method not found: bls12381SerializeEthereum/1", "bls12381SerializeEthereum", stackitem.NewArray(nil))
+
+	script := io.NewBufBinWriter()
+	multiplier := make([]byte, fr.Bytes)
+	multiplier[0] = 1
+	emit.Bool(script.BinWriter, false)
+	emit.Bytes(script.BinWriter, multiplier)
+	emit.AppCall(script.BinWriter, c.Hash, "bls12381DeserializeEthereum", callflag.All, g1Eth)
+	emit.Opcodes(script.BinWriter, opcode.PUSH3, opcode.PACK)
+	emit.AppCallNoArgs(script.BinWriter, c.Hash, "bls12381Mul", callflag.All)
+	emit.Opcodes(script.BinWriter, opcode.PUSH1, opcode.PACK)
+	emit.AppCallNoArgs(script.BinWriter, c.Hash, "bls12381SerializeEthereum", callflag.All)
+
+	e.AddNewBlock(t)
+	stack, err := c.TestInvokeScript(t, script.Bytes(), c.Signers)
+	require.NoError(t, err)
+	require.Equal(t, 1, stack.Len())
+	itm := stack.Pop().Item()
+	actual, ok := itm.Value().([]byte)
+	require.True(t, ok)
+	require.Equal(t, g1Eth, actual)
+}
+
+func TestCryptoLib_Bls12381MultiExp(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 4,
+		}
+	})
+
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	c := e.CommitteeInvoker(nativehashes.CryptoLib)
+	c.InvokeFail(t, "method not found: bls12381MultiExp/1", "bls12381MultiExp", stackitem.NewArray(nil))
+	c.InvokeFail(t, "method not found: bls12381SerializeEthereumG2ScalarPairs/1", "bls12381SerializeEthereumG2ScalarPairs", stackitem.NewArray(nil))
+	c.InvokeFail(t, "method not found: bls12381DeserializeEthereumG2ScalarPairs/1", "bls12381DeserializeEthereumG2ScalarPairs", stackitem.NewArray(nil))
+
+	script := io.NewBufBinWriter()
+	one := make([]byte, fr.Bytes)
+	one[fr.Bytes-1] = 1
+	bytes := append(g2Eth, one...)
+	emit.AppCall(script.BinWriter, c.Hash, "bls12381DeserializeEthereumG2ScalarPairs", callflag.All, bytes)
+	emit.Opcodes(script.BinWriter, opcode.PUSH1, opcode.PACK)
+	emit.AppCallNoArgs(script.BinWriter, c.Hash, "bls12381MultiExp", callflag.All)
+	emit.Opcodes(script.BinWriter, opcode.PUSH1, opcode.PACK)
+	emit.AppCallNoArgs(script.BinWriter, c.Hash, "bls12381SerializeEthereum", callflag.All)
+
+	e.AddNewBlock(t)
+	stack, err := c.TestInvokeScript(t, script.Bytes(), c.Signers)
+	require.NoError(t, err)
+	require.Equal(t, 1, stack.Len())
+	itm := stack.Pop().Item()
+	actual, ok := itm.Value().([]byte)
+	require.True(t, ok)
+	require.Equal(t, g2Eth, actual)
+}
+
+func TestCryptoLib_Bls12381PairingList(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 4,
+		}
+	})
+
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	c := e.CommitteeInvoker(nativehashes.CryptoLib)
+	c.InvokeFail(t, "method not found: bls12381PairingList/1", "bls12381PairingList", stackitem.NewArray(nil))
+	c.InvokeFail(t, "method not found: bls12381SerializeEthereumList/1", "bls12381SerializeEthereumList", stackitem.NewArray(nil))
+	c.InvokeFail(t, "method not found: bls12381DeserializeEthereumList/1", "bls12381DeserializeEthereumList", stackitem.NewArray(nil))
+
+	script := io.NewBufBinWriter()
+	bytes := append(g1Eth, g2Eth...)
+	bytes = append(bytes, negG1Eth...)
+	bytes = append(bytes, g2Eth...)
+	emit.AppCall(script.BinWriter, c.Hash, "bls12381DeserializeEthereumList", callflag.All, bytes)
+	emit.Opcodes(script.BinWriter, opcode.PUSH1, opcode.PACK)
+	emit.AppCallNoArgs(script.BinWriter, c.Hash, "bls12381PairingList", callflag.All)
+
+	e.AddNewBlock(t)
+	stack, err := c.TestInvokeScript(t, script.Bytes(), c.Signers)
+	require.NoError(t, err)
+	require.Equal(t, 1, stack.Len())
+	itm := stack.Pop().Item()
+	actual, ok := itm.Value().(bool)
+	require.True(t, ok)
+	require.True(t, actual)
 }
