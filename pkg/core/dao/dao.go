@@ -370,6 +370,31 @@ func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) {
 	dao.Store.Put(stKey, si)
 }
 
+// GetStorageConvertible deserializes the [stackitem.Convertible] entry retrieved by
+// the provided key from the contract storage.
+func (dao *Simple) GetStorageConvertible(id int32, key []byte, conv stackitem.Convertible) error {
+	si := dao.GetStorageItem(id, key)
+	if si == nil {
+		return storage.ErrKeyNotFound
+	}
+	return stackitem.DeserializeConvertible(si, conv)
+}
+
+// PutStorageConvertible serializes the provided [stackitem.Convertible] using
+// DAO's serialization context and puts it to the specified contract storage.
+func (dao *Simple) PutStorageConvertible(id int32, key []byte, conv stackitem.Convertible) error {
+	item, err := conv.ToStackItem()
+	if err != nil {
+		return err
+	}
+	data, err := dao.GetItemCtx().Serialize(item, false)
+	if err != nil {
+		return err
+	}
+	dao.PutStorageItem(id, key, data)
+	return nil
+}
+
 // PutBigInt serializaed and puts the given integer for the given id with the given
 // key into the given store.
 func (dao *Simple) PutBigInt(id int32, key []byte, n *big.Int) {

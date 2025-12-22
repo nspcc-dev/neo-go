@@ -806,7 +806,7 @@ func PutContractState(d *dao.Simple, managementID int32, cs *state.Contract) err
 // putContractState is an internal PutContractState representation.
 func putContractState(d *dao.Simple, managementID int32, cs *state.Contract, updateCache bool) error {
 	key := MakeContractKey(cs.Hash)
-	if err := putConvertibleToDAO(managementID, d, key, cs); err != nil {
+	if err := d.PutStorageConvertible(managementID, key, cs); err != nil {
 		return err
 	}
 	if updateCache {
