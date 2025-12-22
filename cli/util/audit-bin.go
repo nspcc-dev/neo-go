@@ -138,6 +138,10 @@ func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) err
 			return cli.Exit(fmt.Errorf("search block objects: %w", err), 1)
 		}
 
+		if debug {
+			fmt.Fprintf(ctx.App.Writer, "search returned %d results, previous height %d\n", len(page), prevH)
+		}
+
 		for _, itm := range page {
 			select {
 			case <-ctx.Done():
