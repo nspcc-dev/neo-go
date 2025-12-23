@@ -159,6 +159,10 @@ func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) err
 				return cli.Exit(fmt.Errorf("failed to parse block OID (%s): %w", itm.ID, err), 1)
 			}
 
+			if h < prevH {
+				return cli.Exit(fmt.Errorf("expected >%d height, received %d", prevH, h), 1)
+			}
+
 			if !curOID.IsZero() && prevH == h {
 				if dryRun {
 					fmt.Fprintf(ctx.App.Writer, "[dry-run] block duplicate %s / %s (%d)\n", itm.ID, curOID, prevH)
