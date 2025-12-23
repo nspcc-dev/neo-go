@@ -264,10 +264,12 @@ func ObjectSearch(ctx context.Context, c Client, priv *keys.PrivateKey, containe
 
 			err := basic.Retry(func() error {
 				var err error
-				page, nextCursor, err = c.SearchObjects(ctx, containerID, filters, attrs, cursor, s, client.SearchObjectsOptions{})
+				tPage, tNextCursor, tErr := c.SearchObjects(ctx, containerID, filters, attrs, cursor, s, client.SearchObjectsOptions{})
 				if err != nil {
-					return fmt.Errorf("failed to search objects: %w", err)
+					return fmt.Errorf("failed to search objects: %w", tErr)
 				}
+				page = tPage
+				nextCursor = tNextCursor
 				return nil
 			})
 
