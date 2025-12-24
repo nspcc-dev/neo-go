@@ -128,10 +128,12 @@ func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) err
 	for {
 		var page []client.SearchResultItem
 		err = retry(func() error {
-			page, cursor, err = neoFSPool.SearchObjects(ctx.Context, containerID, f, []string{blockAttr}, cursor, signer, client.SearchObjectsOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to search objects: %w", err)
+			tPage, tCursor, tErr := neoFSPool.SearchObjects(ctx.Context, containerID, f, []string{blockAttr}, cursor, signer, client.SearchObjectsOptions{})
+			if tErr != nil {
+				return fmt.Errorf("failed to search for objects: %w", tErr)
 			}
+			page = tPage
+			cursor = tCursor
 			return nil
 		}, retries, debug)
 		if err != nil {
@@ -157,6 +159,10 @@ func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) err
 			h, err := strconv.ParseUint(itm.Attributes[0], 10, 64)
 			if err != nil {
 				return cli.Exit(fmt.Errorf("failed to parse block OID (%s): %w", itm.ID, err), 1)
+			}
+
+			if h < prevH {
+				return cli.Exit(fmt.Errorf("expected >%d height, received %d", prevH, h), 1)
 			}
 
 			if !curOID.IsZero() && prevH == h {
