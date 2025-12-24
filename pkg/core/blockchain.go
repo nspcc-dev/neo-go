@@ -860,7 +860,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		if err != nil {
 			return fmt.Errorf("failed to get checkpoint metadata: %w", err)
 		}
-		root = ckpt.MPTRoot
+		root = ckpt.IntermediateRoot
 	} else {
 		blk, err := bc.dao.GetBlock(bc.GetHeaderHash(p + 1))
 		if err != nil {
@@ -912,6 +912,7 @@ func (bc *Blockchain) resetRAMState(height uint32, resetHeaders bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize natives cache: %w", err)
 	}
+	bc.designate.NotifyServices(bc.dao)
 
 	if err := bc.updateExtensibleWhitelist(height); err != nil {
 		return fmt.Errorf("failed to update extensible whitelist: %w", err)

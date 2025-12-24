@@ -4,7 +4,10 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -21,8 +24,12 @@ func (m *mockLedger) GetConfig() config.Blockchain { return config.Blockchain{} 
 
 func (m *mockLedger) GetLastStoredKey() []byte { return m.lastStoredKey }
 
-func (m *mockLedger) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256) error {
-	return nil
+func (m *mockLedger) AddContractStorageItems(kvs []storage.KeyValue) error { return nil }
+
+func (m *mockLedger) InitContractStorageSync(r state.MPTRoot) error { return nil }
+
+func (m *mockLedger) VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error) {
+	return 0, nil
 }
 
 func TestServiceConstructor(t *testing.T) {

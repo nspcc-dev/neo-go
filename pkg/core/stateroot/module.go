@@ -371,13 +371,15 @@ func (s *Module) VerifyStateRoot(r *state.MPTRoot) error {
 	return s.verifyWitness(r)
 }
 
-const maxVerificationGAS = 2_00000000
+// MaxVerificationGAS is the maximum amount of GAS that can be spent for stateroot
+// witness verification.
+const MaxVerificationGAS = 2_00000000
 
 // verifyWitness verifies state root witness.
 func (s *Module) verifyWitness(r *state.MPTRoot) error {
 	s.mtx.Lock()
 	h := s.getKeyCacheForHeight(r.Index).validatorsHash
 	s.mtx.Unlock()
-	_, err := s.verifier(h, r, &r.Witness[0], maxVerificationGAS)
+	_, err := s.verifier(h, r, &r.Witness[0], MaxVerificationGAS)
 	return err
 }
