@@ -6,14 +6,19 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// MaxMultisigKeys is the maximum number of keys allowed for correct multisig contract.
-const MaxMultisigKeys = 1024
+const (
+	// MaxMultisigKeys is the maximum number of keys allowed for correct multisig contract.
+	MaxMultisigKeys = 1024
+
+	// maxStackSize is the maximum stack size of Neo VM. It's not imported from
+	// the `vm` package to avoid cyclic dependency.
+	maxStackSize = 2 * 1024
+)
 
 var (
 	verifyInteropID   = interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig))
@@ -21,24 +26,14 @@ var (
 )
 
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
-	var nthings int
-
-	switch {
-	case opcode.PUSH1 <= instr && instr <= opcode.PUSH16:
-		nthings = int(instr-opcode.PUSH1) + 1
-	case instr <= opcode.PUSHINT256:
-		n := bigint.FromBytes(param)
-		if !n.IsInt64() || n.Sign() < 0 || n.Int64() > MaxMultisigKeys {
-			return 0, false
-		}
-		nthings = int(n.Int64())
-	default:
+	nthings, err := GetInt64FromInstr(Instruction{Op: instr, Param: param})
+	if err != nil {
 		return 0, false
 	}
 	if nthings < 1 || nthings > MaxMultisigKeys {
 		return 0, false
 	}
-	return nthings, true
+	return int(nthings), true
 }
 
 // IsMultiSigContract checks whether the passed script is a multi-signature

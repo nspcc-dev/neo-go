@@ -137,3 +137,9 @@ func (f *CallFlag) UnmarshalYAML(node *yaml.Node) error {
 	*f, err = FromString(s)
 	return err
 }
+
+// IsValid returns true iff f is a valid CallFlag (or a valid combination of
+// flags).
+func IsValid(f CallFlag) bool {
+	return f & ^All == 0
+}
