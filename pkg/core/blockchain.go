@@ -3159,15 +3159,15 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction, pools ...*mempool.Pool)
 
 // PoolTxWithData verifies and tries to add given transaction with additional data into the mempool.
 func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data any, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(tx *transaction.Transaction, data any) error) error {
-	bc.lock.RLock()
-	defer bc.lock.RUnlock()
-
 	if verificationFunction != nil {
 		err := verificationFunction(t, data)
 		if err != nil {
 			return fmt.Errorf("data verification failed: %w", err)
 		}
 	}
+
+	bc.lock.RLock()
+	defer bc.lock.RUnlock()
 	return bc.verifyAndPoolTx(t, mp, feer, data)
 }
 
