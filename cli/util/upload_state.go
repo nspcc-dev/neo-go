@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"time"
@@ -138,11 +139,14 @@ loop:
 			attrs            = []object.Attribute{
 				object.NewAttribute(attr, strconv.Itoa(int(height))),
 				object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
-				object.NewAttribute("StateRoot", stateRoot.Root.StringLE()),
+				object.NewAttribute(neofs.DefaultStateRootAttribute, stateRoot.Root.StringLE()),
 				object.NewAttribute("StateSyncInterval", strconv.Itoa(syncInterval)),
 				object.NewAttribute("BlockTime", strconv.FormatUint(h.Timestamp, 10)),
 			}
 		)
+		if len(stateRoot.Witness) > 0 {
+			attrs = append(attrs, object.NewAttribute(neofs.DefaultWitnessAttribute, base64.StdEncoding.EncodeToString(stateRoot.Witness[0].Bytes())))
+		}
 		hdr.SetContainerID(containerID)
 		hdr.SetOwner(signer.UserID())
 		hdr.SetAttributes(attrs...)

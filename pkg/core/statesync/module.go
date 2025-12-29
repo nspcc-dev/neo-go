@@ -21,6 +21,7 @@ package statesync
 //go:generate stringer -type=StorageSyncMode
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -32,8 +33,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -89,16 +93,19 @@ type Ledger interface {
 	GetHeaderHash(uint32) util.Uint256
 	HeaderHeight() uint32
 	NativePolicyID() int32
+	VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error)
 }
 
 // Module represents state sync module and aimed to gather state-related data to
 // perform an atomic state jump.
 type Module struct {
-	lock     sync.RWMutex
 	log      *zap.Logger
 	mode     StorageSyncMode
 	policyID int32
 
+	// lock protects syncStage and all dependent fields that may be updated concurrently
+	// via Module callbacks along with the change of the synchronisation stage.
+	lock sync.RWMutex
 	// syncPoint is the state synchronisation point P we're currently working against.
 	syncPoint uint32
 	// syncStage is the stage of the sync process.
@@ -110,6 +117,9 @@ type Module struct {
 	// lastStoredKey is the last processed storage key in case of ContractStorageBased
 	// state synchronisation.
 	lastStoredKey []byte
+	// root is the MPT root (optionally with witness attached) at the syncPoint. It
+	// may be empty in case if the Module is started on already synchronized state.
+	root state.MPTRoot
 
 	dao      *dao.Simple
 	bc       Ledger
@@ -161,11 +171,12 @@ func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Si
 // Init initializes state sync module for the current chain's height with given
 // callback for MPT nodes requests.
 func (s *Module) Init(currChainHeight uint32) error {
-	oldStage := s.syncStage
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
+		newStage := s.syncStage
 		s.lock.Unlock()
-		if s.syncStage != oldStage {
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
@@ -229,10 +240,47 @@ func (s *Module) Init(currChainHeight uint32) error {
 	return s.defineSyncStage()
 }
 
-// SetOnStageChanged sets callback that is triggered whenever the sync stage changes.
-func (s *Module) SetOnStageChanged(cb func()) {
+// InitContractStorageSync prepares Module for contract storage items
+// synchronization, so that it's possible to use the AddContractStorageItems
+// callback afterwards.
+func (s *Module) InitContractStorageSync(root state.MPTRoot) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	if root.Index != s.syncPoint {
+		return fmt.Errorf("invalid sync height: expected %d, got %d", s.syncPoint, root.Index)
+	}
+
+	if s.bc.GetConfig().StateRootInHeader {
+		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(s.syncPoint + 1))
+		if err != nil {
+			return fmt.Errorf("failed to get header to check state root: %w", err)
+		}
+		if !header.PrevStateRoot.Equals(root.Root) {
+			return fmt.Errorf("state root mismatch: %s != %s", header.PrevStateRoot.StringLE(), root.Root.StringLE())
+		}
+	} else if len(root.Witness) > 0 {
+		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(s.syncPoint))
+		if err != nil {
+			return fmt.Errorf("failed to get header to check state root: %w", err)
+		}
+		if !bytes.Equal(header.Script.VerificationScript, root.Witness[0].VerificationScript) {
+			return fmt.Errorf("state root witness mismatch: %s != %s", hex.EncodeToString(header.Script.VerificationScript), hex.EncodeToString(root.Witness[0].VerificationScript))
+		}
+	}
+
+	// If s.root is extracted from a checkpoint, check that the provided root matches the stored one.
+	if !s.root.Root.Equals(util.Uint256{}) && (s.root.Index != root.Index || !s.root.Root.Equals(root.Root)) {
+		return fmt.Errorf("invalid state root: checkpoint holds %d/%s, got %d/%s", s.root.Index, s.root.Root.StringLE(), root.Index, root.Root.StringLE())
+	}
+	s.root = root
+	return nil
+}
+
+// SetOnStageChanged sets a callback that is triggered whenever the sync stage
+// changes. It is not protected by the Module's mutex, so it must only be called
+// before the Module starts.
+func (s *Module) SetOnStageChanged(cb func()) {
 	s.stageChangedCallback = cb
 }
 
@@ -321,14 +369,23 @@ func (s *Module) defineSyncStage() error {
 					return fmt.Errorf("failed to load checkpoint: %w", err)
 				}
 			} else {
-				s.localTrie = mpt.NewTrie(mpt.NewHashNode(ckpt.MPTRoot), mode, s.dao.Store)
+				s.localTrie = mpt.NewTrie(mpt.NewHashNode(ckpt.IntermediateRoot), mode, s.dao.Store)
 				s.lastStoredKey = ckpt.LastStoredKey
+				var w []transaction.Witness
+				if len(ckpt.Witness.VerificationScript) > 0 {
+					w = []transaction.Witness{ckpt.Witness}
+				}
+				s.root = state.MPTRoot{
+					Index:   s.syncPoint,
+					Root:    ckpt.Root,
+					Witness: w,
+				}
 
-				if ckpt.IsMPTSynced {
+				if ckpt.Root.Equals(ckpt.IntermediateRoot) {
 					s.syncStage |= mptSynced
 					s.log.Info("MPT and contract storage are in sync",
 						zap.Uint32("syncPoint", s.syncPoint),
-						zap.String("stateRoot", ckpt.MPTRoot.StringLE()))
+						zap.String("stateRoot", ckpt.IntermediateRoot.StringLE()))
 				}
 			}
 		}
@@ -400,11 +457,12 @@ func (s *Module) getLatestSavedBlock(p uint32) uint32 {
 
 // AddHeaders validates and adds specified headers to the chain.
 func (s *Module) AddHeaders(hdrs ...*block.Header) error {
-	oldStage := s.syncStage
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
+		newStage := s.syncStage
 		s.lock.Unlock()
-		if s.syncStage != oldStage {
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
@@ -429,14 +487,15 @@ func (s *Module) AddHeaders(hdrs ...*block.Header) error {
 
 // AddBlock verifies and saves block skipping executable scripts.
 func (s *Module) AddBlock(block *block.Block) error {
-	oldStage := s.syncStage
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
-		if s.syncStage != oldStage {
+		newStage := s.syncStage
+		s.lock.Unlock()
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
 	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced == 0 || s.syncStage&blocksSynced != 0 {
 		return nil
@@ -499,14 +558,16 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 	if s.mode == ContractStorageBased {
 		panic("MPT nodes are not expected in storage-based sync mode")
 	}
-	oldStage := s.syncStage
+
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
-		if s.syncStage != oldStage {
+		newStage := s.syncStage
+		s.lock.Unlock()
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
 	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 {
 		return fmt.Errorf("MPT nodes were not requested: current state sync stage is %d", s.syncStage)
@@ -540,24 +601,23 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 }
 
 // AddContractStorageItems adds a batch of key-value pairs for storage-based sync.
-func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256) error {
+func (s *Module) AddContractStorageItems(kvs []storage.KeyValue) error {
 	if s.mode == MPTBased {
 		panic("contract storage items are not expected in MPT-based mode")
 	}
-	oldStage := s.syncStage
+
 	s.lock.Lock()
+	oldStage := s.syncStage
 	defer func() {
-		if s.syncStage != oldStage {
+		newStage := s.syncStage
+		s.lock.Unlock()
+		if newStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
-	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 || expectedRoot.Equals(s.localTrie.StateRoot()) {
+	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 {
 		return errors.New("contract storage items were not requested")
-	}
-	if syncHeight != s.syncPoint {
-		return fmt.Errorf("invalid sync height: expected %d, got %d", s.syncPoint, syncHeight)
 	}
 	if len(kvs) == 0 {
 		return fmt.Errorf("key-value pairs are empty")
@@ -573,33 +633,29 @@ func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint
 	_ = s.dao.Store.PutChangeSet(nil, batch)
 	mptBatch := mpt.MapToMPTBatch(batch)
 	if _, err := s.localTrie.PutBatch(mptBatch); err != nil {
-		return fmt.Errorf("failed to apply MPT batch at height %d: %w", syncHeight, err)
+		return fmt.Errorf("failed to apply MPT batch at %d: %w", s.syncPoint, err)
 	}
-	s.localTrie.Flush(syncHeight)
+	s.localTrie.Flush(s.syncPoint)
 	s.lastStoredKey = kvs[len(kvs)-1].Key
 	computedRoot := s.localTrie.StateRoot()
+	w := transaction.Witness{}
+	if len(s.root.Witness) > 0 {
+		w = s.root.Witness[0]
+	}
 	ckpt := dao.StateSyncCheckpoint{
-		MPTRoot:       s.localTrie.StateRoot(),
-		LastStoredKey: kvs[len(kvs)-1].Key,
-		IsMPTSynced:   computedRoot.Equals(expectedRoot),
+		IntermediateRoot: computedRoot,
+		Root:             s.root.Root,
+		LastStoredKey:    kvs[len(kvs)-1].Key,
+		Witness:          w,
 	}
 	s.dao.PutStateSyncCheckpoint(ckpt)
 	if _, err := s.dao.Store.PersistSync(); err != nil {
 		return fmt.Errorf("failed to persist checkpoint metadata: %w", err)
 	}
-	if !computedRoot.Equals(expectedRoot) {
+	if !computedRoot.Equals(s.root.Root) {
 		return nil
 	}
 
-	if s.bc.GetConfig().StateRootInHeader {
-		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(s.syncPoint + 1))
-		if err != nil {
-			return fmt.Errorf("failed to get header to check state root: %w", err)
-		}
-		if !header.PrevStateRoot.Equals(expectedRoot) {
-			return fmt.Errorf("state root mismatch: %s != %s", header.PrevStateRoot.StringLE(), expectedRoot.StringLE())
-		}
-	}
 	s.syncStage |= mptSynced
 	s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
 	s.log.Info("MPT and contract storage are in sync",
@@ -773,4 +829,9 @@ func (s *Module) GetStateSyncPoint() uint32 {
 	defer s.lock.RUnlock()
 
 	return s.syncPoint
+}
+
+// VerifyWitness implements [network.StateSync] interface.
+func (s *Module) VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error) {
+	return s.bc.VerifyWitness(h, c, w, gas)
 }

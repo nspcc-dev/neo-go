@@ -26,6 +26,10 @@ const (
 	DefaultBlockAttribute = "Block"
 	// DefaultStateAttribute is the default attribute name for state objects.
 	DefaultStateAttribute = "State"
+	// DefaultWitnessAttribute is the default attribute name for state object witness.
+	DefaultWitnessAttribute = "Witness"
+	// DefaultStateRootAttribute is the default attribute name for the stateroot field of a state object.
+	DefaultStateRootAttribute = "StateRoot"
 	// DefaultKVBatchSize is a number of contract storage key-value objects to
 	// flush to the node's DB in a batch.
 	DefaultKVBatchSize = 1000

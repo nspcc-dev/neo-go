@@ -437,7 +437,7 @@ func (s *Server) stateSyncCallBack() {
 	if needStorage {
 		s.syncHeaderFetcher.Shutdown()
 		if !s.syncStateFetcher.IsShutdown() {
-			if err := s.syncStateFetcher.Start(); err != nil {
+			if err := s.syncStateFetcher.Start(s.stateSync.GetStateSyncPoint()); err != nil {
 				s.log.Error("skipping NeoFS Sync StateFetcher", zap.Error(err))
 			}
 		}
@@ -1619,7 +1619,7 @@ func (s *Server) tryInitStateSync() {
 		// Choose the height of the median peer as the current chain's height
 		h = heights[len(heights)/2]
 	} else {
-		lastStateHeight, err := s.syncStateFetcher.LatestStateObjectHeight()
+		lastStateHeight, err := s.syncStateFetcher.Init(0, 0)
 		if err != nil {
 			s.log.Fatal("failed to get the last state index",
 				zap.Uint32("blockHeight", s.chain.BlockHeight()),

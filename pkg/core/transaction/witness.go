@@ -48,3 +48,20 @@ func (w Witness) Copy() Witness {
 		VerificationScript: bytes.Clone(w.VerificationScript),
 	}
 }
+
+// Bytes returns the serialized Witness bytes.
+func (w Witness) Bytes() []byte {
+	buf := io.NewBufBinWriter()
+	w.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return nil
+	}
+	return buf.Bytes()
+}
+
+// FromBytes decodes Witness from bytes.
+func (w *Witness) FromBytes(b []byte) error {
+	buf := io.NewBinReaderFromBuf(b)
+	w.DecodeBinary(buf)
+	return buf.Err
+}

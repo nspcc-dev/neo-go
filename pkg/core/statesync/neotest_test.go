@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
@@ -108,7 +109,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.NeedStorageData())
 	})
 
-	check := func(t *testing.T, boltCfg func(c *config.Blockchain), storageEnabled bool) {
+	check := func(t *testing.T, boltCfg func(c *config.Blockchain), storageItemsSync bool) {
 		bcBolt, validatorsBolt, committeeBolt := chain.NewMultiWithCustomConfig(t, boltCfg)
 		eBolt := neotest.NewExecutor(t, bcBolt, validatorsBolt, committeeBolt)
 		module := bcBolt.GetStateSyncModule()
@@ -146,7 +147,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.NoError(t, err)
 		var lastKey []byte
 		// add a few MPT nodes or contract storage items to create DB state where some of the elements are missing
-		if !storageEnabled {
+		if !storageItemsSync {
 			unknownNodes := module.GetUnknownMPTNodesBatch(2)
 			require.Equal(t, 1, len(unknownNodes))
 			require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
@@ -169,13 +170,14 @@ func TestStateSyncModule_Init(t *testing.T) {
 			}
 		} else {
 			// check AddContractStorageItems parameters
-			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{}, stateSyncPoint-3, sroot.Root), "invalid sync height:")
-			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{}, stateSyncPoint, sroot.Root), "key-value pairs are empty")
+			require.ErrorContains(t, module.InitContractStorageSync(state.MPTRoot{Index: stateSyncPoint - 3, Root: sroot.Root}), "invalid sync height:")
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{}), "key-value pairs are empty")
+			require.NoError(t, module.InitContractStorageSync(state.MPTRoot{Index: stateSyncPoint, Root: sroot.Root}))
 			var batch []storage.KeyValue
 			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
 				batch = append(batch, storage.KeyValue{Key: k, Value: v})
 				if len(batch) == 2 {
-					require.NoError(t, module.AddContractStorageItems(batch, stateSyncPoint, sroot.Root))
+					require.NoError(t, module.AddContractStorageItems(batch))
 					lastKey = batch[len(batch)-1].Key
 					return false // stop seeking
 				}
@@ -193,7 +195,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.NeedHeaders())
 		require.True(t, module.NeedStorageData())
 		require.False(t, module.NeedBlocks())
-		if !storageEnabled {
+		if !storageItemsSync {
 			unknownNodes := module.GetUnknownMPTNodesBatch(100)
 			require.True(t, len(unknownNodes) > 0)
 			require.NotContains(t, unknownNodes, expectedHeader.PrevStateRoot)
@@ -222,6 +224,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 			unknownNodes = module.GetUnknownMPTNodesBatch(2)
 			require.Equal(t, 0, len(unknownNodes))
 		} else {
+			require.NoError(t, module.InitContractStorageSync(state.MPTRoot{Index: stateSyncPoint, Root: sroot.Root}))
 			require.Equal(t, lastKey, module.GetLastStoredKey())
 			var skip bool
 			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
@@ -231,10 +234,10 @@ func TestStateSyncModule_Init(t *testing.T) {
 					}
 					return true // skip this key
 				}
-				require.NoError(t, module.AddContractStorageItems([]storage.KeyValue{{Key: k, Value: v}}, stateSyncPoint, sroot.Root))
+				require.NoError(t, module.AddContractStorageItems([]storage.KeyValue{{Key: k, Value: v}}))
 				return true
 			})
-			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}), "contract storage items were not requested")
 		}
 		// check that module is active and storage data is in sync
 		require.True(t, module.IsActive())
@@ -265,11 +268,11 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
 		require.True(t, module.NeedBlocks())
-		if !storageEnabled {
+		if !storageItemsSync {
 			unknownNodes := module.GetUnknownMPTNodesBatch(2)
 			require.Equal(t, 0, len(unknownNodes))
 		} else {
-			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}), "contract storage items were not requested")
 		}
 		require.Equal(t, uint32(stateSyncPoint-stateSyncInterval-1), module.BlockHeight())
 
@@ -304,11 +307,11 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
 		require.False(t, module.NeedBlocks())
-		if !storageEnabled {
+		if !storageItemsSync {
 			unknownNodes := module.GetUnknownMPTNodesBatch(1)
 			require.True(t, len(unknownNodes) == 0)
 		} else {
-			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}), "contract storage items were not requested")
 		}
 		require.Equal(t, uint32(0), module.BlockHeight()) // inactive -> 0
 		require.Equal(t, uint32(stateSyncPoint), bcBolt.BlockHeight())
@@ -319,11 +322,11 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
-		if !storageEnabled {
+		if !storageItemsSync {
 			unknownNodes := module.GetUnknownMPTNodesBatch(1)
 			require.True(t, len(unknownNodes) == 0)
 		} else {
-			require.Error(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
+			require.Error(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}), "contract storage items were not requested")
 		}
 		require.Equal(t, uint32(0), module.BlockHeight()) // inactive -> 0
 		require.Equal(t, uint32(stateSyncPoint), bcBolt.BlockHeight())
@@ -336,11 +339,11 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
-		if !storageEnabled {
+		if !storageItemsSync {
 			unknownNodes := module.GetUnknownMPTNodesBatch(1)
 			require.True(t, len(unknownNodes) == 0)
 		} else {
-			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}), "contract storage items were not requested")
 		}
 		require.Equal(t, uint32(0), module.BlockHeight()) // inactive -> 0
 		require.Equal(t, uint32(stateSyncPoint)+1, bcBolt.BlockHeight())
@@ -439,12 +442,12 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 				})
 			})
 			t.Run("error: add ContractStorage items without initialisation", func(t *testing.T) {
-				require.Error(t, module.AddContractStorageItems([]storage.KeyValue{}, 123, util.Uint256{}))
+				require.Error(t, module.AddContractStorageItems([]storage.KeyValue{}))
 			})
 		} else {
 			t.Run("panic: add contract storage items in MPTBased mode", func(t *testing.T) {
 				require.Panics(t, func() {
-					err := module.AddContractStorageItems([]storage.KeyValue{}, 123, util.Uint256{})
+					err := module.AddContractStorageItems([]storage.KeyValue{})
 					if err != nil {
 						return
 					}
@@ -487,18 +490,22 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			sroot, err := bcSpout.GetStateModule().GetStateRoot(uint32(stateSyncPoint))
 			require.NoError(t, err)
 
+			require.NoError(t, module.InitContractStorageSync(state.MPTRoot{
+				Index: uint32(stateSyncPoint),
+				Root:  sroot.Root,
+			}))
 			var batch []storage.KeyValue
 			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
 				batch = append(batch, storage.KeyValue{Key: k, Value: v})
 				if len(batch) >= 3 {
-					err = module.AddContractStorageItems(batch, uint32(stateSyncPoint), sroot.Root)
+					err = module.AddContractStorageItems(batch)
 					require.NoError(t, err)
 					batch = batch[:0]
 				}
 				return true
 			})
 			if len(batch) > 0 {
-				err = module.AddContractStorageItems(batch, uint32(stateSyncPoint), sroot.Root)
+				err = module.AddContractStorageItems(batch)
 				require.NoError(t, err)
 			}
 			require.NoError(t, err)
@@ -702,12 +709,16 @@ func TestStateSyncModule_SetOnStageChanged(t *testing.T) {
 			sm := bcSpout.GetStateModule()
 			sroot, err := sm.GetStateRoot(syncPoint)
 			require.NoError(t, err)
+			require.NoError(t, module.InitContractStorageSync(state.MPTRoot{
+				Index: syncPoint,
+				Root:  sroot.Root,
+			}))
 			var all []storage.KeyValue
 			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
 				all = append(all, storage.KeyValue{Key: k, Value: v})
 				return true
 			})
-			require.NoError(t, module.AddContractStorageItems(all, syncPoint, sroot.Root))
+			require.NoError(t, module.AddContractStorageItems(all))
 		}
 		require.Equal(t, 3, calls)
 
