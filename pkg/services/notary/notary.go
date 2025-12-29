@@ -52,7 +52,8 @@ type (
 		// started is a status bool to protect from double start/shutdown.
 		started atomic.Bool
 
-		// reqMtx protects requests list.
+		// reqMtx protects the request list from concurrent requests addition/removal.
+		// Use per-request locks instead of this one to perform request-changing operations.
 		reqMtx sync.RWMutex
 		// requests represents a map of main transactions which needs to be completed
 		// with the associated fallback transactions grouped by the main transaction hash
@@ -89,6 +90,7 @@ const defaultTxChannelCapacity = 100
 type (
 	// request represents Notary service request.
 	request struct {
+		lock sync.RWMutex
 		// isSent indicates whether the main transaction was successfully sent to the network.
 		isSent bool
 		main   *transaction.Transaction
@@ -117,7 +119,8 @@ type (
 )
 
 // isMainCompleted denotes whether all signatures for the main transaction were collected.
-func (r request) isMainCompleted() bool {
+// The caller must hold the request RLock.
+func (r *request) isMainCompleted() bool {
 	if r.witnessInfo == nil {
 		return false
 	}
@@ -246,7 +249,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 
 	nvbFallback := payload.FallbackTransaction.GetAttributes(transaction.NotValidBeforeT)[0].Value.(*transaction.NotValidBefore).Height
 	nKeys := payload.MainTransaction.GetAttributes(transaction.NotaryAssistedT)[0].Value.(*transaction.NotaryAssisted).NKeys
-	newInfo, validationErr := n.verifyIncompleteWitnesses(payload.MainTransaction, nKeys)
+	newInfo, validationErr := verifyIncompleteWitnesses(payload.MainTransaction, nKeys)
 	if validationErr != nil {
 		n.Config.Log.Info("verification of main notary transaction failed; fallback transaction will be completed",
 			zap.String("main hash", payload.MainTransaction.Hash().StringLE()),
@@ -254,12 +257,14 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 			zap.String("verification error", validationErr.Error()))
 	}
 	n.reqMtx.Lock()
-	defer n.reqMtx.Unlock()
 	r, exists := n.requests[payload.MainTransaction.Hash()]
 	if exists {
+		r.lock.Lock() // RLock doesn't fit here since we modify r.minNotValidBefore below.
+		defer r.lock.Unlock()
 		if slices.ContainsFunc(r.fallbacks, func(fb *transaction.Transaction) bool {
 			return fb.Hash().Equals(payload.FallbackTransaction.Hash())
 		}) {
+			n.reqMtx.Unlock()
 			return // then we already have processed this request
 		}
 		r.minNotValidBefore = min(r.minNotValidBefore, nvbFallback)
@@ -270,8 +275,11 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 			main:              payload.MainTransaction.Copy(),
 			minNotValidBefore: nvbFallback,
 		}
+		r.lock.Lock()
+		defer r.lock.Unlock()
 		n.requests[payload.MainTransaction.Hash()] = r
 	}
+	n.reqMtx.Unlock()
 	if r.witnessInfo == nil && validationErr == nil {
 		r.witnessInfo = newInfo
 	}
@@ -347,21 +355,21 @@ func (n *Notary) OnRequestRemoval(pld *payload.P2PNotaryRequest) {
 		return
 	}
 
-	n.reqMtx.Lock()
-	defer n.reqMtx.Unlock()
+	n.reqMtx.RLock()
 	r, ok := n.requests[pld.MainTransaction.Hash()]
+	n.reqMtx.RUnlock()
 	if !ok {
 		return
 	}
+
+	r.lock.Lock()
 	for i, fb := range r.fallbacks {
 		if fb.Hash().Equals(pld.FallbackTransaction.Hash()) {
 			r.fallbacks = append(r.fallbacks[:i], r.fallbacks[i+1:]...)
 			break
 		}
 	}
-	if len(r.fallbacks) == 0 {
-		delete(n.requests, r.main.Hash())
-	}
+	r.lock.Unlock()
 }
 
 // PostPersist is a callback which is called after a new block event is received.
@@ -379,12 +387,19 @@ func (n *Notary) PostPersist() {
 	defer n.reqMtx.Unlock()
 	currHeight := n.Config.Chain.BlockHeight()
 	for h, r := range n.requests {
+		r.lock.Lock()
+		if len(r.fallbacks) == 0 {
+			delete(n.requests, r.main.Hash())
+			r.lock.Unlock()
+			continue
+		}
 		if !r.isSent && r.isMainCompleted() && r.minNotValidBefore > currHeight {
 			if err := n.finalize(acc, r.main, h); err != nil {
 				n.Config.Log.Error("failed to finalize main transaction after PostPersist, waiting for the next block to retry",
 					zap.String("hash", r.main.Hash().StringLE()),
 					zap.Error(err))
 			}
+			r.lock.Unlock()
 			continue
 		}
 		if r.minNotValidBefore <= currHeight { // then at least one of the fallbacks can already be sent.
@@ -400,6 +415,7 @@ func (n *Notary) PostPersist() {
 				}
 			}
 		}
+		r.lock.Unlock()
 	}
 }
 
@@ -448,10 +464,15 @@ func (n *Notary) newTxCallbackLoop() {
 		case tx := <-n.newTxs:
 			isMain := tx.tx.Hash() == tx.mainHash
 
-			n.reqMtx.Lock()
+			n.reqMtx.RLock()
 			r, ok := n.requests[tx.mainHash]
-			if !ok || isMain && (r.isSent || r.minNotValidBefore <= n.Config.Chain.BlockHeight()) {
-				n.reqMtx.Unlock()
+			n.reqMtx.RUnlock()
+			if !ok {
+				continue
+			}
+			r.lock.RLock()
+			if isMain && (r.isSent || r.minNotValidBefore <= n.Config.Chain.BlockHeight()) {
+				r.lock.RUnlock()
 				continue
 			}
 			if !isMain {
@@ -460,12 +481,15 @@ func (n *Notary) newTxCallbackLoop() {
 					return fb.Hash() == tx.tx.Hash()
 				})
 				if !isPending {
-					n.reqMtx.Unlock()
+					r.lock.RUnlock()
 					continue
 				}
 			}
 
-			n.reqMtx.Unlock()
+			// Do not take lock over r during onTransaction processing; it may cause
+			// a deadlock on attempt to mempool finalized transaction, ref. #2064,
+			// ref. https://github.com/nspcc-dev/neo-go/pull/4093#issuecomment-3682809371.
+			r.lock.RUnlock()
 			err := n.onTransaction(tx.tx)
 			if err != nil {
 				n.Config.Log.Error("new transaction callback finished with error",
@@ -474,7 +498,7 @@ func (n *Notary) newTxCallbackLoop() {
 				continue
 			}
 
-			n.reqMtx.Lock()
+			r.lock.Lock()
 			if isMain {
 				r.isSent = true
 			} else {
@@ -484,11 +508,8 @@ func (n *Notary) newTxCallbackLoop() {
 						break
 					}
 				}
-				if len(r.fallbacks) == 0 {
-					delete(n.requests, tx.mainHash)
-				}
 			}
-			n.reqMtx.Unlock()
+			r.lock.Unlock()
 		case <-n.stopCh:
 			return
 		}
@@ -508,7 +529,7 @@ func updateTxSize(tx *transaction.Transaction) (*transaction.Transaction, error)
 // verifyIncompleteWitnesses checks that the tx either doesn't have all witnesses attached (in this case none of them
 // can be multisignature) or it only has a partial multisignature. It returns the request type (sig/multisig), the
 // number of signatures to be collected, sorted public keys (for multisig request only) and an error.
-func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8) ([]witnessInfo, error) {
+func verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8) ([]witnessInfo, error) {
 	var nKeysActual uint8
 	if len(tx.Signers) < 2 {
 		return nil, errors.New("transaction should have at least 2 signers")
