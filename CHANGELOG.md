@@ -2,6 +2,51 @@
 
 This document outlines major changes between releases.
 
+## 0.115.0 "Shininess" (30 Dec 2025)
+
+Bringing NeoGo up to date with recently added Faun preview changes, this release
+also improves CLI and RPC client/server parts. Other than that, it introduces
+witnessed state objects used by the experimental NeoFS state sync extension and
+optimizes `P2PNotaryRequest` payloads processing in Notary service.
+
+This release is fully compatible with v0.114.0. Please note that
+`MaxBlockSystemFee` value of default mainnet configuration was upgraded, ensure
+your mainnet node config is aligned with this change. Also note that the format
+of NeoFS state sync checkpoint used to store the progress of the state sync
+process has been changed, so resync is required for those
+`NeoFSStateSyncExtensions`-enabled nodes that are upgraded in the middle of the
+state sync process (which is not expected in practice).
+
+New features:
+ * clear votes of a blocked account starting from Faun (#4115)
+ * native Treasury contract is added to Faun preview (#4113)
+ * fractional ExecFeeFactor support is added to native Policy contract starting
+   from Faun (#4057)
+ * contract fee whitelists are supported starting from Faun (#4052)
+ * `query notarypool` CLI command (#4103)
+
+Behavior changes:
+ * `ErrAlreadyExists` RPC error code is used instead of raw RPC error text
+   comparison in RPC client related packages (#4106)
+
+Improvements:
+ * serializers of stackitem.Convertible are added to `dao` package (#4118)
+ * extended debug logs for `util audit-bin` CLI command (#4120)
+ * multiple BoltDB stores support for a single DB (#4112)
+ * `neotest` coverage documentation improvements (#4109)
+ * immediate empty iterator session disposal (#4095)
+ * SC standard compliance check errors are improved (#4091)
+ * stateroot witness support for NeoFS state objects (#4099)
+ * optimization of `P2PNotaryRequest` payloads handling in Notary service (#4093)
+
+Bugs fixed:
+ * supported standard wrappers conflict in auto-generated RPC bindings (#4086)
+ * custom native contracts are not properly supported in `neotest` (#4117)
+ * RPC iterator's `Truncated` field misuse on session-enabled servers (#4095)
+ * `MaxBlockSystemFee` misconfiguration in default mainnet config (#4097)
+ * invalid signature order in SC parameter context (#4089)
+ * `util audit-bin` search cursor reset on temporary search failures (#4121)
+
 ## 0.114.0 "Chemosorption" (17 Nov 2025)
 
 This version fixes the state difference at block 11074661 of testnet caused by
