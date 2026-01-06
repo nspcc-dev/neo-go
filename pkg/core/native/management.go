@@ -803,6 +803,13 @@ func PutContractState(d *dao.Simple, managementID int32, cs *state.Contract) err
 	return putContractState(d, managementID, cs, true)
 }
 
+// TODO: check with nspcc if we can update PutContractState with an extra param
+// or else how to have the cache for ManagementContract initialized such that it doesn't panic
+// trying to run markUpdated().
+func PutContractStateNoCache(d *dao.Simple, cs *state.Contract) error {
+	return putContractState(d, cs, false)
+}
+
 // putContractState is an internal PutContractState representation.
 func putContractState(d *dao.Simple, managementID int32, cs *state.Contract, updateCache bool) error {
 	key := MakeContractKey(cs.Hash)
@@ -860,4 +867,18 @@ func checkScriptAndMethods(ic *interop.Context, script []byte, methods []manifes
 	}
 
 	return nil
+}
+
+// TODO: decide how to best expose. There are too many options that for the time I picked a duplicate
+// function to have something working and let nspcc decide their preferred exposing option.
+func GetNextContractID(d *dao.Simple) (int32, error) {
+	si := d.GetStorageItem(ManagementContractID, keyNextAvailableID)
+	if si == nil {
+		return 0, errors.New("nextAvailableID is not initialized")
+	}
+	id := bigint.FromBytes(si)
+	ret := int32(id.Int64())
+	id.Add(id, intOne)
+	d.PutBigInt(ManagementContractID, keyNextAvailableID, id)
+	return ret, nil
 }
