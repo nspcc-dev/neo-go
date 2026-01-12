@@ -115,9 +115,14 @@ func copyOracleCache(src, dst *OracleCache) {
 
 func newOracle() *Oracle {
 	o := &Oracle{
-		ContractMD:  *interop.NewContractMD(nativenames.Oracle, nativeids.OracleContract),
+		ContractMD: *interop.NewContractMD(nativenames.Oracle, nativeids.OracleContract, func(m *manifest.Manifest, hf config.Hardfork) {
+			if hf.Cmp(config.HFFaun) >= 0 {
+				m.SupportedStandards = append(m.SupportedStandards, manifest.NEP30StandardName)
+			}
+		}),
 		newRequests: make(map[uint64]*state.OracleRequest),
 	}
+	o.RegisterActivationHardfork(config.HFFaun) // supported standards update.
 	defer o.BuildHFSpecificMD(o.ActiveIn())
 
 	o.oracleScript = CreateOracleResponseScript(o.Hash)
