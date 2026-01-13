@@ -141,11 +141,10 @@ func (s *NEOBalance) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("invalid balance stackitem: %w", err)
 	}
 	s.Balance = *balance
-	h, err := structItem[1].TryInteger()
+	s.BalanceHeight, err = stackitem.ToUint32(structItem[1])
 	if err != nil {
-		return fmt.Errorf("invalid height stackitem")
+		return fmt.Errorf("invalid height: %w", err)
 	}
-	s.BalanceHeight = uint32(h.Int64())
 	if _, ok := structItem[2].(stackitem.Null); ok {
 		s.VoteTo = nil
 	} else {

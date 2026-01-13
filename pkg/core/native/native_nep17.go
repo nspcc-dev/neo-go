@@ -3,7 +3,6 @@ package native
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -388,11 +387,7 @@ func toBigInt(s stackitem.Item) *big.Int {
 }
 
 func toUint160(s stackitem.Item) util.Uint160 {
-	buf, err := s.TryBytes()
-	if err != nil {
-		panic(err)
-	}
-	u, err := util.Uint160DecodeBytesBE(buf)
+	u, err := stackitem.ToUint160(s)
 	if err != nil {
 		panic(err)
 	}
@@ -400,33 +395,33 @@ func toUint160(s stackitem.Item) util.Uint160 {
 }
 
 func toUint64(s stackitem.Item) uint64 {
-	bigInt := toBigInt(s)
-	if !bigInt.IsUint64() {
-		panic("bigint is not a uint64")
+	i, err := stackitem.ToUint64(s)
+	if err != nil {
+		panic(err)
 	}
-	return bigInt.Uint64()
+	return i
 }
 
 func toUint32(s stackitem.Item) uint32 {
-	uint64Value := toUint64(s)
-	if uint64Value > math.MaxUint32 {
-		panic("bigint does not fit into uint32")
+	i, err := stackitem.ToUint32(s)
+	if err != nil {
+		panic(err)
 	}
-	return uint32(uint64Value)
+	return i
 }
 
 func toUint8(s stackitem.Item) uint8 {
-	uint64Value := toUint64(s)
-	if uint64Value > math.MaxUint8 {
-		panic("bigint does not fit into uint8")
+	i, err := stackitem.ToUint8(s)
+	if err != nil {
+		panic(err)
 	}
-	return uint8(uint64Value)
+	return i
 }
 
 func toInt64(s stackitem.Item) int64 {
-	bigInt := toBigInt(s)
-	if !bigInt.IsInt64() {
-		panic("bigint is not an uint64")
+	i, err := stackitem.ToInt64(s)
+	if err != nil {
+		panic(err)
 	}
-	return bigInt.Int64()
+	return i
 }

@@ -3,7 +3,6 @@ package state
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -37,15 +36,10 @@ func (d *Deposit) FromStackItem(it stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("invalid amount: %w", err)
 	}
-	till, err := items[1].TryInteger()
+	d.Amount = amount
+	d.Till, err = stackitem.ToUint32(items[1])
 	if err != nil {
 		return fmt.Errorf("invalid till: %w", err)
 	}
-	tiu64 := till.Uint64()
-	if !till.IsUint64() || tiu64 > math.MaxUint32 {
-		return errors.New("wrong till value")
-	}
-	d.Amount = amount
-	d.Till = uint32(tiu64)
 	return nil
 }

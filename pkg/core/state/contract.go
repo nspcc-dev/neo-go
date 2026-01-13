@@ -2,8 +2,7 @@ package state
 
 import (
 	"errors"
-	"math"
-	"math/big"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -60,42 +59,31 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 	if len(arr) != 5 {
 		return errors.New("invalid structure")
 	}
-	bi, ok := arr[0].Value().(*big.Int)
-	if !ok {
-		return errors.New("ID is not an integer")
-	}
-	if !bi.IsInt64() || bi.Int64() > math.MaxInt32 || bi.Int64() < math.MinInt32 {
-		return errors.New("ID not in int32 range")
-	}
-	c.ID = int32(bi.Int64())
-	bi, ok = arr[1].Value().(*big.Int)
-	if !ok {
-		return errors.New("UpdateCounter is not an integer")
-	}
-	if !bi.IsUint64() || bi.Uint64() > math.MaxUint16 {
-		return errors.New("UpdateCounter not in uint16 range")
-	}
-	c.UpdateCounter = uint16(bi.Uint64())
-	bytes, err := arr[2].TryBytes()
+	var err error
+	c.ID, err = stackitem.ToInt32(arr[0])
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid ID: %w", err)
 	}
-	c.Hash, err = util.Uint160DecodeBytesBE(bytes)
+	c.UpdateCounter, err = stackitem.ToUint16(arr[1])
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid update counter: %w", err)
 	}
-	bytes, err = arr[3].TryBytes()
+	c.Hash, err = stackitem.ToUint160(arr[2])
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid hash: %w", err)
+	}
+	bytes, err := arr[3].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid NEF: %w", err)
 	}
 	c.NEF, err = nef.FileFromBytes(bytes)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode NEF: %w", err)
 	}
 	m := new(manifest.Manifest)
 	err = m.FromStackItem(arr[4])
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid manifest")
 	}
 	c.Manifest = *m
 	return nil

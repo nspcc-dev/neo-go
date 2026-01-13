@@ -2,6 +2,7 @@ package state
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"unicode/utf8"
 
@@ -44,20 +45,16 @@ func (o *OracleRequest) FromStackItem(it stackitem.Item) error {
 	if !ok || len(arr) < 7 {
 		return errors.New("not an array of needed length")
 	}
-	bs, err := arr[0].TryBytes()
+	var err error
+	o.OriginalTxID, err = stackitem.ToUint256(arr[0])
 	if err != nil {
-		return err
-	}
-	o.OriginalTxID, err = util.Uint256DecodeBytesBE(bs)
-	if err != nil {
-		return err
+		return fmt.Errorf("invalid tx ID: %w", err)
 	}
 
-	gas, err := arr[1].TryInteger()
+	o.GasForResponse, err = stackitem.ToUint64(arr[1])
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid gas for response: %w", err)
 	}
-	o.GasForResponse = gas.Uint64()
 
 	s, isNull, ok := itemToString(arr[2])
 	if !ok || isNull {
@@ -73,13 +70,9 @@ func (o *OracleRequest) FromStackItem(it stackitem.Item) error {
 		o.Filter = &filter
 	}
 
-	bs, err = arr[4].TryBytes()
+	o.CallbackContract, err = stackitem.ToUint160(arr[4])
 	if err != nil {
-		return err
-	}
-	o.CallbackContract, err = util.Uint160DecodeBytesBE(bs)
-	if err != nil {
-		return err
+		return fmt.Errorf("invalid callback contract: %w", err)
 	}
 
 	o.CallbackMethod, isNull, ok = itemToString(arr[5])
