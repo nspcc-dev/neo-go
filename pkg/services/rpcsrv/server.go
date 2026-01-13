@@ -1498,36 +1498,41 @@ func (s *Server) getHash(contractID int32, cache map[int32]util.Uint160) (util.U
 	return h, nil
 }
 
+// contractIDFromParam returns the contract ID by hex contract hash, address, id or native contract name.
 func (s *Server) contractIDFromParam(param *params.Param, root ...util.Uint256) (int32, *neorpc.Error) {
-	var result int32
 	if param == nil {
 		return 0, neorpc.ErrInvalidParams
 	}
-	if scriptHash, err := param.GetUint160FromHex(); err == nil {
-		if len(root) == 0 {
-			cs := s.chain.GetContractState(scriptHash)
-			if cs == nil {
-				return 0, neorpc.ErrUnknownContract
-			}
-			result = cs.ID
-		} else {
-			cs, respErr := s.getHistoricalContractState(root[0], scriptHash)
-			if respErr != nil {
-				return 0, respErr
-			}
-			result = cs.ID
+	nameOrHashOrIndex, err := param.GetString()
+	if err != nil {
+		return 0, neorpc.ErrInvalidParams
+	}
+	id, err := strconv.ParseInt(nameOrHashOrIndex, 10, 32)
+	if err == nil {
+		return int32(id), nil
+	}
+
+	scriptHash, err := param.GetUint160FromAddressOrHex()
+	if err != nil {
+		scriptHash, err = s.chain.GetNativeContractScriptHash(nameOrHashOrIndex)
+		if err != nil {
+			return 0, nil
+		}
+	}
+	var cs *state.Contract
+	if len(root) == 0 {
+		cs = s.chain.GetContractState(scriptHash)
+		if cs == nil {
+			return 0, neorpc.ErrUnknownContract
 		}
 	} else {
-		id, err := param.GetInt()
-		if err != nil {
-			return 0, neorpc.ErrInvalidParams
+		var respErr *neorpc.Error
+		cs, respErr = s.getHistoricalContractState(root[0], scriptHash)
+		if respErr != nil {
+			return 0, respErr
 		}
-		if err := checkInt32(id); err != nil {
-			return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
-		}
-		result = int32(id)
 	}
-	return result, nil
+	return cs.ID, nil
 }
 
 // contractScriptHashFromParam returns the contract script hash by hex contract hash, address, id or native contract name.

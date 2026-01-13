@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -31,6 +32,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -39,6 +41,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -674,10 +677,34 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"getstorage": {
 		{
-			name:   "positive",
+			name:   "positive, by hash",
 			params: fmt.Sprintf(`["%s", "dGVzdGtleQ=="]`, testContractHashLE),
 			result: func(e *executor) any {
 				v := base64.StdEncoding.EncodeToString([]byte("newtestvalue"))
+				return &v
+			},
+		},
+		{
+			name:   "positive, by address",
+			params: fmt.Sprintf(`["%s", "dGVzdGtleQ=="]`, address.Uint160ToString(testContractHash)),
+			result: func(e *executor) any {
+				v := base64.StdEncoding.EncodeToString([]byte("newtestvalue"))
+				return &v
+			},
+		},
+		{
+			name:   "positive, by ID",
+			params: fmt.Sprintf(`[%d, "dGVzdGtleQ=="]`, basicchain.RublesContractID),
+			result: func(e *executor) any {
+				v := base64.StdEncoding.EncodeToString([]byte("newtestvalue"))
+				return &v
+			},
+		},
+		{
+			name:   "positive, by native name",
+			params: fmt.Sprintf(`["%s", "%s"]`, nativenames.Policy, base64.StdEncoding.EncodeToString([]byte{19})), // storgePrice key.
+			result: func(e *executor) any {
+				v := bigint.ToBytes(big.NewInt(native.DefaultStoragePrice))
 				return &v
 			},
 		},
