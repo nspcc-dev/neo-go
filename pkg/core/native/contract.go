@@ -76,7 +76,7 @@ type (
 		// Methods required for proper cross-native communication.
 		BlockAccountInternal(ic *interop.Context, hash util.Uint160) bool
 		GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uint32
-		CleanWhitelist(ic *interop.Context, cs *state.Contract) error
+		CleanWhitelist(ic *interop.Context, hash util.Uint160) error
 		interop.PolicyChecker
 	}
 

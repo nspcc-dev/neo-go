@@ -470,7 +470,7 @@ func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.Fi
 		return nil, errors.New("the contract reached the maximum number of updates")
 	}
 
-	err = m.Policy.CleanWhitelist(ic, oldcontract)
+	err = m.Policy.CleanWhitelist(ic, hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to clean whitelist for %s: %w", oldcontract.Hash.StringLE(), err)
 	}
@@ -511,7 +511,7 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
-	err = m.Policy.CleanWhitelist(ic, cs)
+	err = m.Policy.CleanWhitelist(ic, hash)
 	if err != nil {
 		panic(fmt.Errorf("failed to clean whitelist for %s: %w", cs.Hash.StringLE(), err))
 	}

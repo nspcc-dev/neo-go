@@ -7,12 +7,12 @@ various methods to perform PolicyContract state-changing calls.
 package policy
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
@@ -79,13 +79,6 @@ type WhitelistedContractIterator struct {
 	client   Invoker
 	session  uuid.UUID
 	iterator result.Iterator
-}
-
-// WhitelistedContract represents a whitelisted contract method with the fixed
-// execution cost.
-type WhitelistedContract struct {
-	Hash   util.Uint160
-	Offset uint32
 }
 
 // WhitelistFeeChangedEvent represents a WhitelistFeeChanged Policy event.
@@ -506,7 +499,7 @@ func (c *ContractReader) GetWhitelistFeeContracts() (*WhitelistedContractIterato
 // sessions and doesn't expand iterators. It creates a script that will get num
 // of result items from the iterator right in the VM and return them to you.
 // It's only limited by VM stack and GAS available for RPC invocations.
-func (c *ContractReader) GetWhitelistFeeContractsExpanded(num int) ([]WhitelistedContract, error) {
+func (c *ContractReader) GetWhitelistFeeContractsExpanded(num int) ([]state.WhitelistFeeContract, error) {
 	arr, err := unwrap.Array(c.invoker.CallAndExpandIterator(Hash, "getWhitelistFeeContracts", num))
 	if err != nil {
 		return nil, err
@@ -518,7 +511,7 @@ func (c *ContractReader) GetWhitelistFeeContractsExpanded(num int) ([]Whiteliste
 // It can return less than num elements in case an iterator doesn't have that
 // many or zero elements if the iterator has no more elements or the session is
 // expired.
-func (v *WhitelistedContractIterator) Next(num int) ([]WhitelistedContract, error) {
+func (v *WhitelistedContractIterator) Next(num int) ([]state.WhitelistFeeContract, error) {
 	items, err := v.client.TraverseIterator(v.session, &v.iterator, num)
 	if err != nil {
 		return nil, err
@@ -535,19 +528,15 @@ func (v *WhitelistedContractIterator) Terminate() error {
 	return v.client.TerminateSession(v.session)
 }
 
-func itemsToWhitelistedContracts(arr []stackitem.Item) ([]WhitelistedContract, error) {
-	res := make([]WhitelistedContract, len(arr))
+func itemsToWhitelistedContracts(arr []stackitem.Item) ([]state.WhitelistFeeContract, error) {
+	res := make([]state.WhitelistFeeContract, len(arr))
 	for i, itm := range arr {
-		str, err := itm.TryBytes()
+		c := new(state.WhitelistFeeContract)
+		err := c.FromStackItem(itm)
 		if err != nil {
-			return nil, fmt.Errorf("item #%d is not a ByteString: %w", i, err)
+			return nil, fmt.Errorf("item #%d is not WhitelistFeeContract: %w", i, err)
 		}
-		h, err := util.Uint160DecodeBytesBE(str[:util.Uint160Size])
-		if err != nil {
-			return nil, fmt.Errorf("item #%d: invalid hash: %w", i, err)
-		}
-		res[i].Hash = h
-		res[i].Offset = binary.BigEndian.Uint32(str[util.Uint160Size:])
+		res[i] = *c
 	}
 	return res, nil
 }
