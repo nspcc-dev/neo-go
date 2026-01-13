@@ -29,7 +29,6 @@ func auditBin(ctx *cli.Context) error {
 	var (
 		numWorkers = ctx.Uint("workers")
 
-		err        error
 		errs       = make(chan error, numWorkers)
 		haveErrors bool
 		tasks      = make(chan func() error)
@@ -49,9 +48,15 @@ func auditBin(ctx *cli.Context) error {
 		}()
 	}
 
-	err = auditBinInt(ctx, tasks, errs)
+	closer, err := auditBinInt(ctx, tasks, errs)
 	close(tasks)
 	wg.Wait()
+	if closer != nil {
+		var errC = closer()
+		if err == nil {
+			err = errC
+		}
+	}
 
 drainErrors:
 	for {
@@ -73,37 +78,38 @@ drainErrors:
 	return err
 }
 
-func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) error {
+func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) (func() error, error) {
 	retries := ctx.Uint("retries")
 	cnrID := ctx.String("container")
 	debug := ctx.Bool("debug")
 	dryRun := ctx.Bool("dry-run")
 	blockAttr := ctx.String("block-attribute")
 	curH := uint64(ctx.Uint("skip"))
+	var closer func() error
 
 	acc, _, err := options.GetAccFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, options.ErrNoWallet) {
 			acc, err = wallet.NewAccount()
 			if err != nil {
-				return cli.Exit(fmt.Errorf("no wallet provided and failed to create account for NeoFS interaction: %w", err), 1)
+				return closer, cli.Exit(fmt.Errorf("no wallet provided and failed to create account for NeoFS interaction: %w", err), 1)
 			}
 		} else {
-			return cli.Exit(fmt.Errorf("failed to load account: %w", err), 1)
+			return closer, cli.Exit(fmt.Errorf("failed to load account: %w", err), 1)
 		}
 	}
 	signer, neoFSPool, err := options.GetNeoFSClientPool(ctx, acc)
 	if err != nil {
-		return cli.Exit(err, 1)
+		return closer, cli.Exit(err, 1)
 	}
-	defer neoFSPool.Close()
+	closer = neoFSPool.Close
 
 	var containerID cid.ID
 	if err = containerID.DecodeString(cnrID); err != nil {
-		return cli.Exit(fmt.Errorf("failed to decode container ID: %w", err), 1)
+		return closer, cli.Exit(fmt.Errorf("failed to decode container ID: %w", err), 1)
 	}
 	if _, err = neoFSPool.ContainerGet(ctx.Context, containerID, client.PrmContainerGet{}); err != nil {
-		return cli.Exit(fmt.Errorf("failed to get container %s: %w", containerID, err), 1)
+		return closer, cli.Exit(fmt.Errorf("failed to get container %s: %w", containerID, err), 1)
 	}
 
 	if curH != 0 {
@@ -114,7 +120,7 @@ func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) err
 	defer cancel()
 	rpc, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.Exit(fmt.Errorf("failed to create RPC client: %w", err), 1)
+		return closer, cli.Exit(fmt.Errorf("failed to create RPC client: %w", err), 1)
 	}
 
 	var (
@@ -137,7 +143,7 @@ func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) err
 			return nil
 		}, retries, debug)
 		if err != nil {
-			return cli.Exit(fmt.Errorf("search block objects: %w", err), 1)
+			return closer, cli.Exit(fmt.Errorf("search block objects: %w", err), 1)
 		}
 
 		if debug {
@@ -147,9 +153,9 @@ func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) err
 		for _, itm := range page {
 			select {
 			case <-ctx.Done():
-				return cli.Exit("context cancelled", 1)
+				return closer, cli.Exit("context cancelled", 1)
 			case err := <-errs:
-				return cli.Exit(fmt.Errorf("error in worker thread: %w", err), 1)
+				return closer, cli.Exit(fmt.Errorf("error in worker thread: %w", err), 1)
 			default:
 			}
 			if len(itm.Attributes) != 1 {
@@ -158,11 +164,11 @@ func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) err
 			}
 			h, err := strconv.ParseUint(itm.Attributes[0], 10, 64)
 			if err != nil {
-				return cli.Exit(fmt.Errorf("failed to parse block OID (%s): %w", itm.ID, err), 1)
+				return closer, cli.Exit(fmt.Errorf("failed to parse block OID (%s): %w", itm.ID, err), 1)
 			}
 
 			if h < prevH {
-				return cli.Exit(fmt.Errorf("expected >%d height, received %d", prevH, h), 1)
+				return closer, cli.Exit(fmt.Errorf("expected >%d height, received %d", prevH, h), 1)
 			}
 
 			if !curOID.IsZero() && prevH == h {
@@ -190,7 +196,7 @@ func auditBinInt(ctx *cli.Context, tasks chan func() error, errs chan error) err
 		}
 	}
 
-	return nil
+	return closer, nil
 }
 
 func wrapDropBlock(ctx *cli.Context, p *pool.Pool, signer user.Signer, containerID cid.ID, objID oid.ID, retries uint, prevH uint64, curOID oid.ID, debug bool) func() error {
