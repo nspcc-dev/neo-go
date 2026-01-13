@@ -660,7 +660,6 @@ func TestPolicy_WhitelistContracts(t *testing.T) {
 }
 
 func TestPolicy_WhitelistContractsInteropAPI(t *testing.T) {
-	t.Skip()
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.Hardforks = map[string]uint32{
 			config.HFFaun.String(): 0,
