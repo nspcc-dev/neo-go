@@ -1553,12 +1553,9 @@ func (s *Server) contractScriptHashFromParam(param *params.Param) (util.Uint160,
 	if err == nil {
 		return result, nil
 	}
-	id, err := strconv.Atoi(nameOrHashOrIndex)
+	id, err := strconv.ParseInt(nameOrHashOrIndex, 10, 32)
 	if err != nil {
 		return result, neorpc.NewInvalidParamsError(fmt.Sprintf("Invalid contract identifier (name/hash/index is expected) : %s", err.Error()))
-	}
-	if err := checkInt32(id); err != nil {
-		return result, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
 	}
 	result, err = s.chain.GetContractScriptHash(int32(id))
 	if err != nil {
