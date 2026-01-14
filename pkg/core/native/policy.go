@@ -97,35 +97,20 @@ type PolicyCache struct {
 	whitelistedContracts []whitelistedContract
 }
 
-// whitelistedContract is a structure representing a whitelisted contract with
-// the pre-defined execution price.
+// whitelistedContract is a structure representing a whitelisted contract cache
+// entry.
 type whitelistedContract struct {
-	hash   util.Uint160
+	state.WhitelistFeeContract
 	offset uint32
-	fee    int64
 }
-
-var _ = (stackitem.Convertible)(&whitelistedContract{})
 
 // Compare compares two whitelistedContract structures in the order that matches
-// a whitelisted contract key serialization format.
+// the serialization format of a key used to store a whitelisted contract record.
 func (c whitelistedContract) Compare(other whitelistedContract) int {
 	return cmp.Or(
-		c.hash.Compare(other.hash),
+		c.Hash.Compare(other.Hash),
 		cmp.Compare(c.offset, other.offset), // offset is stored in BE.
 	)
-}
-
-// ToStackItem implements [stackitem.Convertible] interface.
-func (c whitelistedContract) ToStackItem() (stackitem.Item, error) {
-	return stackitem.NewByteArray(makeWhitelistedKey(c.hash, c.offset)[1:]), // strip prefix.
-		nil
-}
-
-// FromStackItem implements [stackitem.Convertible] interface. Not really needed
-// since whitelistedContract conversion is one-directional only.
-func (c *whitelistedContract) FromStackItem(item stackitem.Item) error {
-	panic("not supported")
 }
 
 var (
@@ -413,21 +398,18 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple, isHardforkE
 				fErr = fmt.Errorf("unexpected whitelisted contract key length %d vs %d", len(k), util.Uint160Size+4)
 				return false
 			}
-			h, err := util.Uint160DecodeBytesBE(k[:util.Uint160Size])
-			if err != nil {
-				fErr = fmt.Errorf("failed to decode whitelisted contract hash: %w", err)
-				return false
-			}
 			offset := binary.BigEndian.Uint32(k[util.Uint160Size:])
-			value := bigint.FromBytes(v)
-			if value == nil {
-				fErr = fmt.Errorf("unexpected whitelisted contract fee format: key=%s, value=%s", hex.EncodeToString(k), hex.EncodeToString(v))
+
+			c := new(state.WhitelistFeeContract)
+			err := stackitem.DeserializeConvertible(v, c)
+			if err != nil {
+				fErr = fmt.Errorf("failed to deserialize whitelisted contract record: %w", err)
 				return false
 			}
+
 			cache.whitelistedContracts = append(cache.whitelistedContracts, whitelistedContract{
-				hash:   h,
-				offset: offset,
-				fee:    value.Int64(),
+				WhitelistFeeContract: *c,
+				offset:               offset,
 			})
 			return true
 		})
@@ -818,18 +800,18 @@ func (p *Policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error {
 func (p *Policy) WhitelistedFee(dao *dao.Simple, hash util.Uint160, offset int) int64 {
 	cache := dao.GetROCache(p.ID).(*PolicyCache)
 	i, ok := slices.BinarySearchFunc(cache.whitelistedContracts, whitelistedContract{
-		hash:   hash,
-		offset: uint32(offset),
+		WhitelistFeeContract: state.WhitelistFeeContract{Hash: hash}, // hash+offset is enough for whitelistedContract.Compare.
+		offset:               uint32(offset),
 	}, whitelistedContract.Compare)
 	if !ok {
 		return -1
 	}
-	return cache.whitelistedContracts[i].fee * vm.ExecFeeFactorMultiplier
+	return cache.whitelistedContracts[i].Fee * vm.ExecFeeFactorMultiplier
 }
 
 // CleanWhitelist removes a contract with the specified hash from the list of
 // whitelisted contracts.
-func (p *Policy) CleanWhitelist(ic *interop.Context, cs *state.Contract) error {
+func (p *Policy) CleanWhitelist(ic *interop.Context, h util.Uint160) error {
 	var (
 		cache = ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 		err   error
@@ -838,20 +820,15 @@ func (p *Policy) CleanWhitelist(ic *interop.Context, cs *state.Contract) error {
 		if err != nil {
 			return false
 		}
-		if !c.hash.Equals(cs.Hash) {
+		if !c.Hash.Equals(h) {
 			return false
 		}
-		k := makeWhitelistedKey(c.hash, c.offset)
+		k := makeWhitelistedKey(c.Hash, c.offset)
 		ic.DAO.DeleteStorageItem(p.ID, k)
-		m := cs.Manifest.ABI.GetMethodByOffset(int(c.offset))
-		if m == nil {
-			err = fmt.Errorf("method with offset %d not found in contract %s", c.offset, cs.Hash.StringLE())
-			return false
-		}
 		err = ic.AddNotification(p.Hash, "WhitelistFeeChanged", stackitem.NewArray([]stackitem.Item{
-			stackitem.NewByteArray(cs.Hash.BytesBE()),
-			stackitem.NewByteArray([]byte(m.Name)),
-			stackitem.NewBigInteger(big.NewInt(int64(len(m.Parameters)))),
+			stackitem.NewByteArray(c.Hash.BytesBE()),
+			stackitem.NewByteArray([]byte(c.Method)),
+			stackitem.NewBigInteger(big.NewInt(int64(c.ArgCnt))),
 			stackitem.Null{},
 		}))
 
@@ -881,8 +858,8 @@ func (p *Policy) removeWhitelistFeeContract(ic *interop.Context, args []stackite
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	k := makeWhitelistedKey(h, uint32(md.Offset))
 	i, ok := slices.BinarySearchFunc(cache.whitelistedContracts, whitelistedContract{
-		hash:   h,
-		offset: uint32(md.Offset),
+		WhitelistFeeContract: state.WhitelistFeeContract{Hash: h}, // hash+offset is enough for whitelistedContract.Compare.
+		offset:               uint32(md.Offset),
 	}, whitelistedContract.Compare)
 	if !ok {
 		panic(fmt.Errorf("whitelist for %s/%d not found", h.StringLE(), md.Offset))
@@ -924,12 +901,20 @@ func (p *Policy) setWhitelistFeeContract(ic *interop.Context, args []stackitem.I
 		panic(fmt.Errorf("contract %s: method not found: %s/%d", h.StringLE(), method, argCnt))
 	}
 
-	setIntWithKey(p.ID, ic.DAO, makeWhitelistedKey(h, uint32(md.Offset)), fee)
+	r := &state.WhitelistFeeContract{
+		Hash:   h,
+		Method: method,
+		ArgCnt: argCnt,
+		Fee:    fee,
+	}
+	err = ic.DAO.PutStorageConvertible(p.ID, makeWhitelistedKey(h, uint32(md.Offset)), r)
+	if err != nil {
+		panic(err)
+	}
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	c := whitelistedContract{
-		hash:   h,
-		offset: uint32(md.Offset),
-		fee:    fee,
+		WhitelistFeeContract: *r,
+		offset:               uint32(md.Offset),
 	}
 	i, ok := slices.BinarySearchFunc(cache.whitelistedContracts, c, whitelistedContract.Compare)
 	if !ok {
@@ -951,11 +936,11 @@ func (p *Policy) setWhitelistFeeContract(ic *interop.Context, args []stackitem.I
 
 func (p *Policy) getWhitelistFeeContracts(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	cache := ic.DAO.GetROCache(p.ID).(*PolicyCache)
-	res := make([]stackitem.Item, len(cache.whitelistedContracts))
+	res := make([]*state.WhitelistFeeContract, len(cache.whitelistedContracts))
 	for i, c := range cache.whitelistedContracts {
-		res[i], _ = c.ToStackItem() // never returns an error.
+		res[i] = &c.WhitelistFeeContract
 	}
-	return stackitem.NewInterop(&iterator[stackitem.Item]{keys: res})
+	return stackitem.NewInterop(&iterator[*state.WhitelistFeeContract]{keys: res})
 }
 
 func makeWhitelistedKey(h util.Uint160, offset uint32) []byte {

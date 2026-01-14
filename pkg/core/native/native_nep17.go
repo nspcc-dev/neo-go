@@ -3,7 +3,6 @@ package native
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -377,56 +376,4 @@ func NewEvent(desc *manifest.Event, activations ...config.Hardfork) interop.Even
 		md.ActiveTill = &activations[1]
 	}
 	return md
-}
-
-func toBigInt(s stackitem.Item) *big.Int {
-	bi, err := s.TryInteger()
-	if err != nil {
-		panic(err)
-	}
-	return bi
-}
-
-func toUint160(s stackitem.Item) util.Uint160 {
-	buf, err := s.TryBytes()
-	if err != nil {
-		panic(err)
-	}
-	u, err := util.Uint160DecodeBytesBE(buf)
-	if err != nil {
-		panic(err)
-	}
-	return u
-}
-
-func toUint64(s stackitem.Item) uint64 {
-	bigInt := toBigInt(s)
-	if !bigInt.IsUint64() {
-		panic("bigint is not a uint64")
-	}
-	return bigInt.Uint64()
-}
-
-func toUint32(s stackitem.Item) uint32 {
-	uint64Value := toUint64(s)
-	if uint64Value > math.MaxUint32 {
-		panic("bigint does not fit into uint32")
-	}
-	return uint32(uint64Value)
-}
-
-func toUint8(s stackitem.Item) uint8 {
-	uint64Value := toUint64(s)
-	if uint64Value > math.MaxUint8 {
-		panic("bigint does not fit into uint8")
-	}
-	return uint8(uint64Value)
-}
-
-func toInt64(s stackitem.Item) int64 {
-	bigInt := toBigInt(s)
-	if !bigInt.IsInt64() {
-		panic("bigint is not an uint64")
-	}
-	return bigInt.Int64()
 }

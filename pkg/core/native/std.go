@@ -511,30 +511,6 @@ func (s *Std) ActiveIn() *config.Hardfork {
 	return nil
 }
 
-func toLimitedBytes(item stackitem.Item) []byte {
-	src := toBytes(item)
-	if len(src) > stdMaxInputLength {
-		panic(ErrTooBigInput)
-	}
-	return src
-}
-
-func toBytes(item stackitem.Item) []byte {
-	src, err := item.TryBytes()
-	if err != nil {
-		panic(err)
-	}
-	return src
-}
-
-func toLimitedString(item stackitem.Item) string {
-	src := toString(item)
-	if len(src) > stdMaxInputLength {
-		panic(ErrTooBigInput)
-	}
-	return src
-}
-
 // stripSpaces removes all whitespace characters and tabulation characters from
 // string, ref. https://learn.microsoft.com/ru-ru/dotnet/api/system.convert.frombase64string?view=net-8.0#remarks.
 func stripSpaces(str string) string {

@@ -124,7 +124,8 @@ func RemoveWhitelistFeeContract(hash interop.Hash160, method string, argCnt int)
 }
 
 // GetWhitelistFeeContracts represents the `getWhitelistFeeContracts` method of Policy native contract.
-// Note that this method is available starting from [config.HFFaun] hardfork.
+// Note that this method is available starting from [config.HFFaun] hardfork. Iterator values can be
+// cast to [WhitelistFeeContract].
 func GetWhitelistFeeContracts() iterator.Iterator {
 	return neogointernal.CallWithToken(Hash, "getWhitelistFeeContracts", int(contract.ReadStates)).(iterator.Iterator)
 }

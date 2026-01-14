@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -114,12 +115,24 @@ func TestReader(t *testing.T) {
 	require.NoError(t, err)
 	ta.res = &result.Invoke{
 		Stack: []stackitem.Item{
-			stackitem.Make(append(util.Uint160{1, 2, 3}.BytesBE(), []byte{0, 0, 0, 1}...)),
+			stackitem.NewStruct([]stackitem.Item{
+				stackitem.Make(util.Uint160{1, 2, 3}),
+				stackitem.Make("myCheapMethod"),
+				stackitem.Make(3),
+				stackitem.Make(5),
+			}),
 		},
 	}
 	whitelisted, err := iter.Next(10)
 	require.NoError(t, err)
-	require.Equal(t, []WhitelistedContract{{Hash: util.Uint160{1, 2, 3}, Offset: 1}}, whitelisted)
+	require.Equal(t, []state.WhitelistFeeContract{
+		{
+			Hash:   util.Uint160{1, 2, 3},
+			Method: "myCheapMethod",
+			ArgCnt: 3,
+			Fee:    5,
+		},
+	}, whitelisted)
 }
 
 func TestGetBlockedAccounts(t *testing.T) {

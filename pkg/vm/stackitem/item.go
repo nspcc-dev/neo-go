@@ -10,7 +10,6 @@ import (
 	"math/big"
 	"reflect"
 	"slices"
-	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -181,18 +180,6 @@ func Make(v any) Item {
 		panic(err)
 	}
 	return itm
-}
-
-// ToString converts an Item to a string if it is a valid UTF-8.
-func ToString(item Item) (string, error) {
-	bs, err := item.TryBytes()
-	if err != nil {
-		return "", err
-	}
-	if !utf8.Valid(bs) {
-		return "", fmt.Errorf("%w: not UTF-8", ErrInvalidValue)
-	}
-	return string(bs), nil
 }
 
 // convertPrimitive converts a primitive item to the specified type.

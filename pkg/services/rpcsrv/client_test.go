@@ -247,9 +247,9 @@ func TestClientPolicyContract(t *testing.T) {
 	m2 := stdM.ABI.GetMethod("hexEncode", 1)
 	require.NotNil(t, m1)
 	require.NotNil(t, m2)
-	whitelisted := []policy.WhitelistedContract{
-		{Hash: nativehashes.StdLib, Offset: uint32(m1.Offset)},
-		{Hash: nativehashes.StdLib, Offset: uint32(m2.Offset)},
+	whitelisted := []state.WhitelistFeeContract{
+		{Hash: nativehashes.StdLib, Method: "hexDecode", ArgCnt: 1, Fee: 0},
+		{Hash: nativehashes.StdLib, Method: "hexEncode", ArgCnt: 1, Fee: 0},
 	}
 	txwhitelist1, err := polis.SetWhitelistFeeContractUnsigned(whitelisted[0].Hash, "hexDecode", 1, 0)
 	require.NoError(t, err)
@@ -319,7 +319,7 @@ func TestClientPolicyContract(t *testing.T) {
 
 	allWhitelisted, err = polizei.GetWhitelistFeeContractsExpanded(100)
 	require.NoError(t, err)
-	require.Equal(t, []policy.WhitelistedContract{whitelisted[1]}, allWhitelisted)
+	require.Equal(t, []state.WhitelistFeeContract{whitelisted[1]}, allWhitelisted)
 }
 
 func TestClientManagementContract(t *testing.T) {
