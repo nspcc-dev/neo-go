@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"strconv"
@@ -144,7 +145,7 @@ loop:
 				object.NewAttribute("BlockTime", strconv.FormatUint(h.Timestamp, 10)),
 			}
 		)
-		if len(stateRoot.Witness) > 0 {
+		if len(stateRoot.Witness) > 0 && bytes.Equal(stateRoot.Witness[0].VerificationScript, h.Script.VerificationScript) { // only useful for networks with state validators matching exactly consensus members.
 			attrs = append(attrs, object.NewAttribute(neofs.DefaultWitnessAttribute, base64.StdEncoding.EncodeToString(stateRoot.Witness[0].Bytes())))
 		}
 		hdr.SetContainerID(containerID)
