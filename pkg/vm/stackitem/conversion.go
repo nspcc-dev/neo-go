@@ -3,9 +3,22 @@ package stackitem
 import (
 	"fmt"
 	"math"
+	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
+
+// ToString converts an Item to a string if it is a valid UTF-8.
+func ToString(item Item) (string, error) {
+	bs, err := item.TryBytes()
+	if err != nil {
+		return "", err
+	}
+	if !utf8.Valid(bs) {
+		return "", fmt.Errorf("%w: not UTF-8", ErrInvalidValue)
+	}
+	return string(bs), nil
+}
 
 // ToUint160 converts [stackitem.Item] to [util.Uint160] or returns an error if
 // so.
