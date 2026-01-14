@@ -331,8 +331,6 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 		case _, ok := <-hRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
-				hRcvr = nil
-				aerRcvr = nil
 				wsWaitErr = ErrMissedEvent
 				break
 			}
@@ -340,8 +338,6 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 		case aer, ok := <-aerRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
-				hRcvr = nil
-				aerRcvr = nil
 				wsWaitErr = ErrMissedEvent
 				break
 			}
@@ -355,20 +351,13 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 	close(exit)
 
 	if waitersActive > 0 {
-		// Drain receivers to avoid other notification receivers blocking.
+		// Drain receivers to avoid other notification receivers blocking, wait
+		// until unsubscription is finished.
 	drainLoop:
 		for {
 			select {
-			case _, ok := <-hRcvr:
-				if !ok { // Missed event means both channels are closed.
-					hRcvr = nil
-					aerRcvr = nil
-				}
-			case _, ok := <-aerRcvr:
-				if !ok { // Missed event means both channels are closed.
-					hRcvr = nil
-					aerRcvr = nil
-				}
+			case <-hRcvr:
+			case <-aerRcvr:
 			case unsubErr := <-unsubErrs:
 				if unsubErr != nil {
 					errFmt := "unsubscription error: %w"
@@ -386,12 +375,6 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 				}
 			}
 		}
-	}
-	if hRcvr != nil {
-		close(hRcvr)
-	}
-	if aerRcvr != nil {
-		close(aerRcvr)
 	}
 	close(unsubErrs)
 
