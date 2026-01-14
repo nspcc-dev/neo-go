@@ -498,7 +498,7 @@ func TestPolicy_GetBlockedAccountsInteropAPI(t *testing.T) {
 func TestPolicy_ExecPicoFeeFactor(t *testing.T) {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
-			config.HFFaun.String(): 3,
+			config.HFFaun.String(): 4,
 		}
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -508,17 +508,28 @@ func TestPolicy_ExecPicoFeeFactor(t *testing.T) {
 	committeeInvoker := c.WithSigners(c.Committee)
 
 	// Get, before Faun.
-	committeeInvoker.Invoke(t, interop.DefaultBaseExecFee, "getExecFeeFactor")
+	const val = 1
+	committeeInvoker.Invoke(t, stackitem.Null{}, "setExecFeeFactor", val)
+	committeeInvoker.Invoke(t, val, "getExecFeeFactor")
 	committeeInvoker.InvokeFail(t, "method not found: getExecPicoFeeFactor/0", "getExecPicoFeeFactor")
 
-	// Get at Faun.
-	tx1 := committeeInvoker.PrepareInvoke(t, "setExecFeeFactor", 2)
-	tx2 := committeeInvoker.PrepareInvoke(t, "getExecFeeFactor")
-	tx3 := committeeInvoker.PrepareInvoke(t, "getExecPicoFeeFactor")
-	committeeInvoker.AddNewBlock(t, tx1, tx2, tx3)
-	committeeInvoker.CheckHalt(t, tx1.Hash())
-	committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(2/vm.ExecFeeFactorMultiplier))
-	committeeInvoker.CheckHalt(t, tx3.Hash(), stackitem.Make(2))
+	// Get at Faun. Only getExecFeeFactor invocation since getExecPicoFeeFactor is not available yet.
+	committeeInvoker.Invoke(t, val, "getExecFeeFactor")
+
+	// Get after Faun.
+	tx1 := committeeInvoker.PrepareInvoke(t, "getExecFeeFactor")
+	tx2 := committeeInvoker.PrepareInvoke(t, "getExecPicoFeeFactor")
+	committeeInvoker.AddNewBlock(t, tx1, tx2)
+	committeeInvoker.CheckHalt(t, tx1.Hash(), stackitem.Make(val))
+	committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(val*vm.ExecFeeFactorMultiplier))
+
+	// Set, less than 1*ExecFeeFactorMultiplier.
+	committeeInvoker.Invoke(t, stackitem.Null{}, "setExecFeeFactor", val) // 1 picoGas since Faun is passed.
+	tx3 := committeeInvoker.PrepareInvoke(t, "getExecFeeFactor")
+	tx4 := committeeInvoker.PrepareInvoke(t, "getExecPicoFeeFactor")
+	committeeInvoker.AddNewBlock(t, tx3, tx4)
+	committeeInvoker.CheckHalt(t, tx3.Hash(), stackitem.Make(0)) // 0 Datoshi since Faun is passed: 1 / 10000 = 0.
+	committeeInvoker.CheckHalt(t, tx4.Hash(), stackitem.Make(val))
 }
 
 func TestPolicy_ExecPicoFeeFactor_InteropAPI(t *testing.T) {
