@@ -26,7 +26,7 @@ func TestAddGet(t *testing.T) {
 	})
 	t.Run("bad height", func(t *testing.T) {
 		ep := &payload.Extensible{ValidBlockEnd: 9}
-		p.testAdd(t, false, errInvalidHeight, ep)
+		p.testAdd(t, false, ErrInvalidHeight, ep)
 
 		ep = &payload.Extensible{ValidBlockEnd: 10}
 		p.testAdd(t, false, nil, ep)
