@@ -2,8 +2,10 @@ package scparser
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -12,8 +14,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// MaxMultisigKeys is the maximum number of keys allowed for correct multisig contract.
-const MaxMultisigKeys = 1024
+const (
+	// MaxMultisigKeys is the maximum number of keys allowed for correct multisig contract.
+	MaxMultisigKeys = 1024
+
+	// MaxStackSize is the maximum stack size ov Neo VM.
+	MaxStackSize = 2 * 1024 // TODO: cyclic `vm` package dependency.
+)
 
 var (
 	verifyInteropID   = interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig))
@@ -21,18 +28,8 @@ var (
 )
 
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
-	var nthings int
-
-	switch {
-	case opcode.PUSH1 <= instr && instr <= opcode.PUSH16:
-		nthings = int(instr-opcode.PUSH1) + 1
-	case instr <= opcode.PUSHINT256:
-		n := bigint.FromBytes(param)
-		if !n.IsInt64() || n.Sign() < 0 || n.Int64() > MaxMultisigKeys {
-			return 0, false
-		}
-		nthings = int(n.Int64())
-	default:
+	nthings, ok := GetIntFromInstr(instr, param)
+	if !ok {
 		return 0, false
 	}
 	if nthings < 1 || nthings > MaxMultisigKeys {
@@ -210,4 +207,138 @@ func GetTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
 		i = 4
 	}
 	return p[:i], p[i:]
+}
+
+// GetIntFromInstr returns the integer value emitted by the specified
+// instruction. It works with static integer values only; for the rest of cases
+// (result of SYSCALL, custom integer operations, etc.) parse the script
+// manually.
+func GetIntFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
+	var i int
+
+	switch {
+	case opcode.PUSH1 <= instr && instr <= opcode.PUSH16:
+		i = int(instr-opcode.PUSH1) + 1
+	case instr <= opcode.PUSHINT256:
+		n := bigint.FromBytes(param)
+		if !n.IsInt64() {
+			return 0, false
+		}
+		i = int(n.Int64())
+	default:
+		return 0, false
+	}
+
+	return i, true
+}
+
+// GetStringFromInstr returns the string value emitted by the specified
+// instruction. It works with static string values only; for the rest of cases
+// (result of SYSCALL, custom integer operations, etc.) parse the script
+// manually.
+func GetStringFromInstr(instr opcode.Opcode, param []byte) (string, bool) {
+	var s string
+
+	switch {
+	case opcode.PUSHDATA1 <= instr && instr <= opcode.PUSHDATA4:
+		s = string(param)
+	default:
+		return s, false
+	}
+
+	return s, true
+}
+
+// GetBoolFromInstr returns the boolean value emitted by the specified
+// instruction. It works with static bool values only; for the rest of cases
+// (result of SYSCALL, custom integer operations, etc.) parse the script
+// manually.
+func GetBoolFromInstr(instr opcode.Opcode, param []byte) (bool, bool) {
+	var b bool
+	if len(param) != 0 {
+		return b, false
+	}
+
+	switch instr {
+	case opcode.PUSHF, opcode.PUSH0:
+	case opcode.PUSHT, opcode.PUSH1:
+		b = true
+	default:
+		return b, false
+	}
+
+	return b, true
+}
+
+// GetEFromInstr is a delegate that returns an element emitted by the specified
+// instruction and the OK indicator. [GetIntFromInstr], [GetStringFromInstr] and
+// [GetBoolFromInstr] are suitable implementations.
+type GetEFromInstr[E string | int | bool] func(instr opcode.Opcode, param []byte) (E, bool)
+
+// ParseList parses a list of elements from the VM context. It modifies the
+// given context, so save the current context's IP before calling ParseList
+// to be able to reset the context state afterwards. ParseList accepts
+// [GetEFromInstr] delegate to retrieve a single list element from the VM
+// context. [MaxStackSize] is used as the default list length constraint if
+// maxLen is not specified.
+//
+// TODO: @roman-khimov, I have two questions:
+//  1. Replace `ctx *Context` argument with `script []byte` to follow ParseMultiSigContract signature?
+//  2. Define (*Context).ParseList API (and a set of other useful APIs) to reuse them from scparser.Parse* ?
+func ParseList[E string | int | bool](ctx *Context, getEFromInstr GetEFromInstr[E], maxLen ...int) ([]E, error) {
+	var (
+		res   []E
+		instr opcode.Opcode
+		param []byte
+		err   error
+	)
+
+	maxL := MaxStackSize
+	if len(maxLen) > 0 {
+		maxL = maxLen[0]
+	}
+
+	for l := 1; ; l++ {
+		instr, param, err = ctx.Next()
+		if err != nil {
+			return res, fmt.Errorf("failed to parse list element %d: %w", l-1, err)
+		}
+		e, ok := getEFromInstr(instr, param)
+		if !ok {
+			if l == 1 && instr == opcode.NEWARRAY0 {
+				res = make([]E, 0)
+				return res, nil
+			}
+			break
+		}
+		res = append(res, e)
+		if l > maxL {
+			return res, fmt.Errorf("number of elements exceeds %d", maxL)
+		}
+	}
+	l, ok := GetIntFromInstr(instr, param)
+	if !ok {
+		return res, fmt.Errorf("failed to parse list length: not an int")
+	}
+	if len(res) != l {
+		return res, fmt.Errorf("list length doesn't match PACK argument: %d vs %d", len(res), l)
+	}
+	instr, param, err = ctx.Next()
+	if err != nil {
+		return res, fmt.Errorf("failed to parse PACK: %w", err)
+	}
+	if instr != opcode.PACK {
+		return res, fmt.Errorf("expected PACK, got %s", instr)
+	}
+	if len(param) != 0 {
+		return res, fmt.Errorf("additional parameter got after PACK: %s", hex.EncodeToString(param))
+	}
+	slices.Reverse(res)
+
+	return res, nil
+}
+
+func ParseSYSCALL(ctx *Context) ([]byte, error) {
+	// TODO
+	return nil, nil
 }
