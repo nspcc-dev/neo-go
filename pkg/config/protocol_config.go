@@ -214,7 +214,7 @@ func getBestFromMap(dict map[uint32]uint32, height uint32) uint32 {
 
 // GetNumOfCNs returns the number of validators for the given height.
 // It implies valid configuration file.
-func (p *ProtocolConfiguration) GetNumOfCNs(height uint32) int {
+func (p ProtocolConfiguration) GetNumOfCNs(height uint32) int {
 	if len(p.ValidatorsHistory) == 0 {
 		return int(p.ValidatorsCount)
 	}
