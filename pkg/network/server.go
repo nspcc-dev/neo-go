@@ -133,9 +133,7 @@ type (
 		txCallback     func(*transaction.Transaction)
 		txCbList       atomic.Value
 
-		txInLock sync.RWMutex
-		txin     chan *transaction.Transaction
-		txInMap  map[util.Uint256]struct{}
+		txIn *inMap[*transaction.Transaction]
 
 		lock  sync.RWMutex
 		peers map[Peer]bool
@@ -223,17 +221,16 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		register:        make(chan Peer),
 		unregister:      make(chan peerDrop),
 		handshake:       make(chan Peer),
-		txInMap:         make(map[util.Uint256]struct{}),
 		peers:           make(map[Peer]bool),
 		mempool:         chain.GetMemPool(),
 		extensiblePool:  extpool.New(chain, config.ExtensiblePoolSize),
 		log:             log,
-		txin:            make(chan *transaction.Transaction, 64),
 		transactions:    make(chan *transaction.Transaction, 64),
 		services:        make(map[string]Service),
 		extensHandlers:  make(map[string]func(*payload.Extensible) error),
 		stateSync:       stSync,
 	}
+	s.txIn = newInMap[*transaction.Transaction](64, s.mempool.ContainsKey)
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
 		s.notaryRequestPool = mempool.New(s.config.P2PNotaryRequestPayloadPoolSize, 1, true, updateNotarypoolMetrics)
@@ -981,10 +978,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	var reqHashes = inv.Hashes[:0]
 	var typExists = map[payload.InventoryType]func(util.Uint256) bool{
 		payload.TXType: func(h util.Uint256) bool {
-			s.txInLock.RLock()
-			_, ok := s.txInMap[h]
-			s.txInLock.RUnlock()
-			return ok || s.mempool.ContainsKey(h)
+			return s.txIn.Contains(h)
 		},
 		payload.BlockType: s.chain.HasBlock,
 		payload.ExtensibleType: func(h util.Uint256) bool {
@@ -1297,26 +1291,17 @@ func (s *Server) advertiseExtensible(e *payload.Extensible) {
 // handleTxCmd processes the received transaction.
 // It never returns an error.
 func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
-	// It's OK for it to fail for various reasons like tx already existing
-	// in the pool.
-	s.txInLock.Lock()
-	_, ok := s.txInMap[tx.Hash()]
-	if ok || s.mempool.ContainsKey(tx.Hash()) {
-		s.txInLock.Unlock()
-		return nil
-	}
-	s.txInMap[tx.Hash()] = struct{}{}
-	s.txInLock.Unlock()
-	s.txin <- tx
+	s.txIn.Add(tx)
 	return nil
 }
 
 func (s *Server) txHandlerLoop() {
 	defer s.txHandlerLoopWG.Done()
+	in := s.txIn.In()
 txloop:
 	for {
 		select {
-		case tx := <-s.txin:
+		case tx := <-in:
 			s.serviceLock.RLock()
 			txCallback := s.txCallback
 			s.serviceLock.RUnlock()
@@ -1336,9 +1321,7 @@ txloop:
 			} else {
 				s.log.Debug("tx handler", zap.Error(err), zap.String("hash", tx.Hash().StringLE()))
 			}
-			s.txInLock.Lock()
-			delete(s.txInMap, tx.Hash())
-			s.txInLock.Unlock()
+			s.txIn.Remove(tx.Hash())
 		case <-s.quit:
 			break txloop
 		}
@@ -1346,7 +1329,7 @@ txloop:
 drainloop:
 	for {
 		select {
-		case <-s.txin:
+		case <-in:
 		default:
 			break drainloop
 		}
