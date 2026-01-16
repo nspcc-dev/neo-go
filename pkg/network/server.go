@@ -133,9 +133,9 @@ type (
 		txCallback     func(*transaction.Transaction)
 		txCbList       atomic.Value
 
-		txInLock sync.RWMutex
-		txin     chan *transaction.Transaction
-		txInMap  map[util.Uint256]struct{}
+		txIn *inMap[*transaction.Transaction]
+
+		notaryRequestIn *inMap[notaryRequestInAdapter]
 
 		lock  sync.RWMutex
 		peers map[Peer]bool
@@ -165,7 +165,8 @@ type (
 		// started used to Start and Shutdown server only once.
 		started atomic.Bool
 
-		txHandlerLoopWG sync.WaitGroup
+		txHandlerLoopWG     sync.WaitGroup
+		notaryRequestLoopWG sync.WaitGroup
 	}
 
 	peerDrop struct {
@@ -173,6 +174,18 @@ type (
 		reason error
 	}
 )
+
+// notaryRequestInAdapter is a wrapper around [payload.P2PNotaryRequest] that
+// replaces its hash.Hashable implementation with fallback transaction's one for
+// proper integration with server's notary request inMap.
+type notaryRequestInAdapter struct {
+	*payload.P2PNotaryRequest
+}
+
+// Hash implements hash.Hashable interface.
+func (r notaryRequestInAdapter) Hash() util.Uint256 {
+	return r.FallbackTransaction.Hash()
+}
 
 func randomID() uint32 {
 	buf := make([]byte, 4)
@@ -223,20 +236,20 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		register:        make(chan Peer),
 		unregister:      make(chan peerDrop),
 		handshake:       make(chan Peer),
-		txInMap:         make(map[util.Uint256]struct{}),
 		peers:           make(map[Peer]bool),
 		mempool:         chain.GetMemPool(),
 		extensiblePool:  extpool.New(chain, config.ExtensiblePoolSize),
 		log:             log,
-		txin:            make(chan *transaction.Transaction, 64),
 		transactions:    make(chan *transaction.Transaction, 64),
 		services:        make(map[string]Service),
 		extensHandlers:  make(map[string]func(*payload.Extensible) error),
 		stateSync:       stSync,
 	}
+	s.txIn = newInMap[*transaction.Transaction](64, s.mempool.ContainsKey)
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
 		s.notaryRequestPool = mempool.New(s.config.P2PNotaryRequestPayloadPoolSize, 1, true, updateNotarypoolMetrics)
+		s.notaryRequestIn = newInMap[notaryRequestInAdapter](64, s.notaryRequestPool.ContainsKey)
 		chain.RegisterPostBlock(func(isRelevant func(*transaction.Transaction, *mempool.Pool, bool) bool, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return isRelevant(t, txpool, true)
@@ -352,6 +365,12 @@ func (s *Server) Start() {
 	for range txThreads {
 		go s.txHandlerLoop()
 	}
+	if s.chain.P2PSigExtensionsEnabled() {
+		s.notaryRequestLoopWG.Add(txThreads)
+		for range txThreads {
+			go s.notaryRequestHandlerLoop()
+		}
+	}
 	go s.broadcastTxLoop()
 	go s.relayBlocksLoop()
 	go s.bQueue.Run()
@@ -407,6 +426,7 @@ func (s *Server) Shutdown() {
 	<-s.relayFin
 	<-s.runFin
 	s.txHandlerLoopWG.Wait()
+	s.notaryRequestLoopWG.Wait()
 
 	_ = s.log.Sync()
 }
@@ -981,10 +1001,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	var reqHashes = inv.Hashes[:0]
 	var typExists = map[payload.InventoryType]func(util.Uint256) bool{
 		payload.TXType: func(h util.Uint256) bool {
-			s.txInLock.RLock()
-			_, ok := s.txInMap[h]
-			s.txInLock.RUnlock()
-			return ok || s.mempool.ContainsKey(h)
+			return s.txIn.Contains(h)
 		},
 		payload.BlockType: s.chain.HasBlock,
 		payload.ExtensibleType: func(h util.Uint256) bool {
@@ -992,7 +1009,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 			return cp != nil
 		},
 		payload.P2PNotaryRequestType: func(h util.Uint256) bool {
-			return s.notaryRequestPool.ContainsKey(h)
+			return s.notaryRequestIn.Contains(h)
 		},
 	}
 	if exists := typExists[inv.Type]; exists != nil {
@@ -1297,26 +1314,17 @@ func (s *Server) advertiseExtensible(e *payload.Extensible) {
 // handleTxCmd processes the received transaction.
 // It never returns an error.
 func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
-	// It's OK for it to fail for various reasons like tx already existing
-	// in the pool.
-	s.txInLock.Lock()
-	_, ok := s.txInMap[tx.Hash()]
-	if ok || s.mempool.ContainsKey(tx.Hash()) {
-		s.txInLock.Unlock()
-		return nil
-	}
-	s.txInMap[tx.Hash()] = struct{}{}
-	s.txInLock.Unlock()
-	s.txin <- tx
+	s.txIn.Add(tx)
 	return nil
 }
 
 func (s *Server) txHandlerLoop() {
 	defer s.txHandlerLoopWG.Done()
+	in := s.txIn.In()
 txloop:
 	for {
 		select {
-		case tx := <-s.txin:
+		case tx := <-in:
 			s.serviceLock.RLock()
 			txCallback := s.txCallback
 			s.serviceLock.RUnlock()
@@ -1336,9 +1344,7 @@ txloop:
 			} else {
 				s.log.Debug("tx handler", zap.Error(err), zap.String("hash", tx.Hash().StringLE()))
 			}
-			s.txInLock.Lock()
-			delete(s.txInMap, tx.Hash())
-			s.txInLock.Unlock()
+			s.txIn.Remove(tx.Hash())
 		case <-s.quit:
 			break txloop
 		}
@@ -1346,7 +1352,38 @@ txloop:
 drainloop:
 	for {
 		select {
-		case <-s.txin:
+		case <-in:
+		default:
+			break drainloop
+		}
+	}
+}
+
+func (s *Server) notaryRequestHandlerLoop() {
+	defer s.notaryRequestLoopWG.Done()
+	in := s.notaryRequestIn.In()
+requestloop:
+	for {
+		select {
+		case r := <-in:
+			err := s.RelayP2PNotaryRequest(r.P2PNotaryRequest)
+			if err != nil {
+				s.log.Debug("verify and pool P2PNotaryRequest",
+					zap.String("hash", r.Hash().StringLE()),
+					zap.String("main", r.MainTransaction.Hash().StringLE()),
+					zap.String("fallback", r.FallbackTransaction.Hash().StringLE()),
+					zap.Error(err))
+			}
+
+			s.notaryRequestIn.Remove(r.FallbackTransaction.Hash())
+		case <-s.quit:
+			break requestloop
+		}
+	}
+drainloop:
+	for {
+		select {
+		case <-in:
 		default:
 			break drainloop
 		}
@@ -1358,12 +1395,7 @@ func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 	if !s.chain.P2PSigExtensionsEnabled() {
 		return errors.New("P2PNotaryRequestCMD was received, but P2PSignatureExtensions are disabled")
 	}
-	// It's OK for it to fail for various reasons like request already existing
-	// in the pool.
-	err := s.RelayP2PNotaryRequest(r)
-	if err != nil {
-		s.log.Debug("p2p notary request", zap.Error(err), zap.String("hash", r.Hash().StringLE()), zap.String("main", r.MainTransaction.Hash().StringLE()))
-	}
+	s.notaryRequestIn.Add(notaryRequestInAdapter{r})
 	return nil
 }
 
@@ -1931,7 +1963,7 @@ func (s *Server) Port(localAddr net.Addr) (uint16, error) {
 }
 
 // optimalNumOfThreads returns the optimal number of processing threads to create
-// for transaction processing.
+// for transaction or P2PNotaryRequest processing.
 func optimalNumOfThreads() int {
 	// Doing more won't help, mempool is still a contention point.
 	const maxThreads = 16
