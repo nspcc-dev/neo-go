@@ -366,8 +366,10 @@ func (s *Server) Start() {
 		go s.txHandlerLoop()
 	}
 	if s.chain.P2PSigExtensionsEnabled() {
-		s.notaryRequestLoopWG.Add(1)
-		go s.notaryRequestHandlerLoop()
+		s.notaryRequestLoopWG.Add(txThreads)
+		for range txThreads {
+			go s.notaryRequestHandlerLoop()
+		}
 	}
 	go s.broadcastTxLoop()
 	go s.relayBlocksLoop()
@@ -1961,7 +1963,7 @@ func (s *Server) Port(localAddr net.Addr) (uint16, error) {
 }
 
 // optimalNumOfThreads returns the optimal number of processing threads to create
-// for transaction processing.
+// for transaction or P2PNotaryRequest processing.
 func optimalNumOfThreads() int {
 	// Doing more won't help, mempool is still a contention point.
 	const maxThreads = 16
