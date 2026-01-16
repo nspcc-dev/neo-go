@@ -44,7 +44,9 @@ func New(bc Ledger, capacity int) *Pool {
 
 var (
 	errDisallowedSender = errors.New("disallowed sender")
-	errInvalidHeight    = errors.New("invalid height")
+	// ErrInvalidHeight is returned when Extensible message height is above the
+	// current chain's height.
+	ErrInvalidHeight = errors.New("invalid height")
 )
 
 // Add adds an extensible payload to the pool.
@@ -87,7 +89,7 @@ func (p *Pool) verify(e *payload.Extensible) (bool, error) {
 		if e.ValidBlockEnd == h {
 			return false, nil
 		}
-		return false, errInvalidHeight
+		return false, ErrInvalidHeight
 	}
 	if !p.chain.IsExtensibleAllowed(e.Sender) {
 		return false, errDisallowedSender

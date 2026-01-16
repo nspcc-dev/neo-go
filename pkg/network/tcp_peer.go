@@ -10,8 +10,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
+	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 )
 
@@ -189,11 +191,31 @@ func (p *TCPPeer) handleConn() {
 }
 
 func (p *TCPPeer) handleIncoming() {
-	var err error
+	var (
+		err             error
+		maxErrsPerFrame = p.server.chain.GetConfig().GetNumOfCNs(p.server.chain.BlockHeight()) * 3 /*tolerance for 3 blocks above the current height for validators' Extensible*/ *
+			10 /*tolerance for 10 other non-critical errors*/
+		errRing = make([]time.Time, maxErrsPerFrame)
+		i       int
+		frame   = int64(p.server.chain.GetMillisecondsPerBlock()) * int64(time.Millisecond) // time frame of a single block in the best case.
+	)
 	for msg := range p.incoming {
 		err = p.server.handleMessage(p, msg)
 		if err != nil {
-			if p.Handshaked() {
+			if errors.Is(err, extpool.ErrInvalidHeight) /*Extensible from the nearest future*/ ||
+				errors.Is(err, storage.ErrKeyNotFound) /*unknown header by CMDGetBlocks handler or failed MPT traversal by CMDGetMPTNodeData handler*/ {
+				now := time.Now()
+				errRing[i] = now
+				i = (i + 1) % maxErrsPerFrame
+				if last := errRing[i]; last.IsZero() || now.Sub(last).Milliseconds() > frame {
+					continue
+				}
+				err = fmt.Errorf("handling %s message (%d errors per %dms limit reached): %w",
+					msg.Command.String(),
+					maxErrsPerFrame,
+					now.Sub(errRing[i]).Milliseconds(),
+					err)
+			} else if p.Handshaked() {
 				err = fmt.Errorf("handling %s message: %w", msg.Command.String(), err)
 			}
 			break

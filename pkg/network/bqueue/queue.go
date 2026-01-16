@@ -56,7 +56,7 @@ type Queue[Q Queueable] struct {
 	nilQ        Q
 }
 
-// DefaultCacheSize is the default amount of Queueable elements above the current height
+// DefaultCacheSize is the default number of Queueable elements above the current height
 // which are stored in the queue.
 const DefaultCacheSize = 2000
 
