@@ -197,7 +197,7 @@ func (p *TCPPeer) handleIncoming() {
 			10 /*tolerance for 10 other non-critical errors*/
 		errRing = make([]time.Time, maxErrsPerFrame)
 		i       int
-		frame   = int64(p.server.chain.GetMillisecondsPerBlock()) * int64(time.Millisecond) // time frame of a single block in the best case.
+		frame   = time.Duration(p.server.chain.GetMillisecondsPerBlock()) * time.Millisecond // time frame of a single block in the best case.
 	)
 	for msg := range p.incoming {
 		err = p.server.handleMessage(p, msg)
@@ -207,13 +207,13 @@ func (p *TCPPeer) handleIncoming() {
 				now := time.Now()
 				errRing[i] = now
 				i = (i + 1) % maxErrsPerFrame
-				if last := errRing[i]; last.IsZero() || now.Sub(last).Milliseconds() > frame {
+				if last := errRing[i]; last.IsZero() || now.Sub(last) > frame {
 					continue
 				}
-				err = fmt.Errorf("handling %s message (%d errors per %dms limit reached): %w",
+				err = fmt.Errorf("handling %s message (%d errors per %s limit reached): %w",
 					msg.Command.String(),
 					maxErrsPerFrame,
-					now.Sub(errRing[i]).Milliseconds(),
+					frame,
 					err)
 			} else if p.Handshaked() {
 				err = fmt.Errorf("handling %s message: %w", msg.Command.String(), err)
