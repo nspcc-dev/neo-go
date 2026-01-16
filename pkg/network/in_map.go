@@ -7,8 +7,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// inMap manages incoming hashable items (transactions) that are enqueued by
-// the server to be added to the underlying memory pool.
+// inMap manages incoming hashable items (transactions and notary requests) that
+// are enqueued by the server to be added to the underlying memory pool.
 type inMap[T hash.Hashable] struct {
 	lock     sync.RWMutex
 	in       chan T
