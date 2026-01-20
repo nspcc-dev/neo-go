@@ -40,6 +40,7 @@ func (n neo) GetCommitteeMembers(d *dao.Simple) keys.PublicKeys        { panic("
 func (n neo) ComputeNextBlockValidators(d *dao.Simple) keys.PublicKeys { panic("TODO") }
 func (n neo) GetCandidates(d *dao.Simple) ([]state.Validator, error)   { panic("TODO") }
 func (n neo) CheckCommittee(ic *interop.Context) bool                  { panic("TODO") }
+func (n neo) CheckAlmostFullCommittee(ic *interop.Context) bool        { panic("TODO") }
 func (n neo) RevokeVotes(ic *interop.Context, h util.Uint160) error    { return nil }
 
 func TestDeployGetUpdateDestroyContract(t *testing.T) {

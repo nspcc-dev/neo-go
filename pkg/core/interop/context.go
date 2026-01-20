@@ -561,6 +561,11 @@ func (ic *Context) Exec() error {
 	return ic.VM.Run()
 }
 
+// GetTime returns the timestamp of persisting block. It panics if persisting block is nil.
+func (ic *Context) GetTime() uint64 {
+	return ic.Block.Timestamp
+}
+
 // BlockHeight returns the latest persisted and stored block height/index.
 // The latest persisted block is updated by native Ledger's PostPersist, hence
 // persisting block index is not taken into account until the call to Ledger's

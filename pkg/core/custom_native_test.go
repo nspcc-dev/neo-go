@@ -161,6 +161,9 @@ func (n *neo) GetCandidates(d *dao.Simple) ([]state.Validator, error) {
 func (n *neo) CheckCommittee(ic *interop.Context) bool {
 	return true
 }
+func (n *neo) CheckAlmostFullCommittee(ic *interop.Context) bool {
+	return true
+}
 func (n *neo) getBool(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewBool(true)
 }

@@ -3,6 +3,7 @@ package native_test
 import (
 	"bytes"
 	"fmt"
+	"math/big"
 	"slices"
 	"strings"
 	"testing"
@@ -753,4 +754,83 @@ func TestPolicy_WhitelistContractsInteropAPI(t *testing.T) {
 			stackitem.Make(0),
 		}),
 	}), "getWhitelistedContracts")
+}
+
+func TestPolicy_RecoverFunds(t *testing.T) {
+	const (
+		faunHeight = 6
+		lockPeriod = 365 * 24 * 60 * 60 * 1000
+		balance    = 1_0000_0000
+	)
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFFaun.String(): faunHeight,
+		}
+	})
+	e := c.Executor
+	randomInvoker := c.WithSigners(c.NewAccount(t))
+	committeeInvoker := c.WithSigners(c.Committee) // use single-node committee for simplicity.
+	unlucky := c.NewAccount(t, balance)
+
+	// Block account before Faun.
+	committeeInvoker.Invoke(t, true, "blockAccount", unlucky.ScriptHash())
+	e.CheckGASBalance(t, unlucky.ScriptHash(), big.NewInt(balance))
+	committeeInvoker.InvokeFail(t, "method not found: recoverFund/2", "recoverFund", unlucky.ScriptHash(), nativehashes.GasToken)
+
+	// Reach Faun.
+	for c.Chain.BlockHeight() < faunHeight {
+		c.AddNewBlock(t)
+	}
+	faunTimestamp := c.TopBlock(t).Timestamp
+
+	// Invalid signer
+	randomInvoker.InvokeFail(t, "invalid committee signature", "recoverFund", unlucky.ScriptHash(), nativehashes.GasToken)
+
+	// Non-blocked account
+	committeeInvoker.InvokeFail(t, "account is not blocked", "recoverFund", util.Uint160{1, 2, 3}, nativehashes.GasToken)
+
+	// Locked recovery.
+	committeeInvoker.InvokeFail(t, "funds recovery request must be signed at least 1 year ago; remaining time is", "recoverFund", unlucky.ScriptHash(), nativehashes.GasToken)
+
+	addBlockWithimestamp := func(t *testing.T, ts uint64, txs ...*transaction.Transaction) {
+		b := e.NewUnsignedBlock(t, txs...)
+		b.Timestamp = ts
+		e.SignBlock(b)
+		require.NoError(t, e.Chain.AddBlock(b))
+	}
+
+	// Locked recovery, 1ms lock period left.
+	tx := c.PrepareInvoke(t, "recoverFund", unlucky.ScriptHash(), nativehashes.GasToken)
+	addBlockWithimestamp(t, faunTimestamp+lockPeriod-1, tx)
+	c.CheckFault(t, tx.Hash(), "funds recovery request must be signed at least 1 year ago; remaining time is 1ms")
+	e.CheckGASBalance(t, unlucky.ScriptHash(), big.NewInt(balance))
+
+	// Good.
+	tx = c.PrepareInvoke(t, "recoverFund", unlucky.ScriptHash(), nativehashes.GasToken)
+	addBlockWithimestamp(t, faunTimestamp+lockPeriod, tx)
+	c.CheckHalt(t, tx.Hash(), stackitem.Make(true))
+	c.CheckTxNotificationEvent(t, tx.Hash(), 0, state.NotificationEvent{
+		ScriptHash: nativehashes.GasToken,
+		Name:       "Transfer",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(unlucky.ScriptHash()),
+			stackitem.Make(nativehashes.Treasury),
+			stackitem.Make(balance),
+		}),
+	})
+	c.CheckTxNotificationEvent(t, tx.Hash(), 1, state.NotificationEvent{
+		ScriptHash: nativehashes.PolicyContract,
+		Name:       "RecoveredFund",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(unlucky.ScriptHash()),
+		}),
+	})
+	e.CheckGASBalance(t, unlucky.ScriptHash(), big.NewInt(0))
+	e.CheckGASBalance(t, nativehashes.Treasury, big.NewInt(balance))
+
+	// Double-recovery.
+	c.Invoke(t, stackitem.Make(false), "recoverFund", unlucky.ScriptHash(), nativehashes.GasToken)
+
+	// Unknown token.
+	committeeInvoker.InvokeFail(t, "failed to get contract", "recoverFund", unlucky.ScriptHash(), util.Uint160{1, 2, 3})
 }

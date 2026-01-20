@@ -8,10 +8,13 @@ import (
 	"maps"
 	"math/big"
 	"slices"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -59,6 +62,11 @@ const (
 	whitelistedFeeContractPrefix = 16
 	// attributeFeePrefix is a prefix used to store attribute fee.
 	attributeFeePrefix = 20
+
+	// recoverFundsLockPeriod is the period of time (in milliseconds) after
+	// which it's possible to recover funds from the blocked account. It's set
+	// to 1 year.
+	recoverFundsLockPeriod = 365 * 24 * 60 * 60 * 1000
 )
 
 var (
@@ -267,11 +275,23 @@ func newPolicy() *Policy {
 	md = NewMethodAndPrice(p.getWhitelistFeeContracts, 1<<15, callflag.ReadStates, config.HFFaun)
 	p.AddMethod(md, desc)
 
+	desc = NewDescriptor("recoverFund", smartcontract.BoolType,
+		manifest.NewParameter("account", smartcontract.Hash160Type),
+		manifest.NewParameter("token", smartcontract.Hash160Type))
+	md = NewMethodAndPrice(p.recoverFund, 1<<15, callflag.States|callflag.AllowNotify, config.HFFaun)
+	p.AddMethod(md, desc)
+
 	eDesc = NewEventDescriptor("WhitelistFeeChanged",
 		manifest.NewParameter("contract", smartcontract.Hash160Type),
 		manifest.NewParameter("method", smartcontract.StringType),
 		manifest.NewParameter("argCount", smartcontract.IntegerType),
 		manifest.NewParameter("fee", smartcontract.AnyType),
+	)
+	eMD = NewEvent(eDesc, config.HFFaun)
+	p.AddEvent(eMD)
+
+	eDesc = NewEventDescriptor("RecoveredFund",
+		manifest.NewParameter("account", smartcontract.Hash160Type),
 	)
 	eMD = NewEvent(eDesc, config.HFFaun)
 	p.AddEvent(eMD)
@@ -327,6 +347,12 @@ func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 		cache.execFeeFactor = cache.execFeeFactor * vm.ExecFeeFactorMultiplier
 		cache.faunInitialized = true
 		setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, int64(cache.execFeeFactor))
+
+		currTime := ic.GetTime()
+		for _, acc := range cache.blockedAccounts {
+			key := makeBlockedAccountKey(acc)
+			ic.DAO.PutBigInt(p.ID, key, new(big.Int).SetUint64(currTime))
+		}
 	}
 
 	return nil
@@ -508,7 +534,7 @@ func (p *Policy) isBlocked(ic *interop.Context, args []stackitem.Item) stackitem
 func (p *Policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool {
 	cache := dao.GetROCache(p.ID)
 	if cache == nil {
-		key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
+		key := makeBlockedAccountKey(hash)
 		return dao.GetStorageItem(p.ID, key) != nil
 	}
 	_, isBlocked := p.isBlockedInternal(cache.(*PolicyCache), hash)
@@ -645,8 +671,12 @@ func (p *Policy) BlockAccountInternal(ic *interop.Context, hash util.Uint160) bo
 	if ic.IsHardforkEnabled(config.HFFaun) {
 		var _ = p.NEO.RevokeVotes(ic, hash) // ignore error, as in the reference.
 	}
-	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
-	ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
+	key := makeBlockedAccountKey(hash)
+	if ic.IsHardforkEnabled(config.HFFaun) {
+		ic.DAO.PutBigInt(p.ID, key, new(big.Int).SetUint64(ic.GetTime()))
+	} else {
+		ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
+	}
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	if len(cache.blockedAccounts) == i {
 		cache.blockedAccounts = append(cache.blockedAccounts, hash)
@@ -668,7 +698,7 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	if !blocked {
 		return stackitem.NewBool(false)
 	}
-	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
+	key := makeBlockedAccountKey(hash)
 	ic.DAO.DeleteStorageItem(p.ID, key)
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.blockedAccounts = append(cache.blockedAccounts[:i], cache.blockedAccounts[i+1:]...)
@@ -943,6 +973,64 @@ func (p *Policy) getWhitelistFeeContracts(ic *interop.Context, _ []stackitem.Ite
 		res[i] = &c.WhitelistFeeContract
 	}
 	return stackitem.NewInterop(&iterator[*state.WhitelistFeeContract]{keys: res})
+}
+
+func (p *Policy) recoverFund(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	acc := toUint160(args[0])
+	token := toUint160(args[1])
+
+	if !p.NEO.CheckAlmostFullCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	start, err := ic.DAO.GetInt(p.ID, makeBlockedAccountKey(acc))
+	if err != nil {
+		panic(fmt.Errorf("account is not blocked: %w", err))
+	}
+	elapsed := ic.GetTime() - uint64(start)
+	if elapsed < recoverFundsLockPeriod {
+		panic(fmt.Errorf("funds recovery request must be signed at least 1 year ago; remaining time is %s", time.Duration(recoverFundsLockPeriod-elapsed)*time.Millisecond))
+	}
+
+	cs, err := ic.GetContract(token)
+	if err != nil {
+		panic(fmt.Errorf("failed to get contract %s: %w", token.StringLE(), err))
+	}
+	if !cs.Manifest.IsStandardSupported("NEP-17") {
+		panic(fmt.Errorf("contract %s does not support NEP-17", token.StringLE()))
+	}
+
+	err = contract.CallFromNative(ic, acc, cs, "balanceOf", []stackitem.Item{stackitem.NewByteArray(acc.BytesBE())}, true)
+	if err != nil {
+		panic(fmt.Errorf("failed to call balanceOf/%s: %w", token.StringLE(), err))
+	}
+	balance := ic.VM.Estack().Pop().BigInt()
+	if balance.Sign() <= 0 {
+		return stackitem.NewBool(false)
+	}
+
+	err = contract.CallFromNative(ic, acc, cs, "transfer", []stackitem.Item{
+		stackitem.NewByteArray(acc.BytesBE()),
+		stackitem.NewByteArray(nativehashes.Treasury.BytesBE()),
+		stackitem.NewBigInteger(balance),
+		stackitem.Null{},
+	}, true)
+	if err != nil {
+		panic(fmt.Errorf("failed to call transfer/%s: %w", token.StringLE(), err))
+	}
+	ok := ic.VM.Estack().Pop().Bool()
+	if !ok {
+		panic(fmt.Errorf("transfer/%s from %s to %s failed", token.StringLE(), acc.StringLE(), nativehashes.Treasury.StringLE()))
+	}
+
+	err = ic.AddNotification(p.Hash, "RecoveredFund", stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(acc.BytesBE())}))
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewBool(true)
+}
+
+func makeBlockedAccountKey(acc util.Uint160) []byte {
+	return append([]byte{blockedAccountPrefix}, acc.BytesBE()...)
 }
 
 func makeWhitelistedKey(h util.Uint160, offset uint32) []byte {

@@ -156,6 +156,17 @@ func SignCommittee(h hash.Hashable) []byte {
 // NewBlock creates a new block for the given blockchain with the given offset
 // (usually, 1), primary node index and transactions.
 func NewBlock(t *testing.T, bc Ledger, offset uint32, primary uint32, txs ...*transaction.Transaction) *block.Block {
+	return NewBlockWithOptions(t, bc, func(b *block.Block) {
+		b.Index += offset
+		b.PrimaryIndex = byte(primary)
+		b.Transactions = txs
+	})
+}
+
+// NewBlockWithOptions creates a new block for the given blockchain with the index
+// matching the top chain's block. Use `opts` to modify hashable block fields before
+// signing.
+func NewBlockWithOptions(t *testing.T, bc Ledger, opts func(*block.Block)) *block.Block {
 	witness := transaction.Witness{VerificationScript: MultisigVerificationScript()}
 	height := bc.BlockHeight()
 	h := bc.GetHeaderHash(height)
@@ -165,13 +176,12 @@ func NewBlock(t *testing.T, bc Ledger, offset uint32, primary uint32, txs ...*tr
 		Header: block.Header{
 			PrevHash:      hdr.Hash(),
 			Timestamp:     (uint64(time.Now().UTC().Unix()) + uint64(hdr.Index)) * 1000,
-			Index:         hdr.Index + offset,
-			PrimaryIndex:  byte(primary),
+			Index:         hdr.Index,
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
 		},
-		Transactions: txs,
 	}
+	opts(b)
 	b.RebuildMerkleRoot()
 
 	b.Script.InvocationScript = Sign(b)

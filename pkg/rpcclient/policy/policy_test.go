@@ -304,6 +304,23 @@ func TestWhitelistedSetters(t *testing.T) {
 	require.Equal(t, ta.vub, vub)
 }
 
+func TestRecoverFund(t *testing.T) {
+	ta := new(testAct)
+	pc := New(ta)
+
+	ta.err = errors.New("")
+	_, _, err := pc.RecoverFund(util.Uint160{}, util.Uint160{})
+	require.Error(t, err)
+
+	ta.err = nil
+	ta.txh = util.Uint256{1, 2, 3}
+	ta.vub = 42
+	h, vub, err := pc.RecoverFund(util.Uint160{}, util.Uint160{})
+	require.NoError(t, err)
+	require.Equal(t, ta.txh, h)
+	require.Equal(t, ta.vub, vub)
+}
+
 func TestIntTransactions(t *testing.T) {
 	ta := new(testAct)
 	pc := New(ta)
@@ -446,6 +463,80 @@ func TestWhitelistFeeChangedEvent_FromStackItem(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := new(WhitelistFeeChangedEvent)
+			var in *stackitem.Array
+			if tc.in != nil {
+				in = stackitem.NewArray(tc.in)
+			}
+			err := actual.FromStackItem(in)
+			if len(tc.err) != 0 {
+				require.ErrorContains(t, err, tc.err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, actual)
+			}
+		})
+	}
+}
+
+func TestRecoverFundTransactions(t *testing.T) {
+	ta := new(testAct)
+	pc := New(ta)
+
+	ta.err = errors.New("")
+	_, err := pc.RecoverFundTransaction(util.Uint160{}, util.Uint160{})
+	require.Error(t, err)
+	_, err = pc.RecoverFundUnsigned(util.Uint160{}, util.Uint160{})
+	require.Error(t, err)
+
+	ta.err = nil
+	ta.tx = &transaction.Transaction{Nonce: 100500, ValidUntilBlock: 42}
+	tx, err := pc.RecoverFundTransaction(util.Uint160{}, util.Uint160{})
+	require.NoError(t, err)
+	require.Equal(t, ta.tx, tx)
+	tx, err = pc.RecoverFundUnsigned(util.Uint160{}, util.Uint160{})
+	require.NoError(t, err)
+	require.Equal(t, ta.tx, tx)
+}
+
+func TestRecoveredFundEvent_FromStackItem(t *testing.T) {
+	tcs := []struct {
+		name     string
+		in       []stackitem.Item
+		expected *RecoveredFundEvent
+		err      string
+	}{
+		{
+			name: "nil item",
+			in:   nil,
+			err:  "nil item",
+		},
+		{
+			name: "wrong number of elements",
+			in:   []stackitem.Item{},
+			err:  "wrong number of event parameters",
+		},
+		{
+			name: "invalid account",
+			in:   []stackitem.Item{stackitem.NewInterop(nil)},
+			err:  "invalid account",
+		},
+		{
+			name: "failed to unwrap account",
+			in:   []stackitem.Item{stackitem.Make([]byte{1, 2, 3})},
+			err:  "failed to unwrap account",
+		},
+		{
+			name: "good",
+			in:   []stackitem.Item{stackitem.Make(util.Uint160{1, 2, 3})},
+			expected: &RecoveredFundEvent{
+				Account: util.Uint160{1, 2, 3},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := new(RecoveredFundEvent)
 			var in *stackitem.Array
 			if tc.in != nil {
 				in = stackitem.NewArray(tc.in)

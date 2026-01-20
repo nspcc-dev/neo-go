@@ -129,3 +129,9 @@ func RemoveWhitelistFeeContract(hash interop.Hash160, method string, argCnt int)
 func GetWhitelistFeeContracts() iterator.Iterator {
 	return neogointernal.CallWithToken(Hash, "getWhitelistFeeContracts", int(contract.ReadStates)).(iterator.Iterator)
 }
+
+// RecoverFund represents the `recoverFund` method of Policy native contract.
+// Note that this method is available starting from [config.HFFaun] hardfork.
+func RecoverFund(account interop.Hash160, token interop.Hash160) bool {
+	return neogointernal.CallWithToken(Hash, "recoverFund", int(contract.States|contract.AllowCall|contract.AllowNotify), account, token).(bool)
+}
