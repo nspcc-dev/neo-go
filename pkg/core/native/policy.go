@@ -642,7 +642,9 @@ func (p *Policy) BlockAccountInternal(ic *interop.Context, hash util.Uint160) bo
 	if blocked {
 		return false
 	}
-	var _ = p.NEO.RevokeVotes(ic, hash) // ignore error, as in the reference.
+	if ic.IsHardforkEnabled(config.HFFaun) {
+		var _ = p.NEO.RevokeVotes(ic, hash) // ignore error, as in the reference.
+	}
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)

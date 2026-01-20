@@ -322,7 +322,11 @@ func TestPolicy_AttributeFeeCache(t *testing.T) {
 }
 
 func TestPolicy_BlockedAccounts(t *testing.T) {
-	c := newPolicyClient(t)
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
 	e := c.Executor
 	randomInvoker := c.WithSigners(c.NewAccount(t))
 	committeeInvoker := c.WithSigners(c.Committee)
