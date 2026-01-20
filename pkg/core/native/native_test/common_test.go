@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -62,6 +63,9 @@ func testGetSet(t *testing.T, c *neotest.ContractInvoker, name string, defaultVa
 			name == "MaxTraceableBlocks" { // sanitize MaxTraceableBlocks that can only be decreased.
 			v = defaultValue - 1
 		}
+		if name == "ExecFeeFactor" { // sanitize picoGAS units of ExecFeeFactor applied after Faun fork.
+			v *= vm.ExecFeeFactorMultiplier
+		}
 		// Set and get in the same block.
 		txSet := committeeInvoker.PrepareInvoke(t, setName, v)
 		txGet := randomInvoker.PrepareInvoke(t, getName)
@@ -81,7 +85,7 @@ func testGetSet(t *testing.T, c *neotest.ContractInvoker, name string, defaultVa
 			// Set in a separate block.
 			committeeInvoker.Invoke(t, stackitem.Null{}, setName, v)
 			// Get in the next block.
-			randomInvoker.Invoke(t, v, getName)
+			randomInvoker.Invoke(t, v/vm.ExecFeeFactorMultiplier, getName)
 		default:
 			c.CheckHalt(t, txGet.Hash(), stackitem.Make(v))
 			// Get in the next block.
@@ -97,6 +101,9 @@ func testGetSetCache(t *testing.T, c *neotest.ContractInvoker, name string, defa
 	committeeInvoker := c.WithSigners(c.Committee)
 
 	newVal := defaultValue - 1
+	if name == "ExecFeeFactor" {
+		newVal = (defaultValue - 1) * vm.ExecFeeFactorMultiplier
+	}
 
 	// Change fee, abort the transaction and check that contract cache wasn't persisted
 	// for FAULTed tx at the same block.
@@ -114,11 +121,14 @@ func testGetSetCache(t *testing.T, c *neotest.ContractInvoker, name string, defa
 	tx2 = committeeInvoker.PrepareInvoke(t, getName)
 	committeeInvoker.AddNewBlock(t, tx1, tx2)
 	committeeInvoker.CheckHalt(t, tx1.Hash())
-	if name != "GasPerBlock" {
-		committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(newVal))
-	} else {
+	switch name {
+	case "ExecFeeFactor":
+		committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(newVal/vm.ExecFeeFactorMultiplier))
+	case "GasPerBlock":
 		committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(defaultValue))
 		committeeInvoker.Invoke(t, newVal, getName)
+	default:
+		committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(newVal))
 	}
 }
 

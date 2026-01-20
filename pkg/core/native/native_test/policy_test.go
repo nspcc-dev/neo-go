@@ -44,7 +44,7 @@ func TestPolicy_FeePerByteCache(t *testing.T) {
 }
 
 func TestPolicy_ExecFeeFactor(t *testing.T) {
-	testGetSet(t, newPolicyClient(t), "ExecFeeFactor", interop.DefaultBaseExecFee, 1, 1000)
+	testGetSet(t, newPolicyClient(t), "ExecFeeFactor", interop.DefaultBaseExecFee, 1, 1000*vm.ExecFeeFactorMultiplier)
 }
 
 func TestPolicy_ExecFeeFactorCache(t *testing.T) {
