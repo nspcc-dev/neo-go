@@ -2,6 +2,43 @@
 
 This document outlines major changes between releases.
 
+## 0.116.0 "Shimmeriness" (21 Jan 2025)
+
+This version is fully compatible with the C# node 3.9.2. It extends and enables
+Faun hardfork, introduces P2P-level optimisations and fixes a couple of critical
+bugs.
+
+Node operators should review and update node configuration. For N3 chains Faun
+hardfork is enabled at block `8800000` of Mainnet and `12960000` block of
+Testnet; for NeoFS networks Faun height is `19725000` for Mainnet and `19340000`
+for Testnet. Please consider upgrading your nodes before Faun height; otherwise
+you'll need to resynchronize the DB. Also, this release fixes a state difference
+at block 2940927 of N3 Mainnet introduced by Faun preview in v0.115.0 release;
+if you haven't resynchronized your node on v0.115.0 upgrade, then you may safely
+skip resynchronisation for this release as far.
+
+New features:
+ * add `recoverFund` method to native Policy starting from Faun (#4139)
+ * enable Faun hardfork for public networks (#4142)
+ * introduce Gorgon hardfork in a preview mode (#4142)
+
+Behavior changes:
+ * NEP-30 support for native contracts starting from Faun (#4114)
+ * adjust whitelist fee contract storage scheme (#4129)
+ * attach NeoFS state object witness conditionally (#4131)
+
+Improvements:
+ * add tolerance to non-critical P2P errors (#4134)
+ * accept native contract name in `getstorage*` and `findstorage*` RPC handlers
+   (#4130)
+ * optimize `P2PNotaryRequest` payloads processing (#4135)
+
+Bugs fixed:
+ * panic on channel close in RPC Waiter (#4133)
+ * state difference at block 2940927 caused by missing Faun fork switch in
+   Policy's `blockAccount` handler (#4141)
+ * fix premature call to NeoFS pool's `Close()` method (#4128)
+
 ## 0.115.0 "Shininess" (30 Dec 2025)
 
 Bringing NeoGo up to date with recently added Faun preview changes, this release

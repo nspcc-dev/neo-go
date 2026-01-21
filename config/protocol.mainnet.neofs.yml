@@ -33,6 +33,7 @@ ProtocolConfiguration:
     Cockatrice: 3500000
     Domovoi: 3500000
     Echidna: 3519099
+    Faun: 19725000
 
 ApplicationConfiguration:
   SkipBlockVerification: false

@@ -7,7 +7,7 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.115.0 (~Dec 2025)
+## Version 0.117.0 (~Feb 2026)
  * protocol updates
  * bug fixes
 

@@ -57,6 +57,8 @@ const (
 	// https://github.com/neo-project/neo/pull/4201), #4139 (ported from
 	// https://github.com/neo-project/neo/pull/4328).
 	HFFaun // Faun
+	// HFGorgon represents hard-fork introduced in #4142.
+	HFGorgon // Gorgon
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
 	hfLast
@@ -66,7 +68,7 @@ const (
 // default. The set above can contain other hardforks and even some name
 // placeholders, but they need to be enabled manually then. It can change
 // between releases even if the set of known hardforks is the same.
-const HFLatestStable = HFEchidna
+const HFLatestStable = HFFaun
 
 // HFLatestKnown is the latest known hardfork.
 const HFLatestKnown = hfLast >> 1
