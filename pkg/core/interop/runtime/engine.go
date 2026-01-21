@@ -158,7 +158,7 @@ func Log(ic *interop.Context) error {
 // GetTime returns timestamp of the block being verified, or the latest
 // one in the blockchain if no block is given to Context.
 func GetTime(ic *interop.Context) error {
-	ic.VM.Estack().PushItem(stackitem.NewBigInteger(new(big.Int).SetUint64(ic.Block.Timestamp)))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(new(big.Int).SetUint64(ic.GetTime())))
 	return nil
 }
 

@@ -91,6 +91,11 @@ type WhitelistFeeChangedEvent struct {
 	Fee *int64
 }
 
+// RecoveredFundEvent represents a RecoveredFund Policy event.
+type RecoveredFundEvent struct {
+	Account util.Uint160
+}
+
 // NewReader creates an instance of ContractReader that can be used to read
 // data from the contract.
 func NewReader(invoker Invoker) *ContractReader {
@@ -584,6 +589,69 @@ func (e *WhitelistFeeChangedEvent) FromStackItem(item *stackitem.Array) error {
 		}
 		v := fee.Int64()
 		e.Fee = &v
+	}
+
+	return nil
+}
+
+// RecoverFund creates and sends a transaction that recovers specified token of
+// the blocked account and sends it to the native Treasury contract. This method
+// is active starting from [config.HFFaun] hardfork. The action is successful
+// when the transaction ends in the HALT state and stack contains true value.
+// The returned values are transaction hash, its ValidUntilBlock value and an
+// error if any.
+func (c *Contract) RecoverFund(account util.Uint160, token util.Uint160) (util.Uint256, uint32, error) {
+	return c.actor.SendRun(recoverFundScript(account, token))
+}
+
+// RecoverFundTransaction creates a transaction that recovers specified
+// token of the blocked account and sends it to the native Treasury contract.
+// This method is active starting from [config.HFFaun] hardfork. This
+// transaction is signed but not sent to the network, instead it's returned to
+// the caller. The action is successful when the transaction ends in the HALT
+// state and stack contains true value.
+func (c *Contract) RecoverFundTransaction(account util.Uint160, token util.Uint160) (*transaction.Transaction, error) {
+	return c.actor.MakeRun(recoverFundScript(account, token))
+}
+
+// RecoverFundUnsigned creates a transaction that that recovers specified
+// token of the blocked account and sends it to the native Treasury contract.
+// This method is active starting from [config.HFFaun] hardfork. This
+// transaction is not signed and just returned to the caller. The action is
+// successful when the transaction ends in the HALT state and stack contains
+// true value.
+func (c *Contract) RecoverFundUnsigned(account util.Uint160, token util.Uint160) (*transaction.Transaction, error) {
+	return c.actor.MakeUnsignedRun(recoverFundScript(account, token), nil)
+}
+
+func recoverFundScript(account util.Uint160, token util.Uint160) []byte {
+	// We know parameters exactly (unlike with nep17.Transfer), so this can't fail.
+	script, _ := smartcontract.CreateCallWithAssertScript(Hash, "recoverFund", account, token)
+	return script
+}
+
+// FromStackItem converts provided [stackitem.Array] to RecoveredFundEvent or
+// returns an error if it's not possible to do so.
+func (e *RecoveredFundEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return fmt.Errorf("wrong number of event parameters: %d", len(arr))
+	}
+
+	h, err := arr[0].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid account: %w", err)
+	}
+	e.Account, err = util.Uint160DecodeBytesBE(h)
+	if err != nil {
+		return fmt.Errorf("failed to unwrap account: %w", err)
 	}
 
 	return nil

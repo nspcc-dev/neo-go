@@ -43,6 +43,7 @@ type (
 
 		// Methods required for proper cross-native communication.
 		CheckCommittee(ic *interop.Context) bool
+		CheckAlmostFullCommittee(ic *interop.Context) bool
 		RevokeVotes(ic *interop.Context, h util.Uint160) error
 	}
 

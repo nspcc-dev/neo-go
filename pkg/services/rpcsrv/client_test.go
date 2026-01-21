@@ -165,6 +165,7 @@ func TestClientRoleManagement(t *testing.T) {
 }
 
 func TestClientPolicyContract(t *testing.T) {
+	const recoverFundsLockPeriod = 365 * 24 * 60 * 60 * 1000
 	chain, _, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
 		cfg.ProtocolConfiguration.Hardforks = map[string]uint32{
 			config.HFFaun.String(): 0,
@@ -216,6 +217,7 @@ func TestClientPolicyContract(t *testing.T) {
 	require.NoError(t, err)
 
 	polis := policy.New(act)
+	gas := gas.New(act)
 
 	txexec, err := polis.SetExecFeeFactorUnsigned(100 * vm.ExecFeeFactorMultiplier)
 	require.NoError(t, err)
@@ -230,6 +232,8 @@ func TestClientPolicyContract(t *testing.T) {
 	require.NoError(t, err)
 
 	blocked := []util.Uint160{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}
+	txtransfer1, err := gas.TransferUnsigned(testchain.CommitteeScriptHash(), blocked[0], big.NewInt(1), nil)
+	require.NoError(t, err)
 	txblock1, err := polis.BlockAccountUnsigned(blocked[0])
 	require.NoError(t, err)
 	txblock2, err := polis.BlockAccountUnsigned(blocked[1])
@@ -256,13 +260,14 @@ func TestClientPolicyContract(t *testing.T) {
 	txwhitelist2, err := polis.SetWhitelistFeeContractUnsigned(whitelisted[1].Hash, "hexEncode", 1, 0)
 	require.NoError(t, err)
 
-	for _, tx := range []*transaction.Transaction{txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txstorage, txnetfee, txexec} {
+	for _, tx := range []*transaction.Transaction{txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txstorage, txnetfee, txexec} {
 		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
 	}
 
-	bl := testchain.NewBlock(t, chain, 1, 0, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txstorage, txnetfee, txexec)
+	bl := testchain.NewBlock(t, chain, 1, 0, txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txstorage, txnetfee, txexec)
 	_, err = c.SubmitBlock(*bl)
 	require.NoError(t, err)
+	txBlockTimestamp := bl.Timestamp
 
 	val, err = polizei.GetExecFeeFactor()
 	require.NoError(t, err)
@@ -320,6 +325,23 @@ func TestClientPolicyContract(t *testing.T) {
 	allWhitelisted, err = polizei.GetWhitelistFeeContractsExpanded(100)
 	require.NoError(t, err)
 	require.Equal(t, []state.WhitelistFeeContract{whitelisted[1]}, allWhitelisted)
+
+	b := testchain.NewBlockWithOptions(t, chain, func(b *block.Block) {
+		b.Index += 1
+		b.Timestamp = txBlockTimestamp + recoverFundsLockPeriod
+	})
+	_, err = c.SubmitBlock(*b)
+	require.NoError(t, err)
+	txrecover, err := polis.RecoverFundUnsigned(blocked[0], nativehashes.GasToken)
+	require.NoError(t, err)
+	txrecover.Scripts[0].InvocationScript = testchain.SignCommittee(txrecover)
+	b = testchain.NewBlockWithOptions(t, chain, func(b *block.Block) {
+		b.Index += 1
+		b.Timestamp = txBlockTimestamp + recoverFundsLockPeriod + 1
+		b.Transactions = []*transaction.Transaction{txrecover}
+	})
+	_, err = c.SubmitBlock(*b)
+	require.NoError(t, err)
 }
 
 func TestClientManagementContract(t *testing.T) {

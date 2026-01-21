@@ -697,6 +697,25 @@ func (n *NEO) CheckCommittee(ic *interop.Context) bool {
 	return ok
 }
 
+// CheckAlmostFullCommittee checks if the transaction is witnessed by committee.
+// It requires witness of max((half_committee + 1) and (committee - 2)) number
+// of committee members.
+func (n *NEO) CheckAlmostFullCommittee(ic *interop.Context) bool {
+	pubs := n.GetCommitteeMembers(ic.DAO)
+	minCnt := max(1, len(pubs)-(len(pubs)-1)/2)
+	maxCnt := len(pubs) - 2
+
+	script, err := smartcontract.CreateMultiSigRedeemScript(max(minCnt, maxCnt), pubs)
+	if err != nil {
+		panic(err)
+	}
+	ok, err := runtime.CheckHashedWitness(ic, hash.Hash160(script))
+	if err != nil {
+		panic(err)
+	}
+	return ok
+}
+
 func (n *NEO) setGASPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	gas := toBigInt(args[0])
 	err := n.SetGASPerBlock(ic, ic.Block.Index+1, gas)
