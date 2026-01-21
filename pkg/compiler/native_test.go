@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -207,6 +208,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"setWhitelistFeeContract", []string{u160, `"method"`, "1", "2"}},
 		{"removeWhitelistFeeContract", []string{u160, `"method"`, "1"}},
 		{"getWhitelistFeeContracts", nil},
+		{"recoverFund", []string{u160, u160}},
 	})
 	runNativeTestCases(t, *cs.ByName(nativenames.Ledger).Metadata(), "ledger", []nativeTestCase{
 		{"currentHash", nil},
@@ -371,8 +373,10 @@ func runNativeTestCase(t *testing.T, b *nef.File, di *compiler.DebugInfo, ctr in
 		if t.HasReturn != !isVoid {
 			return fmt.Errorf("wrong hasReturn %v", t.HasReturn)
 		}
-		if t.CallFlag != md.RequiredFlags {
-			return fmt.Errorf("wrong flags %v", t.CallFlag)
+		if t.CallFlag != md.RequiredFlags &&
+			// A special case since required flags of Policy's `recoverFund` are weaker than required flags of GasToken's `transfer`.
+			!(t.Hash.Equals(nativehashes.PolicyContract) && t.Method == "recoverFund") { // nolint: staticcheck
+			return fmt.Errorf("wrong flags %v vs %v", t.CallFlag, md.RequiredFlags)
 		}
 		for range t.ParamCount {
 			_ = v.Estack().Pop()

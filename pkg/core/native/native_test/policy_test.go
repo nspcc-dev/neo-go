@@ -756,10 +756,11 @@ func TestPolicy_WhitelistContractsInteropAPI(t *testing.T) {
 	}), "getWhitelistedContracts")
 }
 
+const lockPeriod = 365 * 24 * 60 * 60 * 1000
+
 func TestPolicy_RecoverFunds(t *testing.T) {
 	const (
 		faunHeight = 6
-		lockPeriod = 365 * 24 * 60 * 60 * 1000
 		balance    = 1_0000_0000
 	)
 	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
@@ -833,4 +834,48 @@ func TestPolicy_RecoverFunds(t *testing.T) {
 
 	// Unknown token.
 	committeeInvoker.InvokeFail(t, "failed to get contract", "recoverFund", unlucky.ScriptHash(), util.Uint160{1, 2, 3})
+}
+
+func TestPolicy_RecoverFundsInteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package policywrapper
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+		)
+		func RecoverFunds(account interop.Hash160, contract interop.Hash160) bool {
+			return policy.RecoverFund(account, contract)
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "funds recovery wrapper",
+		Permissions: []manifest.Permission{
+			{
+				Methods: manifest.WildStrings{
+					Value: []string{"recoverFund"},
+				},
+			},
+		},
+	})
+	e.DeployContract(t, ctr, nil)
+
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+	unlucky := e.NewAccount(t, 1)
+
+	// Block account before Faun.
+	e.CommitteeInvoker(nativehashes.PolicyContract).Invoke(t, true, "blockAccount", unlucky.ScriptHash())
+	e.CheckGASBalance(t, unlucky.ScriptHash(), big.NewInt(1))
+
+	b := e.NewUnsignedBlock(t)
+	b.Timestamp = e.TopBlock(t).Timestamp + lockPeriod
+	e.SignBlock(b)
+	require.NoError(t, e.Chain.AddBlock(b))
+
+	ctrInvoker.Invoke(t, stackitem.NewBool(true), "recoverFunds", unlucky.ScriptHash(), nativehashes.GasToken)
 }
