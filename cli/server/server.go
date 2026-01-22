@@ -339,7 +339,7 @@ func restoreDB(ctx *cli.Context) error {
 			}
 			dump.add(b.Index, batch)
 			lastIndex = b.Index
-			if b.Index%1000 == 0 {
+			if (b.Index+1)%1000 == 0 {
 				if err := dump.tryPersist(dumpDir, b.Index); err != nil {
 					return fmt.Errorf("can't dump storage to file: %w", err)
 				}
