@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -33,13 +34,22 @@ type storageOp struct {
 }
 
 func readFile(path string) (dump, error) {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
+	dec := json.NewDecoder(f)
 	d := make(dump, 0)
-	if err := json.Unmarshal(data, &d); err != nil {
-		return nil, err
+	for i := 0; ; i++ {
+		bD := new(blockDump)
+		err := dec.Decode(bD)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("failed to unmarshal entry #%d from %s: %w", i, path, err)
+		}
+		d = append(d, *bD)
 	}
 	return d, err
 }
@@ -162,7 +172,7 @@ func cliMain(c *cli.Context) error {
 				if j < 0 {
 					continue
 				}
-				fname := fmt.Sprintf("%s/dump-block-%d.json", dir, j)
+				fname := fmt.Sprintf("%s/dump-block-%d.dump", dir, j)
 
 				aname := filepath.Join(a, fname)
 				bname := filepath.Join(b, fname)
