@@ -254,7 +254,7 @@ func NewDefaultContracts(cfg config.ProtocolConfiguration) []interop.Contract {
 	oracle.NEO = neo
 	oracle.Desig = desig
 
-	notary := newNotary()
+	notary := NewNotary()
 	notary.GAS = gas
 	notary.NEO = neo
 	notary.Desig = desig
