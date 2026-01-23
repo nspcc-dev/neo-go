@@ -2,7 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -20,6 +22,10 @@ type blockDump struct {
 
 func newDump() *dump {
 	return new(dump)
+}
+
+func (d *dump) addBlockDump(entry blockDump) {
+	*d = append(*d, entry)
 }
 
 func (d *dump) add(index uint32, batch *storage.MemBatch) {
@@ -52,9 +58,10 @@ func (d *dump) tryPersist(prefix string, index uint32) error {
 	defer f.Close()
 
 	enc := json.NewEncoder(f)
-	enc.SetIndent("", " ")
-	if err := enc.Encode(*old); err != nil {
-		return err
+	for _, l := range *old {
+		if err := enc.Encode(l); err != nil {
+			return err
+		}
 	}
 
 	*d = (*d)[:0]
@@ -63,26 +70,36 @@ func (d *dump) tryPersist(prefix string, index uint32) error {
 }
 
 func readFile(path string) (*dump, error) {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
+
+	dec := json.NewDecoder(f)
 	d := newDump()
-	if err := json.Unmarshal(data, d); err != nil {
-		return nil, err
+	for i := 0; ; i++ {
+		bD := new(blockDump)
+		err := dec.Decode(bD)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("failed to unmarshal entry #%d from %s: %w", i, path, err)
+		}
+		d.addBlockDump(*bD)
 	}
 	return d, err
 }
 
 // getPath returns filename for storing blocks up to index.
 // Directory structure is the following:
-// https://github.com/NeoResearch/neo-storage-audit#folder-organization-where-to-find-the-desired-block
-// Dir `BlockStorage_$DIRNO` contains blocks up to $DIRNO (from $DIRNO-100k)
-// Inside it there are files grouped by 1k blocks.
-// File dump-block-$FILENO.json contains blocks from $FILENO-999, $FILENO
-// Example: file `BlockStorage_100000/dump-block-6000.json` contains blocks from 5001 to 6000.
+// Dir `BlockStorage_$DIRNO` contains storage diffs for blocks with indexes [$DIRNO, $DIRNO+99999].
+// Inside it there are files grouped by 1k blocks, every file contains raws where
+// every raw is a JSON object containing storage diff for the corresponding block.
+// File dump-block-$FILENO.dump contains blocks with indexes [$FILENO, $FILENO+999].
+// Example: file `BlockStorage_100000/dump-block-6000.dump` contains blocks from 6000 to 6999.
 func getPath(prefix string, index uint32) (string, error) {
-	dirN := ((index + 99999) / 100000) * 100000
+	dirN := index / 100000 * 100000
 	dir := fmt.Sprintf("BlockStorage_%d", dirN)
 
 	path := filepath.Join(prefix, dir)
@@ -96,7 +113,7 @@ func getPath(prefix string, index uint32) (string, error) {
 		return "", fmt.Errorf("file `%s` is not a directory", path)
 	}
 
-	fileN := ((index + 999) / 1000) * 1000
-	file := fmt.Sprintf("dump-block-%d.json", fileN)
+	fileN := index / 1000 * 1000
+	file := fmt.Sprintf("dump-block-%d.dump", fileN)
 	return filepath.Join(path, file), nil
 }
