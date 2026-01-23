@@ -140,8 +140,8 @@ func copyPolicyCache(src, dst *PolicyCache) {
 	dst.whitelistedContracts = slices.Clone(src.whitelistedContracts)
 }
 
-// newPolicy returns Policy native contract.
-func newPolicy() *Policy {
+// NewPolicy returns Policy native contract.
+func NewPolicy() *Policy {
 	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, nativeids.PolicyContract)}
 	defer p.BuildHFSpecificMD(p.ActiveIn())
 

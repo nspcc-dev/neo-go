@@ -45,7 +45,7 @@ func (n neo) RevokeVotes(ic *interop.Context, h util.Uint160) error    { return 
 
 func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := NewManagement()
-	p := newPolicy()
+	p := NewPolicy()
 	p.NEO = neo{}
 	mgmt.Policy = p
 
@@ -126,7 +126,7 @@ func TestManagement_Initialize(t *testing.T) {
 
 func TestManagement_GetNEP17Contracts(t *testing.T) {
 	mgmt := NewManagement()
-	mgmt.Policy = newPolicy()
+	mgmt.Policy = NewPolicy()
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
 	err := mgmt.Initialize(&interop.Context{DAO: d}, nil, nil)
 	require.NoError(t, err)
