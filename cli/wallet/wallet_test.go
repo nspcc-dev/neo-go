@@ -1099,7 +1099,7 @@ func TestWalletDumpKeys(t *testing.T) {
 	})
 }
 
-// Testcase is the wallet of privnet validator.
+// TestWalletConvert tests the conversion of the legacy wallet format to N3 wallet format.
 func TestWalletConvert(t *testing.T) {
 	tmpDir := t.TempDir()
 	e := testcli.NewExecutor(t, false)
