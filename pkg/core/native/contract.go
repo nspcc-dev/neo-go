@@ -236,7 +236,7 @@ func NewDefaultContracts(cfg config.ProtocolConfiguration) []interop.Contract {
 
 	gas := newGAS(int64(cfg.InitialGASSupply))
 	neo := newNEO(cfg)
-	policy := newPolicy()
+	policy := NewPolicy()
 	neo.GAS = gas
 	neo.Policy = policy
 	gas.NEO = neo
@@ -254,7 +254,7 @@ func NewDefaultContracts(cfg config.ProtocolConfiguration) []interop.Contract {
 	oracle.NEO = neo
 	oracle.Desig = desig
 
-	notary := newNotary()
+	notary := NewNotary()
 	notary.GAS = gas
 	notary.NEO = neo
 	notary.Desig = desig
