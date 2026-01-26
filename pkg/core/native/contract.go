@@ -235,7 +235,7 @@ func NewDefaultContracts(cfg config.ProtocolConfiguration) []interop.Contract {
 	ledger := NewLedger()
 
 	gas := newGAS(int64(cfg.InitialGASSupply))
-	neo := newNEO(cfg)
+	neo := NewNEO(cfg)
 	policy := NewPolicy()
 	neo.GAS = gas
 	neo.Policy = policy

@@ -165,8 +165,8 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 	return b
 }
 
-// newNEO returns NEO native contract.
-func newNEO(cfg config.ProtocolConfiguration) *NEO {
+// NewNEO returns NeoToken native contract.
+func NewNEO(cfg config.ProtocolConfiguration) *NEO {
 	n := &NEO{}
 	defer n.BuildHFSpecificMD(n.ActiveIn())
 
