@@ -59,11 +59,18 @@ type Contract struct {
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
 
-	// InvocationBuilder returns invocation script for deployed contracts.
-	// In case contract is not deployed or has 0 arguments, this field is ignored.
-	// It might be executed on a partially formed tx, and is primarily needed to properly
-	// calculate network fee for complex contract signers.
-	InvocationBuilder func(tx *transaction.Transaction) ([]byte, error) `json:"-"`
+	// InvocationBuilder returns invocation script for deployed contracts or
+	// non-standard verification scripts. This field is NOT ignored in case if
+	// contract has 0 arguments or is a standard signature or standard
+	// multisignature contract, so it's the user's duty to keep it empty in
+	// these cases. It is executed on a partially formed tx (if testInvoke is
+	// true), in this case it's needed to properly calculate network fee for
+	// complex contract signers or for custom verification scripts. It is also
+	// executed on a fully formed tx during transaction signing process (if
+	// testInvoke set to false). If testInvoke is true, DO NOT call Hash() or
+	// Size() method on the tx argument, since it leads to hash and size caching
+	// before finalization of hashable tx part.
+	InvocationBuilder func(testInvoke bool, tx *transaction.Transaction) ([]byte, error) `json:"-"`
 }
 
 // ContractParam is a descriptor of a contract parameter
@@ -96,7 +103,7 @@ func NewContractAccount(hash util.Uint160, args ...any) *Account {
 		Contract: &Contract{
 			Parameters: make([]ContractParam, len(args)),
 			Deployed:   true,
-			InvocationBuilder: func(tx *transaction.Transaction) ([]byte, error) {
+			InvocationBuilder: func(_ bool, tx *transaction.Transaction) ([]byte, error) {
 				w := io.NewBufBinWriter()
 				for i := range args {
 					emit.Any(w.BinWriter, args[i])
@@ -132,8 +139,8 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 			VerificationScript: a.Contract.Script, // Can be nil for deployed contract.
 		})
 	}
-	if a.Contract.Deployed && a.Contract.InvocationBuilder != nil {
-		invoc, err := a.Contract.InvocationBuilder(t)
+	if build := a.Contract.InvocationBuilder; build != nil {
+		invoc, err := build(false, t)
 		t.Scripts[pos].InvocationScript = invoc
 		return err
 	}

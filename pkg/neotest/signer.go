@@ -192,7 +192,7 @@ func NewContractSigner(h util.Uint160, getInvParams func(tx *transaction.Transac
 		Address: address.Uint160ToString(h),
 		Contract: &wallet.Contract{
 			Deployed: true,
-			InvocationBuilder: func(tx *transaction.Transaction) ([]byte, error) {
+			InvocationBuilder: func(testInvoke bool, tx *transaction.Transaction) ([]byte, error) {
 				params := getInvParams(tx)
 				script := io.NewBufBinWriter()
 				for i := range params {
