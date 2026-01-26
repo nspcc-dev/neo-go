@@ -32,6 +32,9 @@ const (
 	MaxKeySize = 64
 )
 
+// IteratorInterfaceName is a string used to mark Iterator inside the InteropInterface.
+const IteratorInterfaceName = "IIterator"
+
 // Item represents the "real" value that is pushed on the stack.
 type Item interface {
 	fmt.Stringer

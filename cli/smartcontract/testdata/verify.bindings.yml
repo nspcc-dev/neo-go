@@ -127,171 +127,179 @@ overrides:
     verify: bool
 namedtypes:
     ledger.Block:
-        base: Array
-        name: ledger.Block
+        type: Array
+        namedtype: ledger.Block
         fields:
-            - field: Hash
-              base: Hash256
-            - field: Version
-              base: Integer
-            - field: PrevHash
-              base: Hash256
-            - field: MerkleRoot
-              base: Hash256
-            - field: Timestamp
-              base: Integer
-            - field: Nonce
-              base: Integer
-            - field: Index
-              base: Integer
-            - field: NextConsensus
-              base: Hash160
-            - field: TransactionsLength
-              base: Integer
+            - name: Hash
+              type: Hash256
+            - name: Version
+              type: Integer
+            - name: PrevHash
+              type: Hash256
+            - name: MerkleRoot
+              type: Hash256
+            - name: Timestamp
+              type: Integer
+            - name: Nonce
+              type: Integer
+            - name: Index
+              type: Integer
+            - name: NextConsensus
+              type: Hash160
+            - name: TransactionsLength
+              type: Integer
     ledger.BlockSR:
-        base: Array
-        name: ledger.BlockSR
+        type: Array
+        namedtype: ledger.BlockSR
         fields:
-            - field: Hash
-              base: Hash256
-            - field: Version
-              base: Integer
-            - field: PrevHash
-              base: Hash256
-            - field: MerkleRoot
-              base: Hash256
-            - field: Timestamp
-              base: Integer
-            - field: Nonce
-              base: Integer
-            - field: Index
-              base: Integer
-            - field: NextConsensus
-              base: Hash160
-            - field: TransactionsLength
-              base: Integer
-            - field: PrevStateRoot
-              base: Hash256
+            - name: Hash
+              type: Hash256
+            - name: Version
+              type: Integer
+            - name: PrevHash
+              type: Hash256
+            - name: MerkleRoot
+              type: Hash256
+            - name: Timestamp
+              type: Integer
+            - name: Nonce
+              type: Integer
+            - name: Index
+              type: Integer
+            - name: NextConsensus
+              type: Hash160
+            - name: TransactionsLength
+              type: Integer
+            - name: PrevStateRoot
+              type: Hash256
     ledger.Transaction:
-        base: Array
-        name: ledger.Transaction
+        type: Array
+        namedtype: ledger.Transaction
         fields:
-            - field: Hash
-              base: Hash256
-            - field: Version
-              base: Integer
-            - field: Nonce
-              base: Integer
-            - field: Sender
-              base: Hash160
-            - field: SysFee
-              base: Integer
-            - field: NetFee
-              base: Integer
-            - field: ValidUntilBlock
-              base: Integer
-            - field: Script
-              base: ByteArray
+            - name: Hash
+              type: Hash256
+            - name: Version
+              type: Integer
+            - name: Nonce
+              type: Integer
+            - name: Sender
+              type: Hash160
+            - name: SysFee
+              type: Integer
+            - name: NetFee
+              type: Integer
+            - name: ValidUntilBlock
+              type: Integer
+            - name: Script
+              type: ByteArray
     ledger.TransactionSigner:
-        base: Array
-        name: ledger.TransactionSigner
+        type: Array
+        namedtype: ledger.TransactionSigner
         fields:
-            - field: Account
-              base: Hash160
-            - field: Scopes
-              base: Integer
-            - field: AllowedContracts
-              base: Array
-              value:
-                base: Hash160
-            - field: AllowedGroups
-              base: Array
-              value:
-                base: PublicKey
-            - field: Rules
-              base: Array
-              value:
-                base: Array
-                name: ledger.WitnessRule
+            - name: Account
+              type: Hash160
+            - name: Scopes
+              type: Integer
+            - name: AllowedContracts
+              type: Array
+              extendedtype:
+                type: Array
+                value:
+                  type: Hash160
+            - name: AllowedGroups
+              type: Array
+              extendedtype:
+                type: Array
+                value:
+                    type: PublicKey
+            - name: Rules
+              type: Array
+              extendedtype:
+                type: Array
+                value:
+                    type: Array
+                    namedtype: ledger.WitnessRule
     ledger.WitnessCondition:
-        base: Array
-        name: ledger.WitnessCondition
+        type: Array
+        namedtype: ledger.WitnessCondition
         fields:
-            - field: Type
-              base: Integer
-            - field: Value
-              base: Any
+            - name: Type
+              type: Integer
+            - name: Value
+              type: Any
     ledger.WitnessRule:
-        base: Array
-        name: ledger.WitnessRule
+        type: Array
+        namedtype: ledger.WitnessRule
         fields:
-            - field: Action
-              base: Integer
-            - field: Condition
-              base: Array
-              name: ledger.WitnessCondition
+            - name: Action
+              type: Integer
+            - name: Condition
+              type: Array
+              extendedtype:
+                type: Array
+                namedtype: ledger.WitnessCondition
 types:
     call.args:
-        base: Array
+        type: Array
         value:
-            base: Any
+            type: Any
     call.f:
-        base: InteropInterface
+        type: InteropInterface
         interface: iterator
     callWithToken.args:
-        base: Array
+        type: Array
         value:
-            base: Any
+            type: Any
     callWithTokenNoRet.args:
-        base: Array
+        type: Array
         value:
-            base: Any
+            type: Any
     createMultisigAccount.pubs:
-        base: Array
+        type: Array
         value:
-            base: PublicKey
+            type: PublicKey
     currentSigners:
-        base: Array
+        type: Array
         value:
-            base: Array
-            name: ledger.TransactionSigner
+            type: Array
+            namedtype: ledger.TransactionSigner
     getBlock:
-        base: Array
-        name: ledger.Block
+        type: Array
+        namedtype: ledger.Block
     getCallFlags:
-        base: InteropInterface
+        type: InteropInterface
         interface: iterator
     getNotifications:
-        base: Array
+        type: Array
         value:
-            base: Array
+            type: Array
             value:
-                base: Any
+                type: Any
     getScriptContainer:
-        base: Array
-        name: ledger.Transaction
+        type: Array
+        namedtype: ledger.Transaction
     getTransaction:
-        base: Array
-        name: ledger.Transaction
+        type: Array
+        namedtype: ledger.Transaction
     getTransactionFromBlock:
-        base: Array
-        name: ledger.Transaction
+        type: Array
+        namedtype: ledger.Transaction
     getTransactionSigners:
-        base: Array
+        type: Array
         value:
-            base: Array
-            name: ledger.TransactionSigner
+            type: Array
+            namedtype: ledger.TransactionSigner
     loadScript.args:
-        base: Array
+        type: Array
         value:
-            base: Any
+            type: Any
     loadScript.f:
-        base: InteropInterface
+        type: InteropInterface
         interface: iterator
     notify.args:
-        base: Array
+        type: Array
         value:
-            base: Any
+            type: Any
     toBlockSR:
-        base: Array
-        name: ledger.BlockSR
+        type: Array
+        namedtype: ledger.BlockSR
