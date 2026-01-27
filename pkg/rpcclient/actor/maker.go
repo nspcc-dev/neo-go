@@ -191,12 +191,11 @@ func (a *Actor) MakeUnsignedUncheckedRun(script []byte, sysFee int64, attrs []tr
 	for i := range a.signers {
 		if !a.signers[i].Account.Contract.Deployed {
 			tx.Scripts[i].VerificationScript = a.signers[i].Account.Contract.Script
-			continue
 		}
 		if build := a.signers[i].Account.Contract.InvocationBuilder; build != nil {
-			invoc, err := build(tx)
+			invoc, err := build(true, tx)
 			if err != nil {
-				return nil, fmt.Errorf("building witness for contract signer: %w", err)
+				return nil, fmt.Errorf("building dummy invocation script for signer #%d (%s): %w", i, a.signers[i].Account.Address, err)
 			}
 			tx.Scripts[i].InvocationScript = invoc
 		}

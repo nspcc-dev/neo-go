@@ -330,7 +330,7 @@ func AddNetworkFee(t testing.TB, bc *core.Blockchain, tx *transaction.Transactio
 	for _, sgr := range signers {
 		csgr, ok := sgr.(SingleSigner)
 		if ok && csgr.Account().Contract.InvocationBuilder != nil {
-			sc, err := csgr.Account().Contract.InvocationBuilder(tx)
+			sc, err := csgr.Account().Contract.InvocationBuilder(true, tx)
 			require.NoError(t, err)
 
 			txCopy := *tx
