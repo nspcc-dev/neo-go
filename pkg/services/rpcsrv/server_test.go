@@ -964,12 +964,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 				expected := &result.FindStorage{
 					Results: []result.KeyValue{
 						{
-							Key:   []byte("aa10"), // items traversal order may differ from the one provided by `findstorage` due to MPT traversal strategy.
-							Value: []byte("v2"),
+							Key:   []byte("aa"), // MPT items traversal order matches DB-based storage traversal order.
+							Value: []byte("v1"),
 						},
 						{
-							Key:   []byte("aa50"),
-							Value: []byte("v3"),
+							Key:   []byte("aa10"),
+							Value: []byte("v2"),
 						},
 					},
 					Next:      2,
@@ -989,8 +989,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 				expected := &result.FindStorage{
 					Results: []result.KeyValue{
 						{
-							Key:   []byte("aa"),
-							Value: []byte("v1"),
+							Key:   []byte("aa50"),
+							Value: []byte("v3"),
 						},
 					},
 					Next:      3,
@@ -2895,9 +2895,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")))
 			testFindStates(t, params, root.Root, result.FindStates{
 				Results: []result.KeyValue{
+					{Key: []byte("aa"), Value: []byte("v1")},
 					{Key: []byte("aa10"), Value: []byte("v2")},
 					{Key: []byte("aa50"), Value: []byte("v3")},
-					{Key: []byte("aa"), Value: []byte("v1")},
 				},
 				Truncated: false,
 			})
@@ -2909,9 +2909,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			params := fmt.Sprintf(`"%s", "%s", "%s", ""`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")))
 			testFindStates(t, params, root.Root, result.FindStates{
 				Results: []result.KeyValue{
+					{Key: []byte("aa"), Value: []byte("v1")},
 					{Key: []byte("aa10"), Value: []byte("v2")},
 					{Key: []byte("aa50"), Value: []byte("v3")},
-					{Key: []byte("aa"), Value: []byte("v1")},
 				},
 				Truncated: false,
 			})
@@ -2947,13 +2947,13 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				params := fmt.Sprintf(`"%s", "%s", "%s", "", %d`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")), limit)
 				expected := result.FindStates{
 					Results: []result.KeyValue{
+						{Key: []byte("aa"), Value: []byte("v1")},
 						{Key: []byte("aa10"), Value: []byte("v2")},
-						{Key: []byte("aa50"), Value: []byte("v3")},
 					},
 					Truncated: limit == 2,
 				}
 				if limit != 2 {
-					expected.Results = append(expected.Results, result.KeyValue{Key: []byte("aa"), Value: []byte("v1")})
+					expected.Results = append(expected.Results, result.KeyValue{Key: []byte("aa50"), Value: []byte("v3")})
 				}
 				testFindStates(t, params, root.Root, expected)
 			}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -2401,6 +2403,76 @@ func TestActor_CallWithNilParam(t *testing.T) {
 	require.True(t, strings.Contains(res.FaultException, "invalid conversion: Null/ByteString"), res.FaultException)
 }
 
+func TestClient_FindStates(t *testing.T) {
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	t.Cleanup(c.Close)
+	require.NoError(t, c.Init())
+
+	root, err := util.Uint256DecodeStringLE(block20StateRootLE)
+	require.NoError(t, err)
+	h, err := util.Uint160DecodeStringLE(testContractHashLE)
+	require.NoError(t, err)
+	prefix := []byte("aa")
+	contractKey := make([]byte, 4)
+	binary.LittleEndian.PutUint32(contractKey, uint32(basicchain.RublesContractID))
+	allItems := []result.KeyValue{
+		{
+			Key:   []byte("aa"),
+			Value: []byte("v1"),
+		},
+		{
+			Key:   []byte("aa10"),
+			Value: []byte("v2"),
+		},
+		{
+			Key:   []byte("aa50"),
+			Value: []byte("v3"),
+		},
+	}
+
+	check := func(t *testing.T, expected []result.KeyValue, root util.Uint256, actual result.FindStates) {
+		require.Equal(t, expected, actual.Results)
+		require.False(t, actual.Truncated)
+		require.Equal(t, append(contractKey, expected[0].Key...), actual.FirstProof.Key)
+		_, ok := mpt.VerifyProof(root, actual.FirstProof.Key, actual.FirstProof.Proof)
+		require.True(t, ok)
+		if len(expected) > 1 {
+			require.Equal(t, append(contractKey, expected[len(expected)-1].Key...), actual.LastProof.Key)
+			_, ok = mpt.VerifyProof(root, actual.LastProof.Key, actual.LastProof.Proof)
+			require.True(t, ok)
+		}
+	}
+	// Nil start.
+	actual, err := c.FindStates(root, h, prefix, nil, nil)
+	require.NoError(t, err)
+	check(t, allItems, root, actual)
+
+	// Non-nil start, start matches existing item.
+	start := []byte("aa10")
+	actual, err = c.FindStates(root, h, prefix, start, nil)
+	require.NoError(t, err)
+	check(t, allItems[2:], root, actual) // item matching `start` is not included to the result.
+
+	// Non-nil start, start is not an existing item.
+	start = []byte("aa01")
+	actual, err = c.FindStates(root, h, prefix, start, nil)
+	require.NoError(t, err)
+	check(t, allItems[1:], root, actual)
+
+	// Missing item.
+	earlyRoot, err := chain.GetStateRoot(15) // there's no `aa*` values in Rubles contract by the moment of block #15.
+	require.NoError(t, err)
+	actual, err = c.FindStates(earlyRoot.Root, h, []byte("aa"), nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, result.FindStates{
+		Results:   []result.KeyValue{},
+		Truncated: false,
+	}, actual)
+}
+
 func TestClient_FindStorage(t *testing.T) {
 	_, _, httpSrv := initServerWithInMemoryChain(t)
 
@@ -2478,16 +2550,20 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 	require.NoError(t, err)
 	h, err := util.Uint160DecodeStringLE(testContractHashLE)
 	require.NoError(t, err)
+	// Storage items with prefix "aa" of test Rubles contract (block #16):
+	// "aa"   - "v1"
+	// "aa10" - "v2"
+	// "aa50" - "v3"
 	prefix := []byte("aa")
 	expected := result.FindStorage{
 		Results: []result.KeyValue{
 			{
-				Key:   []byte("aa10"),
-				Value: []byte("v2"),
+				Key:   []byte("aa"),
+				Value: []byte("v1"),
 			},
 			{
-				Key:   []byte("aa50"),
-				Value: []byte("v3"),
+				Key:   []byte("aa10"),
+				Value: []byte("v2"),
 			},
 		},
 		Next:      2,
@@ -2511,12 +2587,12 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 	require.Equal(t, result.FindStorage{
 		Results: []result.KeyValue{
 			{
-				Key:   []byte("aa50"),
-				Value: []byte("v3"),
+				Key:   []byte("aa10"), // order matches lexicographic one since MPT traversal strategy follows DB-backed storage traversal strategy.
+				Value: []byte("v2"),
 			},
 			{
-				Key:   []byte("aa"), // order differs due to MPT traversal strategy.
-				Value: []byte("v1"),
+				Key:   []byte("aa50"),
+				Value: []byte("v3"),
 			},
 		},
 		Next:      3,
