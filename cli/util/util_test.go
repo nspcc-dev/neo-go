@@ -211,8 +211,8 @@ func TestAwaitUtilCancelTx(t *testing.T) {
 		require.Equal(t, "Conflicting transaction accepted", response)
 		resHash, _ := e.CheckAwaitableTxPersisted(t)
 		require.NotEqual(t, resHash, txHash)
-	case strings.Contains(err.Error(), fmt.Sprintf("target transaction %s is accepted", txHash)) ||
-		strings.Contains(err.Error(), fmt.Sprintf("failed to send conflicting transaction: Invalid transaction attribute (-507) - invalid attribute: conflicting transaction %s is already on chain", txHash)):
+	case strings.Contains(err.Error(), fmt.Sprintf("target transaction %s is accepted", txHash.StringLE())) ||
+		strings.Contains(err.Error(), fmt.Sprintf("failed to send conflicting transaction: Invalid transaction attribute (-507) - invalid attribute: conflicting transaction %s is already on chain", txHash.StringLE())):
 		tx, _ := e.GetTransaction(t, txHash)
 		aer, err := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
 		require.NoError(t, err)
