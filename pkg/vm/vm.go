@@ -1452,28 +1452,30 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			toRemove := a[k]
+			if t.IsReferenced() {
+				v.refs.Remove(a[k])
+			}
 			t.Remove(k)
-			v.refs.Remove(toRemove)
 		case *stackitem.Struct:
 			a := t.Value().([]stackitem.Item)
 			k := toInt(key.BigInt())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			toRemove := a[k]
+			if t.IsReferenced() {
+				v.refs.Remove(a[k])
+			}
 			t.Remove(k)
-			v.refs.Remove(toRemove)
 		case *stackitem.Map:
 			index := t.Index(key.Item())
 			// No error on missing key.
 			if index >= 0 {
-				elems := t.Value().([]stackitem.MapElement)
-				key := elems[index].Key
-				val := elems[index].Value
+				if t.IsReferenced() {
+					elems := t.Value().([]stackitem.MapElement)
+					v.refs.Remove(elems[index].Key)
+					v.refs.Remove(elems[index].Value)
+				}
 				t.Drop(index)
-				v.refs.Remove(key)
-				v.refs.Remove(val)
 			}
 		default:
 			panic("REMOVE: invalid type")
