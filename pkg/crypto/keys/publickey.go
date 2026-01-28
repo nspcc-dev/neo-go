@@ -17,7 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"gopkg.in/yaml.v3"
 )
 
@@ -153,20 +153,22 @@ func NewPublicKeyFromBytes(b []byte, curve elliptic.Curve) (*PublicKey, error) {
 	return pubKey, nil
 }
 
-// getBytes serializes X and Y using compressed or uncompressed format.
-func (p *PublicKey) getBytes(compressed bool) []byte {
-	var resLen int
-
+// sizeSerialized returns the length of the buffer needed for this key when
+// it's serialized.
+func (p *PublicKey) sizeSerialized(compressed bool) int {
 	switch {
 	case p.IsInfinity():
-		resLen = 1
+		return 1
 	case compressed:
-		resLen = coordLen + 1
+		return coordLen + 1
 	default:
-		resLen = 2*coordLen + 1
+		return 2*coordLen + 1
 	}
+}
 
-	var res = make([]byte, resLen)
+// getBytes serializes X and Y using compressed or uncompressed format.
+func (p *PublicKey) getBytes(compressed bool) []byte {
+	var res = make([]byte, p.sizeSerialized(compressed))
 	p.writeBytes(res, compressed)
 	return res
 }
@@ -336,17 +338,29 @@ func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
 // GetVerificationScript returns NEO VM bytecode with CHECKSIG command for the
 // public key.
 func (p *PublicKey) GetVerificationScript() []byte {
-	b := p.Bytes()
-	buf := io.NewBufBinWriter()
-	if address.Prefix == address.NEO2Prefix {
-		buf.WriteB(0x21) // PUSHBYTES33
-		buf.WriteBytes(p.Bytes())
-		buf.WriteB(0xAC) // CHECKSIG
-		return buf.Bytes()
-	}
-	emit.CheckSig(buf.BinWriter, b)
+	var (
+		buf     = make([]byte, 1 /*PUSHDATA1*/ +1 /*length*/ +(1+coordLen /*key*/)+1 /*SYSCALL*/ +4 /*parameter*/)
+		keySize = p.sizeSerialized(true)
+	)
 
-	return buf.Bytes()
+	if address.Prefix == address.NEO2Prefix {
+		buf[0] = 0x21 // PUSHBYTES33
+		p.writeBytes(buf[1:1+33], true)
+		buf[1+33] = 0xAC // CHECKSIG
+		return buf[:1+33+1]
+	}
+	buf[0] = byte(opcode.PUSHDATA1)
+	buf[1] = byte(keySize)
+	p.writeBytes(buf[2:2+keySize], true)
+	buf[2+keySize] = byte(opcode.SYSCALL)
+
+	// Constants below are interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig)))
+	buf[2+keySize+1] = 0x56
+	buf[2+keySize+2] = 0xe7
+	buf[2+keySize+3] = 0xb3
+	buf[2+keySize+4] = 0x27
+
+	return buf[:2+keySize+5]
 }
 
 // GetScriptHash returns a Hash160 of verification script for the key.

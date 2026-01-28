@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -159,6 +161,20 @@ func TestDecodeBytes(t *testing.T) {
 	t.Run("uncompressed", func(t *testing.T) { testBytesFunction(t, pubKey.UncompressedBytes) })
 }
 
+// Test compatibility of optimized verification script builder with canonical
+// one.
+func TestGetVerificationScriptCompat(t *testing.T) {
+	p := getPubKey(t)
+
+	b := p.Bytes()
+	buf := io.NewBufBinWriter()
+	emit.CheckSig(buf.BinWriter, b)
+
+	expected := buf.Bytes()
+	require.Equal(t, verificationScriptSize, len(expected))
+	require.Equal(t, expected, p.GetVerificationScript())
+}
+
 func TestSort(t *testing.T) {
 	pubs1 := make(PublicKeys, 10)
 	for i := range pubs1 {
@@ -263,6 +279,13 @@ func BenchmarkPublicUncompressedBytes(t *testing.B) {
 	k := getPubKey(t)
 	for t.Loop() {
 		_ = k.Bytes()
+	}
+}
+
+func BenchmarkPublicGetVerificationScript(t *testing.B) {
+	k := getPubKey(t)
+	for t.Loop() {
+		_ = k.GetVerificationScript()
 	}
 }
 
