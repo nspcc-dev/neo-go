@@ -102,6 +102,43 @@ func TestRefCounterDupAppend(t *testing.T) {
 	require.Equal(t, 0, int(v.refs))
 }
 
+func TestRefCounterSetItemMap(t *testing.T) {
+	prog := makeProgram(opcode.SETITEM)
+	v := load(prog)
+	v.estack.PushVal(stackitem.NewMap())
+	v.estack.PushVal(stackitem.Make(0))
+	v.estack.PushVal(stackitem.Make(100500))
+	require.Equal(t, 3, int(v.refs))
+	runVM(t, v)
+	require.Equal(t, 0, v.estack.Len())
+	require.Equal(t, 0, int(v.refs))
+}
+
+func TestRefCounterDupSetItemMap(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.PUSH1, opcode.SETITEM)
+	v := load(prog)
+	v.estack.PushVal(stackitem.NewMap())
+	require.Equal(t, 1, int(v.refs))
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, 3, int(v.refs))
+	_ = v.estack.Pop()
+	require.Equal(t, 0, v.estack.Len())
+	require.Equal(t, 0, int(v.refs))
+}
+
+func TestRefCounterSetItemArray(t *testing.T) {
+	prog := makeProgram(opcode.SETITEM)
+	v := load(prog)
+	v.estack.PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
+	v.estack.PushVal(stackitem.Make(0))
+	v.estack.PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
+	require.Equal(t, 5, int(v.refs))
+	runVM(t, v)
+	require.Equal(t, 0, v.estack.Len())
+	require.Equal(t, 0, int(v.refs))
+}
+
 func BenchmarkRefCounter_Add(b *testing.B) {
 	a := stackitem.NewArray(nil)
 	rc := newRefCounter()
