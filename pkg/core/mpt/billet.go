@@ -249,48 +249,69 @@ func (b *Billet) traverse(curr Node, path, from []byte, process func(pathToNode 
 	case *LeafNode:
 		return b.tryCollapseLeaf(n), nil
 	case *BranchNode:
-		var (
-			startIndex byte
-			endIndex   byte = childrenCount
-			cmp             = func(i int) bool {
-				return i < int(endIndex)
-			}
-			step = 1
-		)
-		if backwards {
-			startIndex, endIndex = lastChild, startIndex
-			cmp = func(i int) bool {
-				return i >= int(endIndex)
-			}
-			step = -1
-		}
-		if len(from) != 0 {
-			endIndex = lastChild
-			if backwards {
-				endIndex = 0
-			}
-			startIndex, from = splitPath(from)
-		}
-		for i := int(startIndex); cmp(i); i += step {
-			var newPath []byte
-			if i == lastChild {
-				newPath = path
+		if !backwards {
+			var startIndex byte
+			if len(from) != 0 {
+				startIndex, from = splitPath(from)
 			} else {
-				newPath = append(path, byte(i))
+				// Process the last child before the rest of the children to match lexicographic keys comparison order,
+				// since the last child doesn't add suffix to the key.
+				r, err := b.traverse(n.Children[lastChild], path, from, process, ignoreStorageErr, backwards)
+				if err != nil {
+					if !errors.Is(err, errStop) {
+						return nil, err
+					}
+					n.Children[lastChild] = r
+					return b.tryCollapseBranch(n), err
+				}
+				n.Children[lastChild] = r
 			}
-			if byte(i) != startIndex {
-				from = []byte{}
+			for i := startIndex; i < lastChild; i++ {
+				if i != startIndex {
+					from = []byte{}
+				}
+				r, err := b.traverse(n.Children[i], append(path, i), from, process, ignoreStorageErr, backwards)
+				if err != nil {
+					if !errors.Is(err, errStop) {
+						return nil, err
+					}
+					n.Children[i] = r
+					return b.tryCollapseBranch(n), err
+				}
+				n.Children[i] = r
 			}
-			r, err := b.traverse(n.Children[i], newPath, from, process, ignoreStorageErr, backwards)
+		} else {
+			var startIndex byte = lastChild - 1
+			if len(from) != 0 {
+				startIndex, from = splitPath(from)
+			}
+			for i := int(startIndex); i >= 0; i-- {
+				if byte(i) != startIndex {
+					from = []byte{}
+				}
+				r, err := b.traverse(n.Children[i], append(path, byte(i)), from, process, ignoreStorageErr, backwards)
+				if err != nil {
+					if !errors.Is(err, errStop) {
+						return nil, err
+					}
+					n.Children[i] = r
+					return b.tryCollapseBranch(n), err
+				}
+				n.Children[i] = r
+			}
+			// Process the last child after the rest of the children to match lexicographic keys comparison order,
+			// since the last child doesn't add suffix to the key.
+			r, err := b.traverse(n.Children[lastChild], path, from, process, ignoreStorageErr, backwards)
 			if err != nil {
 				if !errors.Is(err, errStop) {
 					return nil, err
 				}
-				n.Children[i] = r
+				n.Children[lastChild] = r
 				return b.tryCollapseBranch(n), err
 			}
-			n.Children[i] = r
+			n.Children[lastChild] = r
 		}
+
 		return b.tryCollapseBranch(n), nil
 	case *ExtensionNode:
 		if len(from) != 0 && bytes.HasPrefix(from, n.key) {
