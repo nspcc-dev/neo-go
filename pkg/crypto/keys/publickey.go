@@ -155,14 +155,39 @@ func NewPublicKeyFromBytes(b []byte, curve elliptic.Curve) (*PublicKey, error) {
 
 // getBytes serializes X and Y using compressed or uncompressed format.
 func (p *PublicKey) getBytes(compressed bool) []byte {
-	if p.IsInfinity() {
-		return []byte{0x00}
+	var resLen int
+
+	switch {
+	case p.IsInfinity():
+		resLen = 1
+	case compressed:
+		resLen = coordLen + 1
+	default:
+		resLen = 2*coordLen + 1
 	}
 
-	if compressed {
-		return elliptic.MarshalCompressed(p.Curve, p.X, p.Y)
+	var res = make([]byte, resLen)
+	p.writeBytes(res, compressed)
+	return res
+}
+
+// writeBytes writes coordinates into the given buffer with appropriate
+// prefix. No bounds check performed.
+func (p *PublicKey) writeBytes(buf []byte, compressed bool) {
+	if p.IsInfinity() {
+		buf[0] = 0
+		return
 	}
-	return elliptic.Marshal(p.Curve, p.X, p.Y) //nolint:staticcheck // We don't care about ECDH, but UncompressedBytes() should still work.
+	var prefix byte
+
+	p.X.FillBytes(buf[1 : 1+coordLen])
+	if compressed {
+		prefix = 0x02 + byte(p.Y.Bit(0))
+	} else {
+		prefix = 0x04
+		p.Y.FillBytes(buf[1+coordLen : 1+2*coordLen])
+	}
+	buf[0] = prefix
 }
 
 // Bytes returns byte array representation of the public key in compressed
