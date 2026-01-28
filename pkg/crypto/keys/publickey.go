@@ -24,6 +24,9 @@ import (
 // coordLen is the number of bytes in serialized X or Y coordinate.
 const coordLen = 32
 
+// verificationScriptSize is the normal N3 single-key verification script size.
+const verificationScriptSize = 1 /*PUSHDATA1*/ + 1 /*length*/ + (1 + coordLen /*key*/) + 1 /*SYSCALL*/ + 4 /*parameter*/
+
 // SignatureLen is the length of a standard signature for 256-bit EC key.
 const SignatureLen = 64
 
@@ -338,10 +341,13 @@ func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
 // GetVerificationScript returns NEO VM bytecode with CHECKSIG command for the
 // public key.
 func (p *PublicKey) GetVerificationScript() []byte {
-	var (
-		buf     = make([]byte, 1 /*PUSHDATA1*/ +1 /*length*/ +(1+coordLen /*key*/)+1 /*SYSCALL*/ +4 /*parameter*/)
-		keySize = p.sizeSerialized(true)
-	)
+	var buf = make([]byte, verificationScriptSize)
+
+	return p.writeVerificationScript(buf)
+}
+
+func (p *PublicKey) writeVerificationScript(buf []byte) []byte {
+	var keySize = p.sizeSerialized(true)
 
 	if address.Prefix == address.NEO2Prefix {
 		buf[0] = 0x21 // PUSHBYTES33
@@ -365,7 +371,10 @@ func (p *PublicKey) GetVerificationScript() []byte {
 
 // GetScriptHash returns a Hash160 of verification script for the key.
 func (p *PublicKey) GetScriptHash() util.Uint160 {
-	return hash.Hash160(p.GetVerificationScript())
+	var buf = make([]byte, verificationScriptSize)
+
+	buf = p.writeVerificationScript(buf)
+	return hash.Hash160(buf)
 }
 
 // Address returns a base58-encoded NEO-specific address based on the key hash.
