@@ -1252,16 +1252,21 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		val := cloneIfStruct(itemElem.value)
 
+		var isReferenced bool
 		switch t := arrElem.value.(type) {
 		case *stackitem.Array:
+			isReferenced = t.IsReferenced()
 			t.Append(val)
 		case *stackitem.Struct:
+			isReferenced = t.IsReferenced()
 			t.Append(val)
 		default:
 			panic("APPEND: not of underlying type Array")
 		}
 
-		v.refs.Add(val)
+		if isReferenced {
+			v.refs.Add(val)
+		}
 
 	case opcode.PACKMAP:
 		n := toInt(v.estack.Pop().BigInt())

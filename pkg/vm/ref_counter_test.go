@@ -78,6 +78,30 @@ func TestRefCounterPopItem(t *testing.T) {
 	require.Equal(t, 0, int(v.refs))
 }
 
+func TestRefCounterAppend(t *testing.T) {
+	prog := makeProgram(opcode.APPEND)
+	v := load(prog)
+	v.estack.PushVal(stackitem.NewArray([]stackitem.Item{}))
+	v.estack.PushVal(stackitem.Make(42))
+	require.Equal(t, 2, int(v.refs))
+	runVM(t, v)
+	require.Equal(t, 0, v.estack.Len())
+	require.Equal(t, 0, int(v.refs))
+}
+
+func TestRefCounterDupAppend(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.APPEND)
+	v := load(prog)
+	v.estack.PushVal(stackitem.NewArray([]stackitem.Item{}))
+	require.Equal(t, 1, int(v.refs))
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, 2, int(v.refs))
+	_ = v.estack.Pop()
+	require.Equal(t, 0, v.estack.Len())
+	require.Equal(t, 0, int(v.refs))
+}
+
 func BenchmarkRefCounter_Add(b *testing.B) {
 	a := stackitem.NewArray(nil)
 	rc := newRefCounter()
