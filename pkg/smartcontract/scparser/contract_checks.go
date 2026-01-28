@@ -2,18 +2,27 @@ package scparser
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// MaxMultisigKeys is the maximum number of keys allowed for correct multisig contract.
-const MaxMultisigKeys = 1024
+const (
+	// MaxMultisigKeys is the maximum number of keys allowed for correct multisig contract.
+	MaxMultisigKeys = 1024
+
+	// MaxStackSize is the maximum stack size ov Neo VM.
+	MaxStackSize = 2 * 1024 // TODO: cyclic `vm` package dependency.
+)
 
 var (
 	verifyInteropID   = interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig))
@@ -21,18 +30,8 @@ var (
 )
 
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
-	var nthings int
-
-	switch {
-	case opcode.PUSH1 <= instr && instr <= opcode.PUSH16:
-		nthings = int(instr-opcode.PUSH1) + 1
-	case instr <= opcode.PUSHINT256:
-		n := bigint.FromBytes(param)
-		if !n.IsInt64() || n.Sign() < 0 || n.Int64() > MaxMultisigKeys {
-			return 0, false
-		}
-		nthings = int(n.Int64())
-	default:
+	nthings, ok := GetIntFromInstr(instr, param)
+	if !ok {
 		return 0, false
 	}
 	if nthings < 1 || nthings > MaxMultisigKeys {
@@ -187,7 +186,7 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 			if !typ.IsValid() {
 				return fmt.Errorf("invalid type specification at offset %d", ctx.IP())
 			}
-			if typ == stackitem.AnyT && op != opcode.NEWARRAYT {
+			if typ == stackitem.AnyT && op != opcode.NEWARRAYT { // TODO: condition is always false?
 				return fmt.Errorf("using type ANY is incorrect at offset %d", ctx.IP())
 			}
 		default:
@@ -210,4 +209,232 @@ func GetTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
 		i = 4
 	}
 	return p[:i], p[i:]
+}
+
+// GetIntFromInstr returns the integer value emitted by the specified
+// instruction. It works with static integer values only; for the rest of cases
+// (result of SYSCALL, custom integer operations, etc.) parse the script
+// manually.
+func GetIntFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
+	var i int
+
+	switch {
+	case opcode.PUSH1 <= instr && instr <= opcode.PUSH16:
+		i = int(instr-opcode.PUSH1) + 1
+	case instr <= opcode.PUSHINT256:
+		n := bigint.FromBytes(param)
+		if !n.IsInt64() {
+			return 0, false
+		}
+		i = int(n.Int64())
+	default:
+		return 0, false
+	}
+
+	return i, true
+}
+
+// GetStringFromInstr returns the string value emitted by the specified
+// instruction. It works with static string values only; for the rest of cases
+// (result of SYSCALL, custom string operations, etc.) parse the script
+// manually.
+func GetStringFromInstr(instr opcode.Opcode, param []byte) (string, bool) {
+	var s string
+
+	switch {
+	case opcode.PUSHDATA1 <= instr && instr <= opcode.PUSHDATA4:
+		s = string(param)
+	default:
+		return s, false
+	}
+
+	return s, true
+}
+
+// GetBoolFromInstr returns the boolean value emitted by the specified
+// instruction. It works with static bool values only; for the rest of cases
+// (result of SYSCALL, custom bool operations, etc.) parse the script
+// manually.
+func GetBoolFromInstr(instr opcode.Opcode, param []byte) (bool, bool) {
+	var b bool
+	if len(param) != 0 {
+		return b, false
+	}
+
+	switch instr {
+	case opcode.PUSHF, opcode.PUSH0:
+	case opcode.PUSHT, opcode.PUSH1:
+		b = true
+	default:
+		return b, false
+	}
+
+	return b, true
+}
+
+// GetUint160FromInstr returns the [util.Uint160] value emitted by the specified
+// instruction. It works with static hash values only; for the rest of cases
+// (result of SYSCALL, custom bytes operations, etc.) parse the script
+// manually.
+//
+// TODO: @roman-khimov, I'm thinking about returning `error` instead of `bool` in these helpers,
+//
+//	it's more representative.
+//	Originally `bool` was done to match existing ParseMultiSigContract/etc helpers. ACK?
+func GetUint160FromInstr(instr opcode.Opcode, param []byte) (util.Uint160, bool) {
+	var u util.Uint160
+
+	switch instr {
+	case opcode.PUSHDATA1:
+		var err error
+		u, err = util.Uint160DecodeBytesBE(param)
+		if err != nil {
+			return u, false
+		}
+		return u, true
+	default:
+		return u, false
+	}
+}
+
+// GetUint256FromInstr returns the [util.Uint256] value emitted by the specified
+// instruction. It works with static hash values only; for the rest of cases
+// (result of SYSCALL, custom bytes operations, etc.) parse the script
+// manually.
+func GetUint256FromInstr(instr opcode.Opcode, param []byte) (util.Uint256, bool) {
+	var u util.Uint256
+
+	switch instr {
+	case opcode.PUSHDATA1:
+		var err error
+		u, err = util.Uint256DecodeBytesBE(param)
+		if err != nil {
+			return u, false
+		}
+		return u, true
+	default:
+		return u, false
+	}
+}
+
+// GetEFromInstr is a delegate that returns an element emitted by the specified
+// instruction and the OK indicator. [GetIntFromInstr], [GetStringFromInstr],
+// [GetBoolFromInstr], [GetUint160FromInstr], [GetUint256FromInstr] are suitable
+// implementations.
+type GetEFromInstr[E string | int | bool | util.Uint160 | util.Uint256] func(instr opcode.Opcode, param []byte) (E, bool)
+
+// ParseList parses a list of elements from the VM context. It modifies the
+// given context, so save the current context's IP before calling ParseList
+// to be able to reset the context state afterwards. ParseList accepts
+// [GetEFromInstr] delegate to retrieve a single list element from the VM
+// context. [MaxStackSize] is used as the default list length constraint if
+// maxLen is not specified.
+//
+// TODO: @roman-khimov, I have two questions:
+//  1. Replace `ctx *Context` argument with `script []byte` to follow ParseMultiSigContract signature?
+//  2. Define (*Context).ParseList API (and a set of other useful APIs) to reuse them from scparser.Parse* ?
+func ParseList[E string | int | bool](ctx *Context, getEFromInstr GetEFromInstr[E], maxLen ...int) ([]E, error) {
+	var (
+		res   []E
+		instr opcode.Opcode
+		param []byte
+		err   error
+	)
+
+	maxL := MaxStackSize
+	if len(maxLen) > 0 {
+		maxL = maxLen[0]
+	}
+
+	for l := 1; ; l++ {
+		instr, param, err = ctx.Next()
+		if err != nil {
+			return res, fmt.Errorf("failed to parse list element %d: %w", l-1, err)
+		}
+		e, ok := getEFromInstr(instr, param)
+		if !ok {
+			if l == 1 && instr == opcode.NEWARRAY0 {
+				res = make([]E, 0)
+				return res, nil
+			}
+			break
+		}
+		res = append(res, e)
+		if l > maxL {
+			return res, fmt.Errorf("number of elements exceeds %d", maxL)
+		}
+	}
+	l, ok := GetIntFromInstr(instr, param)
+	if !ok {
+		return res, fmt.Errorf("failed to parse list length: not an int")
+	}
+	if len(res) != l {
+		return res, fmt.Errorf("list length doesn't match PACK argument: %d vs %d", len(res), l)
+	}
+	instr, param, err = ctx.Next()
+	if err != nil {
+		return res, fmt.Errorf("failed to parse PACK: %w", err)
+	}
+	if instr != opcode.PACK {
+		return res, fmt.Errorf("expected PACK, got %s", instr)
+	}
+	if len(param) != 0 {
+		return res, fmt.Errorf("additional parameter got after PACK: %s", hex.EncodeToString(param))
+	}
+	slices.Reverse(res)
+
+	return res, nil
+}
+
+// ParseAppCallNoArgs parses a contract call (which is effectively an
+// [opcode.SYSCALL] instruction with [interopnames.SystemContractCall]
+// parameter) assuming the arguments of the contract call (usually followed by
+// [opcode.PACK] opcode) are already parsed. It returns the calling contract
+// hash, method name and callflags.
+func ParseAppCallNoArgs(ctx *Context) (util.Uint160, string, callflag.CallFlag, error) {
+	instr, param, err := ctx.Next()
+	if err != nil {
+		return util.Uint160{}, "", 0, fmt.Errorf("failed to parse callflag instruction: %w", err)
+	}
+	f, ok := GetIntFromInstr(instr, param)
+	if !ok {
+		return util.Uint160{}, "", 0, fmt.Errorf("failed to parse callflag: not an int")
+	}
+	if !callflag.IsValid(callflag.CallFlag(f)) {
+		return util.Uint160{}, "", 0, fmt.Errorf("invalid callflag value: %d", f)
+	}
+	instr, param, err = ctx.Next()
+	if err != nil {
+		return util.Uint160{}, "", 0, fmt.Errorf("failed to parse method instruction: %w", err)
+	}
+	method, ok := GetStringFromInstr(instr, param)
+	if !ok {
+		return util.Uint160{}, "", 0, fmt.Errorf("failed to parse method: not a string")
+	}
+	instr, param, err = ctx.Next()
+	if err != nil {
+		return util.Uint160{}, "", 0, fmt.Errorf("failed to parse contract scripthash instruction: %w", err)
+	}
+	h, ok := GetUint160FromInstr(instr, param)
+	if !ok {
+		return util.Uint160{}, "", 0, fmt.Errorf("failed to parse contract scripthash: not a hash")
+	}
+	instr, param, err = ctx.Next()
+	if err != nil {
+		return util.Uint160{}, "", 0, fmt.Errorf("failed to parse SYSCALL instruction: %w", err)
+	}
+	if instr != opcode.SYSCALL {
+		return util.Uint160{}, "", 0, fmt.Errorf("expected SYSCALL, got %s", instr)
+	}
+	if len(param) != 4 {
+		return util.Uint160{}, "", 0, fmt.Errorf("expected 4 bytes SYSCALL parameter, got %d", len(param))
+	}
+	name, err := interopnames.FromID(binary.LittleEndian.Uint32(param))
+	if err != nil {
+		return util.Uint160{}, "", 0, fmt.Errorf("failed to parse SYSCALL parameter: %w", err)
+	}
+	if name != interopnames.SystemContractCall {
+		return util.Uint160{}, "", 0, fmt.Errorf("expected SystemContractCall SYSCALL, got %s", name)
+	}
+	return h, method, callflag.CallFlag(f), nil
 }
