@@ -1389,20 +1389,24 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if t.(stackitem.Immutable).IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			v.refs.Remove(arr[index])
+			if t.(interface{ IsReferenced() bool }).IsReferenced() {
+				v.refs.Remove(arr[index])
+				v.refs.Add(item)
+			}
 			arr[index] = item
-			v.refs.Add(arr[index])
 		case *stackitem.Map:
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			if i := t.Index(key.value); i >= 0 {
-				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
-			} else {
-				v.refs.Add(key.value)
+			if t.IsReferenced() {
+				if i := t.Index(key.value); i >= 0 {
+					v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+				} else {
+					v.refs.Add(key.value)
+				}
+				v.refs.Add(item)
 			}
 			t.Add(key.value, item)
-			v.refs.Add(item)
 
 		case *stackitem.Buffer:
 			index := toInt(key.BigInt())
