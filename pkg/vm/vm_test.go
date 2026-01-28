@@ -368,36 +368,39 @@ func TestCONVERT(t *testing.T) {
 // 3. appends them to a zero-length array
 // Resulting stack size consists of:
 // - struct (size+1)
-// - array (1) of struct (size+1)
-// which equals to size*2+3 elements in total.
+// which equals to size+1 elements in total.
 func appendBigStruct(size uint16) []opcode.Opcode {
-	prog := make([]opcode.Opcode, size*2)
+	prog := make([]opcode.Opcode, size)
 	for i := range size {
-		prog[i*2] = opcode.PUSH0
-		prog[i*2+1] = opcode.NEWSTRUCT
+		prog[i] = opcode.NEWSTRUCT0
 	}
 
 	return append(prog,
-		opcode.INITSSLOT, 1,
+		// size of structs on the stack here
 		opcode.PUSHINT16, opcode.Opcode(size), opcode.Opcode(size>>8), // LE
-		opcode.PACK, opcode.CONVERT, opcode.Opcode(stackitem.StructT),
-		opcode.STSFLD0, opcode.LDSFLD0,
+		// int and size of structs on the stack, size+1 references
+		opcode.PACKSTRUCT,
+		// struct of size structs on the stack, size+1 references
 		opcode.DUP,
-		opcode.PUSH0, opcode.NEWARRAY,
+		// two refs to struct with size structs on the stack, size+2 references
+		opcode.NEWARRAY0,
+		// an array and two refs to struct with size structs on stack, size+3 references
 		opcode.SWAP,
-		opcode.APPEND, opcode.RET)
+		opcode.APPEND,
+		// struct of size structs on the stack, size+1 references
+	)
 }
 
 func TestStackLimitAPPENDStructGood(t *testing.T) {
-	prog := makeProgram(appendBigStruct(MaxStackSize/2 - 2)...)
+	prog := makeProgram(appendBigStruct(MaxStackSize - 3)...)
 	v := load(prog)
-	runVM(t, v) // size = 2047 = (Max/2-2)*2+3 = Max-1
+	runVM(t, v) // size = 2048
 }
 
 func TestStackLimitAPPENDStructBad(t *testing.T) {
-	prog := makeProgram(appendBigStruct(MaxStackSize/2 - 1)...)
+	prog := makeProgram(appendBigStruct(MaxStackSize - 2)...)
 	v := load(prog)
-	checkVMFailed(t, v) // size = 2049 = (Max/2-1)*2+3 = Max+1
+	checkVMFailed(t, v) // size = 2049
 }
 
 func TestStackLimit(t *testing.T) {
