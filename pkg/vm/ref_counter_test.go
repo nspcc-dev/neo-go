@@ -47,6 +47,24 @@ func TestRefCounter_Add(t *testing.T) {
 	require.Equal(t, 2, int(*r))
 }
 
+func TestRefCounterDupPopItem(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.POPITEM)
+	v := load(prog)
+	v.estack.PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42), stackitem.Make(42)}))
+	require.Equal(t, 3, int(v.refs)) // One array reference, two elements inside.
+	runVM(t, v)
+	// After DUP: Two array references, two elements inside.
+	// After POPITEM: One array reference, one element inside, one element outside (on the stack).
+	require.Equal(t, 2, v.estack.Len())
+	require.Equal(t, 3, int(v.refs))
+	_ = v.estack.Pop()
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, 2, int(v.refs))
+	_ = v.estack.Pop()
+	require.Equal(t, 0, v.estack.Len())
+	require.Equal(t, 0, int(v.refs))
+}
+
 func TestRefCounterPopItem(t *testing.T) {
 	prog := makeProgram(opcode.POPITEM)
 	v := load(prog)

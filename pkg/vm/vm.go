@@ -1508,12 +1508,18 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		elems := arr.Value().([]stackitem.Item)
 		index := len(elems) - 1
 		elem := elems[index]
+		var isReferenced bool
 		v.estack.PushItem(elem) // push item on stack firstly, to match the reference behaviour.
 		switch item := arr.(type) {
 		case *stackitem.Array:
 			item.Remove(index)
+			isReferenced = item.IsReferenced()
 		case *stackitem.Struct:
 			item.Remove(index)
+			isReferenced = item.IsReferenced()
+		}
+		if isReferenced {
+			v.refs.Remove(elem)
 		}
 
 	case opcode.SIZE:
