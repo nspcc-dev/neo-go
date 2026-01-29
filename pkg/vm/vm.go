@@ -1252,16 +1252,21 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		val := cloneIfStruct(itemElem.value)
 
+		var isReferenced bool
 		switch t := arrElem.value.(type) {
 		case *stackitem.Array:
+			isReferenced = t.IsReferenced()
 			t.Append(val)
 		case *stackitem.Struct:
+			isReferenced = t.IsReferenced()
 			t.Append(val)
 		default:
 			panic("APPEND: not of underlying type Array")
 		}
 
-		v.refs.Add(val)
+		if isReferenced {
+			v.refs.Add(val)
+		}
 
 	case opcode.PACKMAP:
 		n := toInt(v.estack.Pop().BigInt())
@@ -1384,20 +1389,24 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if t.(stackitem.Immutable).IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			v.refs.Remove(arr[index])
+			if t.(interface{ IsReferenced() bool }).IsReferenced() {
+				v.refs.Remove(arr[index])
+				v.refs.Add(item)
+			}
 			arr[index] = item
-			v.refs.Add(arr[index])
 		case *stackitem.Map:
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			if i := t.Index(key.value); i >= 0 {
-				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
-			} else {
-				v.refs.Add(key.value)
+			if t.IsReferenced() {
+				if i := t.Index(key.value); i >= 0 {
+					v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+				} else {
+					v.refs.Add(key.value)
+				}
+				v.refs.Add(item)
 			}
 			t.Add(key.value, item)
-			v.refs.Add(item)
 
 		case *stackitem.Buffer:
 			index := toInt(key.BigInt())
@@ -1443,28 +1452,30 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			toRemove := a[k]
+			if t.IsReferenced() {
+				v.refs.Remove(a[k])
+			}
 			t.Remove(k)
-			v.refs.Remove(toRemove)
 		case *stackitem.Struct:
 			a := t.Value().([]stackitem.Item)
 			k := toInt(key.BigInt())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			toRemove := a[k]
+			if t.IsReferenced() {
+				v.refs.Remove(a[k])
+			}
 			t.Remove(k)
-			v.refs.Remove(toRemove)
 		case *stackitem.Map:
 			index := t.Index(key.Item())
 			// No error on missing key.
 			if index >= 0 {
-				elems := t.Value().([]stackitem.MapElement)
-				key := elems[index].Key
-				val := elems[index].Value
+				if t.IsReferenced() {
+					elems := t.Value().([]stackitem.MapElement)
+					v.refs.Remove(elems[index].Key)
+					v.refs.Remove(elems[index].Value)
+				}
 				t.Drop(index)
-				v.refs.Remove(key)
-				v.refs.Remove(val)
 			}
 		default:
 			panic("REMOVE: invalid type")
@@ -1477,26 +1488,32 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			for _, item := range t.Value().([]stackitem.Item) {
-				v.refs.Remove(item)
+			if t.IsReferenced() {
+				for _, item := range t.Value().([]stackitem.Item) {
+					v.refs.Remove(item)
+				}
 			}
 			t.Clear()
 		case *stackitem.Struct:
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			for _, item := range t.Value().([]stackitem.Item) {
-				v.refs.Remove(item)
+			if t.IsReferenced() {
+				for _, item := range t.Value().([]stackitem.Item) {
+					v.refs.Remove(item)
+				}
 			}
 			t.Clear()
 		case *stackitem.Map:
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			elems := t.Value().([]stackitem.MapElement)
-			for i := range elems {
-				v.refs.Remove(elems[i].Key)
-				v.refs.Remove(elems[i].Value)
+			if t.IsReferenced() {
+				elems := t.Value().([]stackitem.MapElement)
+				for i := range elems {
+					v.refs.Remove(elems[i].Key)
+					v.refs.Remove(elems[i].Value)
+				}
 			}
 			t.Clear()
 		default:
