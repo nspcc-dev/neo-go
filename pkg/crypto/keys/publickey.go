@@ -17,12 +17,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"gopkg.in/yaml.v3"
 )
 
 // coordLen is the number of bytes in serialized X or Y coordinate.
 const coordLen = 32
+
+// verificationScriptSize is the normal N3 single-key verification script size.
+const verificationScriptSize = 1 /*PUSHDATA1*/ + 1 /*length*/ + (1 + coordLen /*key*/) + 1 /*SYSCALL*/ + 4 /*parameter*/
 
 // SignatureLen is the length of a standard signature for 256-bit EC key.
 const SignatureLen = 64
@@ -153,16 +156,43 @@ func NewPublicKeyFromBytes(b []byte, curve elliptic.Curve) (*PublicKey, error) {
 	return pubKey, nil
 }
 
+// sizeSerialized returns the length of the buffer needed for this key when
+// it's serialized.
+func (p *PublicKey) sizeSerialized(compressed bool) int {
+	switch {
+	case p.IsInfinity():
+		return 1
+	case compressed:
+		return coordLen + 1
+	default:
+		return 2*coordLen + 1
+	}
+}
+
 // getBytes serializes X and Y using compressed or uncompressed format.
 func (p *PublicKey) getBytes(compressed bool) []byte {
-	if p.IsInfinity() {
-		return []byte{0x00}
-	}
+	var res = make([]byte, p.sizeSerialized(compressed))
+	p.writeBytes(res, compressed)
+	return res
+}
 
-	if compressed {
-		return elliptic.MarshalCompressed(p.Curve, p.X, p.Y)
+// writeBytes writes coordinates into the given buffer with appropriate
+// prefix. No bounds check performed.
+func (p *PublicKey) writeBytes(buf []byte, compressed bool) {
+	if p.IsInfinity() {
+		buf[0] = 0
+		return
 	}
-	return elliptic.Marshal(p.Curve, p.X, p.Y) //nolint:staticcheck // We don't care about ECDH, but UncompressedBytes() should still work.
+	var prefix byte
+
+	p.X.FillBytes(buf[1 : 1+coordLen])
+	if compressed {
+		prefix = 0x02 + byte(p.Y.Bit(0))
+	} else {
+		prefix = 0x04
+		p.Y.FillBytes(buf[1+coordLen : 1+2*coordLen])
+	}
+	buf[0] = prefix
 }
 
 // Bytes returns byte array representation of the public key in compressed
@@ -311,22 +341,40 @@ func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
 // GetVerificationScript returns NEO VM bytecode with CHECKSIG command for the
 // public key.
 func (p *PublicKey) GetVerificationScript() []byte {
-	b := p.Bytes()
-	buf := io.NewBufBinWriter()
-	if address.Prefix == address.NEO2Prefix {
-		buf.WriteB(0x21) // PUSHBYTES33
-		buf.WriteBytes(p.Bytes())
-		buf.WriteB(0xAC) // CHECKSIG
-		return buf.Bytes()
-	}
-	emit.CheckSig(buf.BinWriter, b)
+	var buf = make([]byte, verificationScriptSize)
 
-	return buf.Bytes()
+	return p.writeVerificationScript(buf)
+}
+
+func (p *PublicKey) writeVerificationScript(buf []byte) []byte {
+	var keySize = p.sizeSerialized(true)
+
+	if address.Prefix == address.NEO2Prefix {
+		buf[0] = 0x21 // PUSHBYTES33
+		p.writeBytes(buf[1:1+33], true)
+		buf[1+33] = 0xAC // CHECKSIG
+		return buf[:1+33+1]
+	}
+	buf[0] = byte(opcode.PUSHDATA1)
+	buf[1] = byte(keySize)
+	p.writeBytes(buf[2:2+keySize], true)
+	buf[2+keySize] = byte(opcode.SYSCALL)
+
+	// Constants below are interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig)))
+	buf[2+keySize+1] = 0x56
+	buf[2+keySize+2] = 0xe7
+	buf[2+keySize+3] = 0xb3
+	buf[2+keySize+4] = 0x27
+
+	return buf[:2+keySize+5]
 }
 
 // GetScriptHash returns a Hash160 of verification script for the key.
 func (p *PublicKey) GetScriptHash() util.Uint160 {
-	return hash.Hash160(p.GetVerificationScript())
+	var buf = make([]byte, verificationScriptSize)
+
+	buf = p.writeVerificationScript(buf)
+	return hash.Hash160(buf)
 }
 
 // Address returns a base58-encoded NEO-specific address based on the key hash.
