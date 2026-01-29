@@ -10,4 +10,7 @@ const (
 	MultiSignature RequestType = 0x02
 	// Contract represents contract witness type.
 	Contract RequestType = 0x03
+	// AppCall represents a request type with signer witness containing custom
+	// verification script with contract call.
+	AppCall RequestType = 0x04
 )

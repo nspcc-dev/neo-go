@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -27,7 +29,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -76,6 +80,22 @@ func TestNotary(t *testing.T) {
 	notaryHash := e.NativeHash(t, nativenames.Notary)
 	designationSuperInvoker := e.NewInvoker(e.NativeHash(t, nativenames.Designation), validators, committee)
 	gasValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas))
+
+	src := `package contract
+		func CustomCheck(a, b, c int) bool {
+			return (a == 1 && b == 2) || (a == 2 && b == 1) && c == 3
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "testpolicy_contract",
+	})
+	e.DeployContract(t, ctr, nil)
+	buf := io.NewBufBinWriter()
+	emit.Int(buf.BinWriter, 3)                                                // emit `c`.
+	emit.Int(buf.BinWriter, 3)                                                // emit PACK arg.
+	emit.Opcodes(buf.BinWriter, opcode.PACK, opcode.DUP, opcode.REVERSEITEMS) // reverse since `c` is the last argument.
+	emit.AppCallNoArgs(buf.BinWriter, ctr.Hash, "customCheck", callflag.All)
+	ctrScript := buf.Bytes()
 
 	var (
 		nonce           uint32
@@ -231,6 +251,9 @@ func TestNotary(t *testing.T) {
 				script, err = smartcontract.CreateMultiSigRedeemScript(requesters[i].m, pubs)
 				require.NoError(t, err)
 				nKeys += uint8(len(requesters[i].accounts))
+			case notary.AppCall:
+				script = ctrScript
+				nKeys += 2 // 2 out of 3 contract call args are missing from the request.
 			default:
 			}
 			signers[i] = transaction.Signer{
@@ -252,6 +275,7 @@ func TestNotary(t *testing.T) {
 		}
 		payloads := make([]*payload.P2PNotaryRequest, nKeys)
 		plIndex := 0
+		appCallCnt := 0
 		// we'll collect only m signatures out of n (so only m payloads are needed), but let's create payloads for all requesters (for the next tests)
 		for i, r := range requesters {
 			for _, acc := range r.accounts {
@@ -261,7 +285,14 @@ func TestNotary(t *testing.T) {
 				for j := range main.Scripts {
 					main.Scripts[j].VerificationScript = verificationScripts[j]
 					if i == j {
-						main.Scripts[j].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, acc.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), main)...)
+						if r.typ == notary.AppCall {
+							if appCallCnt < 2 { // fill in `a` and `b` args of custom AppCall.
+								appCallCnt++
+								main.Scripts[len(main.Scripts)-1].InvocationScript = []byte{byte(opcode.PUSH0) + byte(appCallCnt)}
+							}
+						} else {
+							main.Scripts[j].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, acc.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), main)...)
+						}
 					}
 				}
 				main.Scripts = append(main.Scripts, transaction.Witness{}) // empty Notary witness
@@ -294,6 +325,8 @@ func TestNotary(t *testing.T) {
 				nSigs++
 			case notary.MultiSignature:
 				nSigs += r.m
+			case notary.AppCall:
+				nSigs += 2 // 2 arguments of `customCheck` call are missing.
 			default:
 			}
 		}
@@ -438,15 +471,25 @@ func TestNotary(t *testing.T) {
 			typ:      notary.MultiSignature,
 		})
 
+		appCallAccounts := make([]*wallet.Account, 2)
+		for i := range appCallAccounts {
+			appCallAccounts[i], _ = wallet.NewAccount()
+		}
+		requesters = append(requesters, requester{
+			accounts: appCallAccounts,
+			typ:      notary.AppCall,
+		})
+
 		requests := createMixedRequest(requesters)
-		for i := range requests {
-			ntr1.OnNewRequest(requests[i])
-			checkMainTx(t, requesters, requests, i+1, shouldComplete)
+		mandatory := append(requests[:nSigSigners+2], requests[nSigSigners+3:]...) // nSigSigners of single signatures + 2 out of 3 multisigs + 2 custom AppCall
+		for i := range mandatory {
+			ntr1.OnNewRequest(mandatory[i])
+			checkMainTx(t, requesters, mandatory, i+1, shouldComplete)
 			completedCount := len(completedTxes)
 
 			// check that the same request won't be processed twice
-			ntr1.OnNewRequest(dupNotaryRequest(t, requests[i]))
-			checkMainTx(t, requesters, requests, i+1, shouldComplete)
+			ntr1.OnNewRequest(dupNotaryRequest(t, mandatory[i]))
+			checkMainTx(t, requesters, mandatory, i+1, shouldComplete)
 			require.Equal(t, completedCount, len(completedTxes))
 		}
 		return requests, requesters

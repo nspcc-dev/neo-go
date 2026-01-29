@@ -317,7 +317,9 @@ func GetListOfEFromContext[E any](ctx *Context, getEFromInstr GetEFromInstr[E], 
 // to the instruction corresponding to System.Contract.Call's callflag argument
 // (if there's any). It does not check if there are additional opcodes after the
 // first [opcode.RET] occurrence, so check the context's IP against the script
-// length if you need to ensure that.
+// length if you need to ensure that. It returns an unwrapped list of elements
+// in the direct order (no additional reverse due to stack operations order is
+// required).
 func GetListFromContext(ctx *Context, maxLen ...int) ([]PushedItem, error) {
 	return getListFromContext(ctx, true, maxLen...)
 }
