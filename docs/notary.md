@@ -109,10 +109,17 @@ This payload has two incomplete transactions inside:
   than the current chain height and it must have `Conflicts` attribute with the
   hash of the main transaction. It at the same time must have `Notary assisted`
   attribute with a count of zero.
-- *Main tx*. This is the one that actually needs to be completed; it:
-  1. *either* doesn't have all witnesses attached
-  2. *or* has a partial multisignature only
-  3. *or* have not all witnesses attached and some of the rest are partial multisignature
+- *Main tx*. This is the one that actually needs to be completed; some (but at
+  least one) of its witnesses have incomplete invocation scripts. Incomplete
+  invocation scripts are supported for the following witness types (all of them
+  are allowed to be combined):
+  1. Standard signature witness (then the invocation script is empty).
+  2. Standard multisignature witness (then the invocation script is either empty
+     or contains a push of a single signature).
+  3. Custom AppCall witness (then verification script is expected to include a
+     part of System.Contract.Call contract arguments and invocation script is
+     expected to contain missing arguments of this call).
+  4. Only empty invocation scripts are supported for contract witness.
   
   This transaction must have `Notary assisted` attribute with a count of `NKeys`
   (and Notary contract as one of the signers).
@@ -294,9 +301,10 @@ subpackage with an example written in Go doc.
    transaction field). Use the following rules to construct the list:
    * First signer is the one who pays the transaction fees.
    * Each signer is either a multisignature or a standard signature or a contract
-     signer.
-   * Multisignature and signature signers can be combined.
-   * Contract signer can be combined with any other signer.
+     signer or a custom signer containing System.Contract.Call in the
+     verification script.
+   * Multisignature, signature, contract and custom AppCall signers can be
+     combined.
 
    Include Notary native contract in the list of signers with the following
    constraints:
@@ -330,9 +338,10 @@ subpackage with an example written in Go doc.
 4. Construct the list of main transaction attributes (that will be `Attributes`
    transaction field). The list must include `NotaryAssisted` attribute with
    `NKeys` equals the overall number of the keys to be collected excluding notary and
-   other contract-based witnesses. For m out of n multisignature request
-   `NKeys = n`. For multiple standard signature request, signers `NKeys` equals
-   the standard signature signers count.
+   other contract-based witnesses. For m out of n multisignature signer
+   `NKeys = n`. For standard signature signer `NKeys = 1`. For contract signer
+   `NKeys = 0`. For custom AppCall-based signer `NKeys` equals to the overall
+   number of arguments of the calling contract.
 5. Construct a list of accounts (`wallet.Account` structure from the `wallet`
    package) to calculate network fee for the transaction
    using the following rules. This list will be used in the next step.
@@ -340,9 +349,9 @@ subpackage with an example written in Go doc.
      constructed at step 1.
    - An account for a contract signer should have `Contract` field with `Deployed` set
      to `true` if the corresponding contract is deployed on chain.
-   - An account for a signature or a multisignature signer should have `Contract` field
-     with `Deployed` set to `false` and `Script` set to the signer's verification
-     script.
+   - An account for a signature, multisignature or custom AppCall signer should
+     have `Contract` field with `Deployed` set to `false` and `Script` set to
+     the signer's verification script.
    - An account for a notary signer is **just a placeholder** and should have
      `Contract` field with `Deployed` set to `true`. Its `Invocation` witness script
      parameters will be guessed by the `verify` method signature of Notary contract
@@ -352,17 +361,12 @@ subpackage with an example written in Go doc.
 7. Construct a list of main transactions witnesses (that will be `Scripts`
    transaction field). Uses standard rules for witnesses of not yet signed
    transaction (it can't be signed at this stage because network fee is missing):
-   - A contract-based witness should have `Invocation` script that pushes arguments
-     on stack (it may be empty) and empty `Verification` script. If multiple notary
-     requests provide different `Invocation` scripts, the first one will be used
-     to construct contract-based witness. If non-empty `Invocation` script is
-     specified then it will be taken into account during network fee calculation.
-     In case of an empty `Invocation` script, its parameters will be guessed from
-     the contract's `verify` signature during network fee calculation.
+   - A contract-based witness should have empty `Invocation` script and empty
+     `Verification` script.
    - A **Notary contract witness** (which is also a contract-based witness) should
-     have empty `Verification` script. `Invocation` script should be either empty
-     (allowed for main transaction and forbidden for fallback transaction) or of
-     the form [opcode.PUSHDATA1, 64, make([]byte, 64)...] (allowed for main
+     have empty `Verification` script. `Invocation` script should either be empty
+     (required for main transaction and forbidden for fallback transaction) or of
+     the form [opcode.PUSHDATA1, 64, make([]byte, 64)...] (forbidden for main
      transaction and required for fallback transaction by the Notary subsystem to
      pass verification), i.e. to be a placeholder for a notary contract signature.
      Both ways are OK for network fee calculation.
