@@ -23,9 +23,16 @@ func (s Slot) set(i int, item stackitem.Item, refs *refCounter) {
 	if s[i] == item {
 		return
 	}
+	s.setNoRef(i, item, refs)
+	refs.Add(item)
+}
+
+// setNoRef sets i-th storage slot, but doesn't add it to the reference counter.
+// Notice that the old item is deleted anyway, hence refs passed. Be
+// super-careful when using it.
+func (s Slot) setNoRef(i int, item stackitem.Item, refs *refCounter) {
 	refs.Remove(s[i])
 	s[i] = item
-	refs.Add(item)
 }
 
 // Get returns the item contained in the i-th slot.

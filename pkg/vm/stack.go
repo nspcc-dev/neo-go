@@ -193,10 +193,18 @@ func (s *Stack) PushVal(v any) {
 // Pop removes and returns the element on top of the stack. It panics if the stack is
 // empty.
 func (s *Stack) Pop() Element {
+	var e = s.popNoRef()
+	s.refs.Remove(e.value)
+	return e
+}
+
+// popNoRef removes and returns the element from the top of the stack. It panics
+// if the stack is empty. It does not change reference counter, so be
+// super-careful when using it.
+func (s *Stack) popNoRef() Element {
 	l := len(s.elems)
 	e := s.elems[l-1]
 	s.elems = s.elems[:l-1]
-	s.refs.Remove(e.value)
 	return e
 }
 
