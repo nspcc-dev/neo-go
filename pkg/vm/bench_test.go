@@ -36,6 +36,47 @@ func BenchmarkScriptNestedRefCount(t *testing.B) {
 	benchScript(t, script)
 }
 
+func BenchmarkSlotStore(t *testing.B) {
+	t.Run("int", func(t *testing.B) {
+		var script = []byte{
+			byte(opcode.INITSSLOT), 1,
+			byte(opcode.PUSHINT16), 0, 2, // Loop counter, 512.
+			byte(opcode.PUSH1),
+			byte(opcode.STSFLD0),
+			byte(opcode.DEC),
+			byte(opcode.JMPIFNOT), 0xfd,
+		}
+		benchScript(t, script)
+	})
+	t.Run("new-array-1024", func(t *testing.B) {
+		var script = []byte{
+			byte(opcode.INITSSLOT), 1,
+			byte(opcode.PUSHINT16), 0, 2, // Loop counter, 512.
+			byte(opcode.PUSHINT16), 0, 4,
+			byte(opcode.NEWARRAY),
+			byte(opcode.STSFLD0),
+			byte(opcode.DEC),
+			byte(opcode.JMPIFNOT), 0xfa,
+		}
+		benchScript(t, script)
+	})
+	t.Run("same-array-1024", func(t *testing.B) {
+		var script = []byte{
+			byte(opcode.INITSSLOT), 1,
+			byte(opcode.PUSHINT16), 0, 4,
+			byte(opcode.NEWARRAY),
+			byte(opcode.PUSHINT16), 0, 2, // Loop counter, 512.
+			byte(opcode.SWAP),
+			byte(opcode.DUP),
+			byte(opcode.STSFLD0),
+			byte(opcode.SWAP),
+			byte(opcode.DEC),
+			byte(opcode.JMPIFNOT), 0xfb,
+		}
+		benchScript(t, script)
+	})
+}
+
 func BenchmarkScriptPushPop(t *testing.B) {
 	for _, i := range []int{4, 16, 128, 1024} {
 		t.Run(strconv.Itoa(i), func(t *testing.B) {
