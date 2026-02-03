@@ -1659,7 +1659,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		for k := range m.Value().([]stackitem.MapElement) {
 			arr = append(arr, m.Value().([]stackitem.MapElement)[k].Key.Dup())
 		}
-		v.estack.PushItem(stackitem.NewArray(arr))
+		var res = stackitem.NewArray(arr)
+		res.IncRC()
+		v.estack.pushItemCounted(res, m.Len()+1)
 
 	case opcode.VALUES:
 		if v.estack.Len() == 0 {
