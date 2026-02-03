@@ -18,6 +18,20 @@ func (s *Slot) init(n int, rc *refCounter) {
 	*rc += refCounter(n) // Virtual "Null" elements.
 }
 
+// initFromStack is an optimized version of init() for cases where some
+// elements are taken from the stack. This operation doesn't change the
+// reference counter since items that were referenced by the stack will be
+// referenced by the slot.
+func (s *Slot) initFromStack(n int, t *Stack) {
+	if *s != nil {
+		panic("already initialized")
+	}
+	*s = make([]stackitem.Item, n)
+	for i := range n {
+		(*s)[i] = t.popNoRef().Item()
+	}
+}
+
 // set sets i-th storage slot.
 func (s Slot) set(i int, item stackitem.Item, refs *refCounter) {
 	if s[i] == item {
