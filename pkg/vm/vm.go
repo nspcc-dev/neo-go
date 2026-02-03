@@ -757,11 +757,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			ctx.local.init(int(parameter[0]), &v.refs)
 		}
 		if parameter[1] > 0 {
-			sz := int(parameter[1])
-			ctx.arguments.init(sz, &v.refs)
-			for i := range sz {
-				ctx.arguments.set(i, v.estack.Pop().Item(), &v.refs)
-			}
+			ctx.arguments.initFromStack(int(parameter[1]), v.estack)
 		}
 
 	case opcode.LDSFLD0, opcode.LDSFLD1, opcode.LDSFLD2, opcode.LDSFLD3, opcode.LDSFLD4, opcode.LDSFLD5, opcode.LDSFLD6:

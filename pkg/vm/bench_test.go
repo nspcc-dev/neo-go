@@ -77,6 +77,37 @@ func BenchmarkSlotStore(t *testing.B) {
 	})
 }
 
+func BenchmarkInitArgsSlot(t *testing.B) {
+	t.Run("16-int", func(t *testing.B) {
+		var script = []byte{
+			byte(opcode.PUSHINT16), 0, 2, // Loop counter, 512.
+			byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1),
+			byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1), byte(opcode.PUSH1),
+			byte(opcode.CALL), 4,
+			byte(opcode.JMP), 6,
+			byte(opcode.INITSLOT), 0, 16,
+			byte(opcode.RET),
+			byte(opcode.DEC),
+			byte(opcode.JMPIFNOT), 0xe7,
+		}
+		benchScript(t, script)
+	})
+	t.Run("array-1024", func(t *testing.B) {
+		var script = []byte{
+			byte(opcode.PUSHINT16), 0, 2, // Loop counter, 512.
+			byte(opcode.PUSHINT16), 0, 4,
+			byte(opcode.NEWARRAY),
+			byte(opcode.CALL), 4,
+			byte(opcode.JMP), 6,
+			byte(opcode.INITSLOT), 0, 1,
+			byte(opcode.RET),
+			byte(opcode.DEC),
+			byte(opcode.JMPIFNOT), 0xf3,
+		}
+		benchScript(t, script)
+	})
+}
+
 func BenchmarkScriptPushPop(t *testing.B) {
 	for _, i := range []int{4, 16, 128, 1024} {
 		t.Run(strconv.Itoa(i), func(t *testing.B) {
