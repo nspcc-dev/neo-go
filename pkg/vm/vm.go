@@ -1293,16 +1293,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		items := make([]stackitem.Item, n)
 		for i := range n {
-			items[i] = v.estack.Pop().value
+			items[i] = v.estack.popNoRef().value
 		}
 
 		var res stackitem.Item
 		if op == opcode.PACK {
-			res = stackitem.NewArray(items)
+			var ar = stackitem.NewArray(items)
+			ar.IncRC()
+			res = ar
 		} else {
-			res = stackitem.NewStruct(items)
+			var st = stackitem.NewStruct(items)
+			st.IncRC()
+			res = st
 		}
-		v.estack.PushItem(res)
+		v.estack.pushItemCounted(res, 1)
 
 	case opcode.UNPACK:
 		e := v.estack.Pop()
