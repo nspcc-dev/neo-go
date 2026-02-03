@@ -1233,11 +1233,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		items := makeArrayOfType(int(n), typ)
 		var res stackitem.Item
 		if op == opcode.NEWSTRUCT {
-			res = stackitem.NewStruct(items)
+			var st = stackitem.NewStruct(items)
+			st.IncRC()
+			res = st
 		} else {
-			res = stackitem.NewArray(items)
+			var ar = stackitem.NewArray(items)
+			ar.IncRC()
+			res = ar
 		}
-		v.estack.PushItem(res)
+		v.estack.pushItemCounted(res, n+1)
 
 	case opcode.NEWSTRUCT0:
 		v.estack.PushItem(stackitem.NewStruct([]stackitem.Item{}))
