@@ -108,6 +108,18 @@ func BenchmarkInitArgsSlot(t *testing.B) {
 	})
 }
 
+func BenchmarkNewArray(t *testing.B) {
+	var script = []byte{
+		byte(opcode.PUSHINT16), 0, 2, // Loop counter, 512.
+		byte(opcode.PUSHINT16), 0, 4,
+		byte(opcode.NEWARRAY),
+		byte(opcode.DROP),
+		byte(opcode.DEC),
+		byte(opcode.JMPIFNOT), 0xfa,
+	}
+	benchScript(t, script)
+}
+
 func BenchmarkScriptPushPop(t *testing.B) {
 	for _, i := range []int{4, 16, 128, 1024} {
 		t.Run(strconv.Itoa(i), func(t *testing.B) {

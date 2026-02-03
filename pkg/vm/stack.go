@@ -184,6 +184,14 @@ func (s *Stack) PushItem(i stackitem.Item) {
 	s.Push(Element{i})
 }
 
+// pushItemCounted pushed an item to the stack and adds exactly the specified
+// value to the reference counter. It's a perfect method to ruin the counter,
+// so use carefully.
+func (s *Stack) pushItemCounted(i stackitem.Item, count int) {
+	s.elems = append(s.elems, Element{i})
+	*s.refs += refCounter(count)
+}
+
 // PushVal pushes the given value on the stack. It will infer the
 // underlying Item to its corresponding type.
 func (s *Stack) PushVal(v any) {
