@@ -1374,7 +1374,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.SETITEM:
-		item := v.estack.Pop().value
+		item := v.estack.popNoRef().value
 		key := v.estack.Pop()
 		validateMapKey(key)
 
@@ -1387,6 +1387,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			index := toInt(key.BigInt())
 			if index < 0 || index >= len(arr) {
 				msg := fmt.Sprintf("The value %d is out of range.", index)
+				v.refs.Remove(item)
 				v.throw(stackitem.NewByteArray([]byte(msg)))
 				return
 			}
@@ -1395,7 +1396,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			if t.(interface{ IsReferenced() bool }).IsReferenced() {
 				v.refs.Remove(arr[index])
-				v.refs.Add(item)
+			} else {
+				v.refs.Remove(item)
 			}
 			arr[index] = item
 		case *stackitem.Map:
@@ -1408,11 +1410,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				} else {
 					v.refs.Add(key.value)
 				}
-				v.refs.Add(item)
+			} else {
+				v.refs.Remove(item)
 			}
+
 			t.Add(key.value, item)
 
 		case *stackitem.Buffer:
+			v.refs-- // We know the type exactly already.
 			index := toInt(key.BigInt())
 			if index < 0 || index >= t.Len() {
 				msg := fmt.Sprintf("The value %d is out of range.", index)
