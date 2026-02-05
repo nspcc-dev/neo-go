@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -153,6 +154,9 @@ func newTunedActor(c RPCActor, signers []actor.SignerAccount, simpleAcc *wallet.
 			return nil, fmt.Errorf("empty contract for account %s", sa.Account.Address)
 		}
 		if sa.Account.Contract.Deployed {
+			if !sa.Account.ScriptHash().Equals(nativehashes.Notary) && len(sa.Account.Contract.Parameters) != 0 {
+				return nil, fmt.Errorf("only parameterless deployed contracts are supported, account %s has %d parameters", sa.Account.Address, len(sa.Account.Contract.Parameters))
+			}
 			continue
 		}
 		if scparser.IsSignatureContract(sa.Account.Contract.Script) {

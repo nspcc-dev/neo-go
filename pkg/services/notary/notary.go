@@ -105,10 +105,13 @@ type (
 	// witnessInfo represents information about the signer and its witness.
 	witnessInfo struct {
 		typ RequestType
-		// nSigsLeft is the number of signatures left to collect to complete the main transaction.
-		// Initial nSigsLeft value is defined as following:
-		// nSigsLeft == nKeys for standard signature request;
-		// nSigsLeft <= nKeys for multisignature request;
+		// nSigsLeft is the number of verified signatures left to be collected to
+		// complete the main transaction. Zero means that all required signatures
+		// are collected and verified. Initial nSigsLeft value is defined as
+		// following:
+		// nSigsLeft == nKeys for standard [Signature] request;
+		// nSigsLeft <= nKeys for [MultiSignature] request;
+		// nSigsLeft == 0 for [Contract] witness request.
 		nSigsLeft uint8
 
 		// sigs is a map of partial multisig invocation scripts [opcode.PUSHDATA1+64+signatureBytes] grouped by public keys.
@@ -294,18 +297,20 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	}
 	mainHash := hash.NetSha256(uint32(n.Network), r.main).BytesBE()
 	for i, w := range payload.MainTransaction.Scripts {
-		if len(w.InvocationScript) == 0 || // check that signature for this witness was provided
-			(r.witnessInfo[i].nSigsLeft == 0 && r.witnessInfo[i].typ != Contract) { // check that signature wasn't yet added (consider receiving the same payload multiple times)
+		// Check that request provides signature for this witness. For contract
+		// accounts only empty invocation scripts are supported with no
+		// verification implied.
+		if (len(w.InvocationScript) == 0 && r.witnessInfo[i].typ != Contract) ||
+			// Check if *valid* signature was already collected (consider receiving
+			// malicious request with extra intentionally wrong witness or receiving
+			// extra valid signatures for M out of N multisignature request).
+			r.witnessInfo[i].nSigsLeft == 0 {
 			continue
 		}
 		switch r.witnessInfo[i].typ {
 		case Contract:
-			// Need to check even if r.main.Scripts[i].InvocationScript is already filled in.
-			_, err := n.Config.Chain.VerifyWitness(r.main.Signers[i].Account, r.main, &w, n.Config.Chain.GetMaxVerificationGAS())
-			if err != nil {
-				continue
-			}
-			r.main.Scripts[i].InvocationScript = w.InvocationScript
+			// Will support non-empty invocation scripts in the future.
+			continue
 		case Signature:
 			if r.witnessInfo[i].pubs[0].Verify(w.InvocationScript[2:], mainHash) {
 				r.main.Scripts[i] = w
@@ -539,9 +544,12 @@ func verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8)
 	}
 	result := make([]witnessInfo, len(tx.Signers))
 	for i, w := range tx.Scripts {
-		// Do not check witness for a Notary contract -- it will be replaced by proper witness in any case.
-		// Also, do not check other contract-based witnesses (they can be combined with anything)
+		// Do not check (and count) the contract witness -- Notary one will be replaced by proper witness in any case,
+		// other contract witnesses must have empty verification scripts since they are not included into NKeys.
 		if len(w.VerificationScript) == 0 {
+			if len(w.InvocationScript) != 0 {
+				return nil, fmt.Errorf("witness #%d: only empty invocation scripts are supported for contract accounts", i)
+			}
 			result[i] = witnessInfo{
 				typ:       Contract,
 				nSigsLeft: 0,
