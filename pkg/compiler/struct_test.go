@@ -494,6 +494,69 @@ var structTestCases = []testCase{
 		`,
 		big.NewInt(1),
 	},
+	{
+		"embedded struct",
+		`type S12 struct { b1 int; S10; b2 int; }
+		func F%d() int {
+			var s S12
+			s.a = 31
+			s.b1 = 11
+			return s.b1 + s.a
+		}
+		`,
+		big.NewInt(42),
+	},
+	{
+		"nested embedded",
+		`type S13 struct { c1 int; c2 int; S12 }
+		func F%d() int {
+			var s S13
+			s.a = 31
+			s.b1 = 11
+			return s.a + s.b1
+		}
+		`,
+		big.NewInt(42),
+	},
+	{
+		"embedded pointer",
+		`type S14 struct { *S10; b int }
+		func F%d() int {
+			var s S14
+			s.S10 = &S10{}
+			s.a = 31
+			s.b = 11
+			return s.a + s.b
+		}
+		`,
+		big.NewInt(42),
+	},
+	{
+		"same field names",
+		`type S15 struct { S10; a int; b int }
+		func F%d() int {
+			var s S15
+			s.S10.a = 31
+			s.a = 5
+			s.b = 6
+			return s.S10.a + s.a + s.b
+		}
+		`,
+		big.NewInt(42),
+	},
+	{
+		"embedded pointer chain",
+		`type S16 struct { *S10 }
+		type S17 struct { *S16; b int }
+		func F%d() int {
+			var c S17
+			c.S16 = &S16{S10: &S10{a: 31}}
+			c.b = 11
+			return c.a + c.b
+		}
+		`,
+		big.NewInt(42),
+	},
 }
 
 func TestStructs(t *testing.T) {

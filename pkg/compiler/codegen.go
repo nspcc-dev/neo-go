@@ -228,9 +228,12 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	}
 }
 
-func (c *codegen) emitLoadField(i int) {
-	emit.Int(c.prog.BinWriter, int64(i))
-	emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
+// emitLoadField loads a field using the given path in reverse order from innermost to outermost.
+func (c *codegen) emitLoadField(path []int) {
+	for i := len(path) - 1; i >= 0; i-- {
+		emit.Int(c.prog.BinWriter, int64(path[i]))
+		emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
+	}
 }
 
 func (c *codegen) emitStoreStructField(i int) {
@@ -252,9 +255,14 @@ func (c *codegen) emitStoreSelectorExpr(n *ast.SelectorExpr) {
 		c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 		return
 	}
-	ast.Walk(c, n.X)                      // load the struct
-	i := indexOfStruct(strct, n.Sel.Name) // get the index of the field
-	c.emitStoreStructField(i)             // store the field
+	ast.Walk(c, n.X)                       // load the struct
+	path := pathToField(strct, n.Sel.Name) // get path to field
+	if path == nil {
+		c.prog.Err = fmt.Errorf("field %q not found in type %s", n.Sel.Name, typ)
+		return
+	}
+	c.emitLoadField(path[1:])       // load the field
+	c.emitStoreStructField(path[0]) // store the field
 }
 
 // emitStoreIndexExpr emits code to store into an index expression (container[index]).
@@ -1199,8 +1207,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil
 		}
 		ast.Walk(c, n.X) // load the struct
-		i := indexOfStruct(strct, n.Sel.Name)
-		c.emitLoadField(i) // load the field
+		path := pathToField(strct, n.Sel.Name)
+		if path == nil {
+			c.prog.Err = fmt.Errorf("field %q not found in type %s", n.Sel.Name, typ)
+			return nil
+		}
+		c.emitLoadField(path) // load the field
 		return nil
 
 	case *ast.UnaryExpr:
@@ -2011,11 +2023,11 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 				emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.SIZE)   // x y cnt x y len(y)
 				emit.Opcodes(c.prog.BinWriter, opcode.PUSH3, opcode.PICK) // x y cnt x y len(y) cnt
 				after := c.newLabel()
-				emit.Jmp(c.prog.BinWriter, opcode.JMPEQL, after) // x y cnt x y
+				emit.Jmp(c.prog.BinWriter, opcode.JMPEQL, after)          // x y cnt x y
 				emit.Opcodes(c.prog.BinWriter, opcode.PUSH2, opcode.PICK, // x y cnt x y cnt
 					opcode.PICKITEM, // x y cnt x y[cnt]
 					opcode.APPEND,   // x=append(x, y[cnt]) y cnt
-					opcode.INC) // x y cnt+1
+					opcode.INC)      // x y cnt+1
 				emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
 				c.setLabel(after)
 				for range 4 { // leave x on stack
