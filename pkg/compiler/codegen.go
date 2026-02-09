@@ -228,11 +228,6 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	}
 }
 
-func (c *codegen) emitLoadField(i int) {
-	emit.Int(c.prog.BinWriter, int64(i))
-	emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
-}
-
 func (c *codegen) emitStoreStructField(i int) {
 	emit.Int(c.prog.BinWriter, int64(i))
 	emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.SETITEM)
@@ -252,9 +247,17 @@ func (c *codegen) emitStoreSelectorExpr(n *ast.SelectorExpr) {
 		c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 		return
 	}
-	ast.Walk(c, n.X)                      // load the struct
-	i := indexOfStruct(strct, n.Sel.Name) // get the index of the field
-	c.emitStoreStructField(i)             // store the field
+	ast.Walk(c, n.X)                       // load the struct
+	path := pathToField(strct, n.Sel.Name) //
+	c.emitPickByPath(path[1:])             //
+	c.emitStoreStructField(path[0])        // store the field
+}
+
+func (c *codegen) emitPickByPath(path []int) {
+	for i := len(path) - 1; i >= 0; i-- {
+		emit.Int(c.prog.BinWriter, int64(path[i]))
+		emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
+	}
 }
 
 // emitStoreIndexExpr emits code to store into an index expression (container[index]).
@@ -1199,8 +1202,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil
 		}
 		ast.Walk(c, n.X) // load the struct
-		i := indexOfStruct(strct, n.Sel.Name)
-		c.emitLoadField(i) // load the field
+		path := pathToField(strct, n.Sel.Name)
+		c.emitPickByPath(path) // load the field
 		return nil
 
 	case *ast.UnaryExpr:
