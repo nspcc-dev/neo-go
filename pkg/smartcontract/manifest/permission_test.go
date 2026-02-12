@@ -107,7 +107,7 @@ func TestPermissionDesc_MarshalJSON(t *testing.T) {
 	t.Run("uint160 with 0x", func(t *testing.T) {
 		u := random.Uint160()
 		s := u.StringLE()
-		js := []byte(fmt.Sprintf(`"0x%s"`, s))
+		js := fmt.Appendf(nil, `"0x%s"`, s)
 		d := new(PermissionDesc)
 		require.NoError(t, json.Unmarshal(js, d))
 		require.Equal(t, u, d.Value.(util.Uint160))
@@ -116,10 +116,10 @@ func TestPermissionDesc_MarshalJSON(t *testing.T) {
 	t.Run("invalid uint160", func(t *testing.T) {
 		d := new(PermissionDesc)
 		s := random.String(util.Uint160Size * 2)
-		js := []byte(fmt.Sprintf(`"ok%s"`, s))
+		js := fmt.Appendf(nil, `"ok%s"`, s)
 		require.Error(t, json.Unmarshal(js, d))
 
-		js = []byte(fmt.Sprintf(`"%s"`, s))
+		js = fmt.Appendf(nil, `"%s"`, s)
 		require.Error(t, json.Unmarshal(js, d))
 	})
 
@@ -127,7 +127,7 @@ func TestPermissionDesc_MarshalJSON(t *testing.T) {
 		d := new(PermissionDesc)
 		s := random.String(65)
 		s = "k" + s // not a hex
-		js := []byte(fmt.Sprintf(`"%s"`, s))
+		js := fmt.Appendf(nil, `"%s"`, s)
 		require.Error(t, json.Unmarshal(js, d))
 	})
 

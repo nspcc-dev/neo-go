@@ -101,7 +101,7 @@ func TestCompiler(t *testing.T) {
 					data[i] = byte('a')
 				}
 				in := filepath.Join(tmp, "src.go")
-				require.NoError(t, os.WriteFile(in, []byte(fmt.Sprintf(src, data)), os.ModePerm))
+				require.NoError(t, os.WriteFile(in, fmt.Appendf(nil, src, data), os.ModePerm))
 				out := filepath.Join(tmp, "test.nef")
 				_, err := compiler.CompileAndSave(in, &compiler.Options{Outfile: out})
 				require.Error(t, err)

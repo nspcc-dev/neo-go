@@ -339,12 +339,12 @@ func TestGetWitness(t *testing.T) {
 func TestParamGetUint256(t *testing.T) {
 	gas := "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
 	u256, _ := util.Uint256DecodeStringLE(gas)
-	p := Param{RawMessage: []byte(fmt.Sprintf(`"%s"`, gas))}
+	p := Param{RawMessage: fmt.Appendf(nil, `"%s"`, gas)}
 	u, err := p.GetUint256()
 	assert.Equal(t, u256, u)
 	require.Nil(t, err)
 
-	p = Param{RawMessage: []byte(fmt.Sprintf(`"0x%s"`, gas))}
+	p = Param{RawMessage: fmt.Appendf(nil, `"0x%s"`, gas)}
 	u, err = p.GetUint256()
 	require.NoError(t, err)
 	assert.Equal(t, u256, u)
@@ -361,7 +361,7 @@ func TestParamGetUint256(t *testing.T) {
 func TestParamGetUint160FromHex(t *testing.T) {
 	in := "50befd26fdf6e4d957c11e078b24ebce6291456f"
 	u160, _ := util.Uint160DecodeStringLE(in)
-	p := Param{RawMessage: []byte(fmt.Sprintf(`"%s"`, in))}
+	p := Param{RawMessage: fmt.Appendf(nil, `"%s"`, in)}
 	u, err := p.GetUint160FromHex()
 	assert.Equal(t, u160, u)
 	require.Nil(t, err)
@@ -378,7 +378,7 @@ func TestParamGetUint160FromHex(t *testing.T) {
 func TestParamGetUint160FromAddress(t *testing.T) {
 	in := "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8"
 	u160, _ := address.StringToUint160(in)
-	p := Param{RawMessage: []byte(fmt.Sprintf(`"%s"`, in))}
+	p := Param{RawMessage: fmt.Appendf(nil, `"%s"`, in)}
 	u, err := p.GetUint160FromAddress()
 	assert.Equal(t, u160, u)
 	require.Nil(t, err)
@@ -397,14 +397,14 @@ func TestParam_GetUint160FromAddressOrHex(t *testing.T) {
 	inHex, _ := address.StringToUint160(in)
 
 	t.Run("Address", func(t *testing.T) {
-		p := Param{RawMessage: []byte(fmt.Sprintf(`"%s"`, in))}
+		p := Param{RawMessage: fmt.Appendf(nil, `"%s"`, in)}
 		u, err := p.GetUint160FromAddressOrHex()
 		require.NoError(t, err)
 		require.Equal(t, inHex, u)
 	})
 
 	t.Run("Hex", func(t *testing.T) {
-		p := Param{RawMessage: []byte(fmt.Sprintf(`"%s"`, inHex.StringLE()))}
+		p := Param{RawMessage: fmt.Appendf(nil, `"%s"`, inHex.StringLE())}
 		u, err := p.GetUint160FromAddressOrHex()
 		require.NoError(t, err)
 		require.Equal(t, inHex, u)
@@ -471,7 +471,7 @@ func TestParamGetFuncParamPair(t *testing.T) {
 func TestParamGetBytesHex(t *testing.T) {
 	in := "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
 	inb, _ := hex.DecodeString(in)
-	p := Param{RawMessage: []byte(fmt.Sprintf(`"%s"`, in))}
+	p := Param{RawMessage: fmt.Appendf(nil, `"%s"`, in)}
 	bh, err := p.GetBytesHex()
 	assert.Equal(t, inb, bh)
 	require.Nil(t, err)
@@ -490,7 +490,7 @@ func TestParamGetBytesBase64(t *testing.T) {
 	in := "Aj4A8DoW6HB84EXrQu6A05JFFUHuUQ3BjhyL77rFTXQm"
 	inb, err := base64.StdEncoding.DecodeString(in)
 	require.NoError(t, err)
-	p := Param{RawMessage: []byte(fmt.Sprintf(`"%s"`, in))}
+	p := Param{RawMessage: fmt.Appendf(nil, `"%s"`, in)}
 	bh, err := p.GetBytesBase64()
 	assert.Equal(t, inb, bh)
 	require.Nil(t, err)
@@ -530,7 +530,7 @@ func TestParamGetSigners(t *testing.T) {
 	u1 := util.Uint160{1, 2, 3, 4}
 	u2 := util.Uint160{5, 6, 7, 8}
 	t.Run("from hashes", func(t *testing.T) {
-		p := Param{RawMessage: []byte(fmt.Sprintf(`["%s", "%s"]`, u1.StringLE(), u2.StringLE()))}
+		p := Param{RawMessage: fmt.Appendf(nil, `["%s", "%s"]`, u1.StringLE(), u2.StringLE())}
 		actual, _, err := p.GetSignersWithWitnesses()
 		require.NoError(t, err)
 		require.Equal(t, 2, len(actual))
@@ -568,7 +568,7 @@ func TestParamGetUUID(t *testing.T) {
 	})
 	t.Run("compat", func(t *testing.T) {
 		expected := "2107da59-4f9c-462c-9c51-7666842519a9"
-		p := Param{RawMessage: []byte(fmt.Sprintf(`"%s"`, expected))}
+		p := Param{RawMessage: fmt.Appendf(nil, `"%s"`, expected)}
 		id, err := p.GetUUID()
 		require.NoError(t, err)
 		require.Equal(t, id.String(), expected)

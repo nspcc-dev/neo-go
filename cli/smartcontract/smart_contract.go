@@ -458,7 +458,7 @@ require (
 		return cli.Exit(err, 1)
 	}
 
-	data := []byte(fmt.Sprintf(smartContractTmpl, contractName))
+	data := fmt.Appendf(nil, smartContractTmpl, contractName)
 	if err := os.WriteFile(filepath.Join(basePath, fileName), data, 0644); err != nil {
 		return cli.Exit(err, 1)
 	}

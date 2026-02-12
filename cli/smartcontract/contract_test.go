@@ -1441,7 +1441,7 @@ func TestContractCompile_NEFSizeCheck(t *testing.T) {
 	in := filepath.Join(tmpDir, "main.go")
 	cfg := filepath.Join(tmpDir, "main.yml")
 	require.NoError(t, os.WriteFile(cfg, []byte("name: main"), os.ModePerm))
-	require.NoError(t, os.WriteFile(in, []byte(fmt.Sprintf(src, data)), os.ModePerm))
+	require.NoError(t, os.WriteFile(in, fmt.Appendf(nil, src, data), os.ModePerm))
 
 	e.RunWithError(t, "neo-go", "contract", "compile", "--in", in)
 	require.NoFileExists(t, filepath.Join(tmpDir, "main.nef"))
