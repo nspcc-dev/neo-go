@@ -567,7 +567,7 @@ func TestCryptoLib_RecoverSecp256K1_EIP2098Compat(t *testing.T) {
 			sigYParityAndS: "939c6d6b623b42da56557e5e734a43dc83345ddfadec52cbe24d0cc64f550793",
 		},
 	} {
-		msg := append([]byte{0x19}, []byte(fmt.Sprintf("Ethereum Signed Message:\n%d%s", len(tc.msg), tc.msg))...) // rules of Ethereum message hashing.
+		msg := append([]byte{0x19}, fmt.Appendf(nil, "Ethereum Signed Message:\n%d%s", len(tc.msg), tc.msg)...) // rules of Ethereum message hashing.
 		msgH := native.Keccak256(msg)
 		privBytes, err := hex.DecodeString(tc.priv)
 		require.NoError(t, err)

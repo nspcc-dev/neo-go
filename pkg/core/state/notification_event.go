@@ -159,7 +159,7 @@ type notificationEventAux struct {
 func (ne NotificationEvent) MarshalJSON() ([]byte, error) {
 	item, err := stackitem.ToJSONWithTypes(ne.Item)
 	if err != nil {
-		item = []byte(fmt.Sprintf(`"error: %v"`, err))
+		item = fmt.Appendf(nil, `"error: %v"`, err)
 	}
 	return json.Marshal(&notificationEventAux{
 		ScriptHash: ne.ScriptHash,
@@ -256,7 +256,7 @@ func (e Execution) MarshalJSON() ([]byte, error) {
 	for i := range arr {
 		data, err := stackitem.ToJSONWithTypes(e.Stack[i])
 		if err != nil {
-			data = []byte(fmt.Sprintf(`"error: %v"`, err))
+			data = fmt.Appendf(nil, `"error: %v"`, err)
 		}
 		arr[i] = data
 	}
