@@ -1,6 +1,7 @@
 package callflag
 
 import (
+	"math"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -89,4 +90,32 @@ func TestMarshalUnmarshalYAML(t *testing.T) {
 
 	var f CallFlag
 	require.Error(t, yaml.Unmarshal([]byte(`[]`), &f))
+}
+
+func TestIsValid(t *testing.T) {
+	// Valid flags.
+	for _, f := range []CallFlag{
+		NoneFlag,
+		All,
+		ReadStates,
+		WriteStates,
+		States,
+		ReadOnly,
+		States | AllowCall,
+		ReadOnly | AllowNotify,
+		States | AllowNotify,
+		WriteStates | AllowNotify,
+	} {
+		require.True(t, IsValid(f))
+	}
+
+	// Invalid flags.
+	for _, f := range []CallFlag{
+		All + 1,
+		All + 2,
+		123,
+		math.MaxUint8,
+	} {
+		require.False(t, IsValid(f))
+	}
 }
