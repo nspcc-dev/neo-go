@@ -25,7 +25,11 @@ func LoadToken(ic *interop.Context, id int32) error {
 	if !ctx.GetCallFlags().Has(callflag.ReadStates | callflag.AllowCall) {
 		return errors.New("invalid call flags")
 	}
-	tok := ctx.GetNEF().Tokens[id]
+	tokens := ctx.GetNEF().Tokens
+	if int(id) >= len(tokens) {
+		return fmt.Errorf("token id %d is out of %d range", id, len(tokens)-1)
+	}
+	tok := tokens[id]
 	if int(tok.ParamCount) > ctx.Estack().Len() {
 		return errors.New("stack is too small")
 	}
@@ -37,7 +41,14 @@ func LoadToken(ic *interop.Context, id int32) error {
 	if err != nil {
 		return fmt.Errorf("token contract %s not found: %w", tok.Hash.StringLE(), err)
 	}
-	return callInternal(ic, cs, tok.Method, tok.CallFlag, tok.HasReturn, args, false)
+	md := cs.Manifest.ABI.GetMethod(tok.Method, len(args))
+	if md == nil {
+		return fmt.Errorf("token method not found: %s/%d", tok.Method, len(args))
+	}
+	if tok.HasReturn != (md.ReturnType != smartcontract.VoidType) {
+		return fmt.Errorf("token %s/%d return value (%t) doesn't match the actual method return value", tok.Method, len(args), tok.HasReturn)
+	}
+	return callInternal(ic, cs, md, tok.CallFlag, tok.HasReturn, args, false)
 }
 
 // Call calls a contract with flags.
@@ -77,12 +88,11 @@ func Call(ic *interop.Context) error {
 		ci := state.NewContractInvocation(u, method, bytes.Clone(argBytes), uint32(arrCount))
 		ic.InvocationCalls = append(ic.InvocationCalls, *ci)
 	}
-	return callInternal(ic, cs, method, fs, hasReturn, args, true)
+	return callInternal(ic, cs, md, fs, hasReturn, args, true)
 }
 
-func callInternal(ic *interop.Context, cs *state.Contract, name string, f callflag.CallFlag,
+func callInternal(ic *interop.Context, cs *state.Contract, md *manifest.Method, f callflag.CallFlag,
 	hasReturn bool, args []stackitem.Item, isDynamic bool) error {
-	md := cs.Manifest.ABI.GetMethod(name, len(args))
 	if md.Safe {
 		f &^= (callflag.WriteStates | callflag.AllowNotify)
 	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
@@ -95,11 +105,11 @@ func callInternal(ic *interop.Context, cs *state.Contract, name string, f callfl
 				mfst = &curr.Manifest
 			}
 		}
-		if mfst != nil && !mfst.CanCall(cs.Hash, &cs.Manifest, name) {
+		if mfst != nil && !mfst.CanCall(cs.Hash, &cs.Manifest, md.Name) {
 			return errors.New("disallowed method call")
 		}
 	}
-	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, name, args, f, hasReturn, isDynamic, false)
+	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, md.Name, args, f, hasReturn, isDynamic, false)
 }
 
 // callExFromNative calls a contract with flags using the provided calling hash.
