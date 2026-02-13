@@ -17,62 +17,74 @@ import (
 )
 
 func TestGetIntFromInstr(t *testing.T) {
-	check := func(t *testing.T, prog []byte, expected int64, errExpected bool) {
-		ctx := NewContext(prog, 0)
-		instr, param, err := ctx.Next()
-		require.NoError(t, err)
-
-		actual, err := GetInt64FromInstr(Instruction{Op: instr, Param: param})
-		if errExpected {
-			require.Error(t, err)
-		} else {
+	t.Run("small int", func(t *testing.T) {
+		check := func(t *testing.T, prog []byte, expected int64, errExpected bool) {
+			ctx := NewContext(prog, 0)
+			instr, param, err := ctx.Next()
 			require.NoError(t, err)
-			require.Equal(t, expected, actual)
+
+			actual, err := GetInt64FromInstr(Instruction{Op: instr, Param: param})
+			if errExpected {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, expected, actual)
+			}
+
+			actualBig, err := GetBigIntFromInstr(Instruction{Op: instr, Param: param})
+			if errExpected {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, big.NewInt(expected), actualBig)
+			}
 		}
 
-		actualBig, err := GetBigIntFromInstr(Instruction{Op: instr, Param: param})
-		if errExpected {
-			require.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			require.Equal(t, big.NewInt(expected), actualBig)
+		// Good.
+		for _, i := range []int64{
+			-1,                 // PUSHM1
+			0, 1, 2, 3, 15, 16, // PUSH0..PUSH16
+			17, math.MaxInt8, math.MinInt8, // PUSHINT8
+			math.MaxInt8 + 1, math.MaxInt16, math.MinInt16, // PUSHINT16
+			-100500, math.MaxInt16 + 1, math.MaxInt32, math.MinInt32, // PUSHINT32
+			math.MaxInt32 + 1, math.MaxInt64, math.MinInt64, // PUSHINT64
+		} {
+			t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+				w := io.NewBufBinWriter()
+				emit.Int(w.BinWriter, i)
+				check(t, w.Bytes(), i, false)
+			})
 		}
-	}
 
-	// Good.
-	for _, i := range []int64{
-		-1,                 // PUSHM1
-		0, 1, 2, 3, 15, 16, // PUSH0..PUSH16
-		17, math.MaxInt8, // PUSHINT8
-		math.MaxInt8 + 1, math.MaxInt16, // PUSHINT16
-		-100500, math.MaxInt16 + 1, math.MaxInt32, // PUSHINT32
-		math.MaxInt32 + 1, math.MaxInt64, // PUSHINT64
-	} {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			w := io.NewBufBinWriter()
-			emit.Int(w.BinWriter, i)
-			check(t, w.Bytes(), i, false)
-		})
-	}
-
-	// BigInt.
-	t.Run("BigInt", func(t *testing.T) {
-		expected := new(big.Int).Add(big.NewInt(math.MaxInt64), big.NewInt(1))
+		// Bad.
 		w := io.NewBufBinWriter()
-		emit.BigInt(w.BinWriter, expected)
-
-		ctx := NewContext(w.Bytes(), 0)
-		instr, param, err := ctx.Next()
-		require.NoError(t, err)
-		actualBig, err := GetBigIntFromInstr(Instruction{Op: instr, Param: param})
-		require.NoError(t, err)
-		require.Equal(t, expected, actualBig)
+		emit.String(w.BinWriter, "abeunt studia in mores")
+		check(t, w.Bytes(), 0, true)
 	})
 
-	// Bad.
-	w := io.NewBufBinWriter()
-	emit.String(w.BinWriter, "abeunt studia in mores")
-	check(t, w.Bytes(), 0, true)
+	t.Run("big int", func(t *testing.T) {
+		check := func(t *testing.T, prog []byte, expected *big.Int) {
+			ctx := NewContext(prog, 0)
+			instr, param, err := ctx.Next()
+			require.NoError(t, err)
+
+			_, err = GetInt64FromInstr(Instruction{Op: instr, Param: param})
+			require.Error(t, err)
+
+			actualBig, err := GetBigIntFromInstr(Instruction{Op: instr, Param: param})
+			require.NoError(t, err)
+			require.Equal(t, expected, actualBig)
+		}
+
+		for _, i := range []*big.Int{
+			new(big.Int).Add(big.NewInt(math.MaxInt64), big.NewInt(1)),
+			new(big.Int).Sub(big.NewInt(math.MinInt64), big.NewInt(1)),
+		} {
+			w := io.NewBufBinWriter()
+			emit.BigInt(w.BinWriter, i)
+			check(t, w.Bytes(), i)
+		}
+	})
 }
 
 func TestGetStringFromInstr(t *testing.T) {

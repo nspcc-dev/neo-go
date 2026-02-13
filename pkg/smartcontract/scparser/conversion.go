@@ -107,12 +107,25 @@ func GetInt64FromInstr(instr Instruction) (int64, error) {
 	switch {
 	case opcode.PUSHM1 <= instr.Op && instr.Op <= opcode.PUSH16:
 		return int64(instr.Op) - int64(opcode.PUSH0), nil
-	case instr.Op <= opcode.PUSHINT256:
-		n := bigint.FromBytes(instr.Param)
-		if !n.IsInt64() {
+	case instr.Op == opcode.PUSHINT8:
+		return int64(int8(instr.Param[0])), nil
+	case instr.Op == opcode.PUSHINT16:
+		return int64(int16(binary.LittleEndian.Uint16(instr.Param))), nil
+	case instr.Op == opcode.PUSHINT32:
+		return int64(int32(binary.LittleEndian.Uint32(instr.Param))), nil
+	case instr.Op == opcode.PUSHINT64:
+		return int64(binary.LittleEndian.Uint64(instr.Param)), nil
+	case instr.Op == opcode.PUSHINT128 || instr.Op == opcode.PUSHINT256:
+		for _, b := range instr.Param[8:] {
+			if b != 0 {
+				return 0, errors.New("parameter is not int64")
+			}
+		}
+		if byte(instr.Param[7]) >= 0x80 {
 			return 0, errors.New("parameter is not int64")
 		}
-		return n.Int64(), nil
+
+		return int64(binary.LittleEndian.Uint64(instr.Param)), nil
 	default:
 		return 0, fmt.Errorf("expected %s, %s-%s, %s-%s got %s", opcode.PUSHM1, opcode.PUSH0, opcode.PUSH16, opcode.PUSHINT8, opcode.PUSHINT256, instr)
 	}
