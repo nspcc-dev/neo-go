@@ -247,7 +247,7 @@ func (c *codegen) emitStoreSelectorExpr(n *ast.SelectorExpr) {
 		c.emitStoreVar(n.X.(*ast.Ident).Name, n.Sel.Name)
 		return
 	}
-	strct, ok := c.getStruct(typ)
+	strct, ok := getStruct(typ)
 	if !ok {
 		c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 		return
@@ -957,7 +957,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.StarExpr:
-		_, ok := c.getStruct(c.typeOf(n.X))
+		_, ok := getStruct(c.typeOf(n.X))
 		if !ok {
 			c.prog.Err = errors.New("dereferencing is only supported on structs")
 			return nil
@@ -1193,7 +1193,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			return nil
 		}
-		strct, ok := c.getStruct(typ)
+		strct, ok := getStruct(typ)
 		if !ok {
 			c.prog.Err = fmt.Errorf("selectors are supported only on structs")
 			return nil
@@ -2011,11 +2011,11 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 				emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.SIZE)   // x y cnt x y len(y)
 				emit.Opcodes(c.prog.BinWriter, opcode.PUSH3, opcode.PICK) // x y cnt x y len(y) cnt
 				after := c.newLabel()
-				emit.Jmp(c.prog.BinWriter, opcode.JMPEQL, after)          // x y cnt x y
+				emit.Jmp(c.prog.BinWriter, opcode.JMPEQL, after) // x y cnt x y
 				emit.Opcodes(c.prog.BinWriter, opcode.PUSH2, opcode.PICK, // x y cnt x y cnt
 					opcode.PICKITEM, // x y cnt x y[cnt]
 					opcode.APPEND,   // x=append(x, y[cnt]) y cnt
-					opcode.INC)      // x y cnt+1
+					opcode.INC) // x y cnt+1
 				emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
 				c.setLabel(after)
 				for range 4 { // leave x on stack
@@ -2226,7 +2226,7 @@ func (c *codegen) convertMap(lit *ast.CompositeLit) {
 	emit.Opcodes(c.prog.BinWriter, opcode.PACKMAP)
 }
 
-func (c *codegen) getStruct(typ types.Type) (*types.Struct, bool) {
+func getStruct(typ types.Type) (*types.Struct, bool) {
 	switch t := typ.Underlying().(type) {
 	case *types.Struct:
 		return t, true
