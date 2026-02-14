@@ -226,15 +226,36 @@ func isExprNil(e ast.Expr) bool {
 	return ok && v.Name == "nil"
 }
 
-// indexOfStruct returns the index of the given field inside that struct.
+// pathToField returns the index of the given field inside that struct.
 // If the struct does not contain that field, it will return -1.
-func indexOfStruct(strct *types.Struct, fldName string) int {
-	for i := range strct.NumFields() {
-		if strct.Field(i).Name() == fldName {
-			return i
+func pathToField(strct *types.Struct, fldName string) []int {
+	var (
+		res []int
+		f   func(*types.Struct) int
+	)
+	f = func(t *types.Struct) int {
+		for i := range t.NumFields() {
+			if t.Field(i).Name() == fldName {
+				return i
+			}
 		}
+		for i := range t.NumFields() {
+			fld := t.Field(i)
+			if !fld.Embedded() {
+				continue
+			}
+			if tt, ok := getStruct(fld.Type()); ok {
+				if j := f(tt); j >= 0 {
+					res = append(res, j)
+					return i
+				}
+			}
+		}
+		return -1
 	}
-	return -1
+	i := f(strct)
+	res = append(res, i)
+	return res
 }
 
 type funcUsage map[string]bool
