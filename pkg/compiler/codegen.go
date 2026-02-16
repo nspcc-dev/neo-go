@@ -228,9 +228,12 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	}
 }
 
-func (c *codegen) emitLoadField(i int) {
-	emit.Int(c.prog.BinWriter, int64(i))
-	emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
+// emitLoadField loads a field using the given path in reverse order from innermost to outermost.
+func (c *codegen) emitLoadField(path []int) {
+	for i := len(path) - 1; i >= 0; i-- {
+		emit.Int(c.prog.BinWriter, int64(path[i]))
+		emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
+	}
 }
 
 func (c *codegen) emitStoreStructField(i int) {
@@ -247,14 +250,19 @@ func (c *codegen) emitStoreSelectorExpr(n *ast.SelectorExpr) {
 		c.emitStoreVar(n.X.(*ast.Ident).Name, n.Sel.Name)
 		return
 	}
-	strct, ok := c.getStruct(typ)
+	strct, ok := getStruct(typ)
 	if !ok {
 		c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 		return
 	}
-	ast.Walk(c, n.X)                      // load the struct
-	i := indexOfStruct(strct, n.Sel.Name) // get the index of the field
-	c.emitStoreStructField(i)             // store the field
+	ast.Walk(c, n.X)                       // load the struct
+	path := pathToField(strct, n.Sel.Name) // get path to field
+	if path == nil {
+		c.prog.Err = fmt.Errorf("field %q not found in type %s", n.Sel.Name, typ)
+		return
+	}
+	c.emitLoadField(path[1:])       // load the field
+	c.emitStoreStructField(path[0]) // store the field
 }
 
 // emitStoreIndexExpr emits code to store into an index expression (container[index]).
@@ -957,7 +965,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.StarExpr:
-		_, ok := c.getStruct(c.typeOf(n.X))
+		_, ok := getStruct(c.typeOf(n.X))
 		if !ok {
 			c.prog.Err = errors.New("dereferencing is only supported on structs")
 			return nil
@@ -1193,14 +1201,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			return nil
 		}
-		strct, ok := c.getStruct(typ)
+		strct, ok := getStruct(typ)
 		if !ok {
 			c.prog.Err = fmt.Errorf("selectors are supported only on structs")
 			return nil
 		}
 		ast.Walk(c, n.X) // load the struct
-		i := indexOfStruct(strct, n.Sel.Name)
-		c.emitLoadField(i) // load the field
+		path := pathToField(strct, n.Sel.Name)
+		if path == nil {
+			c.prog.Err = fmt.Errorf("field %q not found in type %s", n.Sel.Name, typ)
+			return nil
+		}
+		c.emitLoadField(path) // load the field
 		return nil
 
 	case *ast.UnaryExpr:
@@ -2226,7 +2238,7 @@ func (c *codegen) convertMap(lit *ast.CompositeLit) {
 	emit.Opcodes(c.prog.BinWriter, opcode.PACKMAP)
 }
 
-func (c *codegen) getStruct(typ types.Type) (*types.Struct, bool) {
+func getStruct(typ types.Type) (*types.Struct, bool) {
 	switch t := typ.Underlying().(type) {
 	case *types.Struct:
 		return t, true
