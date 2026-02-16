@@ -44,9 +44,6 @@ type invokeAux struct {
 	Session        string                    `json:"session,omitzero"`
 }
 
-// iteratorInterfaceName is a string used to mark Iterator inside the InteropInterface.
-const iteratorInterfaceName = "IIterator"
-
 type iteratorAux struct {
 	Type      string            `json:"type"`
 	Interface string            `json:"interface,omitzero"`
@@ -81,7 +78,7 @@ func (r Iterator) MarshalJSON() ([]byte, error) {
 	var iaux iteratorAux
 	iaux.Type = stackitem.InteropT.String()
 	if r.ID != nil {
-		iaux.Interface = iteratorInterfaceName
+		iaux.Interface = stackitem.IteratorInterfaceName
 		iaux.ID = r.ID.String()
 	}
 	if r.Values != nil {
@@ -107,7 +104,7 @@ func (r *Iterator) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if len(iteratorAux.Interface) != 0 {
-		if iteratorAux.Interface != iteratorInterfaceName {
+		if iteratorAux.Interface != stackitem.IteratorInterfaceName {
 			return fmt.Errorf("unknown InteropInterface: %s", iteratorAux.Interface)
 		}
 		var iID uuid.UUID

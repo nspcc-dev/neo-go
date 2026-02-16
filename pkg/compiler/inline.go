@@ -8,8 +8,8 @@ import (
 	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -176,7 +176,7 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool)
 	// extMap holds the extended parameter types used for the given event call.
 	// It will be unified with the common extMap later during bindings config
 	// generation.
-	extMap := make(map[string]binding.ExtendedType)
+	extMap := make(map[string]manifest.ExtendedType)
 	for _, p := range args[1:] {
 		st, vt, over, extT := c.scAndVMTypeFromExpr(p, extMap)
 		params = append(params, DebugParam{

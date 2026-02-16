@@ -68,11 +68,11 @@ type Options struct {
 	SourceURL string
 
 	// Runtime notifications declared in the contract configuration file.
-	ContractEvents []HybridEvent
+	ContractEvents []manifest.Event
 
-	// DeclaredNamedTypes is the set of named types that were declared in the
+	// NamedTypes is the set of named types that were declared in the
 	// contract configuration type and are the part of manifest events.
-	DeclaredNamedTypes map[string]binding.ExtendedType
+	NamedTypes map[string]manifest.ExtendedType
 
 	// The list of standards supported by the contract.
 	ContractSupportedStandards []string
@@ -89,23 +89,6 @@ type Options struct {
 
 	// BindingsFile contains configuration for smart-contract bindings generator.
 	BindingsFile string
-}
-
-// HybridEvent represents the description of event emitted by the contract squashed
-// with extended event's parameters description. We have it as a separate type for
-// the user's convenience. It is applied for the smart contract configuration file
-// only.
-type HybridEvent struct {
-	Name       string            `json:"name"`
-	Parameters []HybridParameter `json:"parameters"`
-}
-
-// HybridParameter contains the manifest's event parameter description united with
-// the extended type description for this parameter. It is applied for the smart
-// contract configuration file only.
-type HybridParameter struct {
-	manifest.Parameter `yaml:",inline"`
-	ExtendedType       *binding.ExtendedType `yaml:"extendedtype,omitempty"`
 }
 
 type buildInfo struct {
@@ -329,14 +312,17 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 				cfg.Types[m.Name.Name] = *m.ReturnTypeExtended
 			}
 		}
-		if len(di.NamedTypes) > 0 {
-			cfg.NamedTypes = di.NamedTypes
+		for name, et := range o.NamedTypes {
+			if strs := strings.Split(name, "."); len(strs) != 2 || strs[0] != di.MainPkg {
+				o.NamedTypes[di.MainPkg+"."+strs[len(strs)-1]] = et
+				delete(o.NamedTypes, name)
+			}
 		}
-		for name, et := range o.DeclaredNamedTypes {
-			if _, ok := cfg.NamedTypes[name]; ok {
+		for name, et := range di.NamedTypes {
+			if _, ok := o.NamedTypes[name]; ok {
 				return nil, fmt.Errorf("configured declared named type intersects with the contract's one: `%s`", name)
 			}
-			cfg.NamedTypes[name] = et
+			o.NamedTypes[name] = et
 		}
 		for _, e := range o.ContractEvents {
 			eStructName := rpcbinding.ToEventBindingName(e.Name)
@@ -358,7 +344,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 				for _, eventName := range keys {
 					var (
 						eventUsages   = di.EmittedEvents[eventName]
-						manifestEvent HybridEvent
+						manifestEvent manifest.Event
 					)
 					for _, e := range o.ContractEvents {
 						if e.Name == eventName {
@@ -400,12 +386,12 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 						if p.ExtendedType != nil {
 							typeName := p.ExtendedType.Name
 							if extType, ok := exampleUsage.ExtTypes[typeName]; ok {
-								for _, ok := cfg.NamedTypes[typeName]; ok; _, ok = cfg.NamedTypes[typeName] {
+								for _, ok := o.NamedTypes[typeName]; ok; _, ok = o.NamedTypes[typeName] {
 									typeName = typeName + "X"
 								}
 								extType.Name = typeName
 								p.ExtendedType.Name = typeName
-								cfg.NamedTypes[typeName] = extType
+								o.NamedTypes[typeName] = extType
 							}
 							if _, ok := cfg.Types[pname]; !ok {
 								cfg.Types[pname] = *p.ExtendedType

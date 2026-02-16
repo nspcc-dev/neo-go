@@ -188,16 +188,16 @@ func TestEventWarnings(t *testing.T) {
 	})
 	t.Run("wrong parameter number", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
-			ContractEvents: []compiler.HybridEvent{{Name: "Event"}},
+			ContractEvents: []manifest.Event{{Name: "Event"}},
 			Name:           "payable",
 		})
 		require.Error(t, err)
 	})
 	t.Run("wrong parameter type", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
-			ContractEvents: []compiler.HybridEvent{{
+			ContractEvents: []manifest.Event{{
 				Name:       "Event",
-				Parameters: []compiler.HybridParameter{{Parameter: manifest.NewParameter("number", smartcontract.StringType)}},
+				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.StringType)},
 			}},
 			Name: "payable",
 		})
@@ -205,9 +205,9 @@ func TestEventWarnings(t *testing.T) {
 	})
 	t.Run("any parameter type", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
-			ContractEvents: []compiler.HybridEvent{{
+			ContractEvents: []manifest.Event{{
 				Name:       "Event",
-				Parameters: []compiler.HybridParameter{{Parameter: manifest.NewParameter("number", smartcontract.AnyType)}},
+				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.AnyType)},
 			}},
 			Name: "payable",
 		})
@@ -215,9 +215,9 @@ func TestEventWarnings(t *testing.T) {
 	})
 	t.Run("good", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
-			ContractEvents: []compiler.HybridEvent{{
+			ContractEvents: []manifest.Event{{
 				Name:       "Event",
-				Parameters: []compiler.HybridParameter{{Parameter: manifest.NewParameter("number", smartcontract.IntegerType)}},
+				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.IntegerType)},
 			}},
 			Name: "payable",
 		})
@@ -253,7 +253,7 @@ func TestEventWarnings(t *testing.T) {
 			require.Error(t, err)
 
 			_, err = compiler.CreateManifest(di, &compiler.Options{
-				ContractEvents: []compiler.HybridEvent{{Name: "Event"}},
+				ContractEvents: []manifest.Event{{Name: "Event"}},
 				Name:           "eventTest",
 			})
 			require.NoError(t, err)
@@ -271,9 +271,9 @@ func TestEventWarnings(t *testing.T) {
 
 		_, err = compiler.CreateManifest(di, &compiler.Options{
 			Name: "eventTest",
-			ContractEvents: []compiler.HybridEvent{{
+			ContractEvents: []manifest.Event{{
 				Name:       "Event",
-				Parameters: []compiler.HybridParameter{{Parameter: manifest.NewParameter("number", smartcontract.IntegerType)}},
+				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.IntegerType)},
 			}},
 		})
 		require.NoError(t, err)
@@ -289,7 +289,7 @@ func TestNotifyInVerify(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			src := fmt.Sprintf(srcTmpl, name)
 			_, _, err := compiler.CompileWithOptions("eventTest.go", strings.NewReader(src),
-				&compiler.Options{ContractEvents: []compiler.HybridEvent{{Name: "Event"}}})
+				&compiler.Options{ContractEvents: []manifest.Event{{Name: "Event"}}})
 			require.Error(t, err)
 
 			t.Run("suppress", func(t *testing.T) {

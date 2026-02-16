@@ -5,14 +5,14 @@ events:
       - name: p1
         type: Struct
         extendedtype:
-          base: Struct
-          name: SomeStruct
+          type: Struct
+          namedtype: SomeStruct
 namedtypes:
   SomeStruct:
-    base: Struct
-    name: SomeStruct
+    type: Struct
+    namedtype: SomeStruct
     fields:
-      - field: Field
-        base: Integer
-      - field: field
-        base: Integer
+      - name: Field
+        type: Integer
+      - name: field
+        type: Integer

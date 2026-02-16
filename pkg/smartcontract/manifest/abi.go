@@ -27,8 +27,9 @@ const (
 
 // ABI represents a contract application binary interface.
 type ABI struct {
-	Methods []Method `json:"methods"`
-	Events  []Event  `json:"events"`
+	Methods    []Method                `json:"methods"`
+	Events     []Event                 `json:"events"`
+	NamedTypes map[string]ExtendedType `json:"namedtypes,omitempty"`
 }
 
 // GetMethod returns methods with the specified name.
