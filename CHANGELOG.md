@@ -2,6 +2,39 @@
 
 This document outlines major changes between releases.
 
+## 0.117.0 "Exponentiation" (17 Feb 2026)
+
+One more 3.9.2 compatible version that brings a number of important bug fixes
+along with compiler improvements and performance optimisations. It also
+introduces support for custom `System.Contract.Call`-based witnesses for notary
+service and a set of extensions for `scparser` package that can be used for
+static VM scripts reverse-engineering (`System.Contract.Call` with arbitrary
+number of nested arguments is supported).
+
+No resync or configuration change is required on upgrade.
+
+Behavior changes:
+ * storage dump format is adjusted to follow StorageDumper plugin output (#4143)
+
+Improvements:
+ * add VM script parsing extensions to `scparser` package (#4122)
+ * export default native contract constructors (#4145)
+ * export default native NeoToken contract implementation (#4146)
+ * support parallel coverage collection in `neotest` (#4101)
+ * support signing with custom verification scripts in `wallet` (#4147)
+ * optimize public key method allocations (#4154)
+ * support embedded struct fields in compiler (#4160)
+ * support custom `System.Contract.Call`-based witness collection by notary
+   service (#4155) 
+
+Bugs fixed:
+ * invalid MPT traversal order leading to incorrect `findstates` and
+   `findstoragehistoric` results (#4151)
+ * invalid handling of `switch` with non-last `default` case in compiler (#4078)
+ * missing `CALLT` parameters verification (#4165)
+ * invalid reference counting for unreferenced elements (#4152, #4153)
+ * improper parametrized contract witness collection (#4157)
+
 ## 0.116.0 "Shimmeriness" (21 Jan 2026)
 
 This version is fully compatible with the C# node 3.9.2. It extends and enables
