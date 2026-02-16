@@ -2,7 +2,7 @@
 
 This document outlines major changes between releases.
 
-## 0.116.0 "Shimmeriness" (21 Jan 2025)
+## 0.116.0 "Shimmeriness" (21 Jan 2026)
 
 This version is fully compatible with the C# node 3.9.2. It extends and enables
 Faun hardfork, introduces P2P-level optimisations and fixes a couple of critical
