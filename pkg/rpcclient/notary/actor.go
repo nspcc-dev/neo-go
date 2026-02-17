@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -149,7 +150,7 @@ func newTunedActor(c RPCActor, signers []actor.SignerAccount, simpleAcc *wallet.
 		return nil, errors.New("at least one signer (sender) is required")
 	}
 	var nKeys int
-	for _, sa := range signers {
+	for i, sa := range signers {
 		if sa.Account.Contract == nil {
 			return nil, fmt.Errorf("empty contract for account %s", sa.Account.Address)
 		}
@@ -163,11 +164,16 @@ func newTunedActor(c RPCActor, signers []actor.SignerAccount, simpleAcc *wallet.
 			nKeys++
 			continue
 		}
-		_, pubs, ok := scparser.ParseMultiSigContract(sa.Account.Contract.Script)
-		if !ok {
-			return nil, fmt.Errorf("signer %s is not a contract- or signature-based", sa.Account.Address)
+		if _, pubs, ok := scparser.ParseMultiSigContract(sa.Account.Contract.Script); ok {
+			nKeys += len(pubs)
+			continue
 		}
-		nKeys += len(pubs)
+		n, m, err := notary.ParseAppCallContract(sa.Account.Contract.Script)
+		if err == nil {
+			nKeys += n - m
+			continue
+		}
+		return nil, fmt.Errorf("signer #%d (%s) is not a standard signature/multisignature/contract based; custom AppCall script parsing failed: %w", i, sa.Account.Address, err)
 	}
 	if nKeys > 255 {
 		return nil, fmt.Errorf("notary subsystem can't handle more than 255 signatures")

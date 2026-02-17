@@ -41,9 +41,8 @@ type PushedItem struct {
 }
 
 // Instruction represents a single VM instruction ([opcode.Opcode] with an
-// optional parameter). Do not modify the content of Param, it will lead to the
-// modifications of the original script buffer since no copy is performed during
-// script parsing.
+// optional parameter). You may safely modify the content of Param since a copy
+// of the original script buffer is created during script parsing.
 type Instruction struct {
 	Op    opcode.Opcode
 	Param []byte
@@ -318,7 +317,9 @@ func GetListOfEFromContext[E any](ctx *Context, getEFromInstr GetEFromInstr[E], 
 // to the instruction corresponding to System.Contract.Call's callflag argument
 // (if there's any). It does not check if there are additional opcodes after the
 // first [opcode.RET] occurrence, so check the context's IP against the script
-// length if you need to ensure that.
+// length if you need to ensure that. It returns an unwrapped list of elements
+// in the direct order (no additional reverse due to stack operations order is
+// required).
 func GetListFromContext(ctx *Context, maxLen ...int) ([]PushedItem, error) {
 	return getListFromContext(ctx, true, maxLen...)
 }
@@ -451,21 +452,23 @@ parseLoop:
 			}
 
 			lastPackNextIP = ctx.NextIP()
+		case opcode.DUP:
+			res = append(res, res[len(res)-1])
 		case opcode.REVERSEITEMS:
 			if len(res) == 0 {
 				return res, 0, fmt.Errorf("REVERSEITEMS instruction requires at least 1 element on stack")
 			}
 			e := res[len(res)-1]
+			res = res[:len(res)-1]
 			switch {
 			case e.IsList():
 				slices.Reverse(e.List)
 			case !e.IsNested():
-				b, err := GetBytesFromInstr(e.Instruction)
+				_, err := GetBytesFromInstr(e.Instruction)
 				if err != nil {
 					return res, 0, fmt.Errorf("REVERSEITEMS instruction requires Array/Struct/Buffer on stack")
 				}
-				e.Param = bytes.Clone(b) // don't change the original buffer.
-				slices.Reverse(e.Param)
+				slices.Reverse(e.Param) // change the original buffer, it's a reference type.
 			default:
 				return res, 0, fmt.Errorf("REVERSEITEMS instruction requires Array/Struct/Buffer on stack, got %s", e.Op)
 			}
@@ -516,8 +519,8 @@ parseLoop:
 			opcode.PUSH4, opcode.PUSH5, opcode.PUSH6, opcode.PUSH7,
 			opcode.PUSH8, opcode.PUSH9, opcode.PUSH10, opcode.PUSH11,
 			opcode.PUSH12, opcode.PUSH13, opcode.PUSH14, opcode.PUSH15, opcode.PUSH16:
-			res = append(res, PushedItem{Instruction: Instruction{Op: instr, Param: param}}) // make a copy since some parameters are reversed.
-			if len(res) > maxL+1 {                                                           // 1 extra element is allowed for PACK's argument
+			res = append(res, PushedItem{Instruction: Instruction{Op: instr, Param: bytes.Clone(param)}}) // make a copy since some parameters are reversed.
+			if len(res) > maxL+1 {                                                                        // 1 extra element is allowed for PACK's argument
 				return res, 0, fmt.Errorf("number of elements exceeds %d", maxL)
 			}
 		default:

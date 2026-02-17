@@ -318,7 +318,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		}
 		x = new(big.Int).SetBytes(xbytes)
 		y = new(big.Int).SetBytes(ybytes)
-		if !curve.IsOnCurve(x, y) {
+		if !curve.IsOnCurve(x, y) { // nolint: staticcheck
 			r.Err = errors.New("encoded point is not on the P256 curve")
 			return
 		}

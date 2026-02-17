@@ -11,7 +11,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -485,4 +489,45 @@ func TestVerifyIncompleteRequest(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseAppCallContract(t *testing.T) {
+	check := func(t *testing.T, reveseitems bool) {
+		// Assume `verifySecret` accepts 5 arguments: 3 from invocation script and 2 from verification script.
+		const n = 5
+		b := io.NewBufBinWriter()
+		emit.Int(b.BinWriter, 1)             // 4-th arg.
+		emit.String(b.BinWriter, "some arg") // 5-th arg
+		emit.Int(b.BinWriter, n)             // overall number of contract call args.
+		emit.Opcodes(b.BinWriter, opcode.PACK)
+		if reveseitems {
+			emit.Opcodes(b.BinWriter, opcode.DUP, opcode.REVERSEITEMS)
+		}
+		emit.AppCallNoArgs(b.BinWriter, util.Uint160{1, 2, 3}, "verifySecret", callflag.ReadOnly)
+
+		nActual, presentActual, err := ParseAppCallContract(b.Bytes())
+		require.NoError(t, err)
+		require.Equal(t, n, nActual)
+		require.Equal(t, 2, presentActual)
+	}
+
+	t.Run("good, with REVERSEITEMS", func(t *testing.T) {
+		check(t, true)
+	})
+	t.Run("good, without REVERSEITEMS", func(t *testing.T) {
+		check(t, false)
+	})
+	t.Run("all arguments present", func(t *testing.T) {
+		b := io.NewBufBinWriter()
+		emit.Int(b.BinWriter, 1)             // 2-th arg.
+		emit.String(b.BinWriter, "some arg") // 1-th arg
+		emit.Int(b.BinWriter, 2)             // overall number of contract call args.
+		emit.Opcodes(b.BinWriter, opcode.PACK)
+		emit.AppCallNoArgs(b.BinWriter, util.Uint160{1, 2, 3}, "verifySecret", callflag.ReadOnly)
+
+		n, m, err := ParseAppCallContract(b.Bytes())
+		require.NoError(t, err)
+		require.Equal(t, 2, n)
+		require.Equal(t, 2, m)
+	})
 }

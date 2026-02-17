@@ -1,6 +1,7 @@
 package scparser
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -336,7 +337,7 @@ func TestGetListFromContext(t *testing.T) {
 		t.Run("reversed", func(t *testing.T) {
 			w := io.NewBufBinWriter()
 			emit.Any(w.BinWriter, []any{1, 2, 3})
-			emit.Opcodes(w.BinWriter, opcode.REVERSEITEMS)
+			emit.Opcodes(w.BinWriter, opcode.DUP, opcode.REVERSEITEMS)
 			check(t, w.Bytes(), []int64{3, 2, 1}, true)
 		})
 		t.Run("SWAP-ed elements", func(t *testing.T) {
@@ -447,7 +448,7 @@ func TestGetListFromContext(t *testing.T) {
 		t.Run("reversed", func(t *testing.T) {
 			w := io.NewBufBinWriter()
 			emit.Any(w.BinWriter, []any{true, false})
-			emit.Opcodes(w.BinWriter, opcode.REVERSEITEMS)
+			emit.Opcodes(w.BinWriter, opcode.DUP, opcode.REVERSEITEMS)
 			check(t, w.Bytes(), []bool{false, true}, false)
 		})
 		t.Run("invalid list length element", func(t *testing.T) {
@@ -484,7 +485,7 @@ func TestGetListFromContext(t *testing.T) {
 		t.Run("reversed", func(t *testing.T) {
 			w := io.NewBufBinWriter()
 			emit.Any(w.BinWriter, []any{util.Uint160{1, 2, 3}, util.Uint160{4, 5, 6}})
-			emit.Opcodes(w.BinWriter, opcode.REVERSEITEMS)
+			emit.Opcodes(w.BinWriter, opcode.DUP, opcode.REVERSEITEMS)
 			check(t, w.Bytes(), []util.Uint160{{4, 5, 6}, {1, 2, 3}}, false)
 		})
 		t.Run("bad", func(t *testing.T) {
@@ -758,5 +759,23 @@ func TestParseSomething(t *testing.T) {
 
 		_, err := ParseSomething(prog, false)
 		require.ErrorContains(t, err, "static parser does not support NEWMAP instruction")
+	})
+	t.Run("[]byte", func(t *testing.T) {
+		t.Run("reversed", func(t *testing.T) {
+			w := io.NewBufBinWriter()
+			emit.Any(w.BinWriter, []byte{1, 2, 3})
+			emit.Opcodes(w.BinWriter, opcode.DUP, opcode.REVERSEITEMS)
+			expectedProg := w.Bytes()
+			actualProg := bytes.Clone(expectedProg)
+
+			res, err := ParseSomething(actualProg, true)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(res))
+			require.False(t, res[0].IsNested())
+			actual, err := GetBytesFromInstr(res[0].Instruction)
+			require.NoError(t, err)
+			require.Equal(t, []byte{3, 2, 1}, actual)
+			require.Equal(t, expectedProg, actualProg) // ensure the original prog is not suffered.
+		})
 	})
 }

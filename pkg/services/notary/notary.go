@@ -111,13 +111,18 @@ type (
 		// following:
 		// nSigsLeft == nKeys for standard [Signature] request;
 		// nSigsLeft <= nKeys for [MultiSignature] request;
-		// nSigsLeft == 0 for [Contract] witness request.
+		// nSigsLeft == 0 for [Contract] witness request;
+		// nSigsLeft <= nKeys for AppCall request.
 		nSigsLeft uint8
 
 		// sigs is a map of partial multisig invocation scripts [opcode.PUSHDATA1+64+signatureBytes] grouped by public keys.
 		sigs map[*keys.PublicKey][]byte
 		// pubs is a set of public keys participating in the multisignature witness collection.
 		pubs keys.PublicKeys
+
+		// args is a list of invocation script parts for AppCall witness. Duplicates are allowed. No partial verification
+		// is supported. No sorting is performed.
+		args [][]byte
 	}
 )
 
@@ -342,6 +347,29 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 			}
 			// pubKey was not found for the signature (i.e. signature is bad) or the signature has already
 			// been added - we're OK with that, let the fallback TX to be added
+		case AppCall:
+			if r.witnessInfo[i].args == nil {
+				r.witnessInfo[i].args = make([][]byte, 0, r.witnessInfo[i].nSigsLeft)
+			}
+			// No verification for AppCall is supported - technically, anyone is allowed to mess up main tx,
+			// but the service is not able to verify parts of invocation script for custom appcall.
+			r.witnessInfo[i].args = append(r.witnessInfo[i].args, w.InvocationScript)
+
+			args, err := scparser.ParseSomething(w.InvocationScript, true)
+			if err != nil {
+				continue
+			}
+			if len(args) > int(r.witnessInfo[i].nSigsLeft) {
+				continue
+			}
+			r.witnessInfo[i].nSigsLeft -= byte(len(args))
+			if r.witnessInfo[i].nSigsLeft == 0 {
+				var invScript []byte
+				for _, part := range r.witnessInfo[i].args {
+					invScript = append(invScript, part...)
+				}
+				r.main.Scripts[i].InvocationScript = invScript
+			}
 		}
 	}
 	if r.isMainCompleted() && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
@@ -559,13 +587,11 @@ func verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8)
 		if !tx.Signers[i].Account.Equals(hash.Hash160(w.VerificationScript)) { // https://github.com/nspcc-dev/neo-go/pull/1658#discussion_r564265987
 			return nil, fmt.Errorf("transaction should have valid verification script for signer #%d", i)
 		}
-		// Each verification script is allowed to have either one signature or zero signatures. If signature is provided, then need to verify it.
-		if len(w.InvocationScript) != 0 {
-			if len(w.InvocationScript) != 66 || !bytes.HasPrefix(w.InvocationScript, []byte{byte(opcode.PUSHDATA1), keys.SignatureLen}) {
-				return nil, fmt.Errorf("witness #%d: invocation script should have length = 66 and be of the form [PUSHDATA1, 64, signatureBytes...]", i)
-			}
-		}
 		if nSigs, pubsBytes, ok := scparser.ParseMultiSigContract(w.VerificationScript); ok {
+			err := verifyIncompleteStandardInvocationScript(w.InvocationScript)
+			if err != nil {
+				return nil, fmt.Errorf("witness #%d: %w", i, err)
+			}
 			result[i] = witnessInfo{
 				typ:       MultiSignature,
 				nSigsLeft: uint8(nSigs),
@@ -582,6 +608,10 @@ func verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8)
 			continue
 		}
 		if pBytes, ok := scparser.ParseSignatureContract(w.VerificationScript); ok {
+			err := verifyIncompleteStandardInvocationScript(w.InvocationScript)
+			if err != nil {
+				return nil, fmt.Errorf("witness #%d: %w", i, err)
+			}
 			pub, err := keys.NewPublicKeyFromBytes(pBytes, elliptic.P256())
 			if err != nil {
 				return nil, fmt.Errorf("witness #%d: invalid bytes of public key: %s", i, hex.EncodeToString(pBytes))
@@ -594,10 +624,53 @@ func verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8)
 			nKeysActual++
 			continue
 		}
-		return nil, fmt.Errorf("witness #%d: unable to detect witness type, only sig/multisig/contract are supported", i)
+		n, m, err := ParseAppCallContract(w.VerificationScript)
+		left := uint8(n - m)
+		if err == nil {
+			result[i] = witnessInfo{
+				typ:       AppCall,
+				nSigsLeft: left,
+			}
+			nKeysActual += left
+			continue
+		}
+		return nil, fmt.Errorf("witness #%d: unable to detect witness type, only sig/multisig/contract are supported, custom AppCall parsing failed: %w", i, err)
 	}
 	if nKeysActual != nKeysExpected {
 		return nil, fmt.Errorf("expected and actual NKeys mismatch: %d vs %d", nKeysExpected, nKeysActual)
 	}
 	return result, nil
+}
+
+// verifyIncompleteStandardInvocationScript verifies verification script for standard signature or multisignature contract,
+// (it is allowed to have either one signature or zero signatures). If signature is provided, then it will be verified later.
+func verifyIncompleteStandardInvocationScript(inv []byte) error {
+	if len(inv) != 0 && (len(inv) != 66 || !bytes.HasPrefix(inv, []byte{byte(opcode.PUSHDATA1), keys.SignatureLen})) {
+		return errors.New("invocation script should have length = 66 and be of the form [PUSHDATA1, 64, signatureBytes...]")
+	}
+	return nil
+}
+
+// ParseAppCallContract tries to parse System.Contract.Call with an arbitrary
+// (>= 0) number of contract call arguments missing. It follows
+// [scparser.ParseAppCall] rules. If successful, it returns N - the overall
+// number of contract call arguments (defined by the PACK's parameter) and M -
+// the number of those which are already present in the given script.
+func ParseAppCallContract(script []byte) (int, int, error) {
+	_, _, _, args, err := scparser.ParseAppCallNonStrict(script)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var (
+		n = len(args)
+		m int
+	)
+	for _, arg := range args {
+		if !arg.IsEmpty() {
+			m++
+		}
+	}
+
+	return n, m, nil
 }
