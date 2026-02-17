@@ -65,7 +65,7 @@ func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 		d = new(big.Int).SetBytes(b)
 	)
 
-	x, y := c.ScalarBaseMult(b)
+	x, y := c.ScalarBaseMult(b) // nolint: staticcheck
 
 	return &PrivateKey{
 		ecdsa.PrivateKey{
