@@ -757,11 +757,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			ctx.local.init(int(parameter[0]), &v.refs)
 		}
 		if parameter[1] > 0 {
-			sz := int(parameter[1])
-			ctx.arguments.init(sz, &v.refs)
-			for i := range sz {
-				ctx.arguments.set(i, v.estack.Pop().Item(), &v.refs)
-			}
+			ctx.arguments.initFromStack(int(parameter[1]), v.estack)
 		}
 
 	case opcode.LDSFLD0, opcode.LDSFLD1, opcode.LDSFLD2, opcode.LDSFLD3, opcode.LDSFLD4, opcode.LDSFLD5, opcode.LDSFLD6:
@@ -773,12 +769,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(item)
 
 	case opcode.STSFLD0, opcode.STSFLD1, opcode.STSFLD2, opcode.STSFLD3, opcode.STSFLD4, opcode.STSFLD5, opcode.STSFLD6:
-		item := v.estack.Pop().Item()
-		ctx.sc.static.set(int(op-opcode.STSFLD0), item, &v.refs)
+		item := v.estack.popNoRef().Item()
+		ctx.sc.static.setNoRef(int(op-opcode.STSFLD0), item, &v.refs)
 
 	case opcode.STSFLD:
-		item := v.estack.Pop().Item()
-		ctx.sc.static.set(int(parameter[0]), item, &v.refs)
+		item := v.estack.popNoRef().Item()
+		ctx.sc.static.setNoRef(int(parameter[0]), item, &v.refs)
 
 	case opcode.LDLOC0, opcode.LDLOC1, opcode.LDLOC2, opcode.LDLOC3, opcode.LDLOC4, opcode.LDLOC5, opcode.LDLOC6:
 		item := ctx.local.Get(int(op - opcode.LDLOC0))
@@ -789,12 +785,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(item)
 
 	case opcode.STLOC0, opcode.STLOC1, opcode.STLOC2, opcode.STLOC3, opcode.STLOC4, opcode.STLOC5, opcode.STLOC6:
-		item := v.estack.Pop().Item()
-		ctx.local.set(int(op-opcode.STLOC0), item, &v.refs)
+		item := v.estack.popNoRef().Item()
+		ctx.local.setNoRef(int(op-opcode.STLOC0), item, &v.refs)
 
 	case opcode.STLOC:
-		item := v.estack.Pop().Item()
-		ctx.local.set(int(parameter[0]), item, &v.refs)
+		item := v.estack.popNoRef().Item()
+		ctx.local.setNoRef(int(parameter[0]), item, &v.refs)
 
 	case opcode.LDARG0, opcode.LDARG1, opcode.LDARG2, opcode.LDARG3, opcode.LDARG4, opcode.LDARG5, opcode.LDARG6:
 		item := ctx.arguments.Get(int(op - opcode.LDARG0))
@@ -805,12 +801,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(item)
 
 	case opcode.STARG0, opcode.STARG1, opcode.STARG2, opcode.STARG3, opcode.STARG4, opcode.STARG5, opcode.STARG6:
-		item := v.estack.Pop().Item()
-		ctx.arguments.set(int(op-opcode.STARG0), item, &v.refs)
+		item := v.estack.popNoRef().Item()
+		ctx.arguments.setNoRef(int(op-opcode.STARG0), item, &v.refs)
 
 	case opcode.STARG:
-		item := v.estack.Pop().Item()
-		ctx.arguments.set(int(parameter[0]), item, &v.refs)
+		item := v.estack.popNoRef().Item()
+		ctx.arguments.setNoRef(int(parameter[0]), item, &v.refs)
 
 	case opcode.NEWBUFFER:
 		n := toInt(v.estack.Pop().BigInt())
@@ -1237,11 +1233,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		items := makeArrayOfType(int(n), typ)
 		var res stackitem.Item
 		if op == opcode.NEWSTRUCT {
-			res = stackitem.NewStruct(items)
+			var st = stackitem.NewStruct(items)
+			st.IncRC()
+			res = st
 		} else {
-			res = stackitem.NewArray(items)
+			var ar = stackitem.NewArray(items)
+			ar.IncRC()
+			res = ar
 		}
-		v.estack.PushItem(res)
+		v.estack.pushItemCounted(res, n+1)
 
 	case opcode.NEWSTRUCT0:
 		v.estack.PushItem(stackitem.NewStruct([]stackitem.Item{}))
@@ -1293,16 +1293,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		items := make([]stackitem.Item, n)
 		for i := range n {
-			items[i] = v.estack.Pop().value
+			items[i] = v.estack.popNoRef().value
 		}
 
 		var res stackitem.Item
 		if op == opcode.PACK {
-			res = stackitem.NewArray(items)
+			var ar = stackitem.NewArray(items)
+			ar.IncRC()
+			res = ar
 		} else {
-			res = stackitem.NewStruct(items)
+			var st = stackitem.NewStruct(items)
+			st.IncRC()
+			res = st
 		}
-		v.estack.PushItem(res)
+		v.estack.pushItemCounted(res, 1)
 
 	case opcode.UNPACK:
 		e := v.estack.Pop()
@@ -1370,7 +1374,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.SETITEM:
-		item := v.estack.Pop().value
+		item := v.estack.popNoRef().value
 		key := v.estack.Pop()
 		validateMapKey(key)
 
@@ -1383,6 +1387,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			index := toInt(key.BigInt())
 			if index < 0 || index >= len(arr) {
 				msg := fmt.Sprintf("The value %d is out of range.", index)
+				v.refs.Remove(item)
 				v.throw(stackitem.NewByteArray([]byte(msg)))
 				return
 			}
@@ -1391,7 +1396,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			if t.(interface{ IsReferenced() bool }).IsReferenced() {
 				v.refs.Remove(arr[index])
-				v.refs.Add(item)
+			} else {
+				v.refs.Remove(item)
 			}
 			arr[index] = item
 		case *stackitem.Map:
@@ -1404,11 +1410,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				} else {
 					v.refs.Add(key.value)
 				}
-				v.refs.Add(item)
+			} else {
+				v.refs.Remove(item)
 			}
+
 			t.Add(key.value, item)
 
 		case *stackitem.Buffer:
+			v.refs-- // We know the type exactly already.
 			index := toInt(key.BigInt())
 			if index < 0 || index >= t.Len() {
 				msg := fmt.Sprintf("The value %d is out of range.", index)
@@ -1650,7 +1659,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		for k := range m.Value().([]stackitem.MapElement) {
 			arr = append(arr, m.Value().([]stackitem.MapElement)[k].Key.Dup())
 		}
-		v.estack.PushItem(stackitem.NewArray(arr))
+		var res = stackitem.NewArray(arr)
+		res.IncRC()
+		v.estack.pushItemCounted(res, m.Len()+1)
 
 	case opcode.VALUES:
 		if v.estack.Len() == 0 {
