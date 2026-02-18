@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
+	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -20,16 +21,25 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	corestate "github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/services/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv"
 	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -80,6 +90,27 @@ func NewCommands() []*cli.Command {
 		Usage:    "Height of the state to reset DB to",
 		Required: true,
 	})
+	var cfgDownloadFlags = slices.Clone(cfgFlags)
+	cfgDownloadFlags = append(cfgDownloadFlags, options.RPC...)
+	cfgDownloadFlags = append(cfgDownloadFlags,
+		&cli.UintFlag{
+			Name:        "height",
+			Usage:       "Height at which to get the contract state for",
+			Required:    false,
+			DefaultText: "latest",
+		},
+		&flags.AddressFlag{
+			Name:     "contract",
+			Usage:    "Contract hash or address to download",
+			Required: true,
+			Aliases:  []string{"c"},
+		},
+		&cli.BoolFlag{
+			Name:     "force",
+			Usage:    "Overwrite local contract state",
+			Required: false,
+		},
+	)
 	return []*cli.Command{
 		{
 			Name:      "node",
@@ -92,6 +123,13 @@ func NewCommands() []*cli.Command {
 			Name:  "db",
 			Usage: "Database manipulations",
 			Subcommands: []*cli.Command{
+				{
+					Name:      "download-contract",
+					Usage:     "Download a contract including storage from a remote chain into the local database",
+					UsageText: "neo-go db download-contract -c contract -r endpoint [--height height] [--config-file] [--force]",
+					Action:    downloadContract,
+					Flags:     cfgDownloadFlags,
+				},
 				{
 					Name:      "dump",
 					Usage:     "Dump blocks (starting with the genesis or specified block) to the file",
@@ -706,4 +744,196 @@ func Logo() string {
  / /|  / /___/ /_/ /_____/ /_/ / /_/ /
 /_/ |_/_____/\____/      \____/\____/
 `
+}
+
+func downloadContract(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+	cfg, err := options.GetConfigFromContext(ctx)
+	if err != nil {
+		return cli.Exit(err, 1)
+	}
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.Exit(err, 1)
+	}
+
+	h := uint32(ctx.Uint("height"))
+	if h == 0 {
+		count, err := c.GetBlockCount()
+		if err != nil {
+			return cli.Exit(err, 1)
+		}
+		h = uint32(count) - 1
+	}
+
+	var ch util.Uint160
+	addrFlag := ctx.Generic("contract").(*flags.Address)
+	if addrFlag.IsSet {
+		ch = addrFlag.Uint160()
+	} else {
+		return cli.Exit(fmt.Errorf("failed to decode contract hash: %w", err), 1)
+	}
+
+	log, _, logCloser, err := options.HandleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	if err != nil {
+		return cli.Exit(err, 1)
+	}
+	if logCloser != nil {
+		defer func() { _ = logCloser() }()
+	}
+
+	chain, store, err := initBlockChain(cfg, log)
+	if err != nil {
+		return cli.Exit(fmt.Errorf("failed to create Blockchain instance: %w", err), 1)
+	}
+
+	contractState, contractStorage, err := getContractStateAndStorageAtHeight(c, h, ch)
+	if err != nil {
+		return cli.Exit(err, 1)
+	}
+
+	force := ctx.Bool("force")
+	existingState := chain.GetContractState(ch)
+	if existingState != nil {
+		if !force {
+			return cli.Exit(fmt.Errorf("contract already exists in the chain. Use --force to overwrite"), 1)
+		}
+		contractState.ID = existingState.ID
+	}
+
+	d := dao.NewSimple(store, cfg.ProtocolConfiguration.StateRootInHeader)
+
+	if !force {
+		// Remote contract does not exist in chain by contract hash, but its ID can already be
+		// in use.
+		_, err := chain.GetContractScriptHash(contractState.ID)
+		if err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+			return cli.Exit(err, 1)
+		} else {
+			// ID is in use, get a new one
+			newID, err := native.GetNextContractID(d)
+			if err != nil {
+				return err
+			}
+			contractState.ID = newID
+		}
+	}
+
+	for _, pair := range contractStorage {
+		d.PutStorageItem(contractState.ID, pair.Key, pair.Value)
+	}
+
+	err = native.PutContractStateNoCache(d, contractState)
+	if err != nil {
+		return cli.Exit(fmt.Errorf("failed to put contract state: %w", err), 1)
+	}
+
+	_, err = d.Persist()
+	if err != nil {
+		return cli.Exit(fmt.Errorf("failed to persist storage: %w", err), 1)
+	}
+
+	err = store.Close()
+	if err != nil {
+		return cli.Exit(fmt.Errorf("failed to close the DB: %w", err), 1)
+	}
+
+	fmt.Fprintf(ctx.App.Writer, `downloaded "%s" contract (0x%s) and %d storage records\n`, contractState.Manifest.Name, contractState.Hash.StringLE(), len(contractStorage))
+	return nil
+}
+
+func getContractStateAndStorageAtHeight(client *rpcclient.Client, height uint32, hash util.Uint160) (*state.Contract, []result.KeyValue, error) {
+	stateResponse, err := client.GetStateRootByHeight(height)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get stateroot for height %d: %w", height, err)
+	}
+
+	cState, err := getContractStateHistoric(client, stateResponse.Root, hash)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to contract state: %w", err)
+	}
+
+	if cState.ID < 0 {
+		return nil, nil, fmt.Errorf("native contract download is not supported: %v", cState.ID)
+	}
+
+	states, err := getContractStorageHistoric(client, stateResponse.Root, hash)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get storage: %w", err)
+	}
+
+	return cState, states, nil
+}
+
+func getContractStateHistoric(client *rpcclient.Client, stateRoot util.Uint256, hash util.Uint160) (*state.Contract, error) {
+	prefix := append([]byte{0x08}, hash.BytesBE()...)
+	states, err := client.FindStates(
+		stateRoot,
+		nativehashes.ContractManagement,
+		prefix,
+		nil,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch contract state for contract %s: %w", hash.StringLE(), err)
+	}
+	if stateLen := len(states.Results); stateLen != 1 {
+		return nil, fmt.Errorf(
+			"unexpected response length for fetch contract contract. Expected 1 got %d", stateLen,
+		)
+	}
+
+	siArr, err := stackitem.DeserializeLimited(states.Results[0].Value, stackitem.MaxDeserialized*2)
+	if err != nil {
+		return nil, err
+	}
+
+	var contractState state.Contract
+	err = contractState.FromStackItem(siArr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &contractState, nil
+}
+
+func getContractStorageHistoric(
+	client *rpcclient.Client,
+	stateRoot util.Uint256,
+	hash util.Uint160,
+) ([]result.KeyValue, error) {
+	var start []byte
+	var states []result.KeyValue
+	for {
+		response, err := client.FindStates(stateRoot, hash, nil, start, nil)
+		if err != nil {
+			return nil, err
+		}
+		if len(response.Results) == 0 {
+			break
+		}
+
+		if _, ok := mpt.VerifyProof(stateRoot, response.FirstProof.Key, response.FirstProof.Proof); !ok {
+			return nil, fmt.Errorf("failed to verify first proof")
+		}
+
+		if len(response.Results) > 1 {
+			if _, ok := mpt.VerifyProof(stateRoot, response.LastProof.Key, response.LastProof.Proof); !ok {
+				return nil, fmt.Errorf("failed to verify last proof")
+			}
+		}
+
+		states = append(states, response.Results...)
+		if !response.Truncated {
+			break
+		}
+		start = response.Results[len(response.Results)-1].Key
+	}
+
+	return states, nil
 }
