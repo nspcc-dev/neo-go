@@ -1,7 +1,6 @@
 package scparser
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -765,17 +764,9 @@ func TestParseSomething(t *testing.T) {
 			w := io.NewBufBinWriter()
 			emit.Any(w.BinWriter, []byte{1, 2, 3})
 			emit.Opcodes(w.BinWriter, opcode.DUP, opcode.REVERSEITEMS)
-			expectedProg := w.Bytes()
-			actualProg := bytes.Clone(expectedProg)
 
-			res, err := ParseSomething(actualProg, true)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(res))
-			require.False(t, res[0].IsNested())
-			actual, err := GetBytesFromInstr(res[0].Instruction)
-			require.NoError(t, err)
-			require.Equal(t, []byte{3, 2, 1}, actual)
-			require.Equal(t, expectedProg, actualProg) // ensure the original prog is not suffered.
+			_, err := ParseSomething(w.Bytes(), true)
+			require.ErrorContains(t, err, "static parser supports only Array/Struct for REVERSEITEMS instruction, got PUSHDATA1")
 		})
 	})
 }

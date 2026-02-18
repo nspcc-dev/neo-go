@@ -1,7 +1,6 @@
 package scparser
 
 import (
-	"bytes"
 	"crypto/elliptic"
 	"encoding/binary"
 	"errors"
@@ -41,7 +40,7 @@ type PushedItem struct {
 }
 
 // Instruction represents a single VM instruction ([opcode.Opcode] with an
-// optional parameter). You may safely modify the content of Param since a copy
+// optional parameter). Do not modify the content of Param since no copy
 // of the original script buffer is created during script parsing.
 type Instruction struct {
 	Op    opcode.Opcode
@@ -463,14 +462,8 @@ parseLoop:
 			switch {
 			case e.IsList():
 				slices.Reverse(e.List)
-			case !e.IsNested():
-				_, err := GetBytesFromInstr(e.Instruction)
-				if err != nil {
-					return res, 0, fmt.Errorf("REVERSEITEMS instruction requires Array/Struct/Buffer on stack")
-				}
-				slices.Reverse(e.Param) // change the original buffer, it's a reference type.
 			default:
-				return res, 0, fmt.Errorf("REVERSEITEMS instruction requires Array/Struct/Buffer on stack, got %s", e.Op)
+				return res, 0, fmt.Errorf("static parser supports only Array/Struct for REVERSEITEMS instruction, got %s", e.Op)
 			}
 			lastPackNextIP = ctx.NextIP()
 		case opcode.SWAP, opcode.REVERSE3, opcode.REVERSE4, opcode.REVERSEN:
@@ -519,8 +512,8 @@ parseLoop:
 			opcode.PUSH4, opcode.PUSH5, opcode.PUSH6, opcode.PUSH7,
 			opcode.PUSH8, opcode.PUSH9, opcode.PUSH10, opcode.PUSH11,
 			opcode.PUSH12, opcode.PUSH13, opcode.PUSH14, opcode.PUSH15, opcode.PUSH16:
-			res = append(res, PushedItem{Instruction: Instruction{Op: instr, Param: bytes.Clone(param)}}) // make a copy since some parameters are reversed.
-			if len(res) > maxL+1 {                                                                        // 1 extra element is allowed for PACK's argument
+			res = append(res, PushedItem{Instruction: Instruction{Op: instr, Param: param}}) // don't make a copy since no parameter modification is performed.
+			if len(res) > maxL+1 {                                                           // 1 extra element is allowed for PACK's argument
 				return res, 0, fmt.Errorf("number of elements exceeds %d", maxL)
 			}
 		default:
