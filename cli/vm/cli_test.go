@@ -1323,7 +1323,7 @@ func TestLoadtx(t *testing.T) {
 	e.runProg(t,
 		"loadtx "+tx.Hash().StringLE(), // hash LE
 		"run",
-		"loadtx --gas 10000 "+tx.Hash().StringLE(), // with GAS
+		"loadtx --gas 100 "+tx.Hash().StringLE(), // with GAS
 		"run",
 		"loadtx 0x"+tx.Hash().StringLE(), //  hash LE with 0x prefix
 		"run",
