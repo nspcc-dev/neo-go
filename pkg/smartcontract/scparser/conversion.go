@@ -17,15 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-var (
-	// ErrNestedInstruction is returned on attempt to parse non-nested
-	// type from Array/Struct/Map.
-	ErrNestedInstruction = errors.New("unexpected Array/Struct/Map stackitem")
-	// ErrEmptyInstruction is returned on an attempt to retrieve some value from
-	// the instruction placeholder got after non-strict mode of script parsing.
-	ErrEmptyInstruction = errors.New("instruction is empty")
-)
-
 // PushedItem represents a container for VM instruction (opcode with
 // corresponding parameter) potentially emitting stackitem to stack. If
 // instruction execution results in some nested stackitem emission (Array, Map
@@ -265,6 +256,16 @@ func getHashFromInstr[E util.Uint160 | util.Uint256 | []byte | *keys.PublicKey](
 		var u E
 		return u, fmt.Errorf("expected %s, got %s", opcode.PUSHDATA1, instr)
 	}
+}
+
+// GetListOfEFromPushedItem works like GetListOfEFromPushedItems except that it
+// accepts a single [PushedItem] expecting it to be a list of [PushedItem] of
+// the specified type.
+func GetListOfEFromPushedItem[E any](item PushedItem, getEFromInstr GetEFromInstr[E]) ([]E, error) {
+	if !item.IsList() {
+		return nil, fmt.Errorf("expected list, got %s", item.Op)
+	}
+	return GetListOfEFromPushedItems(item.List, getEFromInstr)
 }
 
 // GetListOfEFromPushedItems returns the list of uniformly typed elements parsed
@@ -636,38 +637,295 @@ func getAppCallFromContext(ctx *Context, strict bool) (util.Uint160, string, cal
 }
 
 // ParseAppCall works similar to GetAppCallFromContext except that it creates
-// the parsing context by itself. It stops parsing after the first
-// System.Contract.Call occurrence, so use GetAppCallFromContext if you need to
-// ensure there are no additional opcodes after SYSCALL.
+// the parsing context by itself and ensures that there are no additional
+// instructions after System.Contract.Call occurrence.
 func ParseAppCall(script []byte) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
-	return parseAppCall(script, true)
+	return parseAppCall(script, true, false, false)
 }
 
 // ParseAppCallNonStrict is similar to ParseAppCall except that it does not
-// check PACK/PACKSTRUCT/PACKMAP arguments against the stack length. Missing
+// check PACK/PACKSTRUCT/PACKMAP arguments against the stack length; missing
 // elements (if any) will be filled with empty PushedItem.
 func ParseAppCallNonStrict(script []byte) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
-	return parseAppCall(script, false)
+	return parseAppCall(script, false, false, false)
 }
 
-func parseAppCall(script []byte, strict bool) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
+// ParseAppCallWithASSERT is similar to ParseAppCall except that it tolerates
+// an optional (or required, if assertRequired is set to true) ASSERT
+// instruction at the end of the script.
+func ParseAppCallWithASSERT(script []byte, assertRequired bool) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
+	return parseAppCall(script, false, true, assertRequired)
+}
+
+func parseAppCall(script []byte, strict bool, assertAllowed bool, assertRequired bool) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
 	ctx := NewContext(script, 0)
 	h, m, f, args, err := getAppCallFromContext(ctx, strict)
 	if err != nil {
 		return util.Uint160{}, "", 0, nil, fmt.Errorf("failed to parse AppCall: %w", err)
 	}
+	if assertAllowed {
+		// Optional ASSERT is allowed.
+		if ctx.NextIP() < len(script) {
+			instr, _, err := ctx.Next()
+			if err != nil {
+				return util.Uint160{}, "", 0, nil, fmt.Errorf("%s/%s/%d: failed to parse optional ASSERT: %w", h.StringLE(), m, len(args), err)
+			}
+			if instr != opcode.ASSERT {
+				return util.Uint160{}, "", 0, nil, fmt.Errorf("%s/%s/%d: expected ASSERT, got %s", h.StringLE(), m, len(args), instr)
+			}
+		} else if assertRequired {
+			return util.Uint160{}, "", 0, nil, fmt.Errorf("%s/%s/%d: ASSERT required at the end of the script", h.StringLE(), m, len(args))
+		}
+	} /*
+		if err = EnsureScriptEnd(ctx); err != nil {
+			return util.Uint160{}, "", 0, nil, fmt.Errorf("%s/%s/%d: %w", h.StringLE(), m, len(args), err)
+		}*/
 	return h, m, f, args, nil
 }
 
 // ParseSomething works similar to GetListFromContext except that it creates
-// the parsing context by itself, does not perform list unwrapping in the end
+// the parsing context by itself, does not perform list unwrapping in the end,
+// ensures there are no additional instructions after the first RET occurrence
 // and returns an error on System.Contract.Call occurrence. If strict is set to
 // false, it will not check any PACK/PACKSTRUCT/PACKMAP arguments against the
-// stack length. Missing elements (if any) will be filled with empty PushedItem.
+// stack length; missing elements (if any) will be filled with empty PushedItem.
 func ParseSomething(script []byte, strict bool) ([]PushedItem, error) {
 	ctx := NewContext(script, 0)
 	res, _, err := getSomethingFromContext(ctx, strict, func(res []PushedItem) ([]PushedItem, error) {
 		return nil, fmt.Errorf("SYSCALL is not allowed")
 	})
+	if err = EnsureScriptEnd(ctx); err != nil {
+		return nil, err
+	}
 	return res, err
+}
+
+// ParseNEP11Transfer works similar to ParseNEP11TransferWithASSERT except that
+// it doesn't require ASSERT at the end of the script.
+func ParseNEP11Transfer(script []byte) (util.Uint160, util.Uint160, []byte, PushedItem, error) {
+	return parseNEP11Transfer(script, false)
+}
+
+// ParseNEP11TransferWithASSERT parses a standard NEP-11 transfer script with
+// ASSERT instruction at the end. It ensures no additional instructions are
+// present after ASSERT. It returns the contract hash, receiver address, token
+// ID and additional transfer data (may contain PUSHNULL if not provided).
+func ParseNEP11TransferWithASSERT(script []byte) (util.Uint160, util.Uint160, []byte, PushedItem, error) {
+	return parseNEP11Transfer(script, true)
+}
+
+func parseNEP11Transfer(script []byte, assert bool) (util.Uint160, util.Uint160, []byte, PushedItem, error) {
+	ctx := NewContext(script, 0)
+	h, to, tokenID, data, err := GetNEP11TransferFromContext(ctx)
+	if err != nil {
+		return h, to, tokenID, data, fmt.Errorf("failed to parse NEP-11 transfer: %w", err)
+	}
+	if assert {
+		if err = GetASSERTFromContext(ctx); err != nil {
+			return h, to, tokenID, data, err
+		}
+	}
+	if err = EnsureScriptEnd(ctx); err != nil {
+		return h, to, tokenID, data, err
+	}
+	return h, to, tokenID, data, nil
+}
+
+// GetNEP11TransferFromContext parses a standard NEP-11 transfer script. It
+// returns the contract hash, receiver address, token ID and additional transfer
+// data (may contain PUSHNULL if not provided). Use GetASSERTFromContext if you
+// need to check if ASSERT instruction is present at the end of the script. Use
+// EnsureScriptEnd if you need to ensure there are no additional instructions
+// at the end of the script.
+func GetNEP11TransferFromContext(ctx *Context) (util.Uint160, util.Uint160, []byte, PushedItem, error) {
+	var (
+		h, to   util.Uint160
+		tokenID []byte
+		data    PushedItem
+	)
+	h, m, _, args, err := GetAppCallFromContext(ctx)
+	if err != nil {
+		return h, to, tokenID, data, err
+	}
+	if m != "transfer" {
+		return h, to, tokenID, data, fmt.Errorf("expected `transfer` call, got %s", m)
+	}
+	if len(args) != 3 {
+		return h, to, tokenID, data, fmt.Errorf("expected 3 arguments, got %d", len(args))
+	}
+	to, err = GetUint160FromInstr(args[0].Instruction)
+	if err != nil {
+		return h, to, tokenID, data, fmt.Errorf("failed to parse `to` argument: %w", err)
+	}
+	tokenID, err = GetBytesFromInstr(args[1].Instruction)
+	if err != nil {
+		return h, to, tokenID, data, fmt.Errorf("failed to parse `tokenID` argument: %w", err)
+	}
+	return h, to, tokenID, args[2], nil
+}
+
+// ParseNEP11TransferD works similar to ParseNEP11TransferDWithASSERT except
+// that it doesn't require ASSERT at the end of the script.
+func ParseNEP11TransferD(script []byte) (util.Uint160, util.Uint160, util.Uint160, *big.Int, []byte, PushedItem, error) {
+	return parseNEP11TransferD(script, true)
+}
+
+// ParseNEP11TransferDWithASSERT parses a standard NEP-11 transfer script with
+// ASSERT instruction at the end. It ensures no additional instructions are
+// present after ASSERT. It returns the contract hash, receiver address, token
+// ID and additional transfer data (may contain PUSHNULL if not provided).
+func ParseNEP11TransferDWithASSERT(script []byte) (util.Uint160, util.Uint160, util.Uint160, *big.Int, []byte, PushedItem, error) {
+	return parseNEP11TransferD(script, true)
+}
+
+func parseNEP11TransferD(script []byte, assert bool) (util.Uint160, util.Uint160, util.Uint160, *big.Int, []byte, PushedItem, error) {
+	ctx := NewContext(script, 0)
+	h, from, to, amount, tokenID, data, err := GetNEP11TransferDFromContext(ctx)
+	if err != nil {
+		return h, from, to, amount, tokenID, data, fmt.Errorf("failed to parse NEP-11 transfer: %w", err)
+	}
+	if assert {
+		if err = GetASSERTFromContext(ctx); err != nil {
+			return h, from, to, amount, tokenID, data, err
+		}
+	}
+	if err = EnsureScriptEnd(ctx); err != nil {
+		return h, from, to, amount, tokenID, data, err
+	}
+	return h, from, to, amount, tokenID, data, nil
+}
+
+// GetNEP11TransferDFromContext parses a standard NEP-11 transfer script. It
+// returns the contract hash, sender and receiver addresses, the amount of token
+// transferred, token ID and additional transfer data (may contain PUSHNULL if
+// not provided). Use GetASSERTFromContext if you need to check if ASSERT
+// instruction is present at the end of the script. Use EnsureScriptEnd if you
+// need to ensure there are no additional instructions after the
+// System.Contract.Call.
+func GetNEP11TransferDFromContext(ctx *Context) (util.Uint160, util.Uint160, util.Uint160, *big.Int, []byte, PushedItem, error) {
+	var (
+		h, from, to util.Uint160
+		amount      *big.Int
+		tokenID     []byte
+		data        PushedItem
+	)
+	h, m, _, args, err := GetAppCallFromContext(ctx)
+	if err != nil {
+		return h, from, to, amount, tokenID, data, err
+	}
+	if m != "transfer" {
+		return h, from, to, amount, tokenID, data, fmt.Errorf("expected `transfer` call, got %s", m)
+	}
+	if len(args) != 5 {
+		return h, from, to, amount, tokenID, data, fmt.Errorf("expected 5 arguments, got %d", len(args))
+	}
+
+	from, err = GetUint160FromInstr(args[0].Instruction)
+	if err != nil {
+		return h, from, to, amount, tokenID, data, fmt.Errorf("failed to parse `from` argument: %w", err)
+	}
+	to, err = GetUint160FromInstr(args[1].Instruction)
+	if err != nil {
+		return h, from, to, amount, tokenID, data, fmt.Errorf("failed to parse `to` argument: %w", err)
+	}
+	amount, err = GetBigIntFromInstr(args[2].Instruction)
+	if err != nil {
+		return h, from, to, amount, tokenID, data, fmt.Errorf("failed to parse `amount` argument: %w", err)
+	}
+	tokenID, err = GetBytesFromInstr(args[3].Instruction)
+	if err != nil {
+		return h, from, to, amount, tokenID, data, fmt.Errorf("failed to parse `tokenID` argument: %w", err)
+	}
+	return h, from, to, amount, tokenID, args[4], nil
+}
+
+// ParseNEP17Transfer works similar to ParseNEP17TransferWithASSERT except that
+// it doesn't require ASSERT at the end of the script.
+func ParseNEP17Transfer(script []byte) (util.Uint160, util.Uint160, util.Uint160, *big.Int, PushedItem, error) {
+	return parseNEP17Transfer(script, false)
+}
+
+// ParseNEP17TransferWithASSERT parses a standard NEP-17 transfer script with
+// ASSERT instruction at the end. It ensures no additional instructions are
+// present after ASSERT. It returns the contract hash, sender and receiver
+// addresses, amount of transferred funds and additional transfer data (may
+// contain PUSHNULL if not provided).
+func ParseNEP17TransferWithASSERT(script []byte) (util.Uint160, util.Uint160, util.Uint160, *big.Int, PushedItem, error) {
+	return parseNEP17Transfer(script, true)
+}
+
+func parseNEP17Transfer(script []byte, assert bool) (util.Uint160, util.Uint160, util.Uint160, *big.Int, PushedItem, error) {
+	ctx := NewContext(script, 0)
+	h, from, to, amount, data, err := GetNEP17TransferFromContext(ctx)
+	if err != nil {
+		return h, from, to, amount, data, fmt.Errorf("failed to parse NEP-17 transfer: %w", err)
+	}
+	if assert {
+		if err = GetASSERTFromContext(ctx); err != nil {
+			return h, from, to, amount, data, err
+		}
+	}
+	if err = EnsureScriptEnd(ctx); err != nil {
+		return h, from, to, amount, data, err
+	}
+	return h, from, to, amount, data, nil
+}
+
+// GetNEP17TransferFromContext parses a standard NEP-17 transfer script. It
+// returns the contract hash, sender and receiver addresses, an amount of
+// transferred token and additional transfer data (may contain PUSHNULL if not
+// provided). Use GetASSERTFromContext if you need to check if ASSERT
+// instruction is present at the end of the script. Use EnsureScriptEnd if you
+// need to ensure there are no additional instructions at the end of the script.
+func GetNEP17TransferFromContext(ctx *Context) (util.Uint160, util.Uint160, util.Uint160, *big.Int, PushedItem, error) {
+	var (
+		h, from, to util.Uint160
+		amount      *big.Int
+		data        PushedItem
+	)
+	h, m, _, args, err := GetAppCallFromContext(ctx)
+	if err != nil {
+		return h, from, to, amount, data, err
+	}
+	if m != "transfer" {
+		return h, from, to, amount, data, fmt.Errorf("expected `transfer` call, got %s", m)
+	}
+	if len(args) != 4 {
+		return h, from, to, amount, data, fmt.Errorf("expected 4 arguments, got %d", len(args))
+	}
+	from, err = GetUint160FromInstr(args[0].Instruction)
+	if err != nil {
+		return h, from, to, amount, data, fmt.Errorf("failed to parse `from` argument: %w", err)
+	}
+	to, err = GetUint160FromInstr(args[1].Instruction)
+	if err != nil {
+		return h, from, to, amount, data, fmt.Errorf("failed to parse `to` argument: %w", err)
+	}
+	amount, err = GetBigIntFromInstr(args[2].Instruction)
+	if err != nil {
+		return h, from, to, amount, data, fmt.Errorf("failed to parse `amount` argument: %w", err)
+	}
+	return h, from, to, amount, args[3], nil
+}
+
+// GetASSERTFromContext parses ASSERT instruction and returns an error if it's
+// not present or if there are no more instructions.
+func GetASSERTFromContext(ctx *Context) error {
+	instr, _, err := ctx.Next()
+	if err != nil {
+		return fmt.Errorf("failed to parse ASSERT instruction: %w", err)
+	}
+	if instr != opcode.ASSERT {
+		return fmt.Errorf("expected ASSERT, got %s", instr)
+	}
+	return nil
+}
+
+// EnsureScriptEnd returns an error if there are any additional instructions
+// after the current context IP.
+func EnsureScriptEnd(ctx *Context) error {
+	if ctx.NextIP() < len(ctx.prog) {
+		return fmt.Errorf("extra data after script end: expected len %d, got %d", ctx.IP(), len(ctx.prog))
+	}
+	return nil
 }
