@@ -708,6 +708,55 @@ func TestParseAppCall(t *testing.T) {
 		_, _, _, _, err := ParseAppCall(prog) // invalid callflag.
 		require.ErrorContains(t, err, "failed to parse AppCall")
 	})
+	t.Run("additional data after AppCall", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+		emit.Opcodes(w.BinWriter, opcode.RET)
+		prog := w.Bytes()
+
+		_, _, _, _, err := ParseAppCall(prog)
+		require.ErrorContains(t, err, "extra data after script end")
+	})
+	t.Run("ASSERT", func(t *testing.T) {
+		t.Run("required", func(t *testing.T) {
+			t.Run("good", func(t *testing.T) {
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+				emit.Opcodes(w.BinWriter, opcode.ASSERT)
+				prog := w.Bytes()
+
+				_, _, _, _, err := ParseAppCallWithASSERT(prog, true)
+				require.NoError(t, err)
+			})
+			t.Run("missing", func(t *testing.T) {
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+				prog := w.Bytes()
+
+				_, _, _, _, err := ParseAppCallWithASSERT(prog, true)
+				require.ErrorContains(t, err, "ASSERT required at the end of the script")
+			})
+		})
+		t.Run("optional", func(t *testing.T) {
+			t.Run("present", func(t *testing.T) {
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+				emit.Opcodes(w.BinWriter, opcode.ASSERT)
+				prog := w.Bytes()
+
+				_, _, _, _, err := ParseAppCallWithASSERT(prog, false)
+				require.NoError(t, err)
+			})
+			t.Run("missing", func(t *testing.T) {
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+				prog := w.Bytes()
+
+				_, _, _, _, err := ParseAppCallWithASSERT(prog, false)
+				require.NoError(t, err)
+			})
+		})
+	})
 }
 
 func TestParseSomething(t *testing.T) {

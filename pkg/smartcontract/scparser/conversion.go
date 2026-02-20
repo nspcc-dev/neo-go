@@ -637,38 +637,88 @@ func getAppCallFromContext(ctx *Context, strict bool) (util.Uint160, string, cal
 }
 
 // ParseAppCall works similar to GetAppCallFromContext except that it creates
-// the parsing context by itself. It stops parsing after the first
-// System.Contract.Call occurrence, so use GetAppCallFromContext if you need to
-// ensure there are no additional opcodes after SYSCALL.
+// the parsing context by itself and ensures that there are no additional
+// instructions after System.Contract.Call occurrence.
 func ParseAppCall(script []byte) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
-	return parseAppCall(script, true)
+	return parseAppCall(script, true, false, false)
 }
 
 // ParseAppCallNonStrict is similar to ParseAppCall except that it does not
-// check PACK/PACKSTRUCT/PACKMAP arguments against the stack length. Missing
+// check PACK/PACKSTRUCT/PACKMAP arguments against the stack length; missing
 // elements (if any) will be filled with empty PushedItem.
 func ParseAppCallNonStrict(script []byte) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
-	return parseAppCall(script, false)
+	return parseAppCall(script, false, false, false)
 }
 
-func parseAppCall(script []byte, strict bool) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
+// ParseAppCallWithASSERT is similar to ParseAppCall except that it tolerates
+// an optional (or required, if assertRequired is set to true) ASSERT
+// instruction at the end of the script.
+func ParseAppCallWithASSERT(script []byte, assertRequired bool) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
+	return parseAppCall(script, false, true, assertRequired)
+}
+
+func parseAppCall(script []byte, strict bool, assertAllowed bool, assertRequired bool) (util.Uint160, string, callflag.CallFlag, []PushedItem, error) {
 	ctx := NewContext(script, 0)
 	h, m, f, args, err := getAppCallFromContext(ctx, strict)
 	if err != nil {
 		return util.Uint160{}, "", 0, nil, fmt.Errorf("failed to parse AppCall: %w", err)
 	}
+	if assertAllowed {
+		// Optional ASSERT is allowed.
+		if ctx.NextIP() < len(script) {
+			err = GetASSERTFromContext(ctx)
+			if err != nil {
+				return util.Uint160{}, "", 0, nil, fmt.Errorf("%s/%s/%d: failed to parse optional ASSERT: %w", h.StringLE(), m, len(args), err)
+			}
+		} else if assertRequired {
+			return util.Uint160{}, "", 0, nil, fmt.Errorf("%s/%s/%d: ASSERT required at the end of the script", h.StringLE(), m, len(args))
+		}
+	}
+	if err = EnsureScriptEnd(ctx); err != nil {
+		return util.Uint160{}, "", 0, nil, fmt.Errorf("%s/%s/%d: %w", h.StringLE(), m, len(args), err)
+	}
 	return h, m, f, args, nil
 }
 
 // ParseSomething works similar to GetListFromContext except that it creates
-// the parsing context by itself, does not perform list unwrapping in the end
+// the parsing context by itself, does not perform list unwrapping in the end,
+// ensures there are no additional instructions after the first RET occurrence
 // and returns an error on System.Contract.Call occurrence. If strict is set to
 // false, it will not check any PACK/PACKSTRUCT/PACKMAP arguments against the
-// stack length. Missing elements (if any) will be filled with empty PushedItem.
+// stack length; missing elements (if any) will be filled with empty PushedItem.
 func ParseSomething(script []byte, strict bool) ([]PushedItem, error) {
 	ctx := NewContext(script, 0)
 	res, _, err := getSomethingFromContext(ctx, strict, func(res []PushedItem) ([]PushedItem, error) {
 		return nil, fmt.Errorf("SYSCALL is not allowed")
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Something: %w", err)
+	}
+	err = EnsureScriptEnd(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return res, err
+}
+
+// GetASSERTFromContext parses ASSERT instruction and returns an error if it's
+// not present or if there are no more instructions.
+func GetASSERTFromContext(ctx *Context) error {
+	instr, _, err := ctx.Next()
+	if err != nil {
+		return fmt.Errorf("failed to parse ASSERT instruction: %w", err)
+	}
+	if instr != opcode.ASSERT {
+		return fmt.Errorf("expected ASSERT, got %s", instr)
+	}
+	return nil
+}
+
+// EnsureScriptEnd returns an error if there are any additional instructions
+// after the current context IP.
+func EnsureScriptEnd(ctx *Context) error {
+	if ctx.NextIP() < len(ctx.prog) {
+		return fmt.Errorf("extra data after script end: expected len %d, got %d", ctx.IP(), len(ctx.prog))
+	}
+	return nil
 }
