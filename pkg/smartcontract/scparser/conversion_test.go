@@ -512,6 +512,25 @@ func TestGetListFromContext(t *testing.T) {
 		require.True(t, args[3].IsEmpty())
 		require.True(t, args[4].IsEmpty())
 	})
+	t.Run("from pushed item", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.Any(w.BinWriter, 3)
+		emit.Any(w.BinWriter, 2)
+		emit.Any(w.BinWriter, 1)
+		emit.Int(w.BinWriter, 3)
+		emit.Opcodes(w.BinWriter, opcode.PACK)
+		emit.Int(w.BinWriter, 1)
+		emit.Opcodes(w.BinWriter, opcode.PACK)
+		prog := w.Bytes()
+
+		ctx := NewContext(prog, 0)
+		args, err := GetListFromContextNonStrict(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(args))
+		actualArgs, err := GetListOfEFromPushedItem(args[0], GetInt64FromInstr)
+		require.NoError(t, err)
+		require.Equal(t, []int64{1, 2, 3}, actualArgs)
+	})
 }
 
 func TestGetAppCallNoArgsFromContext(t *testing.T) {

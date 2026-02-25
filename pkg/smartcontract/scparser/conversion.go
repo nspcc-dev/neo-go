@@ -258,6 +258,16 @@ func getHashFromInstr[E util.Uint160 | util.Uint256 | []byte | *keys.PublicKey](
 	}
 }
 
+// GetListOfEFromPushedItem works like GetListOfEFromPushedItems except that it
+// accepts a single [PushedItem] expecting it to be a list of [PushedItem] of
+// the specified type.
+func GetListOfEFromPushedItem[E any](item PushedItem, getEFromInstr GetEFromInstr[E]) ([]E, error) {
+	if !item.IsList() {
+		return nil, fmt.Errorf("expected list, got %s", item.Op)
+	}
+	return GetListOfEFromPushedItems(item.List, getEFromInstr)
+}
+
 // GetListOfEFromPushedItems returns the list of uniformly typed elements parsed
 // from the provided list of [PushedItem]. It accepts [GetEFromInstr] delegate
 // to retrieve a single list element from the [Instruction] (hence, only
