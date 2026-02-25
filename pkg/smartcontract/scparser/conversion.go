@@ -17,15 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-var (
-	// ErrNestedInstruction is returned on attempt to parse non-nested
-	// type from Array/Struct/Map.
-	ErrNestedInstruction = errors.New("unexpected Array/Struct/Map stackitem")
-	// ErrEmptyInstruction is returned on an attempt to retrieve some value from
-	// the instruction placeholder got after non-strict mode of script parsing.
-	ErrEmptyInstruction = errors.New("instruction is empty")
-)
-
 // PushedItem represents a container for VM instruction (opcode with
 // corresponding parameter) potentially emitting stackitem to stack. If
 // instruction execution results in some nested stackitem emission (Array, Map
