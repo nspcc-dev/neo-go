@@ -29,7 +29,7 @@ type Genesis struct {
 	// disabled on the public Neo N3 networks.
 	Roles map[noderoles.Role]keys.PublicKeys
 	// TimePerBlock is the minimum time interval between blocks that consensus
-	// nodes work with. It must be an integer number of milliseconds. It differs
+	// nodes work with. Sub-milliseconds precision is not supported. It differs
 	// from Protocol level configuration in that this value is used starting
 	// from HFEchidna to initialize MillisecondsPerBlock value of native Policy
 	// contract.
