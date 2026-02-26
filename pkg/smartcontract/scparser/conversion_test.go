@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -512,6 +514,25 @@ func TestGetListFromContext(t *testing.T) {
 		require.True(t, args[3].IsEmpty())
 		require.True(t, args[4].IsEmpty())
 	})
+	t.Run("from pushed item", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.Any(w.BinWriter, 3)
+		emit.Any(w.BinWriter, 2)
+		emit.Any(w.BinWriter, 1)
+		emit.Int(w.BinWriter, 3)
+		emit.Opcodes(w.BinWriter, opcode.PACK)
+		emit.Int(w.BinWriter, 1)
+		emit.Opcodes(w.BinWriter, opcode.PACK)
+		prog := w.Bytes()
+
+		ctx := NewContext(prog, 0)
+		args, err := GetListFromContextNonStrict(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(args))
+		actualArgs, err := GetListOfEFromPushedItem(args[0], GetInt64FromInstr)
+		require.NoError(t, err)
+		require.Equal(t, []int64{1, 2, 3}, actualArgs)
+	})
 }
 
 func TestGetAppCallNoArgsFromContext(t *testing.T) {
@@ -689,6 +710,55 @@ func TestParseAppCall(t *testing.T) {
 		_, _, _, _, err := ParseAppCall(prog) // invalid callflag.
 		require.ErrorContains(t, err, "failed to parse AppCall")
 	})
+	t.Run("additional data after AppCall", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+		emit.Opcodes(w.BinWriter, opcode.RET)
+		prog := w.Bytes()
+
+		_, _, _, _, err := ParseAppCall(prog)
+		require.ErrorContains(t, err, "extra data after script end")
+	})
+	t.Run("ASSERT", func(t *testing.T) {
+		t.Run("required", func(t *testing.T) {
+			t.Run("good", func(t *testing.T) {
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+				emit.Opcodes(w.BinWriter, opcode.ASSERT)
+				prog := w.Bytes()
+
+				_, _, _, _, err := ParseAppCallWithASSERT(prog, true)
+				require.NoError(t, err)
+			})
+			t.Run("missing", func(t *testing.T) {
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+				prog := w.Bytes()
+
+				_, _, _, _, err := ParseAppCallWithASSERT(prog, true)
+				require.ErrorContains(t, err, "ASSERT required at the end of the script")
+			})
+		})
+		t.Run("optional", func(t *testing.T) {
+			t.Run("present", func(t *testing.T) {
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+				emit.Opcodes(w.BinWriter, opcode.ASSERT)
+				prog := w.Bytes()
+
+				_, _, _, _, err := ParseAppCallWithASSERT(prog, false)
+				require.NoError(t, err)
+			})
+			t.Run("missing", func(t *testing.T) {
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+				prog := w.Bytes()
+
+				_, _, _, _, err := ParseAppCallWithASSERT(prog, false)
+				require.NoError(t, err)
+			})
+		})
+	})
 }
 
 func TestParseSomething(t *testing.T) {
@@ -768,5 +838,230 @@ func TestParseSomething(t *testing.T) {
 			_, err := ParseSomething(w.Bytes(), true)
 			require.ErrorContains(t, err, "static parser supports only Array/Struct for REVERSEITEMS instruction, got PUSHDATA1")
 		})
+	})
+}
+
+func TestParseNEP17Transfer(t *testing.T) {
+	check := func(t *testing.T,
+		build func(*smartcontract.Builder, util.Uint160, string, ...any)) {
+		b := smartcontract.NewBuilder()
+		from := util.Uint160{1, 2, 3}
+		to := util.Uint160{4, 5, 6}
+		amount := int64(7)
+		data := []any{int64(5), true}
+		build(b, nativehashes.GasToken, "transfer", from, to, amount, data)
+		script, err := b.Script()
+		require.NoError(t, err)
+
+		t.Run("good", func(t *testing.T) {
+			actualH, actualFrom, actualTo, actualAmount, actualData, err := ParseNEP17Transfer(script)
+			require.NoError(t, err)
+			require.Equal(t, nativehashes.GasToken, actualH)
+			require.Equal(t, from, actualFrom)
+			require.Equal(t, to, actualTo)
+			require.Equal(t, big.NewInt(amount), actualAmount)
+			require.True(t, actualData.IsList())
+			require.Equal(t, len(data), len(actualData.List))
+			i, err := GetInt64FromInstr(actualData.List[0].Instruction)
+			require.NoError(t, err)
+			require.Equal(t, data[0], i)
+			s, err := GetBoolFromInstr(actualData.List[1].Instruction)
+			require.NoError(t, err)
+			require.Equal(t, data[1], s)
+		})
+		t.Run("additional data after transfer", func(t *testing.T) {
+			_, _, _, _, _, err := ParseNEP17Transfer(append(script, byte(opcode.NOP))) // even NOP is prohibited, we need to be strict.
+			require.ErrorContains(t, err, "extra data after script end")
+		})
+		t.Run("invalid appcall", func(t *testing.T) {
+			b.Reset()
+			build(b, nativehashes.GasToken, "transferUnknown", from, to, amount, data)
+			script, err = b.Script()
+			require.NoError(t, err)
+			_, _, _, _, _, err := ParseNEP17Transfer(script)
+			require.ErrorContains(t, err, "expected 'transfer' call, got 'transferUnknown'")
+		})
+	}
+	t.Run("ASSERT", func(t *testing.T) {
+		check(t, (*smartcontract.Builder).InvokeWithAssert)
+	})
+	t.Run("no ASSERT", func(t *testing.T) {
+		check(t, (*smartcontract.Builder).InvokeMethod)
+	})
+}
+
+func TestGetNEP17TransferFromContext(t *testing.T) {
+	check := func(t *testing.T, errText string, method string, args ...any) {
+		b := smartcontract.NewBuilder()
+		b.InvokeMethod(nativehashes.GasToken, method, args...)
+		script, err := b.Script()
+		require.NoError(t, err)
+		_, _, _, _, _, err = GetNEP17TransferFromContext(NewContext(script, 0))
+		require.ErrorContains(t, err, errText)
+	}
+	t.Run("invalid method", func(t *testing.T) {
+		check(t, "expected 'transfer' call, got 'unknown'", "unknown", util.Uint160{}, util.Uint160{}, 0, nil)
+	})
+	t.Run("invalid args count", func(t *testing.T) {
+		check(t, "expected 4 arguments, got 1", "transfer", util.Uint160{})
+	})
+	t.Run("invalid from", func(t *testing.T) {
+		check(t, "failed to parse 'from' argument", "transfer", 1, util.Uint160{}, 0, nil)
+	})
+	t.Run("invalid to", func(t *testing.T) {
+		check(t, "failed to parse 'to' argument", "transfer", util.Uint160{}, 1, 0, nil)
+	})
+	t.Run("invalid amount", func(t *testing.T) {
+		check(t, "failed to parse 'amount' argument", "transfer", util.Uint160{}, util.Uint160{}, "1", nil)
+	})
+}
+
+func TestParseNEP11Transfer(t *testing.T) {
+	check := func(t *testing.T,
+		build func(*smartcontract.Builder, util.Uint160, string, ...any)) {
+		b := smartcontract.NewBuilder()
+		to := util.Uint160{4, 5, 6}
+		id := []byte{1, 2, 3}
+		data := []any{int64(5), true}
+		build(b, nativehashes.GasToken, "transfer", to, id, data)
+		script, err := b.Script()
+		require.NoError(t, err)
+
+		t.Run("good", func(t *testing.T) {
+			actualH, actualTo, actualID, actualData, err := ParseNEP11Transfer(script)
+			require.NoError(t, err)
+			require.Equal(t, nativehashes.GasToken, actualH)
+			require.Equal(t, to, actualTo)
+			require.Equal(t, id, actualID)
+			require.True(t, actualData.IsList())
+			require.Equal(t, len(data), len(actualData.List))
+			i, err := GetInt64FromInstr(actualData.List[0].Instruction)
+			require.NoError(t, err)
+			require.Equal(t, data[0], i)
+			s, err := GetBoolFromInstr(actualData.List[1].Instruction)
+			require.NoError(t, err)
+			require.Equal(t, data[1], s)
+		})
+		t.Run("additional data after transfer", func(t *testing.T) {
+			_, _, _, _, err := ParseNEP11Transfer(append(script, byte(opcode.NOP))) // even NOP is prohibited, we need to be strict.
+			require.ErrorContains(t, err, "extra data after script end")
+		})
+		t.Run("invalid appcall", func(t *testing.T) {
+			b.Reset()
+			build(b, nativehashes.GasToken, "transferUnknown", to, id, data)
+			script, err = b.Script()
+			require.NoError(t, err)
+			_, _, _, _, err := ParseNEP11Transfer(script)
+			require.ErrorContains(t, err, "expected 'transfer' call, got 'transferUnknown'")
+		})
+	}
+	t.Run("ASSERT", func(t *testing.T) {
+		check(t, (*smartcontract.Builder).InvokeWithAssert)
+	})
+	t.Run("no ASSERT", func(t *testing.T) {
+		check(t, (*smartcontract.Builder).InvokeMethod)
+	})
+}
+
+func TestGetNEP11TransferFromContext(t *testing.T) {
+	check := func(t *testing.T, errText string, method string, args ...any) {
+		b := smartcontract.NewBuilder()
+		b.InvokeMethod(nativehashes.GasToken, method, args...)
+		script, err := b.Script()
+		require.NoError(t, err)
+		_, _, _, _, err = GetNEP11TransferFromContext(NewContext(script, 0))
+		require.ErrorContains(t, err, errText)
+	}
+	t.Run("invalid method", func(t *testing.T) {
+		check(t, "expected 'transfer' call, got 'unknown'", "unknown", util.Uint160{}, []byte{}, nil)
+	})
+	t.Run("invalid args count", func(t *testing.T) {
+		check(t, "expected 3 arguments, got 1", "transfer", util.Uint160{})
+	})
+	t.Run("invalid to", func(t *testing.T) {
+		check(t, "failed to parse 'to' argument", "transfer", 1, []byte{}, nil)
+	})
+	t.Run("invalid id", func(t *testing.T) {
+		check(t, "failed to parse 'tokenID' argument", "transfer", util.Uint160{}, true, nil)
+	})
+}
+
+func TestParseNEP11TransferD(t *testing.T) {
+	check := func(t *testing.T,
+		build func(*smartcontract.Builder, util.Uint160, string, ...any)) {
+		b := smartcontract.NewBuilder()
+		from := util.Uint160{1, 2, 3}
+		to := util.Uint160{4, 5, 6}
+		amount := int64(7)
+		id := []byte{1, 2, 3}
+		data := []any{int64(5), true}
+		build(b, nativehashes.GasToken, "transfer", from, to, amount, id, data)
+		script, err := b.Script()
+		require.NoError(t, err)
+
+		t.Run("good", func(t *testing.T) {
+			actualH, actualFrom, actualTo, actualAmount, actualID, actualData, err := ParseNEP11TransferD(script)
+			require.NoError(t, err)
+			require.Equal(t, nativehashes.GasToken, actualH)
+			require.Equal(t, from, actualFrom)
+			require.Equal(t, to, actualTo)
+			require.Equal(t, big.NewInt(amount), actualAmount)
+			require.Equal(t, id, actualID)
+			require.True(t, actualData.IsList())
+			require.Equal(t, len(data), len(actualData.List))
+			i, err := GetInt64FromInstr(actualData.List[0].Instruction)
+			require.NoError(t, err)
+			require.Equal(t, data[0], i)
+			s, err := GetBoolFromInstr(actualData.List[1].Instruction)
+			require.NoError(t, err)
+			require.Equal(t, data[1], s)
+		})
+		t.Run("additional data after transfer", func(t *testing.T) {
+			_, _, _, _, _, _, err := ParseNEP11TransferD(append(script, byte(opcode.NOP))) // even NOP is prohibited, we need to be strict.
+			require.ErrorContains(t, err, "extra data after script end")
+		})
+		t.Run("invalid appcall", func(t *testing.T) {
+			b.Reset()
+			build(b, nativehashes.GasToken, "transferUnknown", from, to, amount, id, data)
+			script, err = b.Script()
+			require.NoError(t, err)
+			_, _, _, _, _, _, err := ParseNEP11TransferD(script)
+			require.ErrorContains(t, err, "expected 'transfer' call, got 'transferUnknown'")
+		})
+	}
+	t.Run("ASSERT", func(t *testing.T) {
+		check(t, (*smartcontract.Builder).InvokeWithAssert)
+	})
+	t.Run("no ASSERT", func(t *testing.T) {
+		check(t, (*smartcontract.Builder).InvokeMethod)
+	})
+}
+
+func TestGetNEP11TransferDFromContext(t *testing.T) {
+	check := func(t *testing.T, errText string, method string, args ...any) {
+		b := smartcontract.NewBuilder()
+		b.InvokeMethod(nativehashes.GasToken, method, args...)
+		script, err := b.Script()
+		require.NoError(t, err)
+		_, _, _, _, _, _, err = GetNEP11TransferDFromContext(NewContext(script, 0))
+		require.ErrorContains(t, err, errText)
+	}
+	t.Run("invalid method", func(t *testing.T) {
+		check(t, "expected 'transfer' call, got 'unknown'", "unknown", util.Uint160{}, util.Uint160{}, 1, []byte{}, nil)
+	})
+	t.Run("invalid args count", func(t *testing.T) {
+		check(t, "expected 5 arguments, got 1", "transfer", util.Uint160{})
+	})
+	t.Run("invalid from", func(t *testing.T) {
+		check(t, "failed to parse 'from' argument", "transfer", 1, util.Uint160{}, 1, []byte{}, nil)
+	})
+	t.Run("invalid to", func(t *testing.T) {
+		check(t, "failed to parse 'to' argument", "transfer", util.Uint160{}, 1, 1, []byte{}, nil)
+	})
+	t.Run("invalid amount", func(t *testing.T) {
+		check(t, "failed to parse 'amount' argument", "transfer", util.Uint160{}, util.Uint160{}, "1", []byte{}, nil)
+	})
+	t.Run("invalid id", func(t *testing.T) {
+		check(t, "failed to parse 'tokenID' argument", "transfer", util.Uint160{}, util.Uint160{}, 1, true, nil)
 	})
 }
