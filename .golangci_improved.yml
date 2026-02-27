@@ -1,0 +1,95 @@
+# This file contains all available configuration options
+# with their default values.
+version: "2"
+
+# options for analysis running
+run:
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  timeout: 5m
+
+  # include test files or not, default is true
+  tests: true
+
+# output configuration options
+output:
+  # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
+  formats:
+    tab:
+      path: stdout
+      colors: false
+
+linters:
+  # all available settings of specific linters
+  settings:
+    exhaustive:
+      # indicates that switch statements are to be considered exhaustive if a
+      # 'default' case is present, even if all enum members aren't listed in the
+      # switch
+      default-signifies-exhaustive: true
+    gomodguard:
+      blocked:
+        modules:
+          - github.com/pkg/errors:
+              reason: Obsolete after the 1.13 release; use the standard `errors` package
+    revive:
+      rules:
+        - name: duplicated-imports
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+  enable:
+    # mandatory linters
+    - govet
+    - revive
+
+    - modernize
+
+    # some default golangci-lint linters
+    - errcheck
+    - godot
+    - ineffassign
+    - staticcheck
+    - unused
+
+    # extra linters
+    # - goconst
+    # - err113
+    # - mnd
+    # - nonamedreturns
+    # - unparam
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - copyloopvar
+    - decorder
+    - durationcheck
+    - errorlint
+    - exhaustive
+    - gomodguard
+    - intrange
+    - misspell
+    - predeclared
+    - reassign
+    - whitespace
+  default: none
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      rewrite-rules:
+        - pattern: interface{}
+          replacement: any
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$

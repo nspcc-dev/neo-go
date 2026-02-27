@@ -32,6 +32,37 @@ on:
         default: 'false'
 
 jobs:
+
+  modernize_lint:
+    name: 'Modernize: golangci-lint'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --config=./.golangci_improved.yml
+
+  modernize_tool:
+    name: 'Modernize: tool'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - run: |
+          go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./...
+          git diff
+
   build_cli:
     name: Build CLI
     runs-on: ${{matrix.os.name}}
