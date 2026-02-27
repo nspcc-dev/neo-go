@@ -253,8 +253,8 @@ func CompileWithOptions(name string, r io.Reader, o *Options) (*nef.File, *Debug
 func CompileAndSave(src string, o *Options) ([]byte, error) {
 	o.Outfile = strings.TrimSuffix(o.Outfile, fmt.Sprintf(".%s", fileExt))
 	if len(o.Outfile) == 0 {
-		if strings.HasSuffix(src, ".go") {
-			o.Outfile = strings.TrimSuffix(src, ".go")
+		if before, ok := strings.CutSuffix(src, ".go"); ok {
+			o.Outfile = before
 		} else {
 			o.Outfile = "out"
 		}
