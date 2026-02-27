@@ -30,7 +30,7 @@ GOMODDIRS=$(dir $(shell find $(ROOT_DIR) -name go.mod))
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
 .PHONY: build $(BINARY) deps image docker/$(BINARY) image-latest image-push image-push-latest clean-cluster \
-	test vet lint fmt cover version gh-docker-vars
+	test vet lint fmt modernize cover version gh-docker-vars
 
 build: deps
 	@echo "=> Building binary"
@@ -119,6 +119,9 @@ lint: .golangci.yml
 	@for dir in $(GOMODDIRS); do \
 		(cd "$$dir" && golangci-lint run --config $(ROOT_DIR)/$< | sed -r "s,^,$$dir," | sed -r "s,^$(ROOT_DIR),,") \
 	done
+
+modernize:
+	@go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./...
 
 fmt:
 	@gofmt -l -w -s $$(find . -type f -name '*.go'| grep -v "/vendor/")

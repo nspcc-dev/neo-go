@@ -163,7 +163,7 @@ func TryMake(v any) (Item, error) {
 	case Convertible:
 		return val.ToStackItem()
 	default:
-		i64T := reflect.TypeOf(int64(0))
+		i64T := reflect.TypeFor[int64]()
 		if reflect.TypeOf(val).ConvertibleTo(i64T) {
 			i64Val := reflect.ValueOf(val).Convert(i64T).Interface()
 			return TryMake(i64Val)
