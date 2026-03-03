@@ -1,7 +1,7 @@
 ProtocolConfiguration:
   Magic: 894710606
   MaxBlockSize: 2097152
-  MaxBlockSystemFee: 150000000000
+  MaxBlockSystemFee: 2000000000
   MaxTraceableBlocks: 2102400
   MaxTransactionsPerBlock: 5000
   InitialGASSupply: 52000000
