@@ -278,7 +278,7 @@ func NewPolicy() *Policy {
 	desc = NewDescriptor("recoverFund", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("token", smartcontract.Hash160Type))
-	md = NewMethodAndPrice(p.recoverFund, 1<<15, callflag.States|callflag.AllowNotify, config.HFFaun)
+	md = NewMethodAndPrice(p.recoverFund, 1<<15, callflag.All, config.HFFaun)
 	p.AddMethod(md, desc)
 
 	eDesc = NewEventDescriptor("WhitelistFeeChanged",
