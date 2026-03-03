@@ -6,7 +6,7 @@ replace github.com/nspcc-dev/neo-go => ../
 
 require (
 	github.com/davecgh/go-spew v1.1.1
-	github.com/nspcc-dev/neo-go v0.116.0
+	github.com/nspcc-dev/neo-go v0.117.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v2 v2.27.7

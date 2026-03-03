@@ -3,7 +3,7 @@ module github.com/nspcc-dev/neo-go/examples/nft-nd-nns
 go 1.25
 
 require (
-	github.com/nspcc-dev/neo-go v0.113.1-0.20251010141927-ac58bbb39350
+	github.com/nspcc-dev/neo-go v0.117.0
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20260303143317-87ace720748a
 	github.com/stretchr/testify v1.11.1
 )
@@ -28,7 +28,7 @@ require (
 	github.com/nspcc-dev/bbolt v0.0.0-20250911202005-807225ebb0c8 // indirect
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20250911084817-6fb4472993d1 // indirect
 	github.com/nspcc-dev/hrw/v2 v2.0.4 // indirect
-	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.15 // indirect
+	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.16 // indirect
 	github.com/nspcc-dev/rfc6979 v0.2.4 // indirect
 	github.com/nspcc-dev/tzhash v1.8.3 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
