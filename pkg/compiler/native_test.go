@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -373,9 +372,7 @@ func runNativeTestCase(t *testing.T, b *nef.File, di *compiler.DebugInfo, ctr in
 		if t.HasReturn != !isVoid {
 			return fmt.Errorf("wrong hasReturn %v", t.HasReturn)
 		}
-		if t.CallFlag != md.RequiredFlags &&
-			// A special case since required flags of Policy's `recoverFund` are weaker than required flags of GasToken's `transfer`.
-			!(t.Hash.Equals(nativehashes.PolicyContract) && t.Method == "recoverFund") { // nolint: staticcheck
+		if t.CallFlag != md.RequiredFlags {
 			return fmt.Errorf("wrong flags %v vs %v", t.CallFlag, md.RequiredFlags)
 		}
 		for range t.ParamCount {
