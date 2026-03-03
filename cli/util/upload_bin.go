@@ -113,10 +113,8 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 			wg       sync.WaitGroup
 		)
 		fmt.Fprintf(ctx.App.Writer, "Processing batch from %d to %d\n", batchStart, batchEnd-1)
-		wg.Add(int(numWorkers))
 		for i := range numWorkers {
-			go func(i uint) {
-				defer wg.Done()
+			wg.Go(func() {
 				for blockIndex := batchStart + i; blockIndex < batchEnd; blockIndex += numWorkers {
 					mu.RLock()
 					if _, uploaded := existing[blockIndex]; uploaded {
@@ -190,7 +188,7 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 					existing[blockIndex] = resOid
 					mu.Unlock()
 				}
-			}(i)
+			})
 		}
 
 		go func() {

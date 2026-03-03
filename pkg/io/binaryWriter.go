@@ -79,9 +79,9 @@ func (w *BinWriter) WriteArray(arr any) {
 
 		w.WriteVarUint(uint64(val.Len()))
 		for i := range val.Len() {
-			el, ok := val.Index(i).Interface().(encodable)
+			el, ok := reflect.TypeAssert[encodable](val.Index(i))
 			if !ok {
-				el, ok = val.Index(i).Addr().Interface().(encodable)
+				el, ok = reflect.TypeAssert[encodable](val.Index(i).Addr())
 				if !ok {
 					panic(typ.String() + " is not encodable")
 				}

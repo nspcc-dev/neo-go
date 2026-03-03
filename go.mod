@@ -1,13 +1,13 @@
 module github.com/nspcc-dev/neo-go
 
-go 1.24.0
+go 1.25
 
 require (
 	github.com/chzyer/readline v1.5.1
 	github.com/consensys/gnark v0.14.0
-	github.com/consensys/gnark-crypto v0.19.1
+	github.com/consensys/gnark-crypto v0.19.2
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -16,9 +16,9 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/bbolt v0.0.0-20250911202005-807225ebb0c8
 	github.com/nspcc-dev/dbft v0.4.0
-	github.com/nspcc-dev/go-ordered-json v0.0.0-20250911084817-6fb4472993d1
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20260121113504-979d1f4aada1
-	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.16
+	github.com/nspcc-dev/go-ordered-json v0.0.0-20260302080601-ff7471f924b3
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20260303143317-87ace720748a
+	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.17
 	github.com/nspcc-dev/rfc6979 v0.2.4
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/prometheus/client_golang v1.23.2
@@ -26,11 +26,11 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	github.com/twmb/murmur3 v1.1.8
 	github.com/urfave/cli/v2 v2.27.7
-	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.42.0
-	golang.org/x/term v0.35.0
-	golang.org/x/text v0.29.0
-	golang.org/x/tools v0.37.0
+	go.uber.org/zap v1.27.1
+	golang.org/x/crypto v0.48.0
+	golang.org/x/term v0.40.0
+	golang.org/x/text v0.34.0
+	golang.org/x/tools v0.42.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -60,14 +60,14 @@ require (
 	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
+	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
-	golang.org/x/mod v0.28.0 // indirect
-	golang.org/x/net v0.44.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9 // indirect
 	google.golang.org/grpc v1.75.1 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
