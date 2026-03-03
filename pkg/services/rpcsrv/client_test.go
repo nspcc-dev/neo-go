@@ -1623,15 +1623,13 @@ func TestClient_IteratorSessions(t *testing.T) {
 	t.Run("traverse, concurrent access", func(t *testing.T) {
 		sID, iID := prepareSession(t)
 		wg := sync.WaitGroup{}
-		wg.Add(storageItemsCount)
 		check := func(t *testing.T) {
 			set, err := c.TraverseIterator(sID, iID, 1)
 			assert.NoError(t, err)
 			assert.Equal(t, 1, len(set))
-			wg.Done()
 		}
 		for range storageItemsCount {
-			go check(t)
+			wg.Go(func() { check(t) })
 		}
 		wg.Wait()
 	})

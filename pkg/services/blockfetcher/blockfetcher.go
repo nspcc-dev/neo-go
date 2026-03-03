@@ -201,8 +201,7 @@ func (bfs *Service) Start(stopAt ...uint32) error {
 
 	// Start the set of blocks downloading routines.
 	for range bfs.cfg.DownloaderWorkersCount {
-		bfs.wg.Add(1)
-		go bfs.blockDownloader()
+		bfs.wg.Go(bfs.blockDownloader)
 	}
 	return nil
 }
@@ -227,8 +226,6 @@ func (bfs *Service) oidDownloader() {
 
 // blockDownloader downloads the block from NeoFS and sends it to the blocks channel.
 func (bfs *Service) blockDownloader() {
-	defer bfs.wg.Done()
-
 	for indexedOid := range bfs.oidsCh {
 		var (
 			blkOid = indexedOid.OID

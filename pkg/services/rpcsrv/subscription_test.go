@@ -762,10 +762,8 @@ func TestWSClientsLimit(t *testing.T) {
 
 			// Dial effectiveClients connections in parallel
 			for i := range effectiveClients {
-				wg.Add(1)
 				j := i
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					ws, r, err := dialer.Dial(url, nil)
 					if r != nil {
 						defer r.Body.Close()
@@ -773,7 +771,7 @@ func TestWSClientsLimit(t *testing.T) {
 					require.NoError(t, err)
 					wss[j] = ws
 					doSomeWSRequest(t, ws)
-				}()
+				})
 			}
 
 			wg.Wait()

@@ -35,8 +35,7 @@ func auditBin(ctx *cli.Context) error {
 		wg         sync.WaitGroup
 	)
 	for range numWorkers {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			for f := range tasks {
 				err := f()
 				if err != nil {
@@ -44,8 +43,7 @@ func auditBin(ctx *cli.Context) error {
 					break
 				}
 			}
-			wg.Done()
-		}()
+		})
 	}
 
 	closer, err := auditBinInt(ctx, tasks, errs)

@@ -360,14 +360,12 @@ func (s *Server) Start() {
 	s.initStaleMemPools()
 
 	var txThreads = optimalNumOfThreads()
-	s.txHandlerLoopWG.Add(txThreads)
 	for range txThreads {
-		go s.txHandlerLoop()
+		s.txHandlerLoopWG.Go(s.txHandlerLoop)
 	}
 	if s.chain.P2PSigExtensionsEnabled() {
-		s.notaryRequestLoopWG.Add(txThreads)
 		for range txThreads {
-			go s.notaryRequestHandlerLoop()
+			s.notaryRequestLoopWG.Go(s.notaryRequestHandlerLoop)
 		}
 	}
 	go s.broadcastTxLoop()
@@ -1318,7 +1316,6 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 }
 
 func (s *Server) txHandlerLoop() {
-	defer s.txHandlerLoopWG.Done()
 	in := s.txIn.In()
 txloop:
 	for {
@@ -1359,7 +1356,6 @@ drainloop:
 }
 
 func (s *Server) notaryRequestHandlerLoop() {
-	defer s.notaryRequestLoopWG.Done()
 	in := s.notaryRequestIn.In()
 requestloop:
 	for {
