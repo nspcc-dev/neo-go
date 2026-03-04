@@ -236,6 +236,93 @@ func TestRefCounterDupClearItems(t *testing.T) {
 	}
 }
 
+func TestRefCounterUnpack(t *testing.T) {
+	for typ, newTyp := range map[string]func() stackitem.Item{
+		"array": func() stackitem.Item {
+			return stackitem.NewArray([]stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make(42)})})
+		},
+		"struct": func() stackitem.Item {
+			return stackitem.NewStruct([]stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make(42)})})
+		},
+		"map": func() stackitem.Item {
+			return stackitem.NewMapWithValue([]stackitem.MapElement{{Key: stackitem.Make(0), Value: stackitem.Make([]stackitem.Item{stackitem.Make(42)})}})
+		},
+	} {
+		t.Run(typ, func(t *testing.T) {
+			var keyCount int
+			if typ == "map" {
+				keyCount++
+			}
+			prog := makeProgram(opcode.UNPACK)
+			v := load(prog)
+			v.estack.PushVal(newTyp())
+			require.Equal(t, 3+keyCount, int(v.refs))
+			runVM(t, v)
+			require.Equal(t, 2+keyCount, v.estack.Len())
+			// Unpacked value on stack (2) + key on stack (keyCount) + array/struct/map length (1).
+			require.Equal(t, (2+keyCount)+1, int(v.refs))
+			// Pop array/struct/map length.
+			v.estack.Pop()
+			require.Equal(t, 2+keyCount, int(v.refs))
+			// Pop array and key.
+			v.estack.Pop()
+			if typ == "map" {
+				require.Equal(t, 2, int(v.refs))
+				v.estack.Pop()
+			}
+			require.Equal(t, 0, v.estack.Len())
+			require.Equal(t, 0, int(v.refs))
+		})
+	}
+}
+
+func TestRefCounterDupUnpack(t *testing.T) {
+	for typ, newTyp := range map[string]func() stackitem.Item{
+		"array": func() stackitem.Item {
+			return stackitem.NewArray([]stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make(42)})})
+		},
+		"struct": func() stackitem.Item {
+			return stackitem.NewStruct([]stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make(42)})})
+		},
+		"map": func() stackitem.Item {
+			return stackitem.NewMapWithValue([]stackitem.MapElement{{Key: stackitem.Make(0), Value: stackitem.Make([]stackitem.Item{stackitem.Make(42)})}})
+		},
+	} {
+		t.Run(typ, func(t *testing.T) {
+			var keyCount int
+			if typ == "map" {
+				keyCount++
+			}
+			prog := makeProgram(opcode.DUP, opcode.UNPACK)
+			v := load(prog)
+			v.estack.PushVal(newTyp())
+			require.Equal(t, (2+keyCount)+1, int(v.refs))
+			runVM(t, v)
+			require.Equal(t, (2+keyCount)+1, v.estack.Len())
+			// Compound type (3) + ref on unpacked value on stack (1)
+			// + keys in map and on stack (2*keyCount) + array/struct/map length (1).
+			require.Equal(t, 3+1+2*keyCount+1, int(v.refs))
+			// Pop array/struct/map length.
+			v.estack.Pop()
+			require.Equal(t, 3+1+2*keyCount, int(v.refs))
+			// Pop array and key.
+			v.estack.Pop()
+			if typ == "map" {
+				require.Equal(t, 3+1+keyCount, int(v.refs))
+				v.estack.Pop()
+			}
+			require.Equal(t, 1, v.estack.Len())
+			// After pop array we shouldn't remove all array's items.
+			// Compound type (3) + key in map (keyCount).
+			require.Equal(t, 3+keyCount, int(v.refs))
+			// Pop compound type.
+			v.estack.Pop()
+			require.Equal(t, 0, v.estack.Len())
+			require.Equal(t, 0, int(v.refs))
+		})
+	}
+}
+
 func BenchmarkRefCounter_Add(b *testing.B) {
 	a := stackitem.NewArray(nil)
 	rc := newRefCounter()
