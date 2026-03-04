@@ -179,6 +179,7 @@ func NewSingleWithOptions(t testing.TB, options *Options) (*core.Blockchain, neo
 		ProtocolConfiguration: config.ProtocolConfiguration{
 			Magic:                       netmode.UnitTestNet,
 			MaxTraceableBlocks:          MaxTraceableBlocks,
+			MaxBlockSystemFee:           900000000000,
 			MaxValidUntilBlockIncrement: MaxTraceableBlocks / 2,
 			TimePerBlock:                TimePerBlock,
 			Genesis: config.Genesis{

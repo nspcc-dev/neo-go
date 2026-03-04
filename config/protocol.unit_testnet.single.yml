@@ -1,6 +1,7 @@
 ProtocolConfiguration:
   Magic: 42
   MaxTraceableBlocks: 200000
+  MaxBlockSystemFee: 900000000000
   TimePerBlock: 100ms
   Genesis:
     TimePerBlock: 100ms

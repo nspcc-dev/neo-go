@@ -59,7 +59,7 @@ const (
 	defaultMemPoolSize                     = 50000
 	defaultP2PNotaryRequestPayloadPoolSize = 1000
 	defaultMaxBlockSize                    = 262144
-	defaultMaxBlockSystemFee               = 900000000000
+	defaultMaxBlockSystemFee               = 150000000000
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
 	defaultTimePerBlock                    = 15 * time.Second
