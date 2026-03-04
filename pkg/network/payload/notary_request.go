@@ -3,6 +3,7 @@ package payload
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -107,7 +108,7 @@ func (r *P2PNotaryRequest) isValid() error {
 		return errors.New("main transaction should have NKeys > 0")
 	}
 	if len(r.FallbackTransaction.Signers) != 2 {
-		return errors.New("fallback transaction should have two signers")
+		return fmt.Errorf("fallback transaction should have two signers, got %d", len(r.FallbackTransaction.Signers))
 	}
 	if len(r.FallbackTransaction.Scripts[0].InvocationScript) != 66 ||
 		len(r.FallbackTransaction.Scripts[0].VerificationScript) != 0 ||
@@ -119,20 +120,20 @@ func (r *P2PNotaryRequest) isValid() error {
 	}
 	conflicts := r.FallbackTransaction.GetAttributes(transaction.ConflictsT)
 	if len(conflicts) != 1 {
-		return errors.New("fallback transaction should have one Conflicts attribute")
+		return fmt.Errorf("fallback transaction should have one Conflicts attribute, got %d", len(conflicts))
 	}
 	if conflicts[0].Value.(*transaction.Conflicts).Hash != r.MainTransaction.Hash() {
-		return errors.New("fallback transaction does not conflict with the main transaction")
+		return fmt.Errorf("fallback transaction does not conflict with the main transaction: main hash %s, conflicting hash %s; do not change hashable part of the main transaction after hashing", r.MainTransaction.Hash().StringLE(), conflicts[0].Value.(*transaction.Conflicts).Hash.StringLE())
 	}
 	nKeysFallback := r.FallbackTransaction.GetAttributes(transaction.NotaryAssistedT)
 	if len(nKeysFallback) == 0 {
 		return errors.New("fallback transaction should have NotaryAssisted attribute")
 	}
 	if nKeysFallback[0].Value.(*transaction.NotaryAssisted).NKeys != 0 {
-		return errors.New("fallback transaction should have NKeys = 0")
+		return fmt.Errorf("fallback transaction should have NKeys = 0, got %d", nKeysFallback[0].Value.(*transaction.NotaryAssisted).NKeys)
 	}
 	if r.MainTransaction.ValidUntilBlock != r.FallbackTransaction.ValidUntilBlock {
-		return errors.New("both main and fallback transactions should have the same ValidUntil value")
+		return fmt.Errorf("both main and fallback transactions should have the same ValidUntilBlock value, got %d for main and %d for fallback", r.MainTransaction.ValidUntilBlock, r.FallbackTransaction.ValidUntilBlock)
 	}
 	return nil
 }
