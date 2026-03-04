@@ -1276,11 +1276,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		m := stackitem.NewMap()
 		for range n {
-			key := v.estack.Pop()
-			val := v.estack.Pop().value
+			key := v.estack.popNoRef()
+			val := v.estack.popNoRef().value
 			m.Add(key.value, val)
 		}
-		v.estack.PushItem(m)
+		m.IncRC()
+		v.estack.pushItemCounted(m, 1)
 
 	case opcode.PACKSTRUCT, opcode.PACK:
 		n := toInt(v.estack.Pop().BigInt())
