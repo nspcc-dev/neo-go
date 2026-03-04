@@ -466,7 +466,7 @@ protocol-related settings described in the table below.
 | Hardforks | `map[string]uint32` | [] | The set of incompatible changes that affect node behaviour starting from the specified height. The default value is an empty set which should be interpreted as "each known stable hard-fork is applied from the zero blockchain height". See [Hardforks](#Hardforks) section for a list of supported keys. |
 | Magic | `uint32` | `0` | Magic number which uniquely identifies Neo network. |
 | MaxBlockSize | `uint32` | `262144` | Maximum block size in bytes. |
-| MaxBlockSystemFee | `int64` | `900000000000` | Maximum overall transactions system fee per block. |
+| MaxBlockSystemFee | `int64` | `150000000000` | Maximum overall transactions system fee per block. Applied at consensus level and for mempool transactions filtering only. |
 | MaxTraceableBlocks | `uint32` | `2102400` | Length of the chain accessible to smart contracts. This setting is replaced by [`Genesis`-level](#Genesis-Configuration) `MaxTraceableBlocks` protocol configuration setting and corresponding Policy value starting from `Echidna` hardfork. |
 | MaxTransactionsPerBlock | `uint16` | `512` | Maximum number of transactions per block. |
 | MaxValidUntilBlockIncrement | `uint32` | `5760` | Upper height increment limit for transaction's ValidUntilBlock field value relative to the current blockchain height, exceeding which a transaction will fail validation. It is set to estimated daily number of blocks with 15s interval by default. This setting is replaced by [`Genesis`-level](#Genesis-Configuration) `MaxValidUntilBlockIncrement` protocol configuration setting and corresponding Policy value starting from `Echidna` hardfork. |

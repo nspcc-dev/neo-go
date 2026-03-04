@@ -3646,11 +3646,6 @@ func TestRPC_SubmitBlock(t *testing.T) {
 			return testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 0, 0, 1, false))
 		}, neorpc.ErrExpiredTransactionCode)
 	})
-	t.Run("invalid SystemFee", func(t *testing.T) {
-		check(t, func(chain *core.Blockchain) *block.Block {
-			return testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 999999999999, 1, false))
-		}, neorpc.ErrPolicyFailedCode)
-	})
 	t.Run("invalid NetworkFee", func(t *testing.T) {
 		check(t, func(chain *core.Blockchain) *block.Block {
 			return testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 0, false))
@@ -3742,7 +3737,7 @@ func checkErrGetResult(t *testing.T, body []byte, expectingFail bool, expectedEr
 	if expectingFail {
 		require.NotNil(t, resp.Error)
 		assert.NotEqual(t, 0, resp.Error.Code)
-		assert.Equal(t, expectedErrCode, resp.Error.Code)
+		assert.Equal(t, expectedErrCode, resp.Error.Code, resp.Error.Message)
 		assert.NotEqual(t, "", resp.Error.Message)
 		if len(expectedErr) != 0 {
 			assert.True(t, strings.Contains(resp.Error.Error(), expectedErr[0]), fmt.Sprintf("expected: %s, got: %s", expectedErr[0], resp.Error.Error()))

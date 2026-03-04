@@ -1552,7 +1552,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 	})
 	t.Run("TooBigSystemFee", func(t *testing.T) {
 		tx := newTestTx(t, h, testScript)
-		tx.SystemFee = bc.GetConfig().MaxBlockSystemFee + 100500
+		tx.SystemFee = bc.GetConfig().MaxBlockSystemFee + 1
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		checkErr(t, core.ErrPolicy, tx)
 	})
