@@ -1,7 +1,7 @@
 ProtocolConfiguration:
   Magic: 91414437
   MaxTraceableBlocks: 17280
-  MaxBlockSystemFee: 900000000000
+  MaxBlockSystemFee: 10000000000
   MaxValidUntilBlockIncrement: 8640
   InitialGASSupply: 52000000
   TimePerBlock: 1s
