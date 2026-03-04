@@ -158,3 +158,23 @@ func BenchmarkScriptPackMap(t *testing.B) {
 	}
 	benchScript(t, script)
 }
+
+func BenchmarkScriptUnpackMap(t *testing.B) {
+	var script = []byte{
+		byte(opcode.INITSSLOT), 1,
+		byte(opcode.PUSHINT16), 0, 2,
+		byte(opcode.STSFLD0),
+		byte(opcode.PUSHINT16), 0, 7,
+		byte(opcode.NEWARRAY),
+		byte(opcode.PUSH0),
+		byte(opcode.PUSH1),
+		byte(opcode.PACKMAP),
+		byte(opcode.UNPACK),
+		byte(opcode.LDSFLD0),
+		byte(opcode.DEC),
+		byte(opcode.STSFLD0),
+		byte(opcode.LDSFLD0),
+		byte(opcode.JMPIF), 0xfa,
+	}
+	benchScript(t, script)
+}
