@@ -71,7 +71,7 @@ ApplicationConfiguration:
     Enabled: true
     Addresses:
       - ":40332"
-    MaxGasInvoke: 15
+    MaxGasInvoke: 100
     EnableCORSWorkaround: false
     TLSConfig:
       Enabled: false
