@@ -145,7 +145,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 	require.Equal(t, tsExpected, tsUpdated)
 }
 
-// TestGAS_TransferNegative ensures that transfer of a negative GAS amount leads to
+// TestGas_TransferNegative ensures that transfer of a negative GAS amount leads to
 // a VM FAULT, ref. #4072.
 func TestGas_TransferNegative(t *testing.T) {
 	c := newGasClient(t)
