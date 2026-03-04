@@ -1278,9 +1278,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		for range n {
 			key := v.estack.Pop()
 			val := v.estack.Pop().value
-			if key.Item() == nil {
-				panic("no key found")
-			}
 			m.Add(key.value, val)
 		}
 		v.estack.PushItem(m)
@@ -2077,9 +2074,6 @@ func makeArrayOfType(n int, typ stackitem.Type) []stackitem.Item {
 
 func validateMapKey(key Element) {
 	item := key.Item()
-	if item == nil {
-		panic("no key found")
-	}
 	if err := stackitem.IsValidMapKey(item); err != nil {
 		panic(err)
 	}
