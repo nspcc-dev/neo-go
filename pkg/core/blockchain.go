@@ -2918,8 +2918,19 @@ var (
 	ErrInvalidAttribute  = errors.New("invalid attribute")
 )
 
+// verifyAndPoolTx verifies transaction and tries to add it to the mempool
+// given. It works only with those transactions that are not yet packed into
+// the block. Use verifyAndPoolTx for the rest.
+func (bc *Blockchain) verifyAndPoolOffChainTx(t *transaction.Transaction, pool *mempool.Pool, feer mempool.Feer, data ...any) error {
+	if t.SystemFee > bc.config.MaxBlockSystemFee {
+		return fmt.Errorf("%w: too big system fee (%d > MaxBlockSystemFee %d)", ErrPolicy, t.SystemFee, bc.config.MaxBlockSystemFee)
+	}
+	return bc.verifyAndPoolTx(t, pool, feer, data...)
+}
+
 // verifyAndPoolTx verifies whether a transaction is bonafide or not and tries
-// to add it to the mempool given.
+// to add it to the mempool given. It works with both mempooled and in-block
+// transactions.
 func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.Pool, feer mempool.Feer, data ...any) error {
 	// This code can technically be moved out of here, because it doesn't
 	// really require a chain lock.
@@ -2937,9 +2948,6 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	if err := bc.policy.CheckPolicy(bc.dao, t); err != nil {
 		// Only one %w can be used.
 		return fmt.Errorf("%w: %w", ErrPolicy, err)
-	}
-	if t.SystemFee > bc.config.MaxBlockSystemFee {
-		return fmt.Errorf("%w: too big system fee (%d > MaxBlockSystemFee %d)", ErrPolicy, t.SystemFee, bc.config.MaxBlockSystemFee)
 	}
 	size := t.Size()
 	if size > transaction.MaxTransactionSize {
@@ -3138,7 +3146,7 @@ func (bc *Blockchain) VerifyTx(t *transaction.Transaction) error {
 	var mp = mempool.New(1, 0, false, nil)
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
-	return bc.verifyAndPoolTx(t, mp, bc)
+	return bc.verifyAndPoolOffChainTx(t, mp, bc)
 }
 
 // PoolTx verifies and tries to add given transaction into the mempool. If not
@@ -3155,7 +3163,7 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction, pools ...*mempool.Pool)
 	if len(pools) == 1 {
 		pool = pools[0]
 	}
-	return bc.verifyAndPoolTx(t, pool, bc)
+	return bc.verifyAndPoolOffChainTx(t, pool, bc)
 }
 
 // PoolTxWithData verifies and tries to add given transaction with additional data into the mempool.
@@ -3169,7 +3177,7 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data any, mp *m
 
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
-	return bc.verifyAndPoolTx(t, mp, feer, data)
+	return bc.verifyAndPoolOffChainTx(t, mp, feer, data)
 }
 
 // GetCommittee returns the sorted list of public keys of nodes in committee.
