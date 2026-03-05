@@ -291,9 +291,9 @@ func (a *Actor) SendRequest(mainTx *transaction.Transaction, fbTx *transaction.T
 	if err != nil {
 		return mainHash, fbHash, vub, err
 	}
-	// New values must be created to avoid overwriting originals via a pointer.
-	fbTx.Attributes[1].Value = &transaction.NotValidBefore{Height: (height + vub) / 2}
-	fbTx.Attributes[2].Value = &transaction.Conflicts{Hash: mainHash}
+	// Change values directly since a deep copy is created by MakeUnsignedRun.
+	fbTx.Attributes[1].Value.(*transaction.NotValidBefore).Height = (height + vub) / 2
+	fbTx.Attributes[2].Value.(*transaction.Conflicts).Hash = mainHash
 	fbTx.ValidUntilBlock = vub
 	err = a.FbActor.Sign(fbTx)
 	if err != nil {
