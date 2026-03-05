@@ -337,3 +337,32 @@ func TestWaitSuccess(t *testing.T) {
 		Execution: ex,
 	}, res)
 }
+
+func TestMakeUnsignedUncheckedRun_Attributes(t *testing.T) {
+	client, acc := testRPCAndAccount(t)
+	expectedC := util.Uint256{1, 2, 3}
+	attrs := []transaction.Attribute{{
+		Type:  transaction.ConflictsT,
+		Value: &transaction.Conflicts{Hash: expectedC}},
+	}
+
+	a, err := NewTuned(client, []SignerAccount{{
+		Signer: transaction.Signer{
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.None,
+		},
+		Account: acc,
+	}}, Options{Attributes: attrs})
+	require.NoError(t, err)
+
+	script := []byte{1, 2, 3}
+	client.hash = util.Uint256{2, 5, 6}
+	client.invRes = &result.Invoke{State: "HALT", GasConsumed: 3, Script: script}
+
+	tx, err := a.MakeUnsignedRun(script, nil)
+	require.NoError(t, err)
+	tx.Attributes[0].Value.(*transaction.Conflicts).Hash = util.Uint256{4, 5, 6}
+
+	// Ensure modification of the tx attribute won't lead to malformed actor options.
+	require.Equal(t, expectedC, a.opts.Attributes[0].Value.(*transaction.Conflicts).Hash)
+}

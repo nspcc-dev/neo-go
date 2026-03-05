@@ -176,7 +176,14 @@ func (a *Actor) MakeUnsignedUncheckedRun(script []byte, sysFee int64, attrs []tr
 	}
 
 	if attrs == nil {
-		attrs = a.opts.Attributes // Might as well be nil, but it's OK.
+		if a.opts.Attributes != nil { // Might as well be nil, but it's OK.
+			// Create a deep copy to avoid overwriting the original (shared) slice during subsequent tx modifications.
+			attrs = make([]transaction.Attribute, len(a.opts.Attributes))
+			for i := range a.opts.Attributes {
+				attrs[i] = *a.opts.Attributes[i].Copy()
+			}
+		}
+
 	}
 	tx := transaction.New(script, sysFee)
 	tx.Signers = a.txSigners
