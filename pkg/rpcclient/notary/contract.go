@@ -22,10 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-const (
-	setMaxNVBDeltaMethod = "setMaxNotValidBeforeDelta"
-	setFeePKMethod       = "setNotaryServiceFeePerKey"
-)
+const setMaxNVBDeltaMethod = "setMaxNotValidBeforeDelta"
 
 // ContractInvoker is used by ContractReader to perform read-only calls.
 type ContractInvoker interface {
