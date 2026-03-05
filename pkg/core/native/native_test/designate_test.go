@@ -54,6 +54,11 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 		setNodesByRole(t, designateInvoker, true, noderoles.NeoFSAlphabet, pubs, nil)
 		checkNodeRoles(t, designateInvoker, true, noderoles.NeoFSAlphabet, e.Chain.BlockHeight()+1, pubs)
 	})
+
+	t.Run("duplicate entries", func(t *testing.T) {
+		pubs = append(pubs, pubs[0])
+		setNodesByRole(t, designateInvoker, false, noderoles.Oracle, pubs, nil)
+	})
 }
 
 func TestDesignate_DesignateAsRole_Echidna(t *testing.T) {

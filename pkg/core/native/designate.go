@@ -436,6 +436,9 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	if si != nil {
 		return ErrAlreadyDesignated
 	}
+	if len(pubs.Unique()) != len(pubs) {
+		return errors.New("node list contains duplicate entries")
+	}
 	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 	nl := NodeList(pubs)
 
