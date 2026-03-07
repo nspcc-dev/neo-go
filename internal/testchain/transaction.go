@@ -78,7 +78,7 @@ func NewDeployTx(bc Ledger, name string, sender util.Uint160, r gio.Reader, conf
 		o.Name = conf.Name
 		o.SourceURL = conf.SourceURL
 		o.ContractEvents = conf.Events
-		o.DeclaredNamedTypes = conf.NamedTypes
+		o.NamedTypes = conf.NamedTypes
 		o.ContractSupportedStandards = conf.SupportedStandards
 		o.Permissions = make([]manifest.Permission, len(conf.Permissions))
 		for i := range conf.Permissions {
