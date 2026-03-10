@@ -210,14 +210,14 @@ func curveHasherFromStackitem(si stackitem.Item, allowKeccak bool) (elliptic.Cur
 	c := curve.Int64()
 	switch c {
 	case int64(Secp256k1Sha256):
-		return secp256k1.S256(), hash.Sha256, nil
+		return secp256k1.S256(), hash.Sha256, nil // nolint:staticcheck // deprecated because of [elliptic.Curve] deprecation, but there's no alternative in recommended crypto/ecdh package that fits our purposes.
 	case int64(Secp256r1Sha256):
 		return elliptic.P256(), hash.Sha256, nil
 	case int64(Secp256k1Keccak256):
 		if !allowKeccak {
 			return nil, nil, fmt.Errorf("%w: keccak hash", errors.ErrUnsupported)
 		}
-		return secp256k1.S256(), Keccak256, nil
+		return secp256k1.S256(), Keccak256, nil // nolint:staticcheck // deprecated because of [elliptic.Curve] deprecation, but there's no alternative in recommended crypto/ecdh package that fits our purposes.
 	case int64(Secp256r1Keccak256):
 		if !allowKeccak {
 			return nil, nil, fmt.Errorf("%w: keccak hash", errors.ErrUnsupported)

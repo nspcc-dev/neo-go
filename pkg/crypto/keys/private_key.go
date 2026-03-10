@@ -29,7 +29,7 @@ func NewPrivateKey() (*PrivateKey, error) {
 
 // NewSecp256k1PrivateKey creates a new random Secp256k1 private key.
 func NewSecp256k1PrivateKey() (*PrivateKey, error) {
-	return newPrivateKeyOnCurve(secp256k1.S256())
+	return newPrivateKeyOnCurve(secp256k1.S256()) // nolint:staticcheck // deprecated because of [elliptic.Curve] deprecation, but there's no alternative for  is deprecated
 }
 
 // newPrivateKeyOnCurve creates a new random private key using curve c.

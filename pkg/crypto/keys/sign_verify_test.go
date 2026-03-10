@@ -20,7 +20,7 @@ func TestIssue1223(t *testing.T) {
 	privateKey := PrivateKey{
 		PrivateKey: ecdsa.PrivateKey{
 			PublicKey: ecdsa.PublicKey{
-				Curve: secp256k1.S256(),
+				Curve: secp256k1.S256(), // nolint:staticcheck
 				X:     &x,
 				Y:     &y,
 			},
@@ -28,7 +28,7 @@ func TestIssue1223(t *testing.T) {
 		},
 	}
 	pubKey := PublicKey(ecdsa.PublicKey{
-		Curve: secp256k1.S256(),
+		Curve: secp256k1.S256(), // nolint:staticcheck
 		X:     privateKey.X,
 		Y:     privateKey.Y,
 	})

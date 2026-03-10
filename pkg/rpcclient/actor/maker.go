@@ -183,7 +183,6 @@ func (a *Actor) MakeUnsignedUncheckedRun(script []byte, sysFee int64, attrs []tr
 				attrs[i] = *a.opts.Attributes[i].Copy()
 			}
 		}
-
 	}
 	tx := transaction.New(script, sysFee)
 	tx.Signers = a.txSigners
