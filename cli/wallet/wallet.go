@@ -339,6 +339,26 @@ func NewCommands() []*cli.Command {
 				Flags:  signFlags,
 			},
 			{
+				Name: "sign-msg",
+				Usage: "Sign an arbitrary message using the WalletConnect scheme",
+				UsageText: "sign-msg -w wallet [--wallet-config path] [-a address] [--hex|--base64] <message>" +
+					"\n\n   The message is treated as a UTF-8 string by default. Use --hex or --base64 to provide" +
+					"\n   binary data. The command outputs a JSON object containing the address, public key," +
+					"\n   base64-encoded message, hex-encoded salt and hex-encoded signature.",
+				Action: signMessage,
+				Flags:  signMsgFlags,
+			},
+			{
+				Name: "verify-msg",
+				Usage: "Verify the WalletConnect signature for an arbitrary message",
+				UsageText: "verify-msg [-w wallet] [--wallet-config path] [--address <address>|--public-key <key>]" +
+					"\n              --salt <hex> --signature <hex> [--hex|--base64] <message>" +
+					"\n\n   The message is treated as a UTF-8 string by default. Use --hex or --base64 to provide" +
+					"\n   binary data. Either --address (requires wallet) or --public-key must be provided.",
+				Action: verifyMessage,
+				Flags:  verifyMsgFlags,
+			},
+			{
 				Name:      "strip-keys",
 				Usage:     "Remove private keys for all accounts",
 				UsageText: "neo-go wallet strip-keys -w wallet [--wallet-config path] [--force]",
