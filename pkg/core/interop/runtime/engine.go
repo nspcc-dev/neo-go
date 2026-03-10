@@ -174,8 +174,8 @@ func BurnGas(ic *interop.Context) error {
 		return errors.New("GAS must be positive")
 	}
 
-	if !ic.VM.AddDatoshi(g) {
-		return errors.New("GAS limit exceeded")
+	if err := ic.VM.AddDatoshi(g); err != nil {
+		return err
 	}
 	return nil
 }

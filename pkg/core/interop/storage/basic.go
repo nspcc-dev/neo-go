@@ -9,12 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-var (
-	// ErrGasLimitExceeded is returned from interops when there is not enough
-	// GAS left in the execution context to complete the action.
-	ErrGasLimitExceeded   = errors.New("gas limit exceeded")
-	errFindInvalidOptions = errors.New("invalid Find options")
-)
+var errFindInvalidOptions = errors.New("invalid Find options")
 
 // Context contains contract ID and read/write flag, it's used as
 // a context for storage manipulation functions.
@@ -134,8 +129,8 @@ func putWithContext(ic *interop.Context, stc *Context, key []byte, value []byte)
 			sizeInc = (len(si)-1)/4 + 1 + len(value) - len(si)
 		}
 	}
-	if !ic.VM.AddPicoGas(int64(sizeInc) * ic.BaseStorageFee()) {
-		return ErrGasLimitExceeded
+	if err := ic.VM.AddPicoGas(int64(sizeInc) * ic.BaseStorageFee()); err != nil {
+		return err
 	}
 	ic.DAO.PutStorageItem(stc.ID, key, value)
 	return nil

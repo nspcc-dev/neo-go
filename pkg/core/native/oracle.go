@@ -92,7 +92,6 @@ var (
 	ErrBigArgument      = errors.New("some of the arguments are invalid")
 	ErrInvalidWitness   = errors.New("witness check failed")
 	ErrLowResponseGas   = errors.New("not enough gas for response")
-	ErrNotEnoughGas     = errors.New("gas limit exceeded")
 	ErrRequestNotFound  = errors.New("oracle request not found")
 	ErrResponseNotFound = errors.New("oracle response not found")
 )
@@ -382,8 +381,8 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	if err != nil {
 		panic(err)
 	}
-	if !ic.VM.AddDatoshi(o.getPriceInternal(ic.DAO)) {
-		panic("insufficient gas")
+	if err := ic.VM.AddDatoshi(o.getPriceInternal(ic.DAO)); err != nil {
+		panic(fmt.Errorf("%w executing %s/request", err, o.Hash.StringLE()))
 	}
 	if err := o.RequestInternal(ic, url, filter, cb, userData, gas); err != nil {
 		panic(err)
@@ -403,8 +402,8 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return errors.New("disallowed callback method (starts with '_')")
 	}
 
-	if !ic.VM.AddDatoshi(gas.Int64()) {
-		return ErrNotEnoughGas
+	if err := ic.VM.AddDatoshi(gas.Int64()); err != nil {
+		return fmt.Errorf("%w minting reward for Oracle request", err)
 	}
 	callingHash := ic.VM.GetCallingScriptHash()
 	o.GAS.Mint(ic, o.Hash, gas, false)

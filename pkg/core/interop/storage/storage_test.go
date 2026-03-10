@@ -45,7 +45,7 @@ func TestPut(t *testing.T) {
 	t.Run("create, not enough gas", func(t *testing.T) {
 		initVM(t, []byte{1}, []byte{2, 3}, 2*native.DefaultStoragePrice)
 		err := istorage.Put(ic)
-		require.ErrorIs(t, err, istorage.ErrGasLimitExceeded)
+		require.ErrorIs(t, err, vm.ErrGASLimitExceeded)
 	})
 
 	initVM(t, []byte{4}, []byte{5, 6}, 3*native.DefaultStoragePrice)
@@ -55,7 +55,7 @@ func TestPut(t *testing.T) {
 		t.Run("not enough gas", func(t *testing.T) {
 			initVM(t, []byte{4}, []byte{5, 6, 7, 8}, native.DefaultStoragePrice)
 			err := istorage.Put(ic)
-			require.ErrorIs(t, err, istorage.ErrGasLimitExceeded)
+			require.ErrorIs(t, err, vm.ErrGASLimitExceeded)
 		})
 		initVM(t, []byte{4}, []byte{5, 6, 7, 8}, 3*native.DefaultStoragePrice)
 		require.NoError(t, istorage.Put(ic))

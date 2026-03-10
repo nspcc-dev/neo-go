@@ -512,8 +512,8 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 		return fmt.Errorf("missing call flags: %05b vs %05b", cf, f.RequiredFlags)
 	}
 	price := f.Price * ic.BaseExecFee()
-	if !ic.VM.AddPicoGas(price) {
-		return errors.New("insufficient amount of gas")
+	if err := ic.VM.AddPicoGas(price); err != nil {
+		return err
 	}
 	return f.Func(ic)
 }

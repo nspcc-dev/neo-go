@@ -68,8 +68,8 @@ func Call(ic *interop.Context) error {
 	if !ic.IsHardforkEnabled(config.HFFaun) ||
 		ic.PolicyChecker == nil || ic.PolicyChecker.WhitelistedFee(ic.DAO, curr, m.MD.Offset) == -1 {
 		invokeFee := m.CPUFee*ic.BaseExecFee() + m.StorageFee*ic.BaseStorageFee()
-		if !ic.VM.AddPicoGas(invokeFee) {
-			return errors.New("gas limit exceeded")
+		if err := ic.VM.AddPicoGas(invokeFee); err != nil {
+			return fmt.Errorf("%w executing %s/%s/%d", err, curr.StringLE(), m.MD.Name, len(m.MD.Parameters))
 		}
 	}
 	ctx := ic.VM.Context()

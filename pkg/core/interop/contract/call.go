@@ -9,7 +9,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -127,8 +126,8 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 		if ic.IsHardforkEnabled(config.HFFaun) {
 			fee := ic.PolicyChecker.WhitelistedFee(ic.DAO, cs.Hash, md.Offset)
 			if fee >= 0 {
-				if !ic.VM.AddPicoGas(fee) {
-					return fmt.Errorf("%w during whitelisted contract execution", storage.ErrGasLimitExceeded)
+				if err := ic.VM.AddPicoGas(fee); err != nil {
+					return fmt.Errorf("%w executing whitelisted contract %s/%s/%d", err, cs.Hash.StringLE(), name, len(args))
 				}
 				whitelisted = true
 			}

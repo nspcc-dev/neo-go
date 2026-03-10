@@ -149,8 +149,8 @@ func newStoragePlugin() *storagePlugin {
 func (s *storagePlugin) syscallHandler(v *vm.VM, id uint32) error {
 	f := s.interops[id]
 	if f != nil {
-		if !v.AddDatoshi(1) {
-			return errors.New("insufficient amount of gas")
+		if err := v.AddDatoshi(1); err != nil {
+			return err
 		}
 		return f(v)
 	}

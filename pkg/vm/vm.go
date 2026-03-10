@@ -30,6 +30,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
 
+// ErrGASLimitExceeded is returned whenever there's not enough GAS to pay for
+// the instruction execution.
+var ErrGASLimitExceeded = errors.New("GAS limit exceeded")
+
 type errorAtInstruct struct {
 	ip  int
 	op  opcode.Opcode
@@ -212,18 +216,21 @@ func PicoGasToDatoshi(x int64) int64 {
 }
 
 // AddPicoGas consumes the specified amount of gas in picoGAS units if the
-// executing method is not whitelisted. It returns true if the gas limit wasn't
-// exceeded.
-func (v *VM) AddPicoGas(gas int64) bool {
+// executing method is not whitelisted. It returns [ErrGASLimitExceeded] if the
+// gas limit was exceeded.
+func (v *VM) AddPicoGas(gas int64) error {
 	if ctx := v.Context(); ctx == nil || !ctx.sc.whitelisted {
 		v.gasConsumed += gas
 	}
-	return v.gasLimit < 0 || v.gasConsumed <= v.gasLimit
+	if v.gasLimit < 0 || v.gasConsumed <= v.gasLimit {
+		return nil
+	}
+	return ErrGASLimitExceeded
 }
 
 // AddDatoshi consumes the specified amount of gas in Datoshi units. It returns
-// true if the gas limit wasn't exceeded.
-func (v *VM) AddDatoshi(gas int64) bool {
+// [ErrGASLimitExceeded] if the gas limit was exceeded.
+func (v *VM) AddDatoshi(gas int64) error {
 	return v.AddPicoGas(gas * ExecFeeFactorMultiplier)
 }
 
@@ -691,7 +698,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		p := v.getPrice(op, parameter)
 		v.gasConsumed += p
 		if v.gasLimit >= 0 && v.gasConsumed > v.gasLimit {
-			panic("gas limit is exceeded")
+			panic(ErrGASLimitExceeded)
 		}
 	}
 

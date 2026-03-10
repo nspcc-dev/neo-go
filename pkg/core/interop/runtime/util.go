@@ -101,8 +101,8 @@ func GetRandom(ic *interop.Context) error {
 	if !isHF {
 		ic.NonceData = [interop.ContextNonceDataLen]byte(res)
 	}
-	if !ic.VM.AddPicoGas(ic.BaseExecFee() * price) {
-		return errors.New("gas limit exceeded")
+	if err := ic.VM.AddPicoGas(ic.BaseExecFee() * price); err != nil {
+		return err
 	}
 	// Resulting data is interpreted as an unsigned LE integer.
 	slices.Reverse(res)

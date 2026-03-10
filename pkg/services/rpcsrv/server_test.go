@@ -52,6 +52,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -3328,7 +3329,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				}},
 			}
 			body := calcReq(t, tx)
-			_ = checkErrGetResult(t, body, true, neorpc.ErrInvalidSignatureCode, "GAS limit exceeded")
+			_ = checkErrGetResult(t, body, true, neorpc.ErrInvalidSignatureCode, vm.ErrGASLimitExceeded.Error())
 		})
 		checkCalc := func(t *testing.T, tx *transaction.Transaction, fee int64) {
 			resp := checkErrGetResult(t, calcReq(t, tx), false, 0)

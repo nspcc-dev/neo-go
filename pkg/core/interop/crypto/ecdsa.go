@@ -20,8 +20,8 @@ func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
 	if err != nil {
 		return fmt.Errorf("wrong key parameters: %w", err)
 	}
-	if !ic.VM.AddPicoGas(ic.BaseExecFee() * fee.ECDSAVerifyPrice * int64(len(pkeys))) {
-		return errors.New("gas limit exceeded")
+	if err := ic.VM.AddPicoGas(ic.BaseExecFee() * fee.ECDSAVerifyPrice * int64(len(pkeys))); err != nil {
+		return err
 	}
 	sigs, err := ic.VM.Estack().PopSigElements()
 	if err != nil {
