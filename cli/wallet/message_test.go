@@ -168,7 +168,8 @@ func TestSignAndVerifyMessage(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(output), &res))
 
 		// Verify using wallet + address instead of public-key.
-		e.In.WriteString("pass\r")
+		// No password needed since the public key is extracted from the
+		// verification script without decryption.
 		e.Run(t, "neo-go", "wallet", "verify-msg",
 			"--wallet", walletPath,
 			"--address", addr,

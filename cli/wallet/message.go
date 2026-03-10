@@ -106,7 +106,7 @@ func signMessage(ctx *cli.Context) error {
 		Message:   base64.StdEncoding.EncodeToString(msg),
 		Signature: hex.EncodeToString(sig),
 	}
-	txt, err := json.MarshalIndent(res, " ", "     ")
+	txt, err := json.MarshalIndent(res, "", "  ")
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to marshal result: %w", err), 1)
 	}
