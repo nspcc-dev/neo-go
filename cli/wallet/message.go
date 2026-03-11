@@ -4,7 +4,6 @@ import (
 	"crypto/elliptic"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
@@ -14,15 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/urfave/cli/v2"
 )
-
-// signMessageResult contains the output of the sign-msg command.
-type signMessageResult struct {
-	Address   string `json:"address"`
-	PublicKey string `json:"public_key"`
-	Salt      string `json:"salt"`
-	Message   string `json:"message"`
-	Signature string `json:"signature"`
-}
 
 var (
 	signMsgFlags = []cli.Flag{
@@ -52,17 +42,12 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  "public-key",
-			Usage: "Public key to verify the signature with (hex-encoded compressed or uncompressed); address takes priority over public-key",
-		},
-		&cli.StringFlag{
-			Name:     "salt",
-			Required: true,
-			Usage:    "16-byte hex-encoded random salt used during signing",
+			Usage: "Public key to verify the signature with (hex-encoded compressed); address takes priority over public-key",
 		},
 		&cli.StringFlag{
 			Name:     "signature",
 			Required: true,
-			Usage:    "64-byte hex-encoded signature",
+			Usage:    "80-byte hex-encoded signature (64 bytes ECDSA + 16 bytes salt) as produced by sign-msg",
 		},
 		&cli.BoolFlag{
 			Name:  "hex",
@@ -91,26 +76,12 @@ func signMessage(ctx *cli.Context) error {
 		return cli.Exit("account cannot sign: key not unlocked or account is locked", 1)
 	}
 
-	sigWithSalt, err := acc.PrivateKey().SignWalletConnect(msg)
+	sig, err := acc.PrivateKey().SignWalletConnect(msg)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to sign message: %w", err), 1)
 	}
 
-	sig := sigWithSalt[:keys.SignatureLen]
-	salt := sigWithSalt[keys.SignatureLen:]
-
-	res := signMessageResult{
-		Address:   acc.Address,
-		PublicKey: hex.EncodeToString(acc.PublicKey().Bytes()),
-		Salt:      hex.EncodeToString(salt),
-		Message:   base64.StdEncoding.EncodeToString(msg),
-		Signature: hex.EncodeToString(sig),
-	}
-	txt, err := json.MarshalIndent(res, "", "  ")
-	if err != nil {
-		return cli.Exit(fmt.Errorf("failed to marshal result: %w", err), 1)
-	}
-	fmt.Fprintln(ctx.App.Writer, string(txt))
+	fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(sig))
 	return nil
 }
 
@@ -120,26 +91,14 @@ func verifyMessage(ctx *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 
-	saltHex := ctx.String("salt")
-	if len(saltHex) != keys.WalletConnectSaltLen*2 {
-		return cli.Exit(fmt.Errorf("invalid salt length: expected %d hex characters (%d bytes), got %d",
-			keys.WalletConnectSaltLen*2, keys.WalletConnectSaltLen, len(saltHex)), 1)
-	}
-	salt, err := hex.DecodeString(saltHex)
-	if err != nil {
-		return cli.Exit(fmt.Errorf("failed to decode salt: %w", err), 1)
-	}
-
 	sigHex := ctx.String("signature")
-	if len(sigHex) != keys.SignatureLen*2 {
-		return cli.Exit(fmt.Errorf("invalid signature length: expected %d hex characters (%d bytes), got %d",
-			keys.SignatureLen*2, keys.SignatureLen, len(sigHex)), 1)
+	if len(sigHex) != (keys.SignatureLen+keys.WalletConnectSaltLen)*2 {
+		return cli.Exit("invalid signature", 1)
 	}
 	sig, err := hex.DecodeString(sigHex)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to decode signature: %w", err), 1)
 	}
-	sigWithSalt := append(sig, salt...)
 
 	var pub *keys.PublicKey
 	addrFlag := ctx.Generic("address").(*flags.Address)
@@ -157,7 +116,7 @@ func verifyMessage(ctx *cli.Context) error {
 		return cli.Exit("either --address or --public-key must be specified", 1)
 	}
 
-	if pub.VerifyWalletConnect(msg, sigWithSalt) {
+	if pub.VerifyWalletConnect(msg, sig) {
 		fmt.Fprintln(ctx.App.Writer, "Signature is correct")
 		return nil
 	}
