@@ -1,6 +1,7 @@
 package wallet_test
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"path/filepath"
 	"strings"
@@ -84,7 +85,7 @@ func TestSignAndVerifyMessage(t *testing.T) {
 		require.Contains(t, e.Out.String(), "Signature is correct")
 	})
 	t.Run("sign base64 message", func(t *testing.T) {
-		b64Msg := "YmluYXJ5IGRhdGE=" // base64("binary data")
+		b64Msg := base64.StdEncoding.EncodeToString([]byte("binary data"))
 		e.In.WriteString("pass\r")
 		e.Run(t, "neo-go", "wallet", "sign-msg",
 			"--wallet", walletPath, "--address", addr, "--base64", b64Msg)
