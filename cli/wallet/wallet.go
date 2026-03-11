@@ -260,11 +260,11 @@ func NewCommands() []*cli.Command {
 				UsageText: "import-multisig -w wallet [--wallet-config path] [--wif <wif>] [--name <account_name>] --min <m>" +
 					" [<pubkey1> [<pubkey2> [...]]]",
 				Description: `Imports a standard multisignature contract with "m out of n" signatures required where "m" is
-       specified by --min flag and "n" is the length of provided set of public keys. If
-       --wif flag is provided, it's used to create an account with the given name (or
-       without a name if --name flag is not provided). Otherwise, the command tries to
-       find an account with one of the given public keys and convert it to multisig. If
-       no suitable account is found and no --wif flag is specified, an error is returned.
+   specified by --min flag and "n" is the length of provided set of public keys. If
+   --wif flag is provided, it's used to create an account with the given name (or
+   without a name if --name flag is not provided). Otherwise, the command tries to
+   find an account with one of the given public keys and convert it to multisig. If
+   no suitable account is found and no --wif flag is specified, an error is returned.
 `,
 				Action: importMultisig,
 				Flags: []cli.Flag{
