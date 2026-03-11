@@ -1,8 +1,10 @@
 package wallet
 
 import (
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -60,11 +62,6 @@ var (
 	wifFlag = &cli.StringFlag{
 		Name:  "wif",
 		Usage: "WIF to import",
-	}
-	decryptFlag = &cli.BoolFlag{
-		Name:    "decrypt",
-		Aliases: []string{"d"},
-		Usage:   "Decrypt encrypted keys.",
 	}
 	inFlag = &cli.StringFlag{
 		Name:     "in",
@@ -199,7 +196,11 @@ func NewCommands() []*cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					decryptFlag,
+					&cli.BoolFlag{
+						Name:    "decrypt",
+						Aliases: []string{"d"},
+						Usage:   "Decrypt encrypted keys.",
+					},
 				},
 			},
 			{
@@ -220,18 +221,31 @@ func NewCommands() []*cli.Command {
 			{
 				Name:      "export",
 				Usage:     "Export keys for address",
-				UsageText: "export -w wallet [--wallet-config path] [--decrypt] [<address>]",
+				UsageText: "export -w wallet [--wallet-config path] [--decrypt] [--format nep2|wif|pem] [<address>]",
 				Description: `Prints the key for the given account to the standard output. It uses NEP-2
    encrypted format by default (the way NEP-6 wallets store it) or WIF format if
-   -d option is given. In the latter case the key can be displayed in clear text
-   on the console, so be extremely careful with this option and don't use unless
-   you really need it and know what you're doing.
+   -d option is given (-d option is deprecated, use a prioritized --format option
+   instead). If --format option is given, one of 'nep2' (default), 'wif'
+   (unencrypted WIF format) or 'pem' (Privacy-Enhanced Mail format specified by
+   RFC 7468) can be specified. In two latter cases the key can be displayed in
+   clear text on the console, so be extremely careful with this option and don't
+   use unless you really need it and know what you're doing.
 `,
 				Action: exportKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					decryptFlag,
+					&cli.BoolFlag{
+						Name:    "decrypt",
+						Aliases: []string{"d"},
+						Usage:   "Decrypt encrypted key. Deprecated; use '--format wif' instead.",
+					},
+					&cli.StringFlag{
+						Name:    "format",
+						Aliases: []string{"f"},
+						Usage:   "Format of the output key: 'nep2' (default), 'wif' or 'pem'.",
+						Value:   "nep2",
+					},
 				},
 			},
 			{
@@ -497,11 +511,23 @@ func exportKeys(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	var addr string
+	var (
+		addr   string
+		format = exportNEP2
+	)
 
-	decrypt := ctx.Bool("decrypt")
+	if ctx.Bool("decrypt") {
+		format = exportWIF
+	}
+	if ctx.IsSet("format") {
+		format, err = exportFormatFromString(ctx.String("format"))
+		if err != nil {
+			return cli.Exit(err, 1)
+		}
+	}
+	decrypt := format != exportNEP2
 	if ctx.NArg() == 0 && decrypt {
-		return cli.Exit(errors.New("address must be provided if '--decrypt' flag is used"), 1)
+		return cli.Exit(errors.New("address must be provided if '--decrypt' or '--format wif|pem' flags are used"), 1)
 	} else if ctx.NArg() > 0 {
 		// check address format just to catch possible typos
 		addr = ctx.Args().First()
@@ -540,7 +566,21 @@ func exportKeys(ctx *cli.Context) error {
 				return cli.Exit(err, 1)
 			}
 
-			wif = pk.WIF()
+			switch format {
+			case exportWIF:
+				wif = pk.WIF()
+			case exportPEM:
+				der, err := x509.MarshalPKCS8PrivateKey(&pk.PrivateKey)
+				if err != nil {
+					return cli.Exit(fmt.Errorf("failed to marshal private key to DER form: %w", err), 1)
+				}
+				if err := pem.Encode(ctx.App.Writer, &pem.Block{Type: "PRIVATE KEY", Bytes: der}); err != nil {
+					return cli.Exit(fmt.Errorf("failed to encode PEM: %w", err), 1)
+				}
+				continue
+			default:
+				return cli.Exit(fmt.Errorf("unknown private key export format: %d", format), 1)
+			}
 		}
 
 		fmt.Fprintln(ctx.App.Writer, wif)

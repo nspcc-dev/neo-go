@@ -34,3 +34,11 @@ registration way via `registerCandidate` method call is supported via
 Removal of `registerCandidate`–based support of candidate registration will be
 done once `registerCandidate` method is officially deprecated and removed from
 the NeoToken manifest with the subsequent hardfork.
+
+## `--decrypt` flag of `wallet export` command
+
+The `--decrypt` (`-d`) flag of the `wallet export` CLI command is deprecated
+and has been superseded by the `--format wif` option. Use `--format wif`
+instead of `--decrypt`.
+
+Removal is planned for v0.120.0 release (~June 2026).
