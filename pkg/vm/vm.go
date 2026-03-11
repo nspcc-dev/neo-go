@@ -1276,11 +1276,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		m := stackitem.NewMap()
 		for range n {
-			key := v.estack.Pop()
-			val := v.estack.Pop().value
+			key := v.estack.popNoRef()
+			val := v.estack.popNoRef().value
 			m.Add(key.value, val)
 		}
-		v.estack.PushItem(m)
+		m.IncRC()
+		v.estack.pushItemCounted(m, 1)
 
 	case opcode.PACKSTRUCT, opcode.PACK:
 		n := toInt(v.estack.Pop().BigInt())
@@ -1306,29 +1307,50 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.pushItemCounted(res, 1)
 
 	case opcode.UNPACK:
-		e := v.estack.Pop()
+		e := v.estack.popNoRef()
+		v.refs--
 		var arr []stackitem.Item
 		var l int
+		var isReferenced bool
 
 		switch t := e.value.(type) {
 		case *stackitem.Array:
+			t.DecRC()
+			isReferenced = t.IsReferenced()
 			arr = t.Value().([]stackitem.Item)
 		case *stackitem.Struct:
+			t.DecRC()
+			isReferenced = t.IsReferenced()
 			arr = t.Value().([]stackitem.Item)
 		case *stackitem.Map:
+			t.DecRC()
+			isReferenced = t.IsReferenced()
 			m := t.Value().([]stackitem.MapElement)
 			l = len(m)
-			for i := l - 1; i >= 0; i-- {
-				v.estack.PushItem(m[i].Value)
-				v.estack.PushItem(m[i].Key)
+			if isReferenced {
+				for i := l - 1; i >= 0; i-- {
+					v.estack.PushItem(m[i].Value)
+					v.estack.pushItemCounted(m[i].Key, 1)
+				}
+			} else {
+				for i := l - 1; i >= 0; i-- {
+					v.estack.pushItemCounted(m[i].Value, 0)
+					v.estack.pushItemCounted(m[i].Key, 0)
+				}
 			}
 		default:
 			panic("element is not an array/struct/map")
 		}
 		if arr != nil {
 			l = len(arr)
-			for i := l - 1; i >= 0; i-- {
-				v.estack.PushItem(arr[i])
+			if isReferenced {
+				for i := l - 1; i >= 0; i-- {
+					v.estack.PushItem(arr[i])
+				}
+			} else {
+				for i := l - 1; i >= 0; i-- {
+					v.estack.pushItemCounted(arr[i], 0)
+				}
 			}
 		}
 		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(l))))
