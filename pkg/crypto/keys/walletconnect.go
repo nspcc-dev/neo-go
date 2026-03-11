@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 
-	neogo_io "github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -21,7 +21,7 @@ func hashWalletConnect(salt, data []byte) util.Uint256 {
 	h := sha256.New()
 	saltedLen := hex.EncodedLen(len(salt)) + base64.StdEncoding.EncodedLen(len(data))
 	var lenBuf [9]byte
-	n := neogo_io.PutVarUint(lenBuf[:], uint64(saltedLen))
+	n := io.PutVarUint(lenBuf[:], uint64(saltedLen))
 	_, _ = h.Write([]byte{0x01, 0x00, 0x01, 0xf0})
 	_, _ = h.Write(lenBuf[:n])
 	hexEnc := hex.NewEncoder(h)

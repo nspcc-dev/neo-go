@@ -1,26 +1,17 @@
 package wallet_test
 
 import (
-	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/scparser"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
-
-// signMsgResult mirrors the signMessageResult struct in message.go.
-type signMsgResult struct {
-	Address   string `json:"address"`
-	PublicKey string `json:"public_key"`
-	Salt      string `json:"salt"`
-	Message   string `json:"message"`
-	Signature string `json:"signature"`
-}
 
 func TestSignAndVerifyMessage(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -35,8 +26,14 @@ func TestSignAndVerifyMessage(t *testing.T) {
 
 	w, err := wallet.NewWalletFromFile(walletPath)
 	require.NoError(t, err)
+	require.NotEmpty(t, w.Accounts)
 	acc := w.Accounts[0]
 	addr := acc.Address
+
+	// Extract the public key from the verification script (no decryption needed).
+	pubKeyBytes, ok := scparser.ParseSignatureContract(acc.Contract.Script)
+	require.True(t, ok)
+	pubKeyHex := hex.EncodeToString(pubKeyBytes)
 
 	t.Run("missing wallet", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "sign-msg", "hello")
@@ -58,19 +55,15 @@ func TestSignAndVerifyMessage(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "sign-msg",
 			"--wallet", walletPath, "--address", addr, "hello")
 
-		output := e.Out.String()
-		var res signMsgResult
-		require.NoError(t, json.Unmarshal([]byte(output), &res))
-		require.Equal(t, addr, res.Address)
-		require.Equal(t, base64.StdEncoding.EncodeToString([]byte("hello")), res.Message)
-		require.Equal(t, keys.WalletConnectSaltLen*2, len(res.Salt))
-		require.Equal(t, keys.SignatureLen*2, len(res.Signature))
+		sigHex := strings.TrimSpace(e.Out.String())
+		require.Len(t, sigHex, (keys.SignatureLen+keys.WalletConnectSaltLen)*2)
+		_, err := hex.DecodeString(sigHex)
+		require.NoError(t, err)
 
-		// Verify with verify-msg using --public-key.
+		// Verify with --public-key.
 		e.Run(t, "neo-go", "wallet", "verify-msg",
-			"--public-key", res.PublicKey,
-			"--salt", res.Salt,
-			"--signature", res.Signature,
+			"--public-key", pubKeyHex,
+			"--signature", sigHex,
 			"hello")
 		require.Contains(t, e.Out.String(), "Signature is correct")
 	})
@@ -80,52 +73,37 @@ func TestSignAndVerifyMessage(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "sign-msg",
 			"--wallet", walletPath, "--address", addr, "--hex", hexMsg)
 
-		output := e.Out.String()
-		var res signMsgResult
-		require.NoError(t, json.Unmarshal([]byte(output), &res))
-		require.Equal(t, base64.StdEncoding.EncodeToString([]byte("binary data")), res.Message)
+		sigHex := strings.TrimSpace(e.Out.String())
+		require.Len(t, sigHex, (keys.SignatureLen+keys.WalletConnectSaltLen)*2)
 
 		// Verify.
 		e.Run(t, "neo-go", "wallet", "verify-msg",
-			"--public-key", res.PublicKey,
-			"--salt", res.Salt,
-			"--signature", res.Signature,
+			"--public-key", pubKeyHex,
+			"--signature", sigHex,
 			"--hex", hexMsg)
 		require.Contains(t, e.Out.String(), "Signature is correct")
 	})
 	t.Run("sign base64 message", func(t *testing.T) {
-		b64Msg := base64.StdEncoding.EncodeToString([]byte("binary data"))
+		b64Msg := "YmluYXJ5IGRhdGE=" // base64("binary data")
 		e.In.WriteString("pass\r")
 		e.Run(t, "neo-go", "wallet", "sign-msg",
 			"--wallet", walletPath, "--address", addr, "--base64", b64Msg)
 
-		output := e.Out.String()
-		var res signMsgResult
-		require.NoError(t, json.Unmarshal([]byte(output), &res))
-		require.Equal(t, b64Msg, res.Message)
+		sigHex := strings.TrimSpace(e.Out.String())
+		require.Len(t, sigHex, (keys.SignatureLen+keys.WalletConnectSaltLen)*2)
 
 		// Verify.
 		e.Run(t, "neo-go", "wallet", "verify-msg",
-			"--public-key", res.PublicKey,
-			"--salt", res.Salt,
-			"--signature", res.Signature,
+			"--public-key", pubKeyHex,
+			"--signature", sigHex,
 			"--base64", b64Msg)
 		require.Contains(t, e.Out.String(), "Signature is correct")
 	})
 	t.Run("verify with wrong signature fails", func(t *testing.T) {
-		e.In.WriteString("pass\r")
-		e.Run(t, "neo-go", "wallet", "sign-msg",
-			"--wallet", walletPath, "--address", addr, "hello")
-
-		output := e.Out.String()
-		var res signMsgResult
-		require.NoError(t, json.Unmarshal([]byte(output), &res))
-
-		wrongSig := make([]byte, keys.SignatureLen)
+		wrongSig := hex.EncodeToString(make([]byte, keys.SignatureLen+keys.WalletConnectSaltLen))
 		e.RunWithError(t, "neo-go", "wallet", "verify-msg",
-			"--public-key", res.PublicKey,
-			"--salt", res.Salt,
-			"--signature", hex.EncodeToString(wrongSig),
+			"--public-key", pubKeyHex,
+			"--signature", wrongSig,
 			"hello")
 	})
 	t.Run("verify with wrong message fails", func(t *testing.T) {
@@ -133,29 +111,21 @@ func TestSignAndVerifyMessage(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "sign-msg",
 			"--wallet", walletPath, "--address", addr, "hello")
 
-		output := e.Out.String()
-		var res signMsgResult
-		require.NoError(t, json.Unmarshal([]byte(output), &res))
-
+		sigHex := strings.TrimSpace(e.Out.String())
 		e.RunWithError(t, "neo-go", "wallet", "verify-msg",
-			"--public-key", res.PublicKey,
-			"--salt", res.Salt,
-			"--signature", res.Signature,
+			"--public-key", pubKeyHex,
+			"--signature", sigHex,
 			"wrong message")
 	})
-	t.Run("verify-msg missing salt or signature", func(t *testing.T) {
-		e.RunWithErrorCheck(t, `Required flag "salt" not set`,
+	t.Run("verify-msg missing signature", func(t *testing.T) {
+		e.RunWithErrorCheck(t, `Required flag "signature" not set`,
 			"neo-go", "wallet", "verify-msg",
-			"--public-key", "030000000000000000000000000000000000000000000000000000000000000001",
-			"--signature", "0000000000000000000000000000000000000000000000000000000000000000"+
-				"0000000000000000000000000000000000000000000000000000000000000000",
+			"--public-key", pubKeyHex,
 			"hello")
 	})
 	t.Run("verify-msg missing address and public key", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "verify-msg",
-			"--salt", "00000000000000000000000000000000",
-			"--signature", "0000000000000000000000000000000000000000000000000000000000000000"+
-				"0000000000000000000000000000000000000000000000000000000000000000",
+			"--signature", hex.EncodeToString(make([]byte, keys.SignatureLen+keys.WalletConnectSaltLen)),
 			"hello")
 	})
 	t.Run("verify with wallet address", func(t *testing.T) {
@@ -163,9 +133,7 @@ func TestSignAndVerifyMessage(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "sign-msg",
 			"--wallet", walletPath, "--address", addr, "hello")
 
-		output := e.Out.String()
-		var res signMsgResult
-		require.NoError(t, json.Unmarshal([]byte(output), &res))
+		sigHex := strings.TrimSpace(e.Out.String())
 
 		// Verify using wallet + address instead of public-key.
 		// No password needed since the public key is extracted from the
@@ -173,8 +141,7 @@ func TestSignAndVerifyMessage(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "verify-msg",
 			"--wallet", walletPath,
 			"--address", addr,
-			"--salt", res.Salt,
-			"--signature", res.Signature,
+			"--signature", sigHex,
 			"hello")
 		require.Contains(t, e.Out.String(), "Signature is correct")
 	})
