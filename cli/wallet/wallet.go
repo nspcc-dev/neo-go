@@ -191,9 +191,9 @@ func NewCommands() []*cli.Command {
 				Usage:     "Check and dump an existing Neo wallet",
 				UsageText: "neo-go wallet dump -w wallet [--wallet-config path] [-d]",
 				Description: `Prints the given wallet (via -w option or via wallet configuration file) in JSON
-   format to the standard output. If -d is given, private keys are unencrypted and
-   displayed in clear text on the console! Be very careful with this option and
-   don't use it unless you know what you're doing.
+   format to the standard output. If -d is given, an attempt to decrypt private keys will be
+   taken and an error returned in case of failed decryption. Note that this command doesn't
+   display decrypted private keys in clear text on the console, use 'wallet export' for this.
 `,
 				Action: dumpWallet,
 				Flags: []cli.Flag{
