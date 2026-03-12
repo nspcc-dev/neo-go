@@ -552,35 +552,72 @@ func TestWalletExport(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "export",
 			"--wallet", testcli.ValidatorWallet, "not-an-address")
 	})
+	t.Run("invalid format", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "wallet", "export",
+			"--wallet", testcli.ValidatorWallet, "--format", "invalid")
+	})
 	t.Run("Encrypted", func(t *testing.T) {
-		e.Run(t, "neo-go", "wallet", "export",
-			"--wallet", testcli.ValidatorWallet, testcli.ValidatorAddr)
-		line, err := e.Out.ReadString('\n')
-		require.NoError(t, err)
-		enc, err := keys.NEP2Encrypt(testcli.ValidatorPriv, "one", keys.ScryptParams{N: 2, R: 1, P: 1}) // these params used in validator wallet for better resources consumption
-		require.NoError(t, err)
-		require.Equal(t, enc, strings.TrimSpace(line))
+		t.Run("good: no format", func(t *testing.T) {
+			e.Run(t, "neo-go", "wallet", "export",
+				"--wallet", testcli.ValidatorWallet, testcli.ValidatorAddr)
+			line, err := e.Out.ReadString('\n')
+			require.NoError(t, err)
+			enc, err := keys.NEP2Encrypt(testcli.ValidatorPriv, "one", keys.ScryptParams{N: 2, R: 1, P: 1}) // these params used in validator wallet for better resources consumption
+			require.NoError(t, err)
+			require.Equal(t, enc, strings.TrimSpace(line))
+		})
+		t.Run("good: nep2", func(t *testing.T) {
+			e.Run(t, "neo-go", "wallet", "export",
+				"--wallet", testcli.ValidatorWallet, "--format", "nep2", testcli.ValidatorAddr)
+			line, err := e.Out.ReadString('\n')
+			require.NoError(t, err)
+			enc, err := keys.NEP2Encrypt(testcli.ValidatorPriv, "one", keys.ScryptParams{N: 2, R: 1, P: 1}) // these params used in validator wallet for better resources consumption
+			require.NoError(t, err)
+			require.Equal(t, enc, strings.TrimSpace(line))
+		})
 	})
 	t.Run("Decrypted", func(t *testing.T) {
 		t.Run("NoAddress", func(t *testing.T) {
 			e.RunWithError(t, "neo-go", "wallet", "export",
-				"--wallet", testcli.ValidatorWallet, "--decrypt")
+				"--wallet", testcli.ValidatorWallet, "--format", "wif")
 		})
 		t.Run("EOF reading password", func(t *testing.T) {
 			e.RunWithError(t, "neo-go", "wallet", "export",
-				"--wallet", testcli.ValidatorWallet, "--decrypt", testcli.ValidatorAddr)
+				"--wallet", testcli.ValidatorWallet, "--format", "wif", testcli.ValidatorAddr)
 		})
 		t.Run("invalid password", func(t *testing.T) {
 			e.In.WriteString("invalid_pass\r")
 			e.RunWithError(t, "neo-go", "wallet", "export",
-				"--wallet", testcli.ValidatorWallet, "--decrypt", testcli.ValidatorAddr)
+				"--wallet", testcli.ValidatorWallet, "--format", "wif", testcli.ValidatorAddr)
 		})
-		e.In.WriteString("one\r")
-		e.Run(t, "neo-go", "wallet", "export",
-			"--wallet", testcli.ValidatorWallet, "--decrypt", testcli.ValidatorAddr)
-		line, err := e.Out.ReadString('\n')
-		require.NoError(t, err)
-		require.Equal(t, testcli.ValidatorWIF, strings.TrimSpace(line))
+		t.Run("good: wif", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.Run(t, "neo-go", "wallet", "export",
+				"--wallet", testcli.ValidatorWallet, "--format", "wif", testcli.ValidatorAddr)
+			line, err := e.Out.ReadString('\n')
+			require.NoError(t, err)
+			require.Equal(t, testcli.ValidatorWIF, strings.TrimSpace(line))
+		})
+		t.Run("good: pem", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.Run(t, "neo-go", "wallet", "export",
+				"--wallet", testcli.ValidatorWallet, "--format", "pem", testcli.ValidatorAddr)
+			line, err := e.Out.ReadString('\n')
+			require.NoError(t, err)
+			require.Equal(t, "-----BEGIN PRIVATE KEY-----", strings.TrimSpace(line))
+			line, err = e.Out.ReadString('\n')
+			require.NoError(t, err)
+			require.Equal(t, "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgNHvCvZ63ufQaIXom", strings.TrimSpace(line))
+			line, err = e.Out.ReadString('\n')
+			require.NoError(t, err)
+			require.Equal(t, "3Fo9Kjwl7OHIv/HVoUaq9BVuNDahRANCAASzYiv0AXvf4xfFiu1fTHU/IGt9uJYE", strings.TrimSpace(line))
+			line, err = e.Out.ReadString('\n')
+			require.NoError(t, err)
+			require.Equal(t, "b6fXdLvEv3+Nwq+ceyl1nffz2SBSpbm8VFvNMcano0Y+kMdopsPkWxA2", strings.TrimSpace(line))
+			line, err = e.Out.ReadString('\n')
+			require.NoError(t, err)
+			require.Equal(t, "-----END PRIVATE KEY-----", strings.TrimSpace(line))
+		})
 	})
 }
 
