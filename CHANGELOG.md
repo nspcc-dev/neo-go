@@ -2,6 +2,47 @@
 
 This document outlines major changes between releases.
 
+## 0.118.0 "Yumminess" (13 Mar 2026)
+
+This release focuses on VM refcounter optimizations and improvements across SDK
+and CLI: `scparser` package is extended with NEP-11/NEP17 transfer parsers and
+script end checks, `neorpc` package is extended with `FaultException` error type
+allowing to distinguish VM exceptions in application logs or invocation results,
+PEM private key export format is supported in `wallet export` CLI command and
+more. This version drops support for Go 1.24 and requires 1.25+ to build (with
+Go 1.26 supported) remaining fully compatible with v3.9.2 of the C# node.
+
+No resync is required on upgrade. MaxBlockSystemFee value was changed for both
+N3 and FS networks; however, only NeoFS network requires config update on
+upgrade; N3 configuration upgrade schedule will be published later. dApp
+developers should migrate to the new way of "GAS limit exceeded" related VM
+exceptions detection. DevOps and CLI users should migrate from deprecated
+`--decrypt` flag of `wallet export` CLI command to `--format` flag.
+
+Behavior changes:
+ * Go 1.25 upgrade (#4179, #4187)
+ * prohibit duplicate keys in native RoleManagement's `designateAsRole` (#4185)
+ * MaxBlockSystemFee updates for default, N3 and FS networks (#4181)
+ * MaxGASInvoke upgrade for FS networks (#4181)
+ * the text of "GAS limit exceeded"-related VM exceptions is unified (#4189)
+ * `--decrypt` flag of `wallet excport` CLI command is deprecated in favour of
+   `--format` (#4190)
+
+Improvements:
+ * VM refcounter optimisations (#4156, #4177)
+ * NEP-11/NEP17 transfer and script end checks support in `scparser` (#4171)
+ * `TimePerBlock` documentation adjustment (#4172)
+ * extend P2PNotaryRequest verification error text (#4184)
+ * remove unreachable nil check for stackitem.Map keys (#4183)
+ * VM fault exceptions can be distinguished with `neorpc.FaultException` (#4189)
+ * support PEM format in `wallet export` CLI command (#4190)
+
+Bugs fixed:
+ * `REVERSEITEMS` support for primitive types in `scparser` (#4169)
+ * invalid call flag of native Policy's `recoverFund` (#4178)
+ * accepted transactions are checked against MaxBlockSystemFee (#4181)
+ * Actor's attribute slice mutation on concurrent usage (#4186)
+
 ## 0.117.0 "Exponentiation" (17 Feb 2026)
 
 One more 3.9.2 compatible version that brings a number of important bug fixes
