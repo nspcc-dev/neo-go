@@ -132,7 +132,7 @@ func TestBurnGas(t *testing.T) {
 			tx := e.NewUnsignedTx(t, cs.Hash, "burnGas", int64(2))
 			e.SignTx(t, tx, res.GasConsumed, acc)
 			e.AddNewBlock(t, tx)
-			e.CheckFault(t, tx.Hash(), "GAS limit exceeded")
+			e.CheckFault(t, tx.Hash(), vm.ErrGASLimitExceeded.Error())
 		})
 	})
 	t.Run("too big integer", func(t *testing.T) {

@@ -59,8 +59,6 @@ const (
 )
 
 var (
-	errGasLimitExceeded = errors.New("gas limit exceeded")
-
 	keyNextAvailableID      = []byte{15}
 	keyMinimumDeploymentFee = []byte{20}
 )
@@ -324,8 +322,8 @@ func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stac
 			gas = fee
 		}
 	}
-	if !ic.VM.AddPicoGas(gas) {
-		return nil, nil, errGasLimitExceeded
+	if err := ic.VM.AddPicoGas(gas); err != nil {
+		return nil, nil, err
 	}
 	var resManifest *manifest.Manifest
 	var resNef *nef.File

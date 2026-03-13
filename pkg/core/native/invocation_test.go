@@ -63,7 +63,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 	tx = e.NewUnsignedTx(t, gasHash, "transfer", validator.ScriptHash(), validator.ScriptHash(), 1, nil)
 	e.SignTx(t, tx, vm.PicoGasToDatoshi(price)-1, validator)
 	e.AddNewBlock(t, tx)
-	e.CheckFault(t, tx.Hash(), "gas limit exceeded")
+	e.CheckFault(t, tx.Hash(), vm.ErrGASLimitExceeded.Error())
 }
 
 func TestNativeContract_InvokeInternal(t *testing.T) {

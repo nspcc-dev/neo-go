@@ -38,8 +38,8 @@ func CreateMultisigAccount(ic *interop.Context) error {
 		invokeFee = 1 << 8
 	}
 	invokeFee *= ic.BaseExecFee()
-	if !ic.VM.AddPicoGas(invokeFee) {
-		return errors.New("gas limit exceeded")
+	if err := ic.VM.AddPicoGas(invokeFee); err != nil {
+		return err
 	}
 	script, err := smartcontract.CreateMultiSigRedeemScript(int(mu64), pubs)
 	if err != nil {
@@ -63,8 +63,8 @@ func CreateStandardAccount(ic *interop.Context) error {
 		invokeFee = 1 << 8
 	}
 	invokeFee *= ic.BaseExecFee()
-	if !ic.VM.AddPicoGas(invokeFee) {
-		return errors.New("gas limit exceeded")
+	if err := ic.VM.AddPicoGas(invokeFee); err != nil {
+		return err
 	}
 	ic.VM.Estack().PushItem(stackitem.NewByteArray(p.GetScriptHash().BytesBE()))
 	return nil

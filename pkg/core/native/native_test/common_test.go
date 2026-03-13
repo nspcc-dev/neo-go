@@ -81,7 +81,7 @@ func testGetSet(t *testing.T, c *neotest.ContractInvoker, name string, defaultVa
 		case "ExecFeeFactor":
 			// ExecFeeFactor was risen, so the second transaction will fail because
 			// of gas limit exceeding (its fees are out-of-date).
-			c.CheckFault(t, txGet.Hash(), "gas limit exceeded")
+			c.CheckFault(t, txGet.Hash(), vm.ErrGASLimitExceeded.Error())
 			// Set in a separate block.
 			committeeInvoker.Invoke(t, stackitem.Null{}, setName, v)
 			// Get in the next block.

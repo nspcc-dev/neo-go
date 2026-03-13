@@ -30,8 +30,8 @@ import (
 
 func fooInteropHandler(v *VM, id uint32) error {
 	if id == interopnames.ToID([]byte("foo")) {
-		if !v.AddDatoshi(1) {
-			return errors.New("invalid gas amount")
+		if err := v.AddDatoshi(1); err != nil {
+			return err
 		}
 		v.Estack().PushVal(1)
 		return nil
@@ -104,17 +104,17 @@ func TestAddGas(t *testing.T) {
 	t.Run("AddDatoshi", func(t *testing.T) {
 		v := newTestVM()
 		v.SetGasLimit(10)
-		require.True(t, v.AddDatoshi(5))
-		require.True(t, v.AddDatoshi(5))
-		require.False(t, v.AddDatoshi(1))
+		require.NoError(t, v.AddDatoshi(5))
+		require.NoError(t, v.AddDatoshi(5))
+		require.Error(t, v.AddDatoshi(1))
 	})
 
 	t.Run("AddPicoGas", func(t *testing.T) {
 		v := newTestVM()
 		v.SetGasLimit(10)
-		require.True(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
-		require.True(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
-		require.False(t, v.AddPicoGas(1))
+		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
+		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
+		require.ErrorIs(t, v.AddPicoGas(1), ErrGASLimitExceeded)
 	})
 }
 

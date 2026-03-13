@@ -31,6 +31,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -730,7 +731,7 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		tx := managementInvoker.NewUnsignedTx(t, managementInvoker.Hash, "deploy", nefBytes, manifestBytes)
 		managementInvoker.SignTx(t, tx, 1_0000_0000, managementInvoker.Signers...)
 		managementInvoker.AddNewBlock(t, tx)
-		managementInvoker.CheckFault(t, tx.Hash(), "gas limit exceeded")
+		managementInvoker.CheckFault(t, tx.Hash(), vm.ErrGASLimitExceeded.Error())
 	})
 
 	si, err := cs1.ToStackItem()
