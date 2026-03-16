@@ -28,7 +28,7 @@ type DebugInfo struct {
 	Methods   []MethodDebugInfo `json:"methods"`
 	// NamedTypes are exported structured types that have some name (even
 	// if the original structure doesn't) and a number of internal fields.
-	NamedTypes map[string]binding.ExtendedType `json:"-"`
+	NamedTypes map[string]manifest.ExtendedType `json:"-"`
 	// Events are the events that contract is allowed to emit and that have to
 	// be presented in the resulting contract manifest and debug info file.
 	Events []EventDebugInfo `json:"events"`
@@ -64,7 +64,7 @@ type MethodDebugInfo struct {
 	// ReturnTypeReal is the method's return type as specified in Go code.
 	ReturnTypeReal binding.Override `json:"-"`
 	// ReturnTypeExtended is the method's return type with additional data.
-	ReturnTypeExtended *binding.ExtendedType `json:"-"`
+	ReturnTypeExtended *manifest.ExtendedType `json:"-"`
 	// ReturnTypeSC is a return type to use in manifest.
 	ReturnTypeSC smartcontract.ParamType `json:"-"`
 	Variables    []string                `json:"variables"`
@@ -113,7 +113,7 @@ type DebugParam struct {
 	Name         string                  `json:"name"`
 	Type         string                  `json:"type"`
 	RealType     binding.Override        `json:"-"`
-	ExtendedType *binding.ExtendedType   `json:"-"`
+	ExtendedType *manifest.ExtendedType  `json:"-"`
 	TypeSC       smartcontract.ParamType `json:"-"`
 }
 
@@ -121,7 +121,7 @@ type DebugParam struct {
 // the contract code. It has the map of extended types used as the parameters to
 // runtime.Notify(...) call (if any) and the parameters info itself.
 type EmittedEventInfo struct {
-	ExtTypes map[string]binding.ExtendedType
+	ExtTypes map[string]manifest.ExtendedType
 	Params   []DebugParam
 }
 
@@ -211,7 +211,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 		fnames = append(fnames, name)
 	}
 	slices.Sort(fnames)
-	d.NamedTypes = make(map[string]binding.ExtendedType)
+	d.NamedTypes = make(map[string]manifest.ExtendedType)
 	for _, name := range fnames {
 		m := c.methodInfoFromScope(name, c.funcs[name], d.NamedTypes)
 		d.Methods = append(d.Methods, *m)
@@ -230,7 +230,7 @@ func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
 	c.scope.variables = append(c.scope.variables, name+","+vt.String())
 }
 
-func (c *codegen) methodInfoFromScope(name string, scope *funcScope, exts map[string]binding.ExtendedType) *MethodDebugInfo {
+func (c *codegen) methodInfoFromScope(name string, scope *funcScope, exts map[string]manifest.ExtendedType) *MethodDebugInfo {
 	ps := scope.decl.Type.Params
 	params := make([]DebugParam, 0, ps.NumFields())
 	for i := range ps.List {
@@ -269,7 +269,7 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope, exts map[st
 	}
 }
 
-func (c *codegen) scAndVMReturnTypeFromScope(scope *funcScope, exts map[string]binding.ExtendedType) (smartcontract.ParamType, string, binding.Override, *binding.ExtendedType) {
+func (c *codegen) scAndVMReturnTypeFromScope(scope *funcScope, exts map[string]manifest.ExtendedType) (smartcontract.ParamType, string, binding.Override, *manifest.ExtendedType) {
 	results := scope.decl.Type.Results
 	switch results.NumFields() {
 	case 0:
@@ -283,7 +283,7 @@ func (c *codegen) scAndVMReturnTypeFromScope(scope *funcScope, exts map[string]b
 	}
 }
 
-func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontract.ParamType, stackitem.Type, binding.Override, *binding.ExtendedType) {
+func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontract.ParamType, stackitem.Type, binding.Override, *manifest.ExtendedType) {
 	name := named.Obj().Name()
 	pkg := named.Obj().Pkg().Name()
 	switch pkg {
@@ -294,7 +294,7 @@ func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontra
 		}
 		// Block, Transaction, Contract.
 		typeName := pkg + "." + name
-		et := &binding.ExtendedType{Base: smartcontract.ArrayType, Name: typeName}
+		et := &manifest.ExtendedType{Type: smartcontract.ArrayType, Name: typeName}
 		if isPointer {
 			typeName = "*" + typeName
 		}
@@ -323,14 +323,14 @@ func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontra
 	return smartcontract.InteropInterfaceType,
 		stackitem.InteropT,
 		binding.Override{TypeName: "any"},
-		&binding.ExtendedType{Base: smartcontract.InteropInterfaceType, Interface: "iterator"} // Temporarily all interops are iterators.
+		&manifest.ExtendedType{Type: smartcontract.InteropInterfaceType, Interface: "iterator"} // Temporarily all interops are iterators.
 }
 
-func (c *codegen) scAndVMTypeFromExpr(typ ast.Expr, exts map[string]binding.ExtendedType) (smartcontract.ParamType, stackitem.Type, binding.Override, *binding.ExtendedType) {
+func (c *codegen) scAndVMTypeFromExpr(typ ast.Expr, exts map[string]manifest.ExtendedType) (smartcontract.ParamType, stackitem.Type, binding.Override, *manifest.ExtendedType) {
 	return c.scAndVMTypeFromType(c.typeOf(typ), exts)
 }
 
-func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.ExtendedType) (smartcontract.ParamType, stackitem.Type, binding.Override, *binding.ExtendedType) {
+func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]manifest.ExtendedType) (smartcontract.ParamType, stackitem.Type, binding.Override, *manifest.ExtendedType) {
 	if t == nil {
 		return smartcontract.AnyType, stackitem.AnyT, binding.Override{TypeName: "any"}, nil
 	}
@@ -347,7 +347,7 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 	if isNamed {
 		if isInteropPath(named.String()) {
 			st, vt, over, et := scAndVMInteropTypeFromExpr(named, isPtr)
-			if et != nil && et.Base == smartcontract.ArrayType && exts != nil && exts[et.Name].Name != et.Name {
+			if et != nil && et.Type == smartcontract.ArrayType && exts != nil && exts[et.Name].Name != et.Name {
 				_ = c.genStructExtended(named.Underlying().(*types.Struct), et.Name, exts)
 			}
 			return st, vt, over, et
@@ -375,14 +375,14 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 			return smartcontract.AnyType, stackitem.AnyT, over, nil
 		}
 	case *types.Map:
-		et := &binding.ExtendedType{
-			Base: smartcontract.MapType,
+		et := &manifest.ExtendedType{
+			Type: smartcontract.MapType,
 		}
 		et.Key, _, _, _ = c.scAndVMTypeFromType(t.Key(), exts)
 		vt, _, over, vet := c.scAndVMTypeFromType(t.Elem(), exts)
 		et.Value = vet
 		if et.Value == nil {
-			et.Value = &binding.ExtendedType{Base: vt}
+			et.Value = &manifest.ExtendedType{Type: vt}
 		}
 		over.TypeName = "map[" + t.Key().String() + "]" + over.TypeName
 		return smartcontract.MapType, stackitem.MapT, over, et
@@ -406,8 +406,8 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 			extName = name
 		}
 		return smartcontract.ArrayType, stackitem.StructT, over,
-			&binding.ExtendedType{ // Value-less, refer to exts.
-				Base: smartcontract.ArrayType,
+			&manifest.ExtendedType{ // Value-less, refer to exts.
+				Type: smartcontract.ArrayType,
 				Name: extName,
 			}
 
@@ -416,14 +416,14 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 			over.TypeName = "[]byte"
 			return smartcontract.ByteArrayType, stackitem.ByteArrayT, over, nil
 		}
-		et := &binding.ExtendedType{
-			Base: smartcontract.ArrayType,
+		et := &manifest.ExtendedType{
+			Type: smartcontract.ArrayType,
 		}
 		vt, _, over, vet := c.scAndVMTypeFromType(t.Elem(), exts)
 		et.Value = vet
 		if et.Value == nil {
-			et.Value = &binding.ExtendedType{
-				Base: vt,
+			et.Value = &manifest.ExtendedType{
+				Type: vt,
 			}
 		}
 		if over.TypeName != "" {
@@ -436,29 +436,30 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 	}
 }
 
-func (c *codegen) genStructExtended(t *types.Struct, name string, exts map[string]binding.ExtendedType) *binding.ExtendedType {
-	var et *binding.ExtendedType
+func (c *codegen) genStructExtended(t *types.Struct, name string, exts map[string]manifest.ExtendedType) *manifest.ExtendedType {
+	var et *manifest.ExtendedType
 	if exts != nil {
 		if exts[name].Name != name {
-			et = &binding.ExtendedType{
-				Base:   smartcontract.ArrayType,
+			et = &manifest.ExtendedType{
+				Type:   smartcontract.ArrayType,
 				Name:   name,
-				Fields: make([]binding.FieldExtendedType, t.NumFields()),
+				Fields: make([]manifest.Parameter, t.NumFields()),
 			}
 			exts[name] = *et // Prefill to solve recursive structures.
 			for i := range et.Fields {
 				field := t.Field(i)
 				ft, _, _, fet := c.scAndVMTypeFromType(field.Type(), exts)
+				et.Fields[i].Type = ft
 				if fet == nil {
-					et.Fields[i].Base = ft
+					et.Fields[i].ExtendedType = &manifest.ExtendedType{Type: ft}
 				} else {
-					et.Fields[i].ExtendedType = *fet
+					et.Fields[i].ExtendedType = fet
 				}
-				et.Fields[i].Field = field.Name()
+				et.Fields[i].Name = field.Name()
 			}
 			exts[name] = *et // Set real structure data.
 		} else {
-			et = new(binding.ExtendedType)
+			et = new(manifest.ExtendedType)
 			*et = exts[name]
 		}
 	}
@@ -595,22 +596,18 @@ func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 		result.SupportedStandards = o.ContractSupportedStandards
 	}
 	events := make([]manifest.Event, len(o.ContractEvents))
-	for i, e := range o.ContractEvents {
-		params := make([]manifest.Parameter, len(e.Parameters))
-		for j, p := range e.Parameters {
-			params[j] = p.Parameter
-		}
+	for i := range o.ContractEvents {
 		events[i] = manifest.Event{
 			Name:       o.ContractEvents[i].Name,
-			Parameters: params,
+			Parameters: slices.Clone(o.ContractEvents[i].Parameters),
 		}
 	}
 	result.ABI = manifest.ABI{
 		Methods: methods,
 		Events:  events,
 	}
-	if result.ABI.Events == nil {
-		result.ABI.Events = make([]manifest.Event, 0)
+	if len(o.NamedTypes) > 0 {
+		result.ABI.NamedTypes = o.NamedTypes
 	}
 	result.Permissions = o.Permissions
 	for name, emitName := range o.Overloads {
