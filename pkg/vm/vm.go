@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"math"
 	"math/big"
 	"os"
@@ -1257,7 +1258,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		itemElem := v.estack.Pop()
 		arrElem := v.estack.Pop()
 
-		val := cloneIfStruct(itemElem.value)
+		val, _ := cloneIfStruct(itemElem.value)
 
 		var isReferenced bool
 		switch t := arrElem.value.(type) {
@@ -1693,26 +1694,37 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if v.estack.Len() == 0 {
 			panic("no argument")
 		}
-		item := v.estack.Pop()
+		item := v.estack.popNoRef()
 
 		var arr []stackitem.Item
 		switch t := item.value.(type) {
-		case *stackitem.Array, *stackitem.Struct:
-			src := t.Value().([]stackitem.Item)
-			arr = make([]stackitem.Item, len(src))
-			for i := range src {
-				arr[i] = cloneIfStruct(src[i])
-			}
+		case *stackitem.Array:
+			t.DecRC()
+			arr = v.cpValues(slices.Values(t.Value().([]stackitem.Item)), t.Len(), t.IsReferenced())
+		case *stackitem.Struct:
+			t.DecRC()
+			arr = v.cpValues(slices.Values(t.Value().([]stackitem.Item)), t.Len(), t.IsReferenced())
 		case *stackitem.Map:
-			arr = make([]stackitem.Item, 0, t.Len())
-			for k := range t.Value().([]stackitem.MapElement) {
-				arr = append(arr, cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value))
+			t.DecRC()
+			src := t.Value().([]stackitem.MapElement)
+			isReferenced := t.IsReferenced()
+			if !isReferenced {
+				v.refs -= refCounter(t.Len())
 			}
+			arr = v.cpValues(func(yield func(stackitem.Item) bool) {
+				for i := range src {
+					if !yield(src[i].Value) {
+						return
+					}
+				}
+			}, t.Len(), isReferenced)
 		default:
 			panic("not a Map, Array or Struct")
 		}
 
-		v.estack.PushItem(stackitem.NewArray(arr))
+		res := stackitem.NewArray(arr)
+		res.IncRC()
+		v.estack.pushItemCounted(res, 0)
 
 	case opcode.HASKEY:
 		if v.estack.Len() < 2 {
@@ -2068,16 +2080,16 @@ loop:
 	return sigok
 }
 
-func cloneIfStruct(item stackitem.Item) stackitem.Item {
+func cloneIfStruct(item stackitem.Item) (stackitem.Item, bool) {
 	switch it := item.(type) {
 	case *stackitem.Struct:
 		ret, err := it.Clone()
 		if err != nil {
 			panic(err)
 		}
-		return ret
+		return ret, true
 	default:
-		return it
+		return it, false
 	}
 }
 
@@ -2137,6 +2149,27 @@ func (v *VM) GetEntryScriptHash() util.Uint160 {
 // GetCurrentScriptHash implements the ScriptHashGetter interface.
 func (v *VM) GetCurrentScriptHash() util.Uint160 {
 	return v.getContextScriptHash(0)
+}
+
+func (v *VM) cpValues(src iter.Seq[stackitem.Item], n int, isReferenced bool) []stackitem.Item {
+	arr := make([]stackitem.Item, 0, n)
+	if isReferenced {
+		for it := range src {
+			cloned, _ := cloneIfStruct(it)
+			arr = append(arr, cloned)
+			v.refs.Add(cloned)
+		}
+		return arr
+	}
+	for it := range src {
+		cloned, isStruct := cloneIfStruct(it)
+		if isStruct {
+			v.refs.Remove(it)
+			v.refs.Add(cloned)
+		}
+		arr = append(arr, cloned)
+	}
+	return arr
 }
 
 // toInt converts an item to a 32-bit int.
