@@ -120,12 +120,13 @@ func TestInvoker(t *testing.T) {
 	t.Run("terminate session", func(t *testing.T) {
 		for _, inv := range []*Invoker{New(ri, nil), NewHistoricWithState(util.Uint256{}, ri, nil)} {
 			ri.err = errors.New("")
-			require.Error(t, inv.TerminateSession(uuid.UUID{}))
+			require.NoError(t, inv.TerminateSession(uuid.UUID{}))
+			require.Error(t, inv.TerminateSession(uuid.UUID{1}))
 			ri.err = nil
 			ri.resTrm = false
-			require.Error(t, inv.TerminateSession(uuid.UUID{}))
+			require.Error(t, inv.TerminateSession(uuid.UUID{1}))
 			ri.resTrm = true
-			require.NoError(t, inv.TerminateSession(uuid.UUID{}))
+			require.NoError(t, inv.TerminateSession(uuid.UUID{1}))
 		}
 	})
 	t.Run("traverse iterator", func(t *testing.T) {

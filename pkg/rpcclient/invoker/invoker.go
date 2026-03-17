@@ -195,11 +195,16 @@ func (v *Invoker) Run(script []byte) (*result.Invoke, error) {
 // TerminateSession closes the given session, returning an error if anything
 // goes wrong. It's not strictly required to close the session (it'll expire on
 // the server anyway), but it helps to release server resources earlier.
+// Nil sessions (RFC 9562, section 5.9) are treated as empty and nil is returned
+// immediately with no network interaction.
 func (v *Invoker) TerminateSession(sessionID uuid.UUID) error {
 	return termSession(v.client, sessionID)
 }
 
 func termSession(rpc RPCSessions, sessionID uuid.UUID) error {
+	if sessionID == (uuid.UUID{}) {
+		return nil
+	}
 	r, err := rpc.TerminateSession(sessionID)
 	if err != nil {
 		return err

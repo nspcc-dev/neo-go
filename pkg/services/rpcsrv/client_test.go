@@ -1651,6 +1651,11 @@ func TestClient_IteratorSessions(t *testing.T) {
 			require.Error(t, err)
 			require.ErrorIs(t, err, neorpc.ErrUnknownSession)
 			require.False(t, ok) // session has already been terminated.
+
+			// Nil UUID.
+			ok, err = c.TerminateSession(uuid.UUID{})
+			require.NoError(t, err)
+			require.False(t, ok)
 		})
 		t.Run("automatically", func(t *testing.T) {
 			sID, iID := prepareSession(t)

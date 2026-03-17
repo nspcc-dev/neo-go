@@ -1001,8 +1001,15 @@ func (c *Client) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount
 }
 
 // TerminateSession tries to terminate the specified session and returns `true` iff
-// the specified session was found on server.
+// the specified session was found on server. In case Nil UUID (RFC 9562, section 5.9)
+// is passed this method doesn't perform any network request and returns "false, nil".
+// This is made to simplify processing of uninitialized (invalid) sessions when
+// iterators are fully expanded server-side.
 func (c *Client) TerminateSession(sessionID uuid.UUID) (bool, error) {
+	if sessionID == (uuid.UUID{}) {
+		return false, nil
+	}
+
 	var resp bool
 	params := []any{sessionID.String()}
 	if err := c.performRequest("terminatesession", params, &resp); err != nil {
