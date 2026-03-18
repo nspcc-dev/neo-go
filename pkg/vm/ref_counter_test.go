@@ -323,6 +323,74 @@ func TestRefCounterDupUnpack(t *testing.T) {
 	}
 }
 
+func TestRefCounterValues(t *testing.T) {
+	for typ, newTyp := range map[string]func() stackitem.Item{
+		"array": func() stackitem.Item {
+			return stackitem.NewArray([]stackitem.Item{stackitem.NewStruct([]stackitem.Item{stackitem.Make(42)})})
+		},
+		"struct": func() stackitem.Item {
+			return stackitem.NewStruct([]stackitem.Item{stackitem.NewStruct([]stackitem.Item{stackitem.Make(42)})})
+		},
+		"map": func() stackitem.Item {
+			return stackitem.NewMapWithValue([]stackitem.MapElement{{Key: stackitem.Make(0), Value: stackitem.NewStruct([]stackitem.Item{stackitem.Make(42)})}})
+		},
+	} {
+		t.Run(typ, func(t *testing.T) {
+			var keyCount int
+			if typ == "map" {
+				keyCount++
+			}
+			prog := makeProgram(opcode.VALUES)
+			v := load(prog)
+			v.estack.PushVal(newTyp())
+			require.Equal(t, 3+keyCount, int(v.refs))
+			runVM(t, v)
+			require.Equal(t, 1, v.estack.Len())
+			// Array with struct from array/struct/map inside (3).
+			require.Equal(t, 3, int(v.refs))
+			v.estack.Pop()
+			require.Equal(t, 0, v.estack.Len())
+			require.Equal(t, 0, int(v.refs))
+		})
+	}
+}
+
+func TestRefCounterDupValues(t *testing.T) {
+	for typ, newTyp := range map[string]func() stackitem.Item{
+		"array": func() stackitem.Item {
+			return stackitem.NewArray([]stackitem.Item{stackitem.NewStruct([]stackitem.Item{stackitem.Make(42)})})
+		},
+		"struct": func() stackitem.Item {
+			return stackitem.NewStruct([]stackitem.Item{stackitem.NewStruct([]stackitem.Item{stackitem.Make(42)})})
+		},
+		"map": func() stackitem.Item {
+			return stackitem.NewMapWithValue([]stackitem.MapElement{{Key: stackitem.Make(0), Value: stackitem.NewStruct([]stackitem.Item{stackitem.Make(42)})}})
+		},
+	} {
+		t.Run(typ, func(t *testing.T) {
+			var keyCount int
+			if typ == "map" {
+				keyCount++
+			}
+			prog := makeProgram(opcode.DUP, opcode.VALUES)
+			v := load(prog)
+			v.estack.PushVal(newTyp())
+			require.Equal(t, 3+keyCount, int(v.refs))
+			runVM(t, v)
+			require.Equal(t, 2, v.estack.Len())
+			// Compound type (3+keyCount) + array with cloned struct (3).
+			require.Equal(t, (3+keyCount)+3, int(v.refs))
+			// Pop array with cloned struct.
+			v.estack.Pop()
+			require.Equal(t, 3+keyCount, int(v.refs))
+			// Pop compound type.
+			v.estack.Pop()
+			require.Equal(t, 0, v.estack.Len())
+			require.Equal(t, 0, int(v.refs))
+		})
+	}
+}
+
 func BenchmarkRefCounter_Add(b *testing.B) {
 	a := stackitem.NewArray(nil)
 	rc := newRefCounter()
