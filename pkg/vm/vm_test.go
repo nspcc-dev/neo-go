@@ -787,7 +787,15 @@ func TestMODPOW(t *testing.T) {
 func TestSHR(t *testing.T) {
 	prog := makeProgram(opcode.SHR)
 	t.Run("Good", getTestFuncForVM(prog, 1, 4, 2))
-	t.Run("Zero", getTestFuncForVM(prog, []byte{0, 1}, []byte{0, 1}, 0))
+	t.Run("Zero", func(t *testing.T) {
+		t.Run("int operand", func(t *testing.T) { getTestFuncForVM(prog, []byte{0, 1}, []byte{0, 1}, 0) })
+		t.Run("non-int operand", func(t *testing.T) {
+			v := load(prog)
+			v.estack.PushVal(stackitem.NewInterop(nil))
+			v.estack.PushVal(0)
+			checkVMFailedWithError(t, v, "at instruction 0 (SHR): invalid conversion: InteropInterface/Integer")
+		})
+	})
 	t.Run("Negative", getTestFuncForVM(prog, nil, 5, -1))
 	t.Run("very big", getTestFuncForVM(prog, nil, 5, maxu64Plus(1)))
 }
@@ -795,7 +803,15 @@ func TestSHR(t *testing.T) {
 func TestSHL(t *testing.T) {
 	prog := makeProgram(opcode.SHL)
 	t.Run("Good", getTestFuncForVM(prog, 16, 4, 2))
-	t.Run("Zero", getTestFuncForVM(prog, []byte{0, 1}, []byte{0, 1}, 0))
+	t.Run("Zero", func(t *testing.T) {
+		t.Run("int operand", func(t *testing.T) { getTestFuncForVM(prog, []byte{0, 1}, []byte{0, 1}, 0) })
+		t.Run("non-int operand", func(t *testing.T) {
+			v := load(prog)
+			v.estack.PushVal(stackitem.NewInterop(nil))
+			v.estack.PushVal(0)
+			checkVMFailedWithError(t, v, "at instruction 0 (SHL): invalid conversion: InteropInterface/Integer")
+		})
+	})
 	t.Run("BigShift", getTestFuncForVM(prog, nil, 5, maxSHLArg+1))
 	t.Run("BigResult", getTestFuncForVM(prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits/2, 0), stackitem.MaxBigIntegerSizeBits/2))
 	t.Run("very big shift", getTestFuncForVM(prog, nil, 5, maxu64Plus(1)))

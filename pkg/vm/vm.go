@@ -1134,9 +1134,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.SHL, opcode.SHR:
 		b := toInt(v.estack.Pop().BigInt())
-		if b == 0 {
-			return
-		} else if b < 0 || b > maxSHLArg {
+		if b < 0 || b > maxSHLArg {
 			panic(fmt.Sprintf("operand must be between %d and %d", 0, maxSHLArg))
 		}
 		a := v.estack.Pop().BigInt()
