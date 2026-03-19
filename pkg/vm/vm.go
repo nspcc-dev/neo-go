@@ -15,6 +15,7 @@ import (
 	"text/tabwriter"
 	"unicode/utf8"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -84,7 +85,8 @@ type VM struct {
 	state vmstate.State
 
 	// callback to get interop price
-	getPrice func(opcode.Opcode, []byte) int64
+	getPrice          func(opcode.Opcode, []byte) int64
+	isHardforkEnabled func(config.Hardfork) bool
 
 	istack []*Context // invocation stack.
 	estack *Stack     // execution stack.
@@ -130,8 +132,9 @@ func New() *VM {
 // NewWithTrigger returns a new VM for executions triggered by t.
 func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
-		state:   vmstate.None,
-		trigger: t,
+		state:             vmstate.None,
+		trigger:           t,
+		isHardforkEnabled: func(config.Hardfork) bool { return true }, // use the latest behaviour by default.
 	}
 
 	vm.istack = make([]*Context, 0, 8) // Most of invocations use one-two contracts, but they're likely to have internal calls.
@@ -153,6 +156,12 @@ func (v *VM) SetOnExecHook(hook OnExecHook) {
 // f accepts vm's Context, current instruction and instruction parameter.
 func (v *VM) SetPriceGetter(f func(opcode.Opcode, []byte) int64) {
 	v.getPrice = f
+}
+
+// SetIsHardforkEnabled registers the given f as a hardfork enabling identifier
+// in v. f accepts the hardfork.
+func (v *VM) SetIsHardforkEnabled(f func(config.Hardfork) bool) {
+	v.isHardforkEnabled = f
 }
 
 // SetGasLimit sets the execution gas limit in Datoshi units.
@@ -1134,10 +1143,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.SHL, opcode.SHR:
 		b := toInt(v.estack.Pop().BigInt())
-		if b == 0 {
-			return
-		} else if b < 0 || b > maxSHLArg {
+		if b < 0 || b > maxSHLArg {
 			panic(fmt.Sprintf("operand must be between %d and %d", 0, maxSHLArg))
+		}
+		if !v.isHardforkEnabled(config.HFGorgon) && b == 0 {
+			return
 		}
 		a := v.estack.Pop().BigInt()
 
