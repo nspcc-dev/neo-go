@@ -1402,6 +1402,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.SETITEM:
 		item := v.estack.popNoRef().value
+		cloned, isStruct := cloneIfStruct(item)
+		if isStruct {
+			v.refs.Remove(item)
+		}
 		key := v.estack.Pop()
 		validateMapKey(key)
 
@@ -1414,7 +1418,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			index := toInt(key.BigInt())
 			if index < 0 || index >= len(arr) {
 				msg := fmt.Sprintf("The value %d is out of range.", index)
-				v.refs.Remove(item)
+				if !isStruct {
+					v.refs.Remove(item)
+				}
 				v.throw(stackitem.NewByteArray([]byte(msg)))
 				return
 			}
@@ -1423,10 +1429,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			if t.(interface{ IsReferenced() bool }).IsReferenced() {
 				v.refs.Remove(arr[index])
-			} else {
+				if isStruct {
+					v.refs.Add(cloned)
+				}
+			} else if !isStruct {
 				v.refs.Remove(item)
 			}
-			arr[index] = item
+			arr[index] = cloned
 		case *stackitem.Map:
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
@@ -1437,11 +1446,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				} else {
 					v.refs.Add(key.value)
 				}
-			} else {
+				if isStruct {
+					v.refs.Add(cloned)
+				}
+			} else if !isStruct {
 				v.refs.Remove(item)
 			}
 
-			t.Add(key.value, item)
+			t.Add(key.value, cloned)
 
 		case *stackitem.Buffer:
 			v.refs-- // We know the type exactly already.
@@ -1451,7 +1463,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				v.throw(stackitem.NewByteArray([]byte(msg)))
 				return
 			}
-			bi, err := item.TryInteger()
+			bi, err := cloned.TryInteger()
 			b := toInt(bi)
 			if err != nil || b < math.MinInt8 || b > math.MaxUint8 {
 				panic("invalid value")

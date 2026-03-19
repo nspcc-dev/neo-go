@@ -391,6 +391,46 @@ func TestRefCounterDupValues(t *testing.T) {
 	}
 }
 
+func TestRefCounterSetItemCloneStruct(t *testing.T) {
+	for typ, newTyp := range map[string]func() stackitem.Item{
+		"array": func() stackitem.Item {
+			return stackitem.NewArray(make([]stackitem.Item, 1))
+		},
+		"struct": func() stackitem.Item {
+			return stackitem.NewStruct(make([]stackitem.Item, 1))
+		},
+		"map": func() stackitem.Item {
+			return stackitem.NewMapWithValue([]stackitem.MapElement{{Key: stackitem.Make(0), Value: stackitem.Null{}}})
+		},
+	} {
+		t.Run(typ, func(t *testing.T) {
+			var keyCount int
+			if typ == "map" {
+				keyCount++
+			}
+			prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.PUSH3, opcode.PICK, opcode.SETITEM)
+			v := load(prog)
+			v.estack.PushVal(stackitem.NewStruct([]stackitem.Item{stackitem.Make(42)}))
+			require.Equal(t, 2, int(v.refs))
+			v.estack.PushVal(newTyp())
+			// Struct with number (2) + array/struct/map with null inside (2+keyCount).
+			require.Equal(t, 2+(2+keyCount), int(v.refs))
+			runVM(t, v)
+			require.Equal(t, 2, v.estack.Len())
+			// Struct with number (2) + array/struct/map with cloned struct (3+keyCount).
+			require.Equal(t, 2+(3+keyCount), int(v.refs))
+			// Pop compound type.
+			v.estack.Pop()
+			// Struct with number (2).
+			require.Equal(t, 2, int(v.refs))
+			// Pop struct.
+			v.estack.Pop()
+			require.Equal(t, 0, v.estack.Len())
+			require.Equal(t, 0, int(v.refs))
+		})
+	}
+}
+
 func BenchmarkRefCounter_Add(b *testing.B) {
 	a := stackitem.NewArray(nil)
 	rc := newRefCounter()
