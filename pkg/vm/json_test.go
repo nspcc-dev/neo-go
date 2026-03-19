@@ -46,6 +46,7 @@ type (
 
 	vmUTExecutionEngineState struct {
 		State           vmstate.State               `json:"state"`
+		Refs            int                         `json:"refs"`
 		ResultStack     []vmUTStackItem             `json:"resultStack"`
 		InvocationStack []vmUTExecutionContextState `json:"invocationStack"`
 	}
@@ -163,6 +164,7 @@ func testFile(t *testing.T, filename string) {
 					if result.State == vmstate.Fault { // do not compare stacks on fault
 						continue
 					}
+					require.Equal(t, result.Refs, int(vm.refs))
 
 					if len(result.InvocationStack) > 0 {
 						for i, s := range result.InvocationStack {
