@@ -208,7 +208,7 @@ func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
 
 	e.Amount, err = arr[2].TryInteger()
 	if err != nil {
-		return fmt.Errorf("field to decode Avount: %w", err)
+		return fmt.Errorf("failed to decode Amount: %w", err)
 	}
 
 	return nil
