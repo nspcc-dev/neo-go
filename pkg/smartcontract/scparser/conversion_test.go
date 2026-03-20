@@ -1,22 +1,35 @@
 package scparser
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
 	"testing"
 
+	ojson "github.com/nspcc-dev/go-ordered-json"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
+
+func TestParse(t *testing.T) {
+	b, _ := hex.DecodeString("1AF77B67")
+	fmt.Println(interopnames.FromID(binary.LittleEndian.Uint32(b)))
+	w := io.NewBufBinWriter()
+	emit.AppCall(w.BinWriter, util.Uint160{}, "123", callflag.All)
+	ParseAppCall(w.Bytes())
+}
 
 func TestGetIntFromInstr(t *testing.T) {
 	t.Run("small int", func(t *testing.T) {
@@ -1063,5 +1076,88 @@ func TestGetNEP11TransferDFromContext(t *testing.T) {
 	})
 	t.Run("invalid id", func(t *testing.T) {
 		check(t, "failed to parse 'tokenID' argument", "transfer", util.Uint160{}, util.Uint160{}, 1, true, nil)
+	})
+}
+
+func TestParseDeploy(t *testing.T) {
+	h := nativehashes.ContractManagement
+	m := "deploy"
+	f := callflag.ReadStates | callflag.AllowNotify
+	ne, err := nef.NewFile([]byte{byte(opcode.RET)})
+	require.NoError(t, err)
+	neB, err := ne.Bytes()
+	require.NoError(t, err)
+	mf := manifest.NewManifest("myContract")
+	mB, err := ojson.Marshal(mf)
+	require.NoError(t, err)
+	data := "some data"
+
+	t.Run("good", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, h, m, f, neB, mB, data)
+		prog := w.Bytes()
+
+		actualN, actualM, actualData, err := ParseDeploy(prog)
+		require.NoError(t, err)
+		require.Equal(t, ne, actualN)
+		require.Equal(t, mf, actualM)
+		actualDataStr, err := getStringFromInstr(actualData.Instruction)
+		require.NoError(t, err)
+		require.Equal(t, data, actualDataStr)
+	})
+	t.Run("nil data", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, h, m, f, neB, mB, nil)
+		prog := w.Bytes()
+
+		actualN, actualM, actualData, err := ParseDeploy(prog)
+		require.NoError(t, err)
+		require.Equal(t, ne, actualN)
+		require.Equal(t, mf, actualM)
+		require.True(t, actualData.IsNull())
+	})
+	t.Run("missing data", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, h, m, f, neB, mB)
+		prog := w.Bytes()
+
+		actualN, actualM, actualData, err := ParseDeploy(prog)
+		require.NoError(t, err)
+		require.Equal(t, ne, actualN)
+		require.Equal(t, mf, actualM)
+		require.True(t, actualData.IsNull())
+	})
+	t.Run("additional data after AppCall", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, h, m, f, neB, mB)
+		emit.Opcodes(w.BinWriter, opcode.RET)
+		prog := w.Bytes()
+
+		_, _, _, err := ParseDeploy(prog)
+		require.ErrorContains(t, err, "extra data after script end")
+	})
+	t.Run("wrong contract", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, util.Uint160{1, 2, 3}, m, f, neB, mB)
+		prog := w.Bytes()
+
+		_, _, _, err := ParseDeploy(prog)
+		require.ErrorContains(t, err, "expected 'ContractManagement' call")
+	})
+	t.Run("wrong method", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, h, "not-a-deploy", f, neB, mB)
+		prog := w.Bytes()
+
+		_, _, _, err := ParseDeploy(prog)
+		require.ErrorContains(t, err, "expected 'deploy' call")
+	})
+	t.Run("wrong args", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, h, m, f, neB)
+		prog := w.Bytes()
+
+		_, _, _, err := ParseDeploy(prog)
+		require.ErrorContains(t, err, "expected 2 or 3 arguments")
 	})
 }

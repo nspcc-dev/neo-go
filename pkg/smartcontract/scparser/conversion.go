@@ -3,6 +3,7 @@ package scparser
 import (
 	"crypto/elliptic"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -10,9 +11,12 @@ import (
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
@@ -879,6 +883,78 @@ func GetNEP17TransferFromContext(ctx *Context) (util.Uint160, util.Uint160, util
 		return h, from, to, amount, data, fmt.Errorf("%s/%s: failed to parse 'amount' argument: %w", h.StringLE(), m, err)
 	}
 	return h, from, to, amount, args[3], nil
+}
+
+// ParseDeploy works similar to ParseDeployFromContext except that it creates
+// the parsing context by itself and ensures that there are no additional
+// instructions after System.Contract.Call occurrence.
+func ParseDeploy(script []byte) (*nef.File, *manifest.Manifest, PushedItem, error) {
+	ctx := NewContext(script, 0)
+	n, m, data, err := GetDeployFromContext(ctx)
+	if err != nil {
+		return nil, nil, PushedItem{}, err
+	}
+	if err := EnsureScriptEnd(ctx); err != nil {
+		return nil, nil, PushedItem{}, err
+	}
+	return n, m, data, nil
+}
+
+// GetDeployFromContext parses a standard contract deploy script (native
+// Management's `deploy` call with two or three arguments). It returns parsed
+// NEF, manifest and optional data (contains PUSHNULL instruction if the data
+// argument is not specified or nil). Use EnsureScriptEnd if you need to ensure
+// there are no additional instructions at the end of the script.
+func GetDeployFromContext(ctx *Context) (*nef.File, *manifest.Manifest, PushedItem, error) {
+	h, m, _, args, err := getAppCallFromContext(ctx, true)
+	if err != nil {
+		return nil, nil, PushedItem{}, err
+	}
+	if !h.Equals(nativehashes.ContractManagement) {
+		return nil, nil, PushedItem{}, fmt.Errorf("expected 'ContractManagement' call (%s), got %s", nativehashes.ContractManagement.StringLE(), h.StringLE())
+	}
+	if m != "deploy" {
+		return nil, nil, PushedItem{}, fmt.Errorf("%s: expected 'deploy' call, got '%s'", h.StringLE(), m)
+	}
+	if len(args) < 2 || len(args) > 3 {
+		return nil, nil, PushedItem{}, fmt.Errorf("%s/%s: expected 2 or 3 arguments, got %d", h.StringLE(), m, len(args))
+	}
+	var (
+		resManifest *manifest.Manifest
+		resNef      *nef.File
+		params      = PushedItem{
+			Instruction: Instruction{
+				Op:    opcode.PUSHNULL,
+				Param: nil,
+			},
+		}
+	)
+
+	nefB, err := GetBytesFromInstr(args[0].Instruction)
+	if err != nil {
+		return nil, nil, PushedItem{}, fmt.Errorf("%s/%s: failed to parse 'nef' argument: %w", h.StringLE(), m, err)
+	}
+	nefF, err := nef.FileFromBytes(nefB)
+	if err != nil {
+		return nil, nil, PushedItem{}, fmt.Errorf("%s/%s: failed to parse NEF: %w", h.StringLE(), m, err)
+	}
+	resNef = &nefF
+
+	mB, err := GetBytesFromInstr(args[1].Instruction)
+	if err != nil {
+		return nil, nil, PushedItem{}, fmt.Errorf("%s/%s: failed to parse 'manifest' argument: %w", h.StringLE(), m, err)
+	}
+	resManifest = new(manifest.Manifest)
+	err = json.Unmarshal(mB, resManifest)
+	if err != nil {
+		return nil, nil, PushedItem{}, fmt.Errorf("%s/%s: failed to parse manifest: %w", h.StringLE(), m, err)
+	}
+
+	if len(args) > 2 {
+		params = args[2]
+	}
+
+	return resNef, resManifest, params, nil
 }
 
 // GetASSERTFromContext parses ASSERT instruction and returns an error if it's
