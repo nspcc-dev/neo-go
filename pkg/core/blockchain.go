@@ -1345,6 +1345,10 @@ func (bc *Blockchain) Run() {
 	bc.isRunning.Store(true)
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
+		err := bc.rcLog.Sync()
+		if err != nil {
+			bc.log.Warn("failed to sync rclog", zap.Error(err))
+		}
 		if _, err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
@@ -1352,7 +1356,7 @@ func (bc *Blockchain) Run() {
 			bc.log.Warn("failed to close db", zap.Error(err))
 		}
 		bc.isRunning.Store(false)
-		err := bc.rcLog.Close()
+		err = bc.rcLog.Close()
 		if err != nil {
 			bc.log.Warn("failed to close rclog", zap.Error(err))
 		}
@@ -2532,6 +2536,10 @@ func (bc *Blockchain) persist() (time.Duration, error) {
 		err       error
 	)
 
+	err = bc.rcLog.Sync()
+	if err != nil {
+		return 0, fmt.Errorf("failed to sync log: %w", err)
+	}
 	persisted, err = bc.dao.Persist()
 	if err != nil {
 		return 0, err

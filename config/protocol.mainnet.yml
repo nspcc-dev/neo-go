@@ -48,7 +48,7 @@ ProtocolConfiguration:
     Faun: 8800000
 
 ApplicationConfiguration:
-  SkipBlockVerification: false
+  SkipBlockVerification: true
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:
@@ -106,7 +106,7 @@ ApplicationConfiguration:
     Addresses:
       - ":1113"
   NeoFSBlockFetcher:
-    Enabled: true
+    Enabled: false
     Addresses:
       - st1.storage.fs.neo.org:8080
       - st2.storage.fs.neo.org:8080
