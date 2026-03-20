@@ -1286,7 +1286,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		for range n {
 			key := v.estack.popNoRef()
 			val := v.estack.popNoRef().value
-			m.Add(key.value, val)
+			if item := m.Add(key.value, val); item != nil {
+				v.refs-- // Key is primitive type.
+				v.refs.Remove(item)
+			}
 		}
 		m.IncRC()
 		v.estack.pushItemCounted(m, 1)
