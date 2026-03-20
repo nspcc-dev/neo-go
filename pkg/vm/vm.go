@@ -3,6 +3,7 @@ package vm
 import (
 	"crypto/elliptic"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 	"math/big"
 	"os"
 	"slices"
+	"strconv"
+	"strings"
 	"text/tabwriter"
 	"unicode/utf8"
 
@@ -82,6 +85,7 @@ type hooks struct {
 // VM represents the virtual machine.
 type VM struct {
 	state vmstate.State
+	rcs   []string
 
 	// callback to get interop price
 	getPrice func(opcode.Opcode, []byte) int64
@@ -517,38 +521,40 @@ func (v *VM) Ready() bool {
 }
 
 // Run starts execution of the loaded program.
-func (v *VM) Run() error {
+func (v *VM) Run() ([]string, error) {
 	var ctx *Context
 
 	if !v.Ready() {
 		v.state = vmstate.Fault
-		return errors.New("no program loaded")
+		return nil, errors.New("no program loaded")
 	}
 
 	if v.state.HasFlag(vmstate.Fault) {
 		// VM already ran something and failed, in general its state is
 		// undefined in this case so we can't run anything.
-		return errors.New("VM has failed")
+		return nil, errors.New("VM has failed")
 	}
 	// vmstate.Halt (the default) or vmstate.Break are safe to continue.
 	v.state = vmstate.None
+	v.rcs = []string{}
+
 	ctx = v.Context()
 	for {
 		switch {
 		case v.state.HasFlag(vmstate.Fault):
 			// Should be caught and reported already by the v.Step(),
 			// but we're checking here anyway just in case.
-			return errors.New("VM has failed")
+			return v.rcs, errors.New("VM has failed")
 		case v.state.HasFlag(vmstate.Halt), v.state.HasFlag(vmstate.Break):
 			// Normal exit from this loop.
-			return nil
+			return v.rcs, nil
 		case v.state == vmstate.None:
 			if err := v.step(ctx); err != nil {
-				return err
+				return v.rcs, err
 			}
 		default:
 			v.state = vmstate.Fault
-			return errors.New("unknown state")
+			return v.rcs, errors.New("unknown state")
 		}
 		// check for breakpoint before executing the next instruction
 		ctx = v.Context()
@@ -576,7 +582,11 @@ func (v *VM) step(ctx *Context) error {
 		v.state = vmstate.Fault
 		return newError(ctx.IP(), op, err)
 	}
-	return v.execute(ctx, op, param)
+	err = v.execute(ctx, op, param)
+	str := "[" + op.String() + " " + strings.ToTitle(hex.EncodeToString(param)) + " " + strconv.Itoa(int(v.refs)) + "]"
+	v.rcs = append(v.rcs, str)
+
+	return err
 }
 
 // StepInto behaves the same as “step over” in case the line does not contain a function. Otherwise,
