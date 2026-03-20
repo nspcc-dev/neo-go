@@ -169,3 +169,55 @@ func TestTokenTransferTransaction(t *testing.T) {
 	_, err = tok.MultiTransferUnsigned([]TransferParameters{})
 	require.Error(t, err)
 }
+
+func TestTransferEvent_FromStackItem(t *testing.T) {
+	t.Run("good", func(t *testing.T) {
+		addr := util.Uint160{1, 2, 3}
+		for _, tc := range []struct {
+			name     string
+			in       stackitem.Item
+			expected *TransferEvent
+		}{
+			{"good",
+				stackitem.NewArray([]stackitem.Item{stackitem.Make(addr), stackitem.Make(addr), stackitem.Make(1)}),
+				&TransferEvent{From: addr, To: addr, Amount: big.NewInt(1)}},
+			{
+				"nil from",
+				stackitem.NewArray([]stackitem.Item{stackitem.Null{}, stackitem.Make(addr), stackitem.Make(1)}),
+				&TransferEvent{To: addr, Amount: big.NewInt(1)},
+			},
+			{
+				"nil to",
+				stackitem.NewArray([]stackitem.Item{stackitem.Make(addr), stackitem.Null{}, stackitem.Make(1)}),
+				&TransferEvent{From: addr, Amount: big.NewInt(1)},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				actual := new(TransferEvent)
+				require.NoError(t, actual.FromStackItem(tc.in))
+				require.Equal(t, tc.expected, actual)
+			})
+		}
+	})
+	t.Run("bad", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			in   stackitem.Item
+			err  string
+		}{
+			{"nil item", nil, "nil item"},
+			{"not an array", stackitem.Make(1), "not an array"},
+			{"wrong number of params", stackitem.NewArray([]stackitem.Item{}), "wrong number of event parameters"},
+			{"invalid from", stackitem.NewArray([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Null{}, stackitem.Make(1)}), "invalid From"},
+			{"failed to decode from from", stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{1, 2, 3}), stackitem.Null{}, stackitem.Make(1)}), "failed to decode From"},
+			{"invalid to", stackitem.NewArray([]stackitem.Item{stackitem.Null{}, stackitem.NewInterop(nil), stackitem.Make(1)}), "invalid To"},
+			{"failed to decode to", stackitem.NewArray([]stackitem.Item{stackitem.Null{}, stackitem.NewByteArray([]byte{1, 2, 3}), stackitem.Make(1)}), "failed to decode To"},
+			{"invalid amount", stackitem.NewArray([]stackitem.Item{stackitem.Null{}, stackitem.Null{}, stackitem.NewInterop(nil)}), "failed to decode Amount"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				actual := new(TransferEvent)
+				require.ErrorContains(t, actual.FromStackItem(tc.in), tc.err)
+			})
+		}
+	})
+}
