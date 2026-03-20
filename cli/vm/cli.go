@@ -1177,7 +1177,7 @@ func handleRun(c *cli.Context) error {
 // runVMWithHandling runs VM with handling errors and additional state messages.
 func runVMWithHandling(c *cli.Context) {
 	v := getVMFromContext(c.App)
-	err := v.Run()
+	_, err := v.Run()
 	if err != nil {
 		writeErr(c.App.ErrWriter, err)
 	}

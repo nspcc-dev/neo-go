@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"os"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -206,7 +207,8 @@ type Blockchain struct {
 	// Block's transactions are passed via mempool.
 	postBlock []func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)
 
-	log *zap.Logger
+	log   *zap.Logger
+	rcLog *os.File
 
 	lastBatch *storage.MemBatch
 
@@ -403,7 +405,10 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 	} else {
 		natives = native.NewDefaultContracts(cfg.ProtocolConfiguration)
 	}
-
+	f, err := os.OpenFile(fmt.Sprintf("./log/rc_go_%d_extended.log", cfg.ProtocolConfiguration.Magic), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create RC logger: %w", err)
+	}
 	bc := &Blockchain{
 		config:      cfg,
 		dao:         dao.NewSimple(s, cfg.StateRootInHeader),
@@ -413,10 +418,12 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		runToExitCh: make(chan struct{}),
 		memPool:     mempool.New(cfg.MemPoolSize, 0, cfg.MempoolSubscriptionsEnabled, updateMempoolMetrics),
 		log:         log,
-		events:      make(chan bcEvent),
-		subCh:       make(chan any),
-		unsubCh:     make(chan any),
-		contracts:   native.NewContracts(natives),
+		rcLog:       f,
+
+		events:    make(chan bcEvent),
+		subCh:     make(chan any),
+		unsubCh:   make(chan any),
+		contracts: native.NewContracts(natives),
 	}
 	bc.management = bc.contracts.Management()
 	if bc.management == native.IManagement(nil) {
@@ -1345,6 +1352,10 @@ func (bc *Blockchain) Run() {
 			bc.log.Warn("failed to close db", zap.Error(err))
 		}
 		bc.isRunning.Store(false)
+		err := bc.rcLog.Close()
+		if err != nil {
+			bc.log.Warn("failed to close rclog", zap.Error(err))
+		}
 		close(bc.runToExitCh)
 	}()
 	go bc.notificationDispatcher()
@@ -2039,13 +2050,19 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	appExecResults = append(appExecResults, aer)
 	aerchan <- aer
 
+	var rcRecords []byte
 	for _, tx := range block.Transactions {
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		systemInterop.ReuseVM(v)
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
 		v.SetGasLimit(tx.SystemFee)
 
-		err := systemInterop.Exec()
+		rc, err := systemInterop.Exec()
+		rcRecords = append(rcRecords, []byte(fmt.Sprintf("%s %s\n", tx.Hash().StringLE(), v.State()))...)
+		for _, r := range rc {
+			rcRecords = append(rcRecords, []byte(fmt.Sprintf("%s ", r))...)
+		}
+		rcRecords = append(rcRecords, []byte("\n")...)
 		var faultException string
 		if !v.HasFailed() {
 			_, err := systemInterop.DAO.Persist()
@@ -2139,6 +2156,13 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 	_ = bc.dao.PersistPrivate(aerCache, cache)
 
+	_, err = bc.rcLog.Write(rcRecords)
+	if err != nil {
+		bc.log.Warn("failed to write rc log", zap.Error(err))
+		bc.lock.Unlock()
+		return fmt.Errorf("failed to write RC: %w", err)
+	}
+
 	mpt.Store = bc.dao.Store
 	bc.stateRoot.UpdateCurrentLocal(mpt, sr)
 	bc.topBlock.Store(block)
@@ -2218,7 +2242,8 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.S
 		systemInterop.ReuseVM(v)
 	}
 	v.LoadScriptWithFlags(script, callflag.All)
-	if err := systemInterop.Exec(); err != nil {
+	_, err := systemInterop.Exec()
+	if err != nil {
 		return nil, v, fmt.Errorf("VM has failed: %w", err)
 	} else if _, err := systemInterop.DAO.Persist(); err != nil {
 		return nil, v, fmt.Errorf("can't save changes: %w", err)
@@ -3394,7 +3419,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	if err := bc.InitVerificationContext(interopCtx, hash, witness); err != nil {
 		return 0, err
 	}
-	err := interopCtx.Exec()
+	_, err := interopCtx.Exec()
 	if vm.HasFailed() {
 		return 0, fmt.Errorf("%w: vm execution has failed: %w", ErrVerificationFailed, err)
 	}

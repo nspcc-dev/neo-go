@@ -184,7 +184,7 @@ func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool, error) {
 
 func isVerifyOk(ic *interop.Context) bool {
 	defer ic.Finalize()
-	if err := ic.VM.Run(); err != nil {
+	if _, err := ic.VM.Run(); err != nil {
 		return false
 	}
 	if ic.VM.Estack().Len() != 1 {
