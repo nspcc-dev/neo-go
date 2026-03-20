@@ -55,6 +55,7 @@ type Token struct {
 }
 
 // TransferEvent represents a Transfer event as defined in the NEP-17 standard.
+// From and To fields may be empty  in case of minting/burning correspondingly.
 type TransferEvent struct {
 	From   util.Uint160
 	To     util.Uint160
@@ -176,7 +177,7 @@ func TransferEventsFromApplicationLog(log *result.ApplicationLog) ([]*TransferEv
 
 // FromStackItem converts provided [stackitem.Array] to TransferEvent or returns an
 // error if it's not possible to do to so.
-func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
+func (e *TransferEvent) FromStackItem(item stackitem.Item) error {
 	if item == nil {
 		return errors.New("nil item")
 	}
@@ -188,27 +189,32 @@ func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
 		return errors.New("wrong number of event parameters")
 	}
 
-	b, err := arr[0].TryBytes()
-	if err != nil {
-		return fmt.Errorf("invalid From: %w", err)
-	}
-	e.From, err = util.Uint160DecodeBytesBE(b)
-	if err != nil {
-		return fmt.Errorf("failed to decode From: %w", err)
-	}
-
-	b, err = arr[1].TryBytes()
-	if err != nil {
-		return fmt.Errorf("invalid To: %w", err)
-	}
-	e.To, err = util.Uint160DecodeBytesBE(b)
-	if err != nil {
-		return fmt.Errorf("failed to decode To: %w", err)
+	if !arr[0].Equals(stackitem.Null{}) {
+		b, err := arr[0].TryBytes()
+		if err != nil {
+			return fmt.Errorf("invalid From: %w", err)
+		}
+		e.From, err = util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return fmt.Errorf("failed to decode From: %w", err)
+		}
 	}
 
+	if !arr[1].Equals(stackitem.Null{}) {
+		b, err := arr[1].TryBytes()
+		if err != nil {
+			return fmt.Errorf("invalid To: %w", err)
+		}
+		e.To, err = util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return fmt.Errorf("failed to decode To: %w", err)
+		}
+	}
+
+	var err error
 	e.Amount, err = arr[2].TryInteger()
 	if err != nil {
-		return fmt.Errorf("field to decode Avount: %w", err)
+		return fmt.Errorf("failed to decode Amount: %w", err)
 	}
 
 	return nil
