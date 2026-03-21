@@ -1282,12 +1282,23 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("invalid length")
 		}
 
-		m := stackitem.NewMap()
+		var mapElems []stackitem.MapElement
 		for range n {
 			key := v.estack.popNoRef()
 			val := v.estack.popNoRef().value
-			m.Add(key.value, val)
+			validateMapKey(key)
+			index := slices.IndexFunc(mapElems, func(e stackitem.MapElement) bool {
+				return e.Key.Equals(key.value)
+			})
+			if index >= 0 {
+				v.refs-- // Key is primitive type.
+				v.refs.Remove(mapElems[index].Value)
+				mapElems[index].Value = val
+			} else {
+				mapElems = append(mapElems, stackitem.MapElement{Key: key.value, Value: val})
+			}
 		}
+		m := stackitem.NewMapWithValue(mapElems)
 		m.IncRC()
 		v.estack.pushItemCounted(m, 1)
 
