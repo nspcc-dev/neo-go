@@ -176,7 +176,7 @@ func TransferEventsFromApplicationLog(log *result.ApplicationLog) ([]*TransferEv
 
 // FromStackItem converts provided [stackitem.Array] to TransferEvent or returns an
 // error if it's not possible to do to so.
-func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
+func (e *TransferEvent) FromStackItem(item stackitem.Item) error {
 	if item == nil {
 		return errors.New("nil item")
 	}
