@@ -177,7 +177,7 @@ type Blockchain struct {
 
 	// keysPerPersist is the average number of persisted keys per persist
 	// time limit.
-	keysPerPersist uint32
+	keysPerPersist atomic.Uint32
 
 	// persistCond is signaled each time persist cycle ends, this wakes
 	// storeBlock if needed (when it has too many queued blocks)
@@ -2132,7 +2132,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	// Wait for a while if we're lagging behind the persistence routine,
 	// it's too easy to OOM otherwise. Keep in mind that this check can't
 	// be perfect, so some tolerance (accepting more) is OK to have.
-	var persistVelocity = atomic.LoadUint32(&bc.keysPerPersist)
+	var persistVelocity = bc.keysPerPersist.Load()
 	for persistVelocity != 0 && uint32(bc.dao.Store.Len()) > persistVelocity*4 {
 		bc.persistCond.Wait()
 	}
@@ -2529,13 +2529,13 @@ func (bc *Blockchain) persist() (time.Duration, error) {
 		if duration > 0 && persisted > persistMinForSampling {
 			var (
 				currentVelocity = uint32(int64(persisted) * int64(persistInterval) / int64(duration))
-				persistVelocity = atomic.LoadUint32(&bc.keysPerPersist)
+				persistVelocity = bc.keysPerPersist.Load()
 			)
 			if persistVelocity != 0 {
 				currentVelocity = min(currentVelocity, 2*persistVelocity) // Normalize sudden spikes.
 				currentVelocity = (persistVelocity*(persistSamples-1) + currentVelocity) / persistSamples
 			} // Otherwise it's the first sample and we take it as is.
-			atomic.StoreUint32(&bc.keysPerPersist, currentVelocity)
+			bc.keysPerPersist.Store(currentVelocity)
 			updateEstimatedPersistVelocityMetric(currentVelocity)
 		}
 		bc.log.Info("persisted to disk",

@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strings"
 	"text/template"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -270,11 +271,11 @@ func GenerateVerifier(cfg Config) error {
 
 // byteSliceToStr is a codegen helper that converts byte slice to a go-like slice.
 func byteSliceToStr(s []byte) string {
-	var res string
+	var res strings.Builder
 	for _, b := range s {
-		res += fmt.Sprintf("%d, ", b)
+		fmt.Fprintf(&res, "%d, ", b)
 	}
-	return `{` + res[:len(res)-2] + `}`
+	return `{` + res.String()[:len(res.String())-2] + `}`
 }
 
 // GetVerifyProofArgs returns a serialized set of arguments `verifyProof` method

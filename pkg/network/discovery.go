@@ -55,9 +55,9 @@ type DefaultDiscovery struct {
 	goodAddrs        map[string]capability.Capabilities
 	unconnectedAddrs map[string]int
 	attempted        map[string]bool
-	outstanding      int32
-	optimalFanOut    int32
-	networkSize      int32
+	outstanding      atomic.Int32
+	optimalFanOut    atomic.Int32
+	networkSize      atomic.Int32
 	requestCh        chan int
 }
 
@@ -126,7 +126,7 @@ func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
 
 // RequestRemote tries to establish a connection with n nodes.
 func (d *DefaultDiscovery) RequestRemote(requested int) {
-	outstanding := int(atomic.LoadInt32(&d.outstanding))
+	outstanding := int(d.outstanding.Load())
 	requested -= outstanding
 	for ; requested > 0; requested-- {
 		var nextAddr string
@@ -155,7 +155,7 @@ func (d *DefaultDiscovery) RequestRemote(requested int) {
 		}
 		d.attempted[nextAddr] = true
 		d.lock.Unlock()
-		atomic.AddInt32(&d.outstanding, 1)
+		d.outstanding.Add(1)
 		go d.tryAddress(nextAddr)
 	}
 }
@@ -284,12 +284,12 @@ func (d *DefaultDiscovery) registerConnected(addr string) {
 
 // GetFanOut returns the optimal number of nodes to broadcast packets to.
 func (d *DefaultDiscovery) GetFanOut() int {
-	return int(atomic.LoadInt32(&d.optimalFanOut))
+	return int(d.optimalFanOut.Load())
 }
 
 // NetworkSize returns the estimated network size.
 func (d *DefaultDiscovery) NetworkSize() int {
-	return int(atomic.LoadInt32(&d.networkSize))
+	return int(d.networkSize.Load())
 }
 
 // updateNetSize updates network size estimation metric. Must be called under read lock.
@@ -297,8 +297,8 @@ func (d *DefaultDiscovery) updateNetSize() {
 	var netsize = max(len(d.seeds) /*can't be less than number of seeds*/, len(d.handshakedAddrs)+len(d.unconnectedAddrs)+1 /* 1 for the node itself*/)
 	var fanOut = max(1 /*we still want to push messages to the peer*/, 2.5*math.Log(float64(netsize-1 /*-1 for the number of potential peers.*/)))
 
-	atomic.StoreInt32(&d.optimalFanOut, int32(fanOut+0.5)) // Truncating conversion, hence +0.5.
-	atomic.StoreInt32(&d.networkSize, int32(netsize))
+	d.optimalFanOut.Store(int32(fanOut + 0.5)) // Truncating conversion, hence +0.5.
+	d.networkSize.Store(int32(netsize))
 	updateNetworkSizeMetric(netsize)
 	updatePoolCountMetric(d.poolCount())
 }
@@ -307,7 +307,7 @@ func (d *DefaultDiscovery) tryAddress(addr string) {
 	var tout = rand.Int64N(int64(tryMaxWait))
 	time.Sleep(time.Duration(tout)) // Have a sleep before working hard.
 	p, err := d.transport.Dial(addr, d.dialTimeout)
-	atomic.AddInt32(&d.outstanding, -1)
+	d.outstanding.Add(-1)
 	d.lock.Lock()
 	delete(d.attempted, addr)
 	if err == nil {

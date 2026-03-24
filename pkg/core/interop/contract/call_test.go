@@ -191,11 +191,11 @@ func TestSystemContractCall_Permissions(t *testing.T) {
 		})
 		e.DeployContract(t, ctrA, nil)
 
-		var hashAStr string
+		var hashAStr strings.Builder
 		for i := range util.Uint160Size {
-			hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
+			fmt.Fprintf(&hashAStr, "%#x", ctrA.Hash[i])
 			if i != util.Uint160Size-1 {
-				hashAStr += ", "
+				hashAStr.WriteString(", ")
 			}
 		}
 
@@ -208,12 +208,12 @@ func TestSystemContractCall_Permissions(t *testing.T) {
 			"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 		)
 		func CallRetOne() int {
-			res := contract.Call(interop.Hash160{` + hashAStr + `}, "retOne", contract.All).(int)
+			res := contract.Call(interop.Hash160{` + hashAStr.String() + `}, "retOne", contract.All).(int)
 			return res
 		}
 		func Update(nef []byte, manifest []byte) int {
 			management.Update(nef, manifest)
-			res := contract.Call(interop.Hash160{` + hashAStr + `}, "retOne", contract.All).(int)
+			res := contract.Call(interop.Hash160{` + hashAStr.String() + `}, "retOne", contract.All).(int)
 			return res
 		}`
 		ctrB := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcB), &compiler.Options{
@@ -366,11 +366,11 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 	})
 	e.DeployContract(t, ctrA, nil)
 
-	var hashAStr string
+	var hashAStr strings.Builder
 	for i := range util.Uint160Size {
-		hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
+		fmt.Fprintf(&hashAStr, "%#x", ctrA.Hash[i])
 		if i != util.Uint160Size-1 {
-			hashAStr += ", "
+			hashAStr.WriteString(", ")
 		}
 	}
 	// Contract B puts value in the storage, emits notifications and calls A either
@@ -398,7 +398,7 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 							runtime.Notify("NotificationFromB after panic", i)
 						}
 						// Check that storage changes and notifications made by A are reverted.
-						ok := contract.Call(interop.Hash160{` + hashAStr + `}, "checkA", contract.All, keyA, nNtfB1+nNtfB2).(bool)
+						ok := contract.Call(interop.Hash160{` + hashAStr.String() + `}, "checkA", contract.All, keyA, nNtfB1+nNtfB2).(bool)
 						if !ok {
 							util.Abort() // should never ABORT if snapshot isolation is correctly implemented.
 						}
@@ -408,7 +408,7 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 							util.Abort() // should never ABORT if snapshot isolation is correctly implemented.
 						}
 						// Check that storage changes made by B after catch are still available from the outside context.
-						ok = contract.Call(interop.Hash160{` + hashAStr + `}, "checkB", contract.All).(bool)
+						ok = contract.Call(interop.Hash160{` + hashAStr.String() + `}, "checkB", contract.All).(bool)
 						if !ok {
 							util.Abort() // should never ABORT if snapshot isolation is correctly implemented.
 						}
@@ -423,7 +423,7 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 			internalCaller(keyA, valueA, nNtfA)
 		}
 		func internalCaller(keyA, valueA []byte, nNtfA int) {
-			contract.Call(interop.Hash160{` + hashAStr + `}, "doAndPanic", contract.All, keyA, valueA, nNtfA)
+			contract.Call(interop.Hash160{` + hashAStr.String() + `}, "doAndPanic", contract.All, keyA, valueA, nNtfA)
 		}
 		func CheckStorageChanges() bool {
 			c := storage.GetContext()
@@ -598,11 +598,11 @@ func TestRET_after_FINALLY_PanicInsideVoidMethod(t *testing.T) {
 	})
 	e.DeployContract(t, ctrA, nil)
 
-	var hashAStr string
+	var hashAStr strings.Builder
 	for i := range util.Uint160Size {
-		hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
+		fmt.Fprintf(&hashAStr, "%#x", ctrA.Hash[i])
 		if i != util.Uint160Size-1 {
-			hashAStr += ", "
+			hashAStr.WriteString(", ")
 		}
 	}
 	// Contract B calls A and catches the exception thrown by A.
@@ -615,10 +615,10 @@ func TestRET_after_FINALLY_PanicInsideVoidMethod(t *testing.T) {
 			defer func() {
 				if r := recover(); r != nil {
 					// Call method with return value to check https://github.com/neo-project/neo/pull/2745#discussion_r879167180.
-					contract.Call(interop.Hash160{` + hashAStr + `}, "returnSomeValue", contract.All)
+					contract.Call(interop.Hash160{` + hashAStr.String() + `}, "returnSomeValue", contract.All)
 				}
 			}()
-			contract.Call(interop.Hash160{` + hashAStr + `}, "panic", contract.All)
+			contract.Call(interop.Hash160{` + hashAStr.String() + `}, "panic", contract.All)
 		}`
 	ctrB := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcB), &compiler.Options{
 		Name:               "contractB",
@@ -658,11 +658,11 @@ func TestRET_after_FINALLY_CallNonVoidAfterVoidMethod(t *testing.T) {
 	})
 	e.DeployContract(t, ctrA, nil)
 
-	var hashAStr string
+	var hashAStr strings.Builder
 	for i := range util.Uint160Size {
-		hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
+		fmt.Fprintf(&hashAStr, "%#x", ctrA.Hash[i])
 		if i != util.Uint160Size-1 {
-			hashAStr += ", "
+			hashAStr.WriteString(", ")
 		}
 	}
 	// Contract B calls A in try-catch block.
@@ -678,8 +678,8 @@ func TestRET_after_FINALLY_CallNonVoidAfterVoidMethod(t *testing.T) {
 					util.Abort() // should never happen
 				}
 			}()
-			contract.Call(interop.Hash160{` + hashAStr + `}, "noRet", contract.All)
-			contract.Call(interop.Hash160{` + hashAStr + `}, "hasRet", contract.All)
+			contract.Call(interop.Hash160{` + hashAStr.String() + `}, "noRet", contract.All)
+			contract.Call(interop.Hash160{` + hashAStr.String() + `}, "hasRet", contract.All)
 		}`
 	ctrB := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcB), &compiler.Options{
 		Name:               "contractB",
