@@ -905,20 +905,24 @@ func (i *Map) Convert(typ Type) (Item, error) {
 	}
 }
 
-// Add adds a key-value pair to the map.
-func (i *Map) Add(key, value Item) {
+// Add adds a key-value pair to the map and returns previous value for the key
+// if it's already exist or nil otherwise.
+func (i *Map) Add(key, value Item) Item {
 	if err := IsValidMapKey(key); err != nil {
 		panic(err)
 	}
 	if i.IsReadOnly() {
 		panic(ErrReadOnly)
 	}
+	var item Item
 	index := i.Index(key)
 	if index >= 0 {
+		item = i.value[index].Value
 		i.value[index].Value = value
 	} else {
 		i.value = append(i.value, MapElement{key, value})
 	}
+	return item
 }
 
 // Drop removes the given index from the map (no bounds check done here).

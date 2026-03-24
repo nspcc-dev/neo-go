@@ -431,6 +431,52 @@ func TestRefCounterSetItemCloneStruct(t *testing.T) {
 	}
 }
 
+func TestRefCounterPackMapSameKey(t *testing.T) {
+	t.Run("different values", func(t *testing.T) {
+		prog := makeProgram(opcode.PACKMAP)
+		v := load(prog)
+		// Push lightweight item and key.
+		v.estack.PushVal(stackitem.Null{})
+		v.estack.PushVal(stackitem.Make(0))
+		// Push heavyweight item and same key.
+		v.estack.PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
+		v.estack.PushVal(stackitem.Make(0))
+		// Push map length.
+		v.estack.PushVal(stackitem.Make(2))
+		require.Equal(t, 5, v.estack.Len())
+		require.Equal(t, (1+1)+(2+1)+1, int(v.refs))
+		runVM(t, v)
+		// Map with key-value pair: {0: null}.
+		require.Equal(t, 1, v.estack.Len())
+		require.Equal(t, 1+(1+1), int(v.refs))
+		_ = v.estack.Pop()
+		require.Equal(t, 0, v.estack.Len())
+		require.Equal(t, 0, int(v.refs))
+	})
+	t.Run("same values", func(t *testing.T) {
+		prog := makeProgram(opcode.PACKMAP)
+		v := load(prog)
+		arr := stackitem.NewArray([]stackitem.Item{stackitem.Make(42)})
+		// Push array and key.
+		v.estack.PushVal(arr)
+		v.estack.PushVal(stackitem.Make(0))
+		// Push same key-value pair.
+		v.estack.PushVal(arr)
+		v.estack.PushVal(stackitem.Make(0))
+		// Push map length.
+		v.estack.PushVal(stackitem.Make(2))
+		require.Equal(t, 5, v.estack.Len())
+		require.Equal(t, (2+1)+(1+1)+1, int(v.refs))
+		runVM(t, v)
+		// Map with key-value pair: {0: [42]}.
+		require.Equal(t, 1, v.estack.Len())
+		require.Equal(t, 1+(1+2), int(v.refs))
+		_ = v.estack.Pop()
+		require.Equal(t, 0, v.estack.Len())
+		require.Equal(t, 0, int(v.refs))
+	})
+}
+
 func BenchmarkRefCounter_Add(b *testing.B) {
 	a := stackitem.NewArray(nil)
 	rc := newRefCounter()
