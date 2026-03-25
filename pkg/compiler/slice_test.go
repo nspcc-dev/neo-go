@@ -636,6 +636,95 @@ func TestMake(t *testing.T) {
 		_, err := compiler.Compile("foo.go", strings.NewReader(src))
 		require.Error(t, err)
 	})
+	t.Run("StructFieldInt", func(t *testing.T) {
+		src := `package main
+
+		type nested struct{ t int }
+		type test struct{ a []nested }
+
+		func Main() int {
+			var myStruct = test{a: make([]nested, 1)}
+			return myStruct.a[0].t
+		}`
+		eval(t, src, big.NewInt(0))
+	})
+
+	t.Run("NestedStructField", func(t *testing.T) {
+		src := `package main
+
+		type level2 struct{ v int }
+		type level1 struct{ x level2 }
+		type test struct{ a []level1 }
+
+		func Main() int {
+			var myStruct = test{a: make([]level1, 1)}
+			return myStruct.a[0].x.v
+		}`
+		eval(t, src, big.NewInt(0))
+	})
+
+	t.Run("MultipleElementsAreZeroed", func(t *testing.T) {
+		src := `package main
+
+		type nested struct{ t int }
+		type test struct{ a []nested }
+
+		func Main() int {
+			var myStruct = test{a: make([]nested, 3)}
+			return myStruct.a[0].t + myStruct.a[1].t + myStruct.a[2].t
+		}`
+		eval(t, src, big.NewInt(0))
+	})
+
+	t.Run("SliceFieldIsNilButReadable", func(t *testing.T) {
+		src := `package main
+
+		type nested struct{ items []int }
+		type test struct{ a []nested }
+
+		func Main() int {
+			var myStruct = test{a: make([]nested, 1)}
+			return len(myStruct.a[0].items)
+		}`
+		eval(t, src, big.NewInt(0))
+	})
+
+	t.Run("BoolAndStringZeroValues", func(t *testing.T) {
+		src := `package main
+
+		type nested struct{
+			ok bool
+			s  string
+		}
+		type test struct{ a []nested }
+
+		func Main() int {
+			var myStruct = test{a: make([]nested, 1)}
+			if myStruct.a[0].ok {
+				return 1
+			}
+			if myStruct.a[0].s != "" {
+				return 2
+			}
+			return 0
+		}`
+		eval(t, src, big.NewInt(0))
+	})
+
+	t.Run("DeeplyNestedStruct", func(t *testing.T) {
+		src := `package main
+
+		type leaf struct{ n int }
+		type mid struct{ l leaf }
+		type root struct{ m mid }
+		type test struct{ a []root }
+
+		func Main() int {
+			var myStruct = test{a: make([]root, 1)}
+			return myStruct.a[0].m.l.n
+		}`
+		eval(t, src, big.NewInt(0))
+	})
 }
 
 func TestCopy(t *testing.T) {

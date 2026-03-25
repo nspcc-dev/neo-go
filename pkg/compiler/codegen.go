@@ -1986,8 +1986,18 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			if isByteSlice(typ) {
 				emit.Opcodes(c.prog.BinWriter, opcode.NEWBUFFER)
 			} else {
-				neoT := toNeoType(typ.(*types.Slice).Elem())
-				emit.Instruction(c.prog.BinWriter, opcode.NEWARRAYT, []byte{byte(neoT)})
+				emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+				start := c.newLabel()
+				c.setLabel(start)
+				emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+				end := c.newLabel()
+				emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, end)
+				emit.Opcodes(c.prog.BinWriter, opcode.DEC)
+				c.emitDefault(typ.(*types.Slice).Elem())
+				emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.ROT)
+				emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
+				c.setLabel(end)
+				emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.PACK)
 			}
 		}
 	case "len":
