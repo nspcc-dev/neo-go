@@ -109,6 +109,11 @@ func toNeoType(typ types.Type) stackitem.Type {
 			return stackitem.BufferT
 		}
 		return stackitem.ArrayT
+	case *types.Pointer:
+		if _, ok := t.Elem().Underlying().(*types.Struct); ok {
+			return stackitem.StructT
+		}
+		return stackitem.AnyT
 	default:
 		return stackitem.AnyT
 	}
