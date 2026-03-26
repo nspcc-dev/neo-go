@@ -799,3 +799,54 @@ func Main() int {
 
 	c.Invoke(t, big.NewInt(3), "main")
 }
+
+func TestStdLib_DeserializeToPtrToStructure(t *testing.T) {
+	a := "NQRLhCpAru9BjGsMwk67vdMwmzKMRgsnnN"
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package foo
+
+import (
+	"github.com/nspcc-dev/neo-go/pkg/interop"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
+	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+)
+
+type UserKey struct {
+	Address interop.Hash160
+	Data    []byte
+	Role    int
+}
+
+func GetUserKey(idKey []byte) *UserKey {
+	data := storage.LocalGet(idKey)
+	if data != nil {
+		return std.Deserialize(data.([]byte)).(*UserKey)
+	}
+	return nil
+}
+
+func PutUserKey(idKey []byte, addr interop.Hash160, data []byte, role int) {
+	uk := &UserKey{
+		Address: addr,
+		Data:    data,
+		Role:    role,
+	}
+	storage.LocalPut(idKey, std.Serialize(uk))
+}
+`
+	ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{Name: "Helper"})
+	e.DeployContract(t, ctr, nil)
+	c := e.CommitteeInvoker(ctr.Hash)
+
+	h, err := address.StringToUint160(a)
+	require.NoError(t, err)
+	c.Invoke(t, nil, "putUserKey", []byte("user-key"), h.BytesBE(), []byte("user-data"), 42)
+	c.Invoke(t, stackitem.NewStruct([]stackitem.Item{
+		stackitem.Make(h),
+		stackitem.Make([]byte("user-data")),
+		stackitem.Make(42),
+	}), "getUserKey", []byte("user-key"))
+	c.Invoke(t, nil, "getUserKey", []byte("unknown-key"))
+}

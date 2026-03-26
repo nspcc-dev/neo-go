@@ -29,7 +29,7 @@ a dialect of Go rather than a complete port of the language:
    original value will always be used, therefore it never panics and always "succeeds";
    it's up to the programmer whether it's a correct use of a value
  * type assertion with two return values is not supported; single return value (of the desired type)
-   is supported; type assertion panics if value can't be asserted to the desired type, therefore
+   is supported, including pointers to structs; type assertion panics if value can't be asserted to the desired type, therefore
    it's up to the programmer whether assert can be performed successfully.
  * type aliases including the built-in `any` alias are supported.
  * generics are not supported, but eventually will be (at least, partially), ref. https://github.com/nspcc-dev/neo-go/issues/2376.
