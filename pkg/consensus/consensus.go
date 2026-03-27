@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -354,12 +355,14 @@ events:
 				zap.Uint("view", uint(v)))
 			s.dbft.OnTimeout(h, v)
 		case msg := <-s.messages:
+			log := s.log.Debug
 			fields := []zap.Field{
 				zap.Uint8("from", msg.message.ValidatorIndex),
 				zap.Stringer("type", msg.Type()),
 			}
 
-			if msg.Type() == dbft.RecoveryMessageType {
+			switch msg.Type() {
+			case dbft.RecoveryMessageType:
 				rec := msg.GetRecoveryMessage().(*recoveryMessage)
 				if rec.preparationHash == nil {
 					req := rec.GetPrepareRequest(&msg, s.dbft.Validators, uint16(s.dbft.PrimaryIndex))
@@ -375,9 +378,24 @@ events:
 					zap.Int("#changeview", len(rec.changeViewPayloads)),
 					zap.Bool("#request", rec.prepareRequest != nil),
 					zap.Bool("#hash", rec.preparationHash != nil))
+			case dbft.ChangeViewType:
+				cv := msg.GetChangeView().(*changeView)
+				if len(cv.rejectedHashes) > 0 {
+					const maxHashes = 10
+					var rejected strings.Builder
+					log = s.log.Warn
+					for _, h := range cv.rejectedHashes[:min(len(cv.rejectedHashes), maxHashes)] { // don't pollute logs with too many hashes.
+						fmt.Fprintf(&rejected, "%s ", h.StringLE())
+					}
+					if len(cv.rejectedHashes) > maxHashes {
+						rejected.WriteString("...")
+					}
+					fields = append(fields, zap.String("rejected", rejected.String()))
+				}
+			default:
 			}
 
-			s.log.Debug("received message", fields...)
+			log("received message", fields...)
 			s.dbft.OnReceive(&msg)
 		case tx := <-s.transactions:
 			s.dbft.OnTransaction(tx)
