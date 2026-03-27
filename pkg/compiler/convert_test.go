@@ -128,6 +128,74 @@ func TestTypeAssertion(t *testing.T) {
 				}`
 		eval(t, src, big.NewInt(1))
 	})
+	t.Run("pointer to structure", func(t *testing.T) {
+		src := `package main
+		type A struct {
+			a int
+			b bool
+		}
+		func getA() any {
+			return &A{a: 42, b: true}
+		}
+		func Main() int {
+			myA := getA().(*A)
+			if !myA.b {
+				return -1
+			}
+			return myA.a
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("pointer to named type to structure", func(t *testing.T) {
+		src := `package main
+		type A struct {
+			a int
+			b bool
+		}
+		type B A
+		func getB() any {
+			return &B{a: 42, b: true}
+		}
+		func Main() int {
+			myB := getB().(*B)
+			if !myB.b {
+				return -1
+			}
+			return myB.a
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("pointer to named type to structure", func(t *testing.T) {
+		src := `package main
+		type A struct {
+			a int
+			b bool
+		}
+		type B *A
+		func getB() any {
+			return B(&A{a: 42, b: true})
+		}
+		func Main() int {
+			myB := getB().(B)
+			if !myB.b {
+				return -1
+			}
+			return myB.a
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("pointer not to structure", func(t *testing.T) {
+		src := `package main
+		func noIntPtr() any {
+			return 0
+		}
+		func Main() int {
+			_ = noIntPtr().(*int)
+			return 0
+		}`
+		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
+		require.Error(t, err)
+	})
 }
 
 func TestTypeAssertionWithOK(t *testing.T) {
