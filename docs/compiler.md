@@ -8,7 +8,7 @@ The compiler is mostly compatible with regular Go language specification. Howeve
 there are some important deviations that you need to be aware of that make it
 a dialect of Go rather than a complete port of the language:
  * `new()` is not supported, most of the time you can substitute structs with composite literals
- * `make()` is supported for maps and slices with elements of basic types
+ * `make()` is supported for maps and slices with elements of arbitrary types; capacity argument is not supported
  * `copy()` is supported only for byte slices because of the underlying `MEMCPY` opcode
  * pointers are supported only for struct literals, one can't take an address
    of an arbitrary variable
