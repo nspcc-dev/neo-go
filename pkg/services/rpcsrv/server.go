@@ -1276,7 +1276,7 @@ func (s *Server) invokeReadOnlyMulti(bw *io.BufBinWriter, h util.Uint160, method
 	}
 	ic.VM.SetGasLimit(core.HeaderVerificationGasLimit)
 	ic.VM.LoadScriptWithFlags(script, callflag.All)
-	err = ic.VM.Run()
+	_, err = ic.VM.Run()
 	if err != nil {
 		ic.Finalize()
 		return nil, nil, fmt.Errorf("failed to run %d methods of %s: %w", len(methods), h.StringLE(), err)
@@ -2521,7 +2521,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	if respErr != nil {
 		return nil, respErr
 	}
-	err := ic.VM.Run()
+	_, err := ic.VM.Run()
 	var faultException string
 	if err != nil {
 		faultException = err.Error()

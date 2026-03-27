@@ -556,7 +556,7 @@ func (ic *Context) Finalize() {
 }
 
 // Exec executes loaded VM script and calls registered finalizers to release the occupied resources.
-func (ic *Context) Exec() error {
+func (ic *Context) Exec() ([]string, error) {
 	defer ic.Finalize()
 	return ic.VM.Run()
 }
