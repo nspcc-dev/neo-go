@@ -360,8 +360,8 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 		NoPermissionsCheck: true,
 		Name:               "contractA",
 		Permissions:        []manifest.Permission{{Methods: manifest.WildStrings{Value: nil}}},
-		ContractEvents: []compiler.HybridEvent{
-			{Name: "NotificationFromA", Parameters: []compiler.HybridParameter{{Parameter: manifest.Parameter{Name: "i", Type: smartcontract.IntegerType}}}},
+		ContractEvents: []manifest.Event{
+			{Name: "NotificationFromA", Parameters: []manifest.Parameter{{Name: "i", Type: smartcontract.IntegerType}}},
 		},
 	})
 	e.DeployContract(t, ctrA, nil)
@@ -435,9 +435,9 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 		NoEventsCheck:      true,
 		NoPermissionsCheck: true,
 		Permissions:        []manifest.Permission{{Methods: manifest.WildStrings{Value: nil}}},
-		ContractEvents: []compiler.HybridEvent{
-			{Name: "NotificationFromB before panic", Parameters: []compiler.HybridParameter{{Parameter: manifest.Parameter{Name: "i", Type: smartcontract.IntegerType}}}},
-			{Name: "NotificationFromB after panic", Parameters: []compiler.HybridParameter{{Parameter: manifest.Parameter{Name: "i", Type: smartcontract.IntegerType}}}},
+		ContractEvents: []manifest.Event{
+			{Name: "NotificationFromB before panic", Parameters: []manifest.Parameter{{Name: "i", Type: smartcontract.IntegerType}}},
+			{Name: "NotificationFromB after panic", Parameters: []manifest.Parameter{{Name: "i", Type: smartcontract.IntegerType}}},
 		},
 	})
 	e.DeployContract(t, ctrB, nil)
@@ -502,7 +502,7 @@ func TestSnapshotIsolation_NestedContextException(t *testing.T) {
 		NoPermissionsCheck: true,
 		Name:               "contractA",
 		Permissions:        []manifest.Permission{{Methods: manifest.WildStrings{Value: nil}}},
-		ContractEvents: []compiler.HybridEvent{
+		ContractEvents: []manifest.Event{
 			{Name: "Calling A"},
 			{Name: "Finish"},
 			{Name: "Caught"},
