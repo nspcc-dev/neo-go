@@ -799,3 +799,14 @@ func Main() int {
 
 	c.Invoke(t, big.NewInt(3), "main")
 }
+
+func TestSome(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	ctr := neotest.CompileFile(t, e.CommitteeHash, "./contract/contract.go", "./contract/contract.yml")
+	e.DeployContract(t, ctr, nil)
+	c := e.CommitteeInvoker(ctr.Hash)
+
+	c.Invoke(t, true, "myEven", 0)
+}
