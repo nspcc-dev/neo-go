@@ -1753,16 +1753,16 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		switch t := c.value.(type) {
 		case *stackitem.Array, *stackitem.Struct:
 			index := toInt(key.BigInt())
-			if index < 0 {
-				panic("negative index")
+			if index < 0 || (v.isHardforkEnabled(config.HFGorgon) && index >= stackitem.MaxSize) {
+				panic("negative or too large index")
 			}
 			res = index < len(c.Array())
 		case *stackitem.Map:
 			res = t.Has(key.Item())
 		case *stackitem.Buffer, *stackitem.ByteArray:
 			index := toInt(key.BigInt())
-			if index < 0 {
-				panic("negative index")
+			if index < 0 || (v.isHardforkEnabled(config.HFGorgon) && index >= stackitem.MaxSize) {
+				panic("negative or too large index")
 			}
 			res = index < len(t.Value().([]byte))
 		default:

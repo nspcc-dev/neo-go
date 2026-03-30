@@ -58,7 +58,8 @@ const (
 	// https://github.com/neo-project/neo/pull/4328).
 	HFFaun // Faun
 	// HFGorgon represents hard-fork introduced in #4142, #4197 (ported from
-	// https://github.com/neo-project/neo/pull/4516).
+	// https://github.com/neo-project/neo/pull/4516 and
+	// https://github.com/neo-project/neo-vm/pull/543).
 	HFGorgon // Gorgon
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
