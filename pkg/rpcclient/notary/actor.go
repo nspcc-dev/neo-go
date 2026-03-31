@@ -352,7 +352,8 @@ func (a *Actor) Wait(mainHash, fbHash util.Uint256, vub uint32, err error) (*sta
 // WaitSuccess works similar to [Actor.Wait], but checks that the main
 // transaction was accepted and it has a HALT VM state (executed successfully).
 // [state.AppExecResult] is still returned (if there is no error) in case you
-// need some additional event or stack checks.
+// need some additional event or stack checks. [neorpc.FaultException] error is
+// returned if VM is FAULTed.
 func (a *Actor) WaitSuccess(mainHash, fbHash util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
 	aer, err := a.Wait(mainHash, fbHash, vub, err)
 	if err != nil {
@@ -362,7 +363,7 @@ func (a *Actor) WaitSuccess(mainHash, fbHash util.Uint256, vub uint32, err error
 		return nil, ErrFallbackAccepted
 	}
 	if aer.VMState != vmstate.Halt {
-		return nil, fmt.Errorf("%w: %s", actor.ErrExecFailed, aer.FaultException)
+		return nil, &neorpc.FaultException{Message: aer.FaultException}
 	}
 	return aer, nil
 }

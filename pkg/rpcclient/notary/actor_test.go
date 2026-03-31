@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
@@ -596,7 +597,7 @@ func TestWait(t *testing.T) {
 
 	rc.applog.Executions[0].VMState = vmstate.Fault
 	_, err = act.WaitSuccess(util.Uint256{1, 2, 3}, util.Uint256{}, 0, nil)
-	require.ErrorIs(t, err, actor.ErrExecFailed)
+	require.ErrorIs(t, err, &neorpc.FaultException{})
 
 	rc.applog.Executions[0].VMState = vmstate.Halt
 	res, err = act.WaitSuccess(util.Uint256{1, 2, 3}, util.Uint256{}, 0, nil)

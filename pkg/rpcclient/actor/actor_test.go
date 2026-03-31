@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -327,7 +328,7 @@ func TestWaitSuccess(t *testing.T) {
 	client.appLog = applog
 	client.appLog.Executions[0].VMState = vmstate.Fault
 	_, err = a.WaitSuccess(client.Context(), util.Uint256{}, 0, nil)
-	require.ErrorIs(t, err, ErrExecFailed)
+	require.ErrorIs(t, err, &neorpc.FaultException{})
 
 	client.appLog.Executions[0].VMState = vmstate.Halt
 	res, err := a.WaitSuccess(client.Context(), util.Uint256{}, 0, nil)
