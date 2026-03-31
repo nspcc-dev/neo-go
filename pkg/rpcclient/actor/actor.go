@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/waiter"
@@ -29,7 +30,12 @@ var (
 	// ErrExecFailed is returned from [Actor.WaitSuccess] when transaction
 	// is accepted into a block, but its execution ended up in non-HALT VM
 	// state.
-	ErrExecFailed = errors.New("execution failed")
+	//
+	// Deprecated: use named [neorpc.FaultException] errors offered by [neorpc]
+	// package for errors.Is comparison. Also, a custom [neorpc.FaultException]
+	// error may be created with the required exception text if no suitable
+	// standard one is available.
+	ErrExecFailed = &neorpc.FaultException{}
 )
 
 // RPCActor is an interface required from the RPC client to successfully
@@ -317,13 +323,14 @@ func (a *Actor) Sender() util.Uint160 {
 // WaitSuccess is similar to [waiter.Wait], but also checks for the VM state
 // to be HALT (successful execution). Execution result is still returned (if
 // HALTed normally) in case you need to examine events or stack.
+// [neorpc.FaultException] error is returned if VM is FAULTed.
 func (a *Actor) WaitSuccess(ctx context.Context, h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
 	aer, err := a.Wait(ctx, h, vub, err)
 	if err != nil {
 		return nil, err
 	}
 	if aer.VMState != vmstate.Halt {
-		return nil, fmt.Errorf("%w: %s", ErrExecFailed, aer.FaultException)
+		return nil, &neorpc.FaultException{Message: aer.FaultException}
 	}
 	return aer, nil
 }

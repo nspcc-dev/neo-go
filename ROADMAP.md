@@ -42,3 +42,12 @@ and has been superseded by the `--format wif` option. Use `--format wif`
 instead of `--decrypt`.
 
 Removal is planned for v0.120.0 release (~June 2026).
+
+## actor.ErrExecFailed RPC client error
+
+`actor.ErrExecFailed` RPC client error is replaced by `neorpc.FaultException`
+error. Use a set of predefined `neorpc.FaultException` errors with errors.Is to
+detect specific FAULT exceptions or create a custom `neorpc.FaultException`
+error if no suitable standard one is available.
+
+`actor.ErrExecFailed` will be removed in ~v0.121.0 release (~July 2026).
