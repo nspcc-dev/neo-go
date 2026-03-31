@@ -191,7 +191,7 @@ func (e *Executor) DeployContractCheckFAULT(t testing.TB, c *Contract, data any,
 // trackCoverage switches on coverage tracking for provided script if `go test` is running with coverage enabled.
 func (e *Executor) trackCoverage(c *Contract) {
 	if e.collectCoverage {
-		addScriptToCoverage(c)
+		e.addScriptToCoverage(c)
 		e.scheduleCoverageReportOnce.Do(e.scheduleCoverageReport)
 	}
 }

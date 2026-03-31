@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,4 +34,25 @@ func TestAddSourceURLToNEF(t *testing.T) {
 	configPath := "../../internal/basicchain/testdata/test_contract.yml"
 	ctr := CompileFile(t, util.Uint160{}, srcPath, configPath)
 	require.NotEqual(t, "", ctr.NEF.Source)
+}
+
+func TestExecutorCoverageHook(t *testing.T) {
+	e := &Executor{
+		rawCoverage: make(map[util.Uint160]*scriptRawCoverage),
+	}
+
+	hash := util.Uint160{1, 2, 3}
+	c := &Contract{
+		Hash: hash,
+		DebugInfo: &compiler.DebugInfo{
+			Documents: []string{"contract.go"},
+		},
+	}
+
+	e.addScriptToCoverage(c)
+	require.Contains(t, e.rawCoverage, hash)
+
+	e.coverageHook(hash, 42, opcode.NOP)
+	require.Len(t, e.rawCoverage[hash].offsetsVisited, 1)
+	require.Equal(t, 42, e.rawCoverage[hash].offsetsVisited[0])
 }

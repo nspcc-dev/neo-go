@@ -242,7 +242,7 @@ func documentSeqPoints(di *compiler.DebugInfo, doc documentName) []compiler.Debu
 	return res
 }
 
-func addScriptToCoverage(c *Contract) {
+func (e *Executor) addScriptToCoverage(c *Contract) {
 	// Any garbage may be passed to deployment methods, filter out useless contracts
 	// to avoid misleading behaviour during coverage collection.
 	if c.DebugInfo == nil || c.Hash.Equals(util.Uint160{}) {
@@ -250,7 +250,7 @@ func addScriptToCoverage(c *Contract) {
 	}
 	coverageLock.Lock()
 	defer coverageLock.Unlock()
-	if _, ok := rawCoverage[c.Hash]; !ok {
-		rawCoverage[c.Hash] = &scriptRawCoverage{debugInfo: c.DebugInfo}
+	if _, ok := e.rawCoverage[c.Hash]; !ok {
+		e.rawCoverage[c.Hash] = &scriptRawCoverage{debugInfo: c.DebugInfo}
 	}
 }
