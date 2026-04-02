@@ -50,6 +50,14 @@ type funcScope struct {
 	i int
 }
 
+// A lambdaScope extends funcScope with lambda-specific compilation state.
+type lambdaScope struct {
+	*funcScope
+
+	// compiled reports whether the lambda has already been compiled.
+	compiled bool
+}
+
 type deferInfo struct {
 	catchLabel   uint16
 	finallyLabel uint16
