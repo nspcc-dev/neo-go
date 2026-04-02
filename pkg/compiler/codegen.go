@@ -592,11 +592,12 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	f.rng.End = uint16(c.prog.Len() - 1)
 
 	if !isLambda {
-		for _, f := range c.lambda {
+		for name, f := range c.lambda {
 			if _, ok := c.lambda[c.getIdentName("", f.decl.Name.Name)]; !ok {
 				panic("ICE: lambda name doesn't match map key")
 			}
 			c.convertFuncDecl(file, f.decl, pkg)
+			c.funcs[name] = f
 		}
 		c.lambda = make(map[string]*funcScope)
 	}
@@ -627,10 +628,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil // Program is invalid.
 		}
 
-		if n.Tok == token.VAR || n.Tok == token.CONST {
-			c.saveSequencePoint(n)
-		}
 		if n.Tok == token.CONST {
+			c.saveSequencePoint(n)
 			for _, spec := range n.Specs {
 				vs := spec.(*ast.ValueSpec)
 				for i := range vs.Names {
@@ -648,6 +647,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
+				if !containsFuncLit(t.Values...) {
+					c.saveSequencePoint(t)
+				}
 				var isMapKeyCheck bool
 				// Filter out type assertion with two return values: var i, ok = v.(int)
 				// and map's index expression: var v, ok = myMap["key"]
@@ -719,7 +721,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isMapKeyCheck = c.checkGetMapValueWithOKFlag(n.Rhs[0])
 		}
 		multiRet := len(n.Rhs) != len(n.Lhs)
-		c.saveSequencePoint(n)
+		if !containsFuncLit(n.Rhs...) {
+			c.saveSequencePoint(n)
+		}
 		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
 		isAssignOp := token.ADD_ASSIGN <= n.Tok && n.Tok <= token.AND_NOT_ASSIGN
 		if isAssignOp {
@@ -829,7 +833,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.processDefers()
 
-		c.saveSequencePoint(n)
+		if !containsFuncLit(n.Results...) {
+			c.saveSequencePoint(n)
+		}
 		if len(c.pkgInfoInline) == 0 {
 			emit.Opcodes(c.prog.BinWriter, opcode.RET)
 		} else {
@@ -1096,7 +1102,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isLiteral = true
 		}
 
-		c.saveSequencePoint(n)
+		if !containsFuncLit(n.Fun) {
+			c.saveSequencePoint(n)
+		}
 
 		args := transformArgs(f, n.Fun, isBuiltin, n.Args)
 
@@ -2417,7 +2425,7 @@ func (c *codegen) getFuncNameFromSelector(e *ast.SelectorExpr) (string, bool) {
 }
 
 func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
-	name := fmt.Sprintf("lambda@%d", u)
+	name := fmt.Sprintf("*lambda@%d", u)
 	f := c.newFuncScope(&ast.FuncDecl{
 		Name: ast.NewIdent(name),
 		Type: lit.Type,
@@ -2761,6 +2769,15 @@ func calcOffsetCorrection(ip, target int, offsets []int) int {
 		return -cnt
 	}
 	return cnt
+}
+
+func containsFuncLit(exprs ...ast.Expr) bool {
+	for _, expr := range exprs {
+		if _, ok := expr.(*ast.FuncLit); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func negateJmp(op opcode.Opcode) opcode.Opcode {
