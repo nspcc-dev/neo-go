@@ -530,6 +530,7 @@ func (ic *Context) initVM(v *vm.VM) {
 	v.SetGasLimit(-1)
 	v.SyscallHandler = ic.SyscallHandler
 	v.SetPriceGetter(ic.GetPrice)
+	v.SetIsHardforkEnabled(ic.IsHardforkEnabled)
 	ic.VM = v
 }
 
