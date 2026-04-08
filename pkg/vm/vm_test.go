@@ -58,7 +58,7 @@ func TestVM_SetPriceGetter(t *testing.T) {
 	v := newTestVM()
 	prog := []byte{
 		byte(opcode.PUSH4), byte(opcode.PUSH2),
-		byte(opcode.PUSHDATA1), 0x01, 0x01,
+		byte(opcode.PUSHDATA2), 0x01, 0x00, 0x01,
 		byte(opcode.PUSHDATA1), 0x02, 0xCA, 0xFE,
 		byte(opcode.PUSH4), byte(opcode.RET),
 	}
@@ -70,14 +70,15 @@ func TestVM_SetPriceGetter(t *testing.T) {
 		require.EqualValues(t, 0, v.GasConsumed())
 	})
 
-	v.SetPriceGetter(func(op opcode.Opcode, p []byte) int64 {
-		if op == opcode.PUSH4 {
-			return 1 * ExecFeeFactorMultiplier
-		} else if op == opcode.PUSHDATA1 && bytes.Equal(p, []byte{0xCA, 0xFE}) {
-			return 7 * ExecFeeFactorMultiplier
+	v.SetPriceGetter(func(op opcode.Opcode, args *OpcodePriceParams) int64 {
+		switch op {
+		case opcode.PUSH4:
+			return 1 * FemtoGasPerDatoshi
+		case opcode.PUSHDATA1:
+			return 7 * FemtoGasPerDatoshi
+		default:
+			return 0
 		}
-
-		return 0
 	})
 
 	t.Run("with price getter", func(t *testing.T) {
@@ -231,6 +232,13 @@ func TestGasConsumed(t *testing.T) {
 		require.ErrorIs(t, v.AddPicoGas(math.MaxInt64), ErrGASLimitExceeded)
 		require.Equal(t, int64(((uint64(math.MaxInt64)+1)/ExecFeeFactorMultiplier) /*not divisible by factor, hence +1*/ +1), v.GasConsumed())
 	})
+	t.Run("femtoGAS overflow falls back to gasLimit in Datoshi", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		require.NoError(t, v.addFemtoGas(1, false))
+		require.ErrorIs(t, v.addFemtoGas(math.MaxInt64, false), ErrGASLimitExceeded)
+		require.Equal(t, int64(((uint64(math.MaxInt64)+1)/FemtoGasPerDatoshi) /*not divisible by product, hence +1*/ +1), v.GasConsumed())
+	})
 }
 
 func TestPushBytes1to75(t *testing.T) {
@@ -249,7 +257,7 @@ func TestPushBytes1to75(t *testing.T) {
 		assert.IsType(t, elem.Bytes(), b)
 		assert.Equal(t, 0, vm.estack.Len())
 
-		errExec := vm.execute(nil, opcode.RET, nil)
+		_, errExec := vm.execute(nil, opcode.RET, nil)
 		require.NoError(t, errExec)
 
 		assert.Nil(t, vm.Context())
@@ -3103,12 +3111,15 @@ func newTestVM() *VM {
 func TestGasLimit_GetSet(t *testing.T) {
 	v := New()
 
-	for _, limit := range []int64{-1, 0, 10} {
+	for _, limit := range []int64{-1, 0, 10, MaxGasLimit} {
 		t.Run(strconv.Itoa(int(limit)), func(t *testing.T) {
 			v.SetGasLimit(limit)
 			require.Equal(t, limit, v.GasLimit())
 		})
 	}
+	t.Run("overflow", func(t *testing.T) {
+		require.Panics(t, func() { v.SetGasLimit(MaxGasLimit + 1) })
+	})
 }
 
 func TestPicoGasToDatoshi(t *testing.T) {
@@ -3121,6 +3132,20 @@ func TestPicoGasToDatoshi(t *testing.T) {
 		t.Run(strconv.Itoa(int(in)), func(t *testing.T) {
 			require.Equal(t, out, PicoGasToDatoshiInt64(in))
 			require.Equal(t, out, int64(PicoGasToDatoshi(uint256.NewInt(uint64(in))).Uint64()))
+		})
+	}
+}
+
+func TestFemtoGasToDatoshi(t *testing.T) {
+	for in, out := range map[int64]int64{
+		0:                      0,
+		1:                      1,
+		FemtoGasPerDatoshi - 1: 1,
+		FemtoGasPerDatoshi:     1,
+		FemtoGasPerDatoshi + 1: 2,
+	} {
+		t.Run(strconv.Itoa(int(in)), func(t *testing.T) {
+			require.Equal(t, out, int64(FemtoGasToDatoshi(uint256.NewInt(uint64(in))).Uint64()))
 		})
 	}
 }

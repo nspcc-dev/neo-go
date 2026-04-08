@@ -36,8 +36,8 @@ func FuzzVMDontPanic(f *testing.F) {
 
 		// Prevent infinite loops from being reported as fail.
 		v.SetGasLimit(1000)
-		v.getPrice = func(opcode.Opcode, []byte) int64 {
-			return 1
+		v.getPrice = func(opcode.Opcode, *OpcodePriceParams) int64 {
+			return OpcodePriceMultiplier
 		}
 
 		require.NotPanics(t, func() {
