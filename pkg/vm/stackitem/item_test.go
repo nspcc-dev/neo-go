@@ -418,7 +418,7 @@ func TestEqualsDeepStructure(t *testing.T) {
 	var layerUp = func(sa *Struct, num int) (*Struct, int) {
 		items := []Item{}
 		for range perStruct {
-			clon, err := sa.Clone()
+			clon, _, err := sa.Clone()
 			require.NoError(t, err)
 			items = append(items, clon)
 		}
@@ -431,7 +431,7 @@ func TestEqualsDeepStructure(t *testing.T) {
 		sa, num = layerUp(sa, num)
 	}
 	require.Less(t, num, MaxComparableNumOfItems)
-	sb, err := sa.Clone()
+	sb, _, err := sa.Clone()
 	require.NoError(t, err)
 	require.True(t, sa.Equals(sb))
 	sa, num = layerUp(sa, num)
@@ -529,11 +529,11 @@ func TestStructClone(t *testing.T) {
 	st0 := Struct{}
 	st := Struct{value: []Item{&st0}}
 	for range MaxClonableNumOfItems - 1 {
-		nst, err := st.Clone()
+		nst, _, err := st.Clone()
 		require.NoError(t, err)
 		st = Struct{value: []Item{nst}}
 	}
-	_, err := st.Clone()
+	_, _, err := st.Clone()
 	require.Error(t, err)
 }
 
