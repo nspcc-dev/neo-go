@@ -548,7 +548,13 @@ func (ic *Context) initVM(v *vm.VM) {
 	v.LoadToken = ic.LoadToken
 	v.SetGasLimit(-1)
 	v.SyscallHandler = ic.SyscallHandler
-	v.SetPriceGetter(ic.GetPrice)
+	if ic.IsHardforkEnabled(config.HFGorgon) {
+		v.SetPriceGetter(ic.GetPriceV1)
+		v.SetOpcodeExecutor(v.OpcodeExecutorV1)
+	} else {
+		v.SetPriceGetter(ic.GetPriceV0)
+		v.SetOpcodeExecutor(v.OpcodeExecutorV0)
+	}
 	v.SetIsHardforkEnabled(ic.IsHardforkEnabled)
 	ic.VM = v
 }
