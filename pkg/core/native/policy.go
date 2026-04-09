@@ -201,12 +201,12 @@ func NewPolicy() *Policy {
 
 	desc = NewDescriptor("blockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States, config.HFDefault, config.HFFaun)
+	md = NewMethodAndPriceDeferrable(p.blockAccountDeferrable, 1<<15, callflag.States, config.HFDefault, config.HFFaun)
 	p.AddMethod(md, desc)
 
 	desc = NewDescriptor("blockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = NewMethodAndPrice(p.blockAccount, 1<<15, callflag.States|callflag.AllowNotify, config.HFFaun)
+	md = NewMethodAndPriceDeferrable(p.blockAccountDeferrable, 1<<15, callflag.States|callflag.AllowNotify, config.HFFaun)
 	p.AddMethod(md, desc)
 
 	desc = NewDescriptor("unblockAccount", smartcontract.BoolType,
@@ -278,7 +278,7 @@ func NewPolicy() *Policy {
 	desc = NewDescriptor("recoverFund", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("token", smartcontract.Hash160Type))
-	md = NewMethodAndPrice(p.recoverFund, 1<<15, callflag.All, config.HFFaun)
+	md = NewMethodAndPriceDeferrable(p.recoverFundDeferrable, 1<<15, callflag.All, config.HFFaun)
 	p.AddMethod(md, desc)
 
 	eDesc = NewEventDescriptor("WhitelistFeeChanged",
@@ -650,7 +650,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 
 // blockAccount is a Policy contract method that adds the given account hash to the list
 // of blocked accounts.
-func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+func (p *Policy) blockAccountDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
 	if !p.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")
 	}
@@ -660,31 +660,44 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 			panic("cannot block native contract")
 		}
 	}
-	return stackitem.NewBool(p.BlockAccountInternal(ic, hash))
+	p.BlockAccountInternalDeferrable(ic, hash, func(res bool) {
+		popArgsPushRes(stackitem.NewBool(res))
+	})
 }
 
-func (p *Policy) BlockAccountInternal(ic *interop.Context, hash util.Uint160) bool {
+func (p *Policy) BlockAccountInternalDeferrable(ic *interop.Context, hash util.Uint160, handleRes func(res bool)) {
 	i, blocked := p.isBlockedInternal(ic.DAO.GetROCache(p.ID).(*PolicyCache), hash)
 	if blocked {
-		return false
+		handleRes(false)
+		return
 	}
+
+	continuation := func() {
+		key := makeBlockedAccountKey(hash)
+		if ic.IsHardforkEnabled(config.HFFaun) {
+			ic.DAO.PutBigInt(p.ID, key, new(big.Int).SetUint64(ic.GetTime()))
+		} else {
+			ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
+		}
+		cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+		if len(cache.blockedAccounts) == i {
+			cache.blockedAccounts = append(cache.blockedAccounts, hash)
+		} else {
+			cache.blockedAccounts = append(cache.blockedAccounts[:i+1], cache.blockedAccounts[i:]...)
+			cache.blockedAccounts[i] = hash
+		}
+		handleRes(true)
+	}
+
 	if ic.IsHardforkEnabled(config.HFFaun) {
-		var _ = p.NEO.RevokeVotes(ic, hash) // ignore error, as in the reference.
+		var continuationScheduled, _ = p.NEO.RevokeVotesDeferrable(ic, hash, continuation)
+		if !continuationScheduled { // ignore error, as in the reference.
+			continuation()
+		}
+		return
 	}
-	key := makeBlockedAccountKey(hash)
-	if ic.IsHardforkEnabled(config.HFFaun) {
-		ic.DAO.PutBigInt(p.ID, key, new(big.Int).SetUint64(ic.GetTime()))
-	} else {
-		ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
-	}
-	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
-	if len(cache.blockedAccounts) == i {
-		cache.blockedAccounts = append(cache.blockedAccounts, hash)
-	} else {
-		cache.blockedAccounts = append(cache.blockedAccounts[:i+1], cache.blockedAccounts[i:]...)
-		cache.blockedAccounts[i] = hash
-	}
-	return true
+
+	continuation()
 }
 
 // unblockAccount is a Policy contract method that removes the given account hash from
@@ -975,7 +988,7 @@ func (p *Policy) getWhitelistFeeContracts(ic *interop.Context, _ []stackitem.Ite
 	return stackitem.NewInterop(&iterator[*state.WhitelistFeeContract]{keys: res})
 }
 
-func (p *Policy) recoverFund(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+func (p *Policy) recoverFundDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
 	acc := toUint160(args[0])
 	token := toUint160(args[1])
 
@@ -998,35 +1011,36 @@ func (p *Policy) recoverFund(ic *interop.Context, args []stackitem.Item) stackit
 	if !cs.Manifest.IsStandardSupported("NEP-17") {
 		panic(fmt.Errorf("contract %s does not support NEP-17", token.StringLE()))
 	}
-
-	err = contract.CallFromNative(ic, acc, cs, "balanceOf", []stackitem.Item{stackitem.NewByteArray(acc.BytesBE())}, true)
+	err = contract.CallFromNative(ic, acc, cs, "balanceOf", []stackitem.Item{stackitem.NewByteArray(acc.BytesBE())}, true,
+		func(v *vm.VM) {
+			balance := v.Estack().Pop().BigInt() // pop the result of `balanceOf` from the parent context's stack.
+			if balance.Sign() <= 0 {
+				popArgsPushRes(stackitem.NewBool(false))
+				return
+			}
+			err = contract.CallFromNative(ic, acc, cs, "transfer", []stackitem.Item{
+				stackitem.NewByteArray(acc.BytesBE()),
+				stackitem.NewByteArray(nativehashes.Treasury.BytesBE()),
+				stackitem.NewBigInteger(balance),
+				stackitem.Null{},
+			}, true, func(v *vm.VM) {
+				ok := v.Estack().Pop().Bool() // pop the result of `transfer` from the parent context's stack.
+				if !ok {
+					panic(fmt.Errorf("transfer/%s from %s to %s failed", token.StringLE(), acc.StringLE(), nativehashes.Treasury.StringLE()))
+				}
+				err = ic.AddNotification(p.Hash, "RecoveredFund", stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(acc.BytesBE())}))
+				if err != nil {
+					panic(err)
+				}
+				popArgsPushRes(stackitem.NewBool(true))
+			})
+			if err != nil {
+				panic(fmt.Errorf("failed to call transfer/%s: %w", token.StringLE(), err))
+			}
+		})
 	if err != nil {
 		panic(fmt.Errorf("failed to call balanceOf/%s: %w", token.StringLE(), err))
 	}
-	balance := ic.VM.Estack().Pop().BigInt()
-	if balance.Sign() <= 0 {
-		return stackitem.NewBool(false)
-	}
-
-	err = contract.CallFromNative(ic, acc, cs, "transfer", []stackitem.Item{
-		stackitem.NewByteArray(acc.BytesBE()),
-		stackitem.NewByteArray(nativehashes.Treasury.BytesBE()),
-		stackitem.NewBigInteger(balance),
-		stackitem.Null{},
-	}, true)
-	if err != nil {
-		panic(fmt.Errorf("failed to call transfer/%s: %w", token.StringLE(), err))
-	}
-	ok := ic.VM.Estack().Pop().Bool()
-	if !ok {
-		panic(fmt.Errorf("transfer/%s from %s to %s failed", token.StringLE(), acc.StringLE(), nativehashes.Treasury.StringLE()))
-	}
-
-	err = ic.AddNotification(p.Hash, "RecoveredFund", stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(acc.BytesBE())}))
-	if err != nil {
-		panic(err)
-	}
-	return stackitem.NewBool(true)
 }
 
 func makeBlockedAccountKey(acc util.Uint160) []byte {

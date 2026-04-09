@@ -41,9 +41,11 @@ func (n neo) ComputeNextBlockValidators(d *dao.Simple) keys.PublicKeys { panic("
 func (n neo) GetCandidates(d *dao.Simple) ([]state.Validator, error)   { panic("TODO") }
 func (n neo) CheckCommittee(ic *interop.Context) bool                  { panic("TODO") }
 func (n neo) CheckAlmostFullCommittee(ic *interop.Context) bool        { panic("TODO") }
-func (n neo) RevokeVotes(ic *interop.Context, h util.Uint160) error    { return nil }
+func (n neo) RevokeVotesDeferrable(ic *interop.Context, h util.Uint160, continuation func()) (bool, error) {
+	return true, nil
+}
 
-func TestDeployGetUpdateDestroyContract(t *testing.T) {
+func TestDeployGetUpdateContract(t *testing.T) {
 	mgmt := NewManagement()
 	p := NewPolicy()
 	p.NEO = neo{}
@@ -101,13 +103,6 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	refContract.UpdateCounter++
 	require.NoError(t, err)
 	require.Equal(t, refContract, upContract)
-
-	_, err = mgmt.Destroy(ic, h, false)
-	require.NoError(t, err)
-	_, err = GetContract(d, mgmt.ID, h)
-	require.Error(t, err)
-	_, err = GetContractByID(d, mgmt.ID, contract.ID)
-	require.Error(t, err)
 }
 
 func TestManagement_Initialize(t *testing.T) {

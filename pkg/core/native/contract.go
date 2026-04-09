@@ -44,7 +44,7 @@ type (
 		// Methods required for proper cross-native communication.
 		CheckCommittee(ic *interop.Context) bool
 		CheckAlmostFullCommittee(ic *interop.Context) bool
-		RevokeVotes(ic *interop.Context, h util.Uint160) error
+		RevokeVotesDeferrable(ic *interop.Context, h util.Uint160, continuation func()) (bool, error)
 	}
 
 	// IGAS is an interface required from native GasToken contract for
@@ -55,7 +55,7 @@ type (
 
 		// Methods required for proper cross-native communication.
 		Burn(ic *interop.Context, h util.Uint160, amount *big.Int)
-		Mint(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool)
+		IGASMinter
 	}
 
 	// IPolicy is an interface required from native PolicyContract contract for
@@ -75,7 +75,7 @@ type (
 		GetFeePerByteInternal(d *dao.Simple) int64
 
 		// Methods required for proper cross-native communication.
-		BlockAccountInternal(ic *interop.Context, hash util.Uint160) bool
+		BlockAccountInternalDeferrable(ic *interop.Context, hash util.Uint160, handleRes func(res bool))
 		GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uint32
 		CleanWhitelist(ic *interop.Context, hash util.Uint160) error
 		interop.PolicyChecker
@@ -235,9 +235,8 @@ func NewDefaultContracts(cfg config.ProtocolConfiguration) []interop.Contract {
 	ledger := NewLedger()
 
 	gas := newGAS(int64(cfg.InitialGASSupply))
-	neo := NewNEO(cfg)
+	neo := NewNEO(cfg, gas)
 	policy := NewPolicy()
-	neo.GAS = gas
 	neo.Policy = policy
 	gas.NEO = neo
 	gas.Policy = policy

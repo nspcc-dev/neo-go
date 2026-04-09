@@ -77,12 +77,19 @@ func Call(ic *interop.Context) error {
 	for i := range args {
 		args[i] = ic.VM.Estack().Peek(i).Item()
 	}
-	result := m.Func(ic, args)
-	for range m.MD.Parameters {
-		ic.VM.Estack().Pop()
+	popArgsPushRes := func(result stackitem.Item) {
+		for range m.MD.Parameters {
+			ctx.Estack().Pop()
+		}
+		if m.MD.ReturnType != smartcontract.VoidType {
+			ctx.Estack().PushItem(result)
+		}
 	}
-	if m.MD.ReturnType != smartcontract.VoidType {
-		ctx.Estack().PushItem(result)
+	if m.DeferrableFunc != nil {
+		m.DeferrableFunc(ic, args, popArgsPushRes)
+	} else {
+		result := m.Func(ic, args)
+		popArgsPushRes(result)
 	}
 	return nil
 }

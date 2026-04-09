@@ -173,8 +173,18 @@ type Function struct {
 	RequiredFlags callflag.CallFlag
 }
 
-// Method is a signature for a native method.
-type Method = func(ic *Context, args []stackitem.Item) stackitem.Item
+type (
+	// Method is a signature for a synchronous native method that does not imply
+	// any fully qualified side contract calls.
+	Method = func(ic *Context, args []stackitem.Item) stackitem.Item
+	// DeferrableMethod is a signature for an asynchronous native method.
+	// popArgsPushRes is a callback that may be called either during native
+	// method processing (if no side contract call is encountered during
+	// execution flow) or may be scheduled to be called later after the spawned
+	// child's context is unloaded from VM. Passing nil callback is a no-op and
+	// will lead to invalid VM behaviour.
+	DeferrableMethod = func(ic *Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item))
+)
 
 // MethodAndPrice is a generic hardfork-independent native contract method descriptor.
 type MethodAndPrice struct {
@@ -184,13 +194,22 @@ type MethodAndPrice struct {
 }
 
 // HFSpecificMethodAndPrice is a hardfork-specific native contract method descriptor.
+// It has either Func or DeferrableFunc set, not both.
 type HFSpecificMethodAndPrice struct {
-	Func          Method
-	MD            *manifest.Method
-	CPUFee        int64
-	StorageFee    int64
-	SyscallOffset int
-	RequiredFlags callflag.CallFlag
+	// Func is the synchronous method handler that doesn't contain any nested
+	// contract calls.
+	Func Method
+	// DeferrableFunc is the method handler that contains a nested contract call, the
+	// result of which may (optionally) be required to continue execution of
+	// DeferrableFunc. Depending on the latter, the execution of the contract's
+	// method handler may either be finished or scheduled to be finished later
+	// after the spawned child's context is unloaded from VM.
+	DeferrableFunc DeferrableMethod
+	MD             *manifest.Method
+	CPUFee         int64
+	StorageFee     int64
+	SyscallOffset  int
+	RequiredFlags  callflag.CallFlag
 }
 
 // Event is a generic hardfork-independent native contract event descriptor.

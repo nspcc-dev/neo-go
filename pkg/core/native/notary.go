@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -100,7 +101,7 @@ func NewNotary() *Notary {
 	desc = NewDescriptor("withdraw", smartcontract.BoolType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("to", smartcontract.Hash160Type))
-	md = NewMethodAndPrice(n.withdraw, 1<<15, callflag.All)
+	md = NewMethodAndPriceDeferrable(n.withdrawDeferrable, 1<<15, callflag.All)
 	n.AddMethod(md, desc)
 
 	desc = NewDescriptor("balanceOf", smartcontract.IntegerType,
@@ -203,7 +204,7 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 	feePerKey := n.Policy.GetAttributeFeeInternal(ic.DAO, transaction.NotaryAssistedT)
 	singleReward := calculateNotaryReward(nFees, feePerKey, len(notaries))
 	for _, notary := range notaries {
-		n.GAS.Mint(ic, notary.GetScriptHash(), singleReward, false)
+		n.GAS.MintDeferrable(ic, notary.GetScriptHash(), singleReward, false, func() {}) // no onNEP17Payment call => no source of asynchronous execution.
 	}
 	return nil
 }
@@ -298,15 +299,16 @@ func (n *Notary) lockDepositUntil(ic *interop.Context, args []stackitem.Item) st
 	return stackitem.NewBool(true)
 }
 
-// withdraw sends all deposited GAS for "from" address to "to" address.
-func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+// withdrawDeferrable sends all deposited GAS for "from" address to "to" address.
+func (n *Notary) withdrawDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
 	from := toUint160(args[0])
 	ok, err := runtime.CheckHashedWitness(ic, from)
 	if err != nil {
 		panic(fmt.Errorf("failed to check witness for %s: %w", from.StringBE(), err))
 	}
 	if !ok {
-		return stackitem.NewBool(false)
+		popArgsPushRes(stackitem.NewBool(false))
+		return
 	}
 	to := from
 	if !args[1].Equals(stackitem.Null{}) {
@@ -314,11 +316,13 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	}
 	deposit := n.GetDepositFor(ic.DAO, from)
 	if deposit == nil {
-		return stackitem.NewBool(false)
+		popArgsPushRes(stackitem.NewBool(false))
+		return
 	}
 	// Allow withdrawal only after `till` block was persisted, thus, use ic.BlockHeight().
 	if ic.BlockHeight() < deposit.Till {
-		return stackitem.NewBool(false)
+		popArgsPushRes(stackitem.NewBool(false))
+		return
 	}
 	cs, err := ic.GetContract(n.GAS.Metadata().Hash)
 	if err != nil {
@@ -330,14 +334,15 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	n.removeDepositFor(ic.DAO, from)
 
 	transferArgs := []stackitem.Item{stackitem.NewByteArray(n.Hash.BytesBE()), stackitem.NewByteArray(to.BytesBE()), stackitem.NewBigInteger(deposit.Amount), stackitem.Null{}}
-	err = contract.CallFromNative(ic, n.Hash, cs, "transfer", transferArgs, true)
+	err = contract.CallFromNative(ic, n.Hash, cs, "transfer", transferArgs, true, func(v *vm.VM) {
+		if !v.Estack().Pop().Bool() { // pop the result of `transfer` from the parent context's stack.
+			panic("failed to transfer GAS from Notary account: `transfer` returned false")
+		}
+		popArgsPushRes(stackitem.NewBool(true))
+	})
 	if err != nil {
 		panic(fmt.Errorf("failed to transfer GAS from Notary account: %w", err))
 	}
-	if !ic.VM.Estack().Pop().Bool() {
-		panic("failed to transfer GAS from Notary account: `transfer` returned false")
-	}
-	return stackitem.NewBool(true)
 }
 
 // balanceOf returns the deposited GAS amount for the specified address.
