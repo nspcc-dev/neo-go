@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/big"
 	"reflect"
@@ -803,13 +804,11 @@ type MapElement struct {
 	Value Item
 }
 
-// Map represents a Map object. It's ordered, so we use slice representation,
-// which should be fine for maps with less than 32 or so elements. Given that
-// our VM has quite low limit of overall stack items, it should be good enough,
-// but it can be extended with a real map for fast random access in the future
-// if needed.
+// Map represents a Map object. It's ordered, so we use slice representation
+// together with a real map for fast random access.
 type Map struct {
 	value []MapElement
+	dict  map[string]int
 	rc
 	ro
 }
@@ -818,16 +817,22 @@ type Map struct {
 func NewMap() *Map {
 	return &Map{
 		value: make([]MapElement, 0),
+		dict:  make(map[string]int),
 	}
 }
 
-// NewMapWithValue returns a new Map object filled with the specified value
-// without value validation.
+// NewMapWithValue returns a new Map object filled with the specified value.
+// It does not validate duplicate keys; duplicates are a no-op.
 func NewMapWithValue(value []MapElement) *Map {
 	if value != nil {
-		return &Map{
+		m := &Map{
 			value: value,
+			dict:  make(map[string]int, len(value)),
 		}
+		for i, val := range value {
+			m.dict[hashCode(val.Key)] = i
+		}
+		return m
 	}
 	return NewMap()
 }
@@ -843,6 +848,7 @@ func (i *Map) Clear() {
 		panic(ErrReadOnly)
 	}
 	i.value = i.value[:0]
+	clear(i.dict)
 }
 
 // Len returns the length of the Map value.
@@ -874,14 +880,16 @@ func (i *Map) String() string {
 
 // Index returns an index of the key in map.
 func (i *Map) Index(key Item) int {
-	return slices.IndexFunc(i.value, func(e MapElement) bool {
-		return e.Key.Equals(key)
-	})
+	if i, ok := i.dict[hashCode(key)]; ok {
+		return i
+	}
+	return -1
 }
 
 // Has checks if the map has the specified key.
 func (i *Map) Has(key Item) bool {
-	return i.Index(key) >= 0
+	_, ok := i.dict[hashCode(key)]
+	return ok
 }
 
 // Dup implements the Item interface.
@@ -914,12 +922,15 @@ func (i *Map) Add(key, value Item) Item {
 	if i.IsReadOnly() {
 		panic(ErrReadOnly)
 	}
-	var item Item
-	index := i.Index(key)
-	if index >= 0 {
+	var (
+		item Item
+		h    = hashCode(key)
+	)
+	if index, ok := i.dict[h]; ok {
 		item = i.value[index].Value
 		i.value[index].Value = value
 	} else {
+		i.dict[h] = len(i.value)
 		i.value = append(i.value, MapElement{key, value})
 	}
 	return item
@@ -930,8 +941,15 @@ func (i *Map) Drop(index int) {
 	if i.IsReadOnly() {
 		panic(ErrReadOnly)
 	}
+	delete(i.dict, hashCode(i.value[index].Key))
 	copy(i.value[index:], i.value[index+1:])
 	i.value = i.value[:len(i.value)-1]
+	maps.All(i.dict)(func(h string, idx int) bool {
+		if idx > index {
+			i.dict[h]--
+		}
+		return true
+	})
 }
 
 // IsValidMapKey checks whether it's possible to use the given Item as a Map
@@ -949,6 +967,15 @@ func IsValidMapKey(key Item) error {
 	default:
 		return fmt.Errorf("%w: %s map key", ErrInvalidType, key.Type())
 	}
+}
+
+func hashCode(item Item) string {
+	b, err := item.TryBytes()
+	if err != nil {
+		panic(err)
+	}
+	res := []byte{byte(item.Type())}
+	return string(append(res, b...))
 }
 
 // Interop represents interop data on the stack.
