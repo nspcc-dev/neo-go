@@ -269,8 +269,8 @@ func (s *Stack) Dup(n int) Element {
 //		// do something with the element.
 //	})
 func (s *Stack) Iter(f func(Element)) {
-	for i := len(s.elems) - 1; i >= 0; i-- {
-		f(s.elems[i])
+	for _, v := range slices.Backward(s.elems) {
+		f(v)
 	}
 }
 
