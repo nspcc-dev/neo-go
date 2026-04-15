@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/bits"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -118,8 +119,8 @@ func Array(w *io.BinWriter, es ...any) {
 		Opcodes(w, opcode.NEWARRAY0)
 		return
 	}
-	for i := len(es) - 1; i >= 0; i-- {
-		Any(w, es[i])
+	for _, v := range slices.Backward(es) {
+		Any(w, v)
 	}
 	Int(w, int64(len(es)))
 	Opcodes(w, opcode.PACK)
@@ -235,17 +236,17 @@ func StackItem(w *io.BinWriter, si stackitem.Item) {
 		Array(w, arrAny...)
 	case stackitem.StructT:
 		arr := si.Value().([]stackitem.Item)
-		for i := len(arr) - 1; i >= 0; i-- {
-			StackItem(w, arr[i])
+		for _, v := range slices.Backward(arr) {
+			StackItem(w, v)
 		}
 
 		Int(w, int64(len(arr)))
 		Opcodes(w, opcode.PACKSTRUCT)
 	case stackitem.MapT:
 		arr := si.Value().([]stackitem.MapElement)
-		for i := len(arr) - 1; i >= 0; i-- {
-			StackItem(w, arr[i].Value)
-			StackItem(w, arr[i].Key)
+		for _, v := range slices.Backward(arr) {
+			StackItem(w, v.Value)
+			StackItem(w, v.Key)
 		}
 
 		Int(w, int64(len(arr)))

@@ -2,6 +2,7 @@ package vm
 
 import (
 	"math/big"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -46,8 +47,8 @@ func TestPopElement(t *testing.T) {
 		s.Push(elem)
 	}
 
-	for i := len(elems) - 1; i >= 0; i-- {
-		assert.Equal(t, elems[i], s.Pop())
+	for i, v := range slices.Backward(elems) {
+		assert.Equal(t, v, s.Pop())
 		assert.Equal(t, i, s.Len())
 	}
 }
@@ -60,8 +61,8 @@ func TestPeekElement(t *testing.T) {
 	for _, elem := range elems {
 		s.Push(elem)
 	}
-	for i := len(elems) - 1; i >= 0; i-- {
-		assert.Equal(t, elems[i], s.Peek(len(elems)-i-1))
+	for i, v := range slices.Backward(elems) {
+		assert.Equal(t, v, s.Peek(len(elems)-i-1))
 	}
 }
 
