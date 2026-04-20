@@ -258,6 +258,17 @@ func (e *Executor) CheckFault(t testing.TB, h util.Uint256, s string) {
 		"expected: %s, got: %s", s, aer[0].FaultException)
 }
 
+// CheckTxNotificationEvents checks that the specified events were emitted
+// during transaction script execution.
+func (e *Executor) CheckTxNotificationEvents(t testing.TB, h util.Uint256, expected []state.NotificationEvent) {
+	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, len(expected), len(aer[0].Events))
+	for i, ev := range expected {
+		require.Equal(t, ev, aer[0].Events[i], i)
+	}
+}
+
 // CheckTxNotificationEvent checks that the specified event was emitted at the specified position
 // during transaction script execution. Negative index corresponds to backwards enumeration.
 func (e *Executor) CheckTxNotificationEvent(t testing.TB, h util.Uint256, index int, expected state.NotificationEvent) {

@@ -130,11 +130,10 @@ func TestNEO_CandidateEvents(t *testing.T) {
 	require.Equal(t, 0, len(aer.Events))
 }
 
-func TestNEO_CommitteeEvents(t *testing.T) {
-	neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000)
-	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
-	e := neoCommitteeInvoker.Executor
-
+// electNewCommittee registers a set of accounts as candidates and votes for
+// them so that they are elected as the new committee. It returns a set of
+// candidates.
+func electNewCommittee(t *testing.T, e *neotest.Executor, neoCommitteeInvoker, neoValidatorsInvoker *neotest.ContractInvoker) []neotest.Signer {
 	cfg := e.Chain.GetConfig()
 	committeeSize := cfg.GetCommitteeSize(0)
 
@@ -164,6 +163,18 @@ func TestNEO_CommitteeEvents(t *testing.T) {
 	for (block.Index)%uint32(committeeSize) != 0 {
 		block = neoCommitteeInvoker.AddNewBlock(t)
 	}
+
+	return candidates
+}
+
+func TestNEO_CommitteeEvents(t *testing.T) {
+	neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000)
+	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
+	e := neoCommitteeInvoker.Executor
+
+	cfg := e.Chain.GetConfig()
+	committeeSize := cfg.GetCommitteeSize(0)
+	candidates := electNewCommittee(t, e, neoCommitteeInvoker, neoValidatorsInvoker)
 
 	// Check for CommitteeChanged event in the last persisted block's AER.
 	blockHash := e.Chain.CurrentBlockHash()
