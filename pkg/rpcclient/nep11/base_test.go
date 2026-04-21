@@ -312,13 +312,6 @@ func TestUnwrapKnownProperties(t *testing.T) {
 	require.NotNil(t, m)
 	require.Equal(t, 0, len(m))
 
-	m, err = UnwrapKnownProperties(stackitem.NewMapWithValue([]stackitem.MapElement{
-		{Key: stackitem.Make([]stackitem.Item{}), Value: stackitem.Make("thing")},
-	}), nil)
-	require.NoError(t, err)
-	require.NotNil(t, m)
-	require.Equal(t, 0, len(m))
-
 	_, err = UnwrapKnownProperties(stackitem.NewMapWithValue([]stackitem.MapElement{
 		{Key: stackitem.Make("name"), Value: stackitem.Make([]stackitem.Item{})},
 	}), nil)

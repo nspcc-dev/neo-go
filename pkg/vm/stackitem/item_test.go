@@ -591,9 +591,9 @@ func TestDeepCopy(t *testing.T) {
 	})
 
 	t.Run("Map", func(t *testing.T) {
-		m := NewMapWithValue(make([]MapElement, 2))
-		m.value[0] = MapElement{Key: NewBool(true), Value: m}
-		m.value[1] = MapElement{Key: NewBigInteger(big.NewInt(1)), Value: NewByteArray([]byte{1, 2, 3})}
+		m := NewMap()
+		m.Add(NewBool(true), m)
+		m.Add(NewBigInteger(big.NewInt(1)), NewByteArray([]byte{1, 2, 3}))
 
 		actual := DeepCopy(m, false)
 		m.isReadOnly = true // tiny hack for test to be able to compare object references.
