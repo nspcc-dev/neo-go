@@ -1273,3 +1273,89 @@ func TestManagement_WhitelistedUpdate(t *testing.T) {
 		}),
 	})
 }
+
+func TestManagement_VotingContractDestroy(t *testing.T) {
+	c := newManagementClient(t)
+	neoCommitteeInvoker := c.CommitteeInvoker(nativehashes.NeoToken)
+	neoValidatorsInvoker := c.ValidatorInvoker(nativehashes.NeoToken)
+
+	// Elect the new committee.
+	candidates := electNewCommittee(t, c.Executor, neoCommitteeInvoker, neoValidatorsInvoker)
+	candidate := candidates[0].(neotest.SingleSigner).Account().PublicKey().Bytes()
+
+	// Create a destroyable contract with onNEP17Payment method.
+	src := `package votingcontract
+	  import (
+          "github.com/nspcc-dev/neo-go/pkg/interop/native/management"
+		  "github.com/nspcc-dev/neo-go/pkg/interop"
+          "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+	  )
+      func Verify() bool {
+          return true
+      }
+      func Destroy() {
+          management.Destroy()
+      }
+      func OnNEP17Payment(from interop.Hash160, amount int, data any) {
+          token := runtime.GetCallingScriptHash()
+          runtime.Notify("OnNEP17Payment", token, from)
+      }`
+	ctr := neotest.CompileSource(t, c.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "votingcontract",
+		ContractEvents: []compiler.HybridEvent{
+			{
+				Name: "OnNEP17Payment",
+				Parameters: []compiler.HybridParameter{
+					{Parameter: manifest.Parameter{Name: "token", Type: smartcontract.Hash160Type}},
+					{Parameter: manifest.Parameter{Name: "from", Type: smartcontract.Hash160Type}},
+				},
+			},
+		},
+		Permissions: []manifest.Permission{{Methods: manifest.WildStrings{Value: []string{"destroy"}}}},
+	})
+	c.DeployContract(t, ctr, nil)
+	ctrInv := c.CommitteeInvoker(ctr.Hash)
+
+	// Transfer some NEO to the contract and vote from the contract account for the candidate.
+	const balance = 1_000_000
+	neoCommitteeContractInvoker := &neotest.ContractInvoker{
+		Executor: c.Executor,
+		Hash:     nativehashes.NeoToken,
+		Signers: []neotest.Signer{c.Committee, neotest.NewContractSigner(ctr.Hash, func(tx *transaction.Transaction) []any {
+			return nil
+		})}}
+	neoCommitteeInvoker.Invoke(t, true, "transfer", c.Committee.ScriptHash(), ctr.Hash, balance, nil)
+	neoCommitteeContractInvoker.Invoke(t, true, "vote", ctr.Hash, candidate)
+
+	// Generate some blocks to earn some GAS for the contract.
+	c.GenerateNewBlocks(t, 5)
+
+	// Destroy contract and trigger unvoting and unclaimed GAS payment with a subsequent call to onNEP17Payment.
+	h := ctrInv.Invoke(t, stackitem.Null{}, "destroy")
+
+	// Check there's no onNEP17Payment notification emitted since the contract is marked as destroyed by this moment.
+	c.CheckTxNotificationEvents(t, h, []state.NotificationEvent{{
+		Name:       "Vote", // revoke votes on block.
+		ScriptHash: nativehashes.NeoToken,
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(ctr.Hash),
+			stackitem.Make(candidate),
+			stackitem.Null{},
+			stackitem.Make(balance),
+		}),
+	}, {
+		Name:       "Transfer", // mint earned GAS.
+		ScriptHash: nativehashes.GasToken,
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Null{},
+			stackitem.Make(ctr.Hash),
+			stackitem.Make(3_000_000),
+		}),
+	}, {
+		Name:       "Destroy", // destroy contract.
+		ScriptHash: nativehashes.ContractManagement,
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(ctr.Hash),
+		}),
+	}})
+}

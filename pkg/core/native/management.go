@@ -535,8 +535,8 @@ func (m *Management) Destroy(ic *interop.Context, hash util.Uint160) (*state.Con
 		ic.DAO.DeleteStorageItem(contract.ID, k)
 		return true
 	})
-	m.Policy.BlockAccountInternal(ic, hash)
 	markUpdated(ic.DAO, m.ID, hash, nil)
+	m.Policy.BlockAccountInternal(ic, hash)
 	return contract, nil
 }
 
