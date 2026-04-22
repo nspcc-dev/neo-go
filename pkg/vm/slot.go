@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -32,19 +33,16 @@ func (s *Slot) initFromStack(n int, t *Stack) {
 	}
 }
 
-// set sets i-th storage slot.
-func (s Slot) set(i int, item stackitem.Item, refs *refCounter) {
-	if s[i] == item {
-		return
+// store stores the top element from the stack into the i-th slot. It modifies
+// the reference counter accordingly.
+func (s Slot) store(stack *Stack, i int, refs *refCounter) {
+	if s == nil {
+		panic("slot is not initialized")
 	}
-	s.setNoRef(i, item, refs)
-	refs.Add(item)
-}
-
-// setNoRef sets i-th storage slot, but doesn't add it to the reference counter.
-// Notice that the old item is deleted anyway, hence refs passed. Be
-// super-careful when using it.
-func (s Slot) setNoRef(i int, item stackitem.Item, refs *refCounter) {
+	if i < 0 || i >= len(s) {
+		panic(fmt.Errorf("slot index is out of range: %d with length %d", i, len(s)))
+	}
+	item := stack.popNoRef().Item()
 	refs.Remove(s[i])
 	s[i] = item
 }

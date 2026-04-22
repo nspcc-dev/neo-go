@@ -21,7 +21,9 @@ func TestSlot_Get(t *testing.T) {
 	item := s.Get(2)
 	require.Equal(t, stackitem.Null{}, item)
 
-	s.set(1, stackitem.NewBigInteger(big.NewInt(42)), rc)
+	stack := newStack("estack", rc)
+	stack.PushVal(stackitem.NewBigInteger(big.NewInt(42)))
+	s.store(stack, 1, rc)
 	require.Equal(t, stackitem.NewBigInteger(big.NewInt(42)), s.Get(1))
 	require.Equal(t, 3, int(*rc))
 }
