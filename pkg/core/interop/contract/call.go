@@ -53,16 +53,16 @@ func LoadToken(ic *interop.Context, id int32) error {
 // Call calls a contract with flags.
 func Call(ic *interop.Context) error {
 	h := ic.VM.Estack().Pop().Bytes()
+	u, err := util.Uint160DecodeBytesBE(h)
+	if err != nil {
+		return errors.New("invalid contract hash")
+	}
 	method := ic.VM.Estack().Pop().String()
 	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
 	if fs&^callflag.All != 0 {
 		return errors.New("call flags out of range")
 	}
 	args := ic.VM.Estack().Pop().Array()
-	u, err := util.Uint160DecodeBytesBE(h)
-	if err != nil {
-		return errors.New("invalid contract hash")
-	}
 	cs, err := ic.GetContract(u)
 	if err != nil {
 		return fmt.Errorf("called contract %s not found: %w", u.StringLE(), err)
