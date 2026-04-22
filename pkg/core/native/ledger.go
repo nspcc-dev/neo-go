@@ -122,7 +122,13 @@ func (l *Ledger) currentIndex(ic *interop.Context, _ []stackitem.Item) stackitem
 
 // getBlock implements getBlock SC method.
 func (l *Ledger) getBlock(ic *interop.Context, params []stackitem.Item) stackitem.Item {
-	hash := getBlockHashFromItem(ic, params[0])
+	hash, ok := tryBlockHashFromItem(ic, params[0])
+	if !ok {
+		// Match C# Neo: a valid integer index that is beyond the
+		// current chain height yields null, not FAULT. See
+		// https://github.com/nspcc-dev/neo-go/issues/4229.
+		return stackitem.Null{}
+	}
 	block, err := ic.GetBlock(hash)
 	if err != nil || !l.isTraceableBlock(ic, block.Index) {
 		return stackitem.Null{}
@@ -194,6 +200,29 @@ func (l *Ledger) isTraceableBlock(ic *interop.Context, index uint32) bool {
 		maxTraceableBlocks = l.Policy.GetMaxTraceableBlocksInternal(ic.DAO)
 	}
 	return index <= height && index+maxTraceableBlocks > height
+}
+
+// tryBlockHashFromItem is like getBlockHashFromItem but signals an
+// out-of-range integer index with ok=false instead of panicking, so
+// callers that want to emulate C# Neo's "return null" semantics (see
+// issue #4229) can do so without catching panics.
+func tryBlockHashFromItem(ic *interop.Context, item stackitem.Item) (util.Uint256, bool) {
+	bigindex, err := item.TryInteger()
+	if err == nil && bigindex.IsUint64() {
+		index := bigindex.Uint64()
+		if index > math.MaxUint32 {
+			panic("bad block index")
+		}
+		if uint32(index) > ic.BlockHeight() {
+			return util.Uint256{}, false
+		}
+		return ic.Chain.GetHeaderHash(uint32(index)), true
+	}
+	hash, err := getUint256FromItem(item)
+	if err != nil {
+		panic(err)
+	}
+	return hash, true
 }
 
 // getBlockHashFromItem converts the given stackitem.Item to a block hash using the given
