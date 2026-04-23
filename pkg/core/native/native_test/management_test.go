@@ -80,7 +80,8 @@ var (
 		nativenames.Treasury: `{"id":-11,"hash":"0x156326f25b1b5d839a4d326aeaa75383c9563ac1","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":1592866325},"manifest":{"name":"Treasury","abi":{"methods":[{"name":"onNEP11Payment","offset":0,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"tokenId","type":"ByteArray"},{"name":"data","type":"Any"}],"returntype":"Void","safe":true},{"name":"onNEP17Payment","offset":7,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Void","safe":true},{"name":"verify","offset":14,"parameters":[],"returntype":"Boolean","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":["NEP-26","NEP-27","NEP-30"],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
 	gorgonCSS = map[string]string{
-		nativenames.CryptoLib: `{"id":-3,"hash":"0x726cb6e0cd8628a1350a611384688911ab75f51b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":174904780},"manifest":{"name":"CryptoLib","abi":{"methods":[{"name":"bls12381Add","offset":0,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Deserialize","offset":7,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Equal","offset":14,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"Boolean","safe":true},{"name":"bls12381Mul","offset":21,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"mul","type":"ByteArray"},{"name":"neg","type":"Boolean"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Pairing","offset":28,"parameters":[{"name":"g1","type":"InteropInterface"},{"name":"g2","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Serialize","offset":35,"parameters":[{"name":"g","type":"InteropInterface"}],"returntype":"ByteArray","safe":true},{"name":"keccak256","offset":42,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"murmur32","offset":49,"parameters":[{"name":"data","type":"ByteArray"},{"name":"seed","type":"Integer"}],"returntype":"ByteArray","safe":true},{"name":"recoverSecp256K1","offset":56,"parameters":[{"name":"messageHash","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"ripemd160","offset":63,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"sha256","offset":70,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"verifyWithECDsa","offset":77,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"},{"name":"curveHash","type":"Integer"}],"returntype":"Boolean","safe":true},{"name":"verifyWithEd25519","offset":84,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"Boolean","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+		nativenames.Management: `{"id":-1,"hash":"0xfffdc93764dbaddd97c48f252a53ea4643faa3fd","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":3581846399},"manifest":{"name":"ContractManagement","abi":{"methods":[{"name":"deploy","offset":0,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"}],"returntype":"Array","safe":false},{"name":"deploy","offset":7,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"},{"name":"data","type":"Any"}],"returntype":"Array","safe":false},{"name":"destroy","offset":14,"parameters":[],"returntype":"Void","safe":false},{"name":"getContract","offset":21,"parameters":[{"name":"hash","type":"Hash160"}],"returntype":"Array","safe":true},{"name":"getContractById","offset":28,"parameters":[{"name":"id","type":"Integer"}],"returntype":"Array","safe":true},{"name":"getContractHashes","offset":35,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"getMinimumDeploymentFee","offset":42,"parameters":[],"returntype":"Integer","safe":true},{"name":"hasMethod","offset":49,"parameters":[{"name":"hash","type":"Hash160"},{"name":"method","type":"String"},{"name":"pcount","type":"Integer"}],"returntype":"Boolean","safe":true},{"name":"isContract","offset":56,"parameters":[{"name":"hash","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"setMinimumDeploymentFee","offset":63,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"update","offset":70,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"}],"returntype":"Void","safe":false},{"name":"update","offset":77,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"},{"name":"data","type":"Any"}],"returntype":"Void","safe":false}],"events":[{"name":"Deploy","parameters":[{"name":"Hash","type":"Hash160"}]},{"name":"Update","parameters":[{"name":"Hash","type":"Hash160"}]},{"name":"Destroy","parameters":[{"name":"Hash","type":"Hash160"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+		nativenames.CryptoLib:  `{"id":-3,"hash":"0x726cb6e0cd8628a1350a611384688911ab75f51b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":174904780},"manifest":{"name":"CryptoLib","abi":{"methods":[{"name":"bls12381Add","offset":0,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Deserialize","offset":7,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Equal","offset":14,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"Boolean","safe":true},{"name":"bls12381Mul","offset":21,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"mul","type":"ByteArray"},{"name":"neg","type":"Boolean"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Pairing","offset":28,"parameters":[{"name":"g1","type":"InteropInterface"},{"name":"g2","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Serialize","offset":35,"parameters":[{"name":"g","type":"InteropInterface"}],"returntype":"ByteArray","safe":true},{"name":"keccak256","offset":42,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"murmur32","offset":49,"parameters":[{"name":"data","type":"ByteArray"},{"name":"seed","type":"Integer"}],"returntype":"ByteArray","safe":true},{"name":"recoverSecp256K1","offset":56,"parameters":[{"name":"messageHash","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"ripemd160","offset":63,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"sha256","offset":70,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"verifyWithECDsa","offset":77,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"},{"name":"curveHash","type":"Integer"}],"returntype":"Boolean","safe":true},{"name":"verifyWithEd25519","offset":84,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"Boolean","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
 )
 
@@ -1297,16 +1298,21 @@ func TestManagement_WhitelistedUpdate(t *testing.T) {
 }
 
 func TestManagement_VotingContractDestroy(t *testing.T) {
-	c := newManagementClient(t)
-	neoCommitteeInvoker := c.CommitteeInvoker(nativehashes.NeoToken)
-	neoValidatorsInvoker := c.ValidatorInvoker(nativehashes.NeoToken)
+	check := func(t *testing.T, gorgonActivation uint32) {
+		c := newCustomManagementClient(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFGorgon.String(): gorgonActivation,
+			}
+		})
+		neoCommitteeInvoker := c.CommitteeInvoker(nativehashes.NeoToken)
+		neoValidatorsInvoker := c.ValidatorInvoker(nativehashes.NeoToken)
 
-	// Elect the new committee.
-	candidates := electNewCommittee(t, c.Executor, neoCommitteeInvoker, neoValidatorsInvoker)
-	candidate := candidates[0].(neotest.SingleSigner).Account().PublicKey().Bytes()
+		// Elect the new committee.
+		candidates := electNewCommittee(t, c.Executor, neoCommitteeInvoker, neoValidatorsInvoker)
+		candidate := candidates[0].(neotest.SingleSigner).Account().PublicKey().Bytes()
 
-	// Create a destroyable contract with onNEP17Payment method.
-	src := `package votingcontract
+		// Create a destroyable contract with onNEP17Payment method.
+		src := `package votingcontract
 	  import (
           "github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 		  "github.com/nspcc-dev/neo-go/pkg/interop"
@@ -1322,62 +1328,84 @@ func TestManagement_VotingContractDestroy(t *testing.T) {
           token := runtime.GetCallingScriptHash()
           runtime.Notify("OnNEP17Payment", token, from)
       }`
-	ctr := neotest.CompileSource(t, c.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
-		Name: "votingcontract",
-		ContractEvents: []compiler.HybridEvent{
-			{
-				Name: "OnNEP17Payment",
-				Parameters: []compiler.HybridParameter{
-					{Parameter: manifest.Parameter{Name: "token", Type: smartcontract.Hash160Type}},
-					{Parameter: manifest.Parameter{Name: "from", Type: smartcontract.Hash160Type}},
+		ctr := neotest.CompileSource(t, c.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+			Name: "votingcontract",
+			ContractEvents: []compiler.HybridEvent{
+				{
+					Name: "OnNEP17Payment",
+					Parameters: []compiler.HybridParameter{
+						{Parameter: manifest.Parameter{Name: "token", Type: smartcontract.Hash160Type}},
+						{Parameter: manifest.Parameter{Name: "from", Type: smartcontract.Hash160Type}},
+					},
 				},
 			},
-		},
-		Permissions: []manifest.Permission{{Methods: manifest.WildStrings{Value: []string{"destroy"}}}},
+			Permissions: []manifest.Permission{{Methods: manifest.WildStrings{Value: []string{"destroy"}}}},
+		})
+		c.DeployContract(t, ctr, nil)
+		ctrInv := c.CommitteeInvoker(ctr.Hash)
+
+		// Transfer some NEO to the contract and vote from the contract account for the candidate.
+		const balance = 1_000_000
+		neoCommitteeContractInvoker := &neotest.ContractInvoker{
+			Executor: c.Executor,
+			Hash:     nativehashes.NeoToken,
+			Signers: []neotest.Signer{c.Committee, neotest.NewContractSigner(ctr.Hash, func(tx *transaction.Transaction) []any {
+				return nil
+			})}}
+		neoCommitteeInvoker.Invoke(t, true, "transfer", c.Committee.ScriptHash(), ctr.Hash, balance, nil)
+		neoCommitteeContractInvoker.Invoke(t, true, "vote", ctr.Hash, candidate)
+
+		// Generate some blocks to earn some GAS for the contract.
+		c.GenerateNewBlocks(t, 5)
+
+		// Destroy contract and trigger unvoting and unclaimed GAS payment with a subsequent call to onNEP17Payment.
+		h := ctrInv.Invoke(t, stackitem.Null{}, "destroy")
+
+		// Check that prior to Gorgon there should be no onNEP17Payment notification emitted since the contract is marked
+		// as destroyed by this moment. With post-Gorgon behaviour onNEP17Payment is expected.
+		expected := []state.NotificationEvent{{
+			Name:       "Vote", // revoke votes on block.
+			ScriptHash: nativehashes.NeoToken,
+			Item: stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(ctr.Hash),
+				stackitem.Make(candidate),
+				stackitem.Null{},
+				stackitem.Make(balance),
+			}),
+		}, {
+			Name:       "Transfer", // mint earned GAS.
+			ScriptHash: nativehashes.GasToken,
+			Item: stackitem.NewArray([]stackitem.Item{
+				stackitem.Null{},
+				stackitem.Make(ctr.Hash),
+				stackitem.Make(3_000_000),
+			}),
+		}}
+		gorgon := config.HFGorgon
+		if c.Chain.IsHardforkEnabled(&gorgon, c.Chain.BlockHeight()) {
+			expected = append(expected, state.NotificationEvent{
+				Name:       "OnNEP17Payment",
+				ScriptHash: ctr.Hash,
+				Item: stackitem.NewArray([]stackitem.Item{
+					stackitem.Make(nativehashes.GasToken),
+					stackitem.Null{}, // minting => from is Null.
+				}),
+			})
+		}
+		expected = append(expected, state.NotificationEvent{
+			Name:       "Destroy", // destroy contract.
+			ScriptHash: nativehashes.ContractManagement,
+			Item: stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(ctr.Hash),
+			}),
+		})
+		c.CheckTxNotificationEvents(t, h, expected)
+	}
+
+	t.Run("pre-Gorgon", func(t *testing.T) {
+		check(t, 100500) // Gorgon is active far away from genesis.
 	})
-	c.DeployContract(t, ctr, nil)
-	ctrInv := c.CommitteeInvoker(ctr.Hash)
-
-	// Transfer some NEO to the contract and vote from the contract account for the candidate.
-	const balance = 1_000_000
-	neoCommitteeContractInvoker := &neotest.ContractInvoker{
-		Executor: c.Executor,
-		Hash:     nativehashes.NeoToken,
-		Signers: []neotest.Signer{c.Committee, neotest.NewContractSigner(ctr.Hash, func(tx *transaction.Transaction) []any {
-			return nil
-		})}}
-	neoCommitteeInvoker.Invoke(t, true, "transfer", c.Committee.ScriptHash(), ctr.Hash, balance, nil)
-	neoCommitteeContractInvoker.Invoke(t, true, "vote", ctr.Hash, candidate)
-
-	// Generate some blocks to earn some GAS for the contract.
-	c.GenerateNewBlocks(t, 5)
-
-	// Destroy contract and trigger unvoting and unclaimed GAS payment with a subsequent call to onNEP17Payment.
-	h := ctrInv.Invoke(t, stackitem.Null{}, "destroy")
-
-	// Check there's no onNEP17Payment notification emitted since the contract is marked as destroyed by this moment.
-	c.CheckTxNotificationEvents(t, h, []state.NotificationEvent{{
-		Name:       "Vote", // revoke votes on block.
-		ScriptHash: nativehashes.NeoToken,
-		Item: stackitem.NewArray([]stackitem.Item{
-			stackitem.Make(ctr.Hash),
-			stackitem.Make(candidate),
-			stackitem.Null{},
-			stackitem.Make(balance),
-		}),
-	}, {
-		Name:       "Transfer", // mint earned GAS.
-		ScriptHash: nativehashes.GasToken,
-		Item: stackitem.NewArray([]stackitem.Item{
-			stackitem.Null{},
-			stackitem.Make(ctr.Hash),
-			stackitem.Make(3_000_000),
-		}),
-	}, {
-		Name:       "Destroy", // destroy contract.
-		ScriptHash: nativehashes.ContractManagement,
-		Item: stackitem.NewArray([]stackitem.Item{
-			stackitem.Make(ctr.Hash),
-		}),
-	}})
+	t.Run("post-Gorgon", func(t *testing.T) {
+		check(t, 0) // Gorgon is active from genesis.
+	})
 }

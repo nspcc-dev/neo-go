@@ -125,7 +125,11 @@ func NewManagement() *Management {
 	m.AddMethod(md, desc)
 
 	desc = NewDescriptor("destroy", smartcontract.VoidType)
-	md = NewMethodAndPrice(m.destroy, 1<<15, callflag.States|callflag.AllowNotify)
+	md = NewMethodAndPrice(m.destroyV0, 1<<15, callflag.States|callflag.AllowNotify, config.HFDefault, config.HFGorgon)
+	m.AddMethod(md, desc)
+
+	desc = NewDescriptor("destroy", smartcontract.VoidType)
+	md = NewMethodAndPrice(m.destroyV1, 1<<15, callflag.States|callflag.AllowNotify, config.HFGorgon)
 	m.AddMethod(md, desc)
 
 	desc = NewDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
@@ -501,17 +505,25 @@ func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.Fi
 	return &contract, nil
 }
 
+// destroyV0 is a pre-Gorgon implementation of the public destroy method, it's
+// run under VM protections, so it's OK for it to panic instead of returning errors.
+func (m *Management) destroyV0(ic *interop.Context, sis []stackitem.Item) stackitem.Item {
+	return m.destroyInternal(ic, sis, false)
+}
+
+// destroyV1 is a post-Gorgon implementation of the public destroy method, it's
+// run under VM protections, so it's OK for it to panic instead of returning errors.
+func (m *Management) destroyV1(ic *interop.Context, sis []stackitem.Item) stackitem.Item {
+	return m.destroyInternal(ic, sis, true)
+}
+
 // destroy is an implementation of the public destroy method, it's run under
 // VM protections, so it's OK for it to panic instead of returning errors.
-func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackitem.Item {
+func (m *Management) destroyInternal(ic *interop.Context, sis []stackitem.Item, blockBeforeErase bool) stackitem.Item {
 	hash := ic.VM.GetCallingScriptHash()
-	cs, err := m.Destroy(ic, hash)
+	_, err := m.Destroy(ic, hash, blockBeforeErase)
 	if err != nil {
 		panic(err)
-	}
-	err = m.Policy.CleanWhitelist(ic, hash)
-	if err != nil {
-		panic(fmt.Errorf("failed to clean whitelist for %s: %w", cs.Hash.StringLE(), err))
 	}
 	err = m.emitNotification(ic, contractDestroyNotificationName, hash)
 	if err != nil {
@@ -521,22 +533,38 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 }
 
 // Destroy drops the given contract from DAO along with its storage. It doesn't emit notification.
-func (m *Management) Destroy(ic *interop.Context, hash util.Uint160) (*state.Contract, error) {
+func (m *Management) Destroy(ic *interop.Context, hash util.Uint160, blockBeforeErase bool) (*state.Contract, error) {
 	contract, err := GetContract(ic.DAO, m.ID, hash)
 	if err != nil {
 		return nil, err
 	}
+
+	if blockBeforeErase {
+		m.Policy.BlockAccountInternal(ic, hash)
+		err = m.Policy.CleanWhitelist(ic, hash)
+		if err != nil {
+			panic(fmt.Errorf("failed to clean whitelist for %s: %w", contract.Hash.StringLE(), err))
+		}
+	}
+
 	key := MakeContractKey(hash)
 	ic.DAO.DeleteStorageItem(m.ID, key)
 	key = putHashKey(key, contract.ID)
 	ic.DAO.DeleteStorageItem(m.ID, key)
-
 	ic.DAO.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
 		ic.DAO.DeleteStorageItem(contract.ID, k)
 		return true
 	})
 	markUpdated(ic.DAO, m.ID, hash, nil)
-	m.Policy.BlockAccountInternal(ic, hash)
+
+	if !blockBeforeErase {
+		m.Policy.BlockAccountInternal(ic, hash)
+		err = m.Policy.CleanWhitelist(ic, hash)
+		if err != nil {
+			panic(fmt.Errorf("failed to clean whitelist for %s: %w", contract.Hash.StringLE(), err))
+		}
+	}
+
 	return contract, nil
 }
 
