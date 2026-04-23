@@ -6,8 +6,11 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
@@ -135,4 +138,29 @@ func TestPermissionUnmarshalInvalid(t *testing.T) {
 			require.Error(t, yaml.Unmarshal([]byte(tc), new(permission)))
 		})
 	}
+}
+
+func TestNativeHash(t *testing.T) {
+	t.Run("all", func(t *testing.T) {
+		for _, n := range nativenames.All {
+			_, err := nativeHash(n)
+			require.NoError(t, err)
+		}
+	})
+	t.Run("shortened", func(t *testing.T) {
+		for name, hash := range map[string]util.Uint160{
+			"management":  nativehashes.ContractManagement,
+			"ledger":      nativehashes.LedgerContract,
+			"neo":         nativehashes.NeoToken,
+			"gas":         nativehashes.GasToken,
+			"policy":      nativehashes.PolicyContract,
+			"std":         nativehashes.StdLib,
+			"crypto":      nativehashes.CryptoLib,
+			"designation": nativehashes.RoleManagement,
+		} {
+			h, err := nativeHash(name)
+			require.NoError(t, err)
+			require.Equal(t, hash, h)
+		}
+	})
 }

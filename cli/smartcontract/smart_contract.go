@@ -14,6 +14,8 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/txctx"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -267,7 +269,8 @@ func NewCommands() []*cli.Command {
 				Name:      "invokefunction",
 				Usage:     "Invoke deployed contract on the blockchain",
 				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] [--out file] [--force] [--await] scripthash [method] [arguments...] [--] [signers...]",
-				Description: `Executes given (as a script hash) deployed script with the given method,
+				Description: `Executes given (as a script hash or case-insensitive full or shortened native
+   contract name, e.g. NeoToken, NEO, Neo, neo) deployed script with the given method,
    arguments and signers. Sender is included in the list of signers by default
    with None witness scope. If you'd like to change default sender's scope, 
    specify it via signers parameter. See testinvokefunction documentation for 
@@ -282,7 +285,8 @@ func NewCommands() []*cli.Command {
 				Name:      "testinvokefunction",
 				Usage:     "Invoke deployed contract on the blockchain (test mode)",
 				UsageText: "neo-go contract testinvokefunction -r endpoint [--historic index/hash] scripthash [method] [arguments...] [--] [signers...]",
-				Description: `Executes given (as a script hash) deployed script with the given method,
+				Description: `Executes given (as a script hash or case-insensitive full or shortened native
+   contract name, e.g. NeoToken, NEO, Neo, neo) deployed script with the given method,
    arguments and signers (sender is not included by default). If no method is given
    "" is passed to the script, if no arguments are given, an empty array is 
    passed, if no signers are given no array is passed. If signers are specified,
@@ -603,9 +607,13 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		return cli.Exit(errNoScriptHash, 1)
 	}
 	argsSlice := args.Slice()
-	script, err := flags.ParseAddress(argsSlice[0])
+	hashOrName := argsSlice[0]
+	script, err := flags.ParseAddress(hashOrName)
 	if err != nil {
-		return cli.Exit(fmt.Errorf("incorrect script hash: %w", err), 1)
+		script, err = nativeHash(hashOrName)
+		if err != nil {
+			return cli.Exit(fmt.Errorf("incorrect script hash or invalid native contract name: %w", err), 1)
+		}
 	}
 	if len(argsSlice) <= 1 {
 		return cli.Exit(errNoMethod, 1)
@@ -990,4 +998,33 @@ func cloneFlag(p *cli.StringFlag, required bool) *cli.StringFlag {
 	f := *p
 	f.Required = required
 	return &f
+}
+
+func nativeHash(name string) (util.Uint160, error) {
+	switch strings.ToLower(name) {
+	case strings.ToLower(nativenames.Management), "management":
+		return nativehashes.ContractManagement, nil
+	case strings.ToLower(nativenames.Ledger), "ledger":
+		return nativehashes.LedgerContract, nil
+	case strings.ToLower(nativenames.Neo), "neo":
+		return nativehashes.NeoToken, nil
+	case strings.ToLower(nativenames.Gas), "gas":
+		return nativehashes.GasToken, nil
+	case strings.ToLower(nativenames.Policy), "policy":
+		return nativehashes.PolicyContract, nil
+	case strings.ToLower(nativenames.Oracle), "oracle":
+		return nativehashes.OracleContract, nil
+	case strings.ToLower(nativenames.Designation), "designation":
+		return nativehashes.RoleManagement, nil
+	case strings.ToLower(nativenames.Notary):
+		return nativehashes.Notary, nil
+	case strings.ToLower(nativenames.CryptoLib), "crypto":
+		return nativehashes.CryptoLib, nil
+	case strings.ToLower(nativenames.StdLib), "std":
+		return nativehashes.StdLib, nil
+	case strings.ToLower(nativenames.Treasury):
+		return nativehashes.Treasury, nil
+	default:
+		return util.Uint160{}, fmt.Errorf("unknown native contract: %s", name)
+	}
 }

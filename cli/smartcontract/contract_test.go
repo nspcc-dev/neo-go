@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/versionutil"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -1008,11 +1009,22 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	cmd := []string{"neo-go", "contract", "testinvokefunction",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0]}
+	checkGetValueOut := func(expected any) {
+		res := new(result.Invoke)
+		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+		require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
+		require.Len(t, res.Stack, 1)
+		require.Equal(t, expected, res.Stack[0].Value())
+	}
 	t.Run("missing hash", func(t *testing.T) {
 		e.RunWithError(t, cmd...)
 	})
 	t.Run("invalid hash", func(t *testing.T) {
 		e.RunWithError(t, append(cmd, "notahash")...)
+	})
+	t.Run("native hash", func(t *testing.T) {
+		e.Run(t, append(cmd, nativenames.Policy, "getFeePerByte")...)
+		checkGetValueOut(big.NewInt(1000))
 	})
 
 	cmd = append(cmd, h.StringLE())
@@ -1033,15 +1045,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	})
 
 	e.Run(t, cmd...)
-
-	checkGetValueOut := func(str string) {
-		res := new(result.Invoke)
-		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-		require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
-		require.Len(t, res.Stack, 1)
-		require.Equal(t, []byte(str), res.Stack[0].Value())
-	}
-	checkGetValueOut("on create|sub create")
+	checkGetValueOut([]byte("on create|sub create"))
 
 	// deploy verification contract
 	hVerify := deployVerifyContract(t, e)
@@ -1266,7 +1270,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		e.Run(t, "neo-go", "contract", "testinvokefunction",
 			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			h.StringLE(), "getValue")
-		checkGetValueOut("on update|sub update")
+		checkGetValueOut([]byte("on update|sub update"))
 	})
 	t.Run("historic", func(t *testing.T) {
 		t.Run("bad ref", func(t *testing.T) {
@@ -1286,14 +1290,14 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 					"--historic", ref,
 					h.StringLE(), "getValue")
 			})
-			checkGetValueOut("on create|sub create")
+			checkGetValueOut([]byte("on create|sub create"))
 		}
 		t.Run("updated historic", func(t *testing.T) {
 			e.Run(t, "neo-go", "contract", "testinvokefunction",
 				"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 				"--historic", strconv.FormatUint(uint64(indexAfterUpdate), 10),
 				h.StringLE(), "getValue")
-			checkGetValueOut("on update|sub update")
+			checkGetValueOut([]byte("on update|sub update"))
 		})
 	})
 }
