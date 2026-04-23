@@ -111,6 +111,7 @@ func (c *codegen) traverseGlobals() bool {
 		if n+nConst > 0 || hasUnusedCall {
 			for _, f := range pkg.Syntax {
 				c.fillImportMap(f, pkg)
+				c.emitDefaultValueForGlobals(f)
 				c.convertGlobals(f)
 			}
 		}

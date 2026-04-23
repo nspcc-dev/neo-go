@@ -191,9 +191,9 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 					return A + B + C
 				}`
 		eval(t, src, big.NewInt(4), []any{opcode.INITSSLOT, []byte{3}}, // sslot for A, B, C
+			opcode.PUSH0, opcode.STSFLD2, // store C
 			opcode.PUSH1, opcode.STSFLD0, // store A
-			opcode.PUSH3, opcode.STSFLD1, // store B
-			opcode.PUSH0, opcode.STSFLD2, opcode.RET, // store C
+			opcode.PUSH3, opcode.STSFLD1, opcode.RET, // store B
 			opcode.LDSFLD0, opcode.LDSFLD1, opcode.ADD, opcode.LDSFLD2, opcode.ADD, opcode.RET) // Main
 	})
 	t.Run("function as unused var value", func(t *testing.T) {
@@ -642,7 +642,6 @@ func TestChangeGlobal(t *testing.T) {
 		eval(t, src, big.NewInt(42))
 	})
 	t.Run("from other global", func(t *testing.T) {
-		t.Skip("see https://github.com/nspcc-dev/neo-go/issues/2661")
 		src := `package foo
 				var A = f()
 				var B int
