@@ -90,9 +90,16 @@ func (s *Iterator) Value() stackitem.Item {
 	})
 }
 
-func findWithContext(ic *interop.Context, stc *Context) error {
+func findWithContext(ic *interop.Context, stc *Context, getID ...func(ic *interop.Context) (int32, error)) error {
 	prefix := ic.VM.Estack().Pop().Bytes()
 	opts := ic.VM.Estack().Pop().BigInt().Int64()
+	if len(getID) > 0 {
+		var err error
+		stc.ID, err = getID[0](ic)
+		if err != nil {
+			return err
+		}
+	}
 	if opts&^FindAll != 0 {
 		return fmt.Errorf("%w: unknown flag", errFindInvalidOptions)
 	}
@@ -139,12 +146,12 @@ func Find(ic *interop.Context) error {
 
 // LocalFind is similar to Find, but does not require storage context.
 func LocalFind(ic *interop.Context) error {
-	contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
-	if err != nil {
-		return fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
-	}
-	return findWithContext(ic, &Context{
-		ID:       contract.ID,
-		ReadOnly: true,
+	return findWithContext(ic, &Context{ReadOnly: true}, func(ic *interop.Context) (int32, error) {
+		contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
+		if err != nil {
+			return 0, fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
+		}
+
+		return contract.ID, nil
 	})
 }

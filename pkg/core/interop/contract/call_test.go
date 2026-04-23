@@ -172,6 +172,17 @@ func TestCall(t *testing.T) {
 		require.Equal(t, big.NewInt(8), ic.VM.Estack().Pop().Value())
 		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
 	})
+
+	t.Run("RC with wrong args", func(t *testing.T) {
+		ic.VM.Reset(trigger.Application)
+		ic.VM.Estack().PushVal("method")
+		ic.VM.Estack().PushVal([]byte{1, 2, 3}) // not a hash.
+		require.ErrorContains(t, contract.Call(ic), "invalid contract hash")
+
+		// Ensure no additional arguments are POP-ed from the stack since it affects the resulting RC.
+		require.Equal(t, 1, ic.VM.Estack().Len())
+		require.Equal(t, stackitem.Make("method"), ic.VM.Estack().Pop().Item())
+	})
 }
 
 func TestSystemContractCall_Permissions(t *testing.T) {

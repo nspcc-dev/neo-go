@@ -384,9 +384,20 @@ func TestStorage_LocalInteropAPI(t *testing.T) {
 	ctrInvoker.Invoke(t, stackitem.Make(false), "localFind")
 }
 
-func TestStorage_LocalErrors(t *testing.T) {
-	_, ic, _ := createVM(t)
-	for _, f := range []func(*interop.Context) error{istorage.LocalDelete, istorage.LocalFind, istorage.LocalGet, istorage.LocalPut} {
-		require.Contains(t, f(ic).Error(), "storage context can not be retrieved in dynamic scripts")
-	}
+func TestLocal_Errors(t *testing.T) {
+	v, ic, _ := createVM(t)
+
+	v.Estack().PushVal([]byte{1})
+	require.ErrorContains(t, istorage.LocalDelete(ic), "storage context can not be retrieved in dynamic scripts")
+
+	v.Estack().PushVal([]byte{1})
+	require.ErrorContains(t, istorage.LocalGet(ic), "storage context can not be retrieved in dynamic scripts")
+
+	v.Estack().PushVal([]byte{1})
+	v.Estack().PushVal([]byte{2})
+	require.ErrorContains(t, istorage.LocalPut(ic), "storage context can not be retrieved in dynamic scripts")
+
+	v.Estack().PushVal([]byte{1})
+	v.Estack().PushVal(1)
+	require.ErrorContains(t, istorage.LocalFind(ic), "storage context can not be retrieved in dynamic scripts")
 }

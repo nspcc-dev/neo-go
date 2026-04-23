@@ -786,12 +786,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(item)
 
 	case opcode.STSFLD0, opcode.STSFLD1, opcode.STSFLD2, opcode.STSFLD3, opcode.STSFLD4, opcode.STSFLD5, opcode.STSFLD6:
-		item := v.estack.popNoRef().Item()
-		ctx.sc.static.setNoRef(int(op-opcode.STSFLD0), item, &v.refs)
+		ctx.sc.static.store(v.estack, int(op-opcode.STSFLD0), &v.refs)
 
 	case opcode.STSFLD:
-		item := v.estack.popNoRef().Item()
-		ctx.sc.static.setNoRef(int(parameter[0]), item, &v.refs)
+		ctx.sc.static.store(v.estack, int(parameter[0]), &v.refs)
 
 	case opcode.LDLOC0, opcode.LDLOC1, opcode.LDLOC2, opcode.LDLOC3, opcode.LDLOC4, opcode.LDLOC5, opcode.LDLOC6:
 		item := ctx.local.Get(int(op - opcode.LDLOC0))
@@ -802,12 +800,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(item)
 
 	case opcode.STLOC0, opcode.STLOC1, opcode.STLOC2, opcode.STLOC3, opcode.STLOC4, opcode.STLOC5, opcode.STLOC6:
-		item := v.estack.popNoRef().Item()
-		ctx.local.setNoRef(int(op-opcode.STLOC0), item, &v.refs)
+		ctx.local.store(v.estack, int(op-opcode.STLOC0), &v.refs)
 
 	case opcode.STLOC:
-		item := v.estack.popNoRef().Item()
-		ctx.local.setNoRef(int(parameter[0]), item, &v.refs)
+		ctx.local.store(v.estack, int(parameter[0]), &v.refs)
 
 	case opcode.LDARG0, opcode.LDARG1, opcode.LDARG2, opcode.LDARG3, opcode.LDARG4, opcode.LDARG5, opcode.LDARG6:
 		item := ctx.arguments.Get(int(op - opcode.LDARG0))
@@ -818,12 +814,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(item)
 
 	case opcode.STARG0, opcode.STARG1, opcode.STARG2, opcode.STARG3, opcode.STARG4, opcode.STARG5, opcode.STARG6:
-		item := v.estack.popNoRef().Item()
-		ctx.arguments.setNoRef(int(op-opcode.STARG0), item, &v.refs)
+		ctx.arguments.store(v.estack, int(op-opcode.STARG0), &v.refs)
 
 	case opcode.STARG:
-		item := v.estack.popNoRef().Item()
-		ctx.arguments.setNoRef(int(parameter[0]), item, &v.refs)
+		ctx.arguments.store(v.estack, int(parameter[0]), &v.refs)
 
 	case opcode.NEWBUFFER:
 		n := toInt(v.estack.Pop().BigInt())
