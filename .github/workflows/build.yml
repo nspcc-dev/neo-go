@@ -34,13 +34,13 @@ on:
 jobs:
   build_cli:
     name: Build CLI
-    runs-on: ${{matrix.os.name}}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [{ name: ubuntu-latest, bin-name: linux }, { name: windows-latest, bin-name: windows }, { name: macos-latest, bin-name: darwin }]
+        os: [linux, windows, darwin]
         arch: [amd64, arm64]
         exclude:
-          - os: { name: windows-latest, bin-name: windows }
+          - os: 'windows'
             arch: 'arm64'
 
     steps:
@@ -59,20 +59,21 @@ jobs:
         run: make build
         env:
           GOARCH: ${{ matrix.arch }}
+          GOOS: ${{ matrix.os }}
 
       - name: Rename CLI binary
-        run: mv ./bin/neo-go* ./bin/neo-go-${{ matrix.os.bin-name }}-${{ matrix.arch }}${{ (matrix.os.bin-name == 'windows' && '.exe') || '' }}
+        run: mv ./bin/neo-go* ./bin/neo-go-${{ matrix.os }}-${{ matrix.arch }}${{ (matrix.os == 'windows' && '.exe') || '' }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: neo-go-${{ matrix.os.bin-name }}-${{ matrix.arch }}
+          name: neo-go-${{ matrix.os }}-${{ matrix.arch }}
           path: ./bin/neo-go*
           if-no-files-found: error
 
       - name: Attach binary to the release as an asset
         if: ${{ github.event_name == 'release' }}
-        run: gh release upload ${{ github.event.release.tag_name }} ./bin/neo-go-${{ matrix.os.bin-name }}-${{ matrix.arch }}${{ (matrix.os.bin-name == 'windows' && '.exe') || '' }}
+        run: gh release upload ${{ github.event.release.tag_name }} ./bin/neo-go-${{ matrix.os }}-${{ matrix.arch }}${{ (matrix.os == 'windows' && '.exe') || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
