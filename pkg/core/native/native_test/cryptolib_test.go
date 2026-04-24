@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
@@ -594,4 +595,62 @@ func TestCryptoLib_RecoverSecp256K1_EIP2098Compat(t *testing.T) {
 		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigExpanded)
 		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigCompact)
 	}
+}
+
+func TestCryptoLib_VerifyWithED25519_Gorgon(t *testing.T) {
+	check := func(t *testing.T, gorgonH uint32) {
+		c := newCustomNativeClient(t, nativenames.CryptoLib, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFGorgon.String(): gorgonH,
+			}
+		})
+		committeeInvoker := c.WithSigners(c.Committee)
+		pub, err := hex.DecodeString("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")
+		require.NoError(t, err)
+		msg := []byte{}
+
+		if gorgonH > 0 {
+			// Return false on invalid signature format before Gorgon.
+			committeeInvoker.Invoke(t, false, "verifyWithEd25519", msg, pub, []byte{1, 2, 3})
+		} else {
+			// Panic on invalid signature format after Gorgon.
+			committeeInvoker.InvokeFail(t, "invalid signature length: expected 64, got 3", "verifyWithEd25519", msg, pub, []byte{1, 2, 3})
+		}
+	}
+
+	t.Run("pre-Gorgon", func(t *testing.T) {
+		check(t, 100)
+	})
+	t.Run("post-Gorgon", func(t *testing.T) {
+		check(t, 0)
+	})
+}
+
+func TestCryptoLib_VerifyWithECDsa_Gorgon(t *testing.T) {
+	pk, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	pub := pk.PublicKey().Bytes()
+	msg := []byte{1, 2, 3}
+	check := func(t *testing.T, gorgonH uint32) {
+		c := newCustomNativeClient(t, nativenames.CryptoLib, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFGorgon.String(): gorgonH,
+			}
+		})
+		committeeInvoker := c.WithSigners(c.Committee)
+		if gorgonH > 0 {
+			// Return false on invalid signature format before Gorgon.
+			committeeInvoker.Invoke(t, false, "verifyWithECDsa", msg, pub, []byte{1, 2, 3}, int(native.Secp256r1Sha256))
+		} else {
+			// Panic on invalid signature format after Gorgon.
+			committeeInvoker.InvokeFail(t, "invalid signature length: expected 64, got 3", "verifyWithECDsa", msg, pub, []byte{1, 2, 3}, int(native.Secp256r1Sha256))
+		}
+	}
+
+	t.Run("pre-Gorgon", func(t *testing.T) {
+		check(t, 100)
+	})
+	t.Run("post-Gorgon", func(t *testing.T) {
+		check(t, 0)
+	})
 }

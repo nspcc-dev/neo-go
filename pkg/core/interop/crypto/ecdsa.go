@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -32,6 +33,13 @@ func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
 	if len(pkeys) < len(sigs) {
 		return errors.New("more signatures than there are keys")
 	}
+	if ic.IsHardforkEnabled(config.HFGorgon) {
+		for i, s := range sigs {
+			if len(s) != keys.SignatureLen {
+				return fmt.Errorf("wrong signature #%d length: expected %d, got %d", i, keys.SignatureLen, len(s))
+			}
+		}
+	}
 	sigok := vm.CheckMultisigPar(elliptic.P256(), hash.NetSha256(ic.Network, ic.Container).BytesBE(), pkeys, sigs)
 	ic.VM.Estack().PushItem(stackitem.Bool(sigok))
 	return nil
@@ -44,6 +52,9 @@ func ECDSASecp256r1CheckSig(ic *interop.Context) error {
 	pkey, err := keys.NewPublicKeyFromBytes(keyb, elliptic.P256())
 	if err != nil {
 		return err
+	}
+	if ic.IsHardforkEnabled(config.HFGorgon) && len(signature) != keys.SignatureLen {
+		return fmt.Errorf("wrong signature length: expected %d, got %d", keys.SignatureLen, len(signature))
 	}
 	res := pkey.VerifyHashable(signature, ic.Network, ic.Container)
 	ic.VM.Estack().PushItem(stackitem.Bool(res))
