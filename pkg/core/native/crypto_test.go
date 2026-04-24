@@ -169,11 +169,11 @@ func testECDSAVerify(t *testing.T, curve NamedCurveHash) {
 		}
 		if isErr {
 			require.Panics(t, func() {
-				_ = c.verifyWithECDsa(ic, argsArr)
+				_ = c.verifyWithECDsaV1(ic, argsArr)
 			})
 		} else {
 			require.NotPanics(t, func() {
-				actual = c.verifyWithECDsa(ic, argsArr)
+				actual = c.verifyWithECDsaV1(ic, argsArr)
 			})
 			require.Equal(t, stackitem.Make(result), actual)
 		}
@@ -234,11 +234,11 @@ func TestCryptoLib_VerifyWithED25519(t *testing.T) {
 		}
 		if isErr {
 			require.Panics(t, func() {
-				_ = c.verifyWithEd25519(ic, argsArr)
+				_ = c.verifyWithEd25519V0(ic, argsArr)
 			})
 		} else {
 			require.NotPanics(t, func() {
-				actual = c.verifyWithEd25519(ic, argsArr)
+				actual = c.verifyWithEd25519V0(ic, argsArr)
 			})
 			require.Equal(t, stackitem.Make(expected), actual)
 		}
