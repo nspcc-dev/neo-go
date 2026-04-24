@@ -137,6 +137,9 @@ func TestLedger_GetTransactionFromBlock(t *testing.T) {
 	t.Run("unknown block hash", func(t *testing.T) {
 		ledgerInvoker.Invoke(t, stackitem.Null{}, "getTransactionFromBlock", b.Hash().BytesLE(), int64(0))
 	})
+	t.Run("block index above chain height", func(t *testing.T) {
+		ledgerInvoker.Invoke(t, stackitem.Null{}, "getTransactionFromBlock", 100500, int64(0))
+	})
 	t.Run("isn't traceable", func(t *testing.T) {
 		e.GenerateNewBlocks(t, int(e.Chain.GetConfig().MaxTraceableBlocks))
 		ledgerInvoker.Invoke(t, stackitem.Null{}, "getTransactionFromBlock", b.Hash(), int64(0))
@@ -171,6 +174,9 @@ func TestLedger_GetBlock(t *testing.T) {
 	})
 	t.Run("bad hash", func(t *testing.T) {
 		ledgerInvoker.Invoke(t, stackitem.Null{}, "getBlock", b.Hash().BytesLE())
+	})
+	t.Run("block index above chain height", func(t *testing.T) {
+		ledgerInvoker.Invoke(t, stackitem.Null{}, "getBlock", 100500)
 	})
 	t.Run("isn't traceable", func(t *testing.T) {
 		e.GenerateNewBlocks(t, int(e.Chain.GetConfig().MaxTraceableBlocks))

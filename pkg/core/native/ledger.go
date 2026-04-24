@@ -123,6 +123,9 @@ func (l *Ledger) currentIndex(ic *interop.Context, _ []stackitem.Item) stackitem
 // getBlock implements getBlock SC method.
 func (l *Ledger) getBlock(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	hash := getBlockHashFromItem(ic, params[0])
+	if hash.Equals(util.Uint256{}) { // a short path to avoid DB access.
+		return stackitem.Null{}
+	}
 	block, err := ic.GetBlock(hash)
 	if err != nil || !l.isTraceableBlock(ic, block.Index) {
 		return stackitem.Null{}
@@ -153,6 +156,9 @@ func (l *Ledger) getTransactionHeight(ic *interop.Context, params []stackitem.It
 func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	hash := getBlockHashFromItem(ic, params[0])
 	index := toUint32(params[1])
+	if hash.Equals(util.Uint256{}) { // a short path to avoid DB access.
+		return stackitem.Null{}
+	}
 	block, err := ic.GetBlock(hash)
 	if err != nil || !l.isTraceableBlock(ic, block.Index) {
 		return stackitem.Null{}
@@ -208,7 +214,7 @@ func getBlockHashFromItem(ic *interop.Context, item stackitem.Item) util.Uint256
 			panic("bad block index")
 		}
 		if uint32(index) > ic.BlockHeight() {
-			panic(fmt.Errorf("no block with index %d", index))
+			return util.Uint256{}
 		}
 		return ic.Chain.GetHeaderHash(uint32(index))
 	}
