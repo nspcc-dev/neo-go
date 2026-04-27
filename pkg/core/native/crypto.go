@@ -71,7 +71,7 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType),
 		manifest.NewParameter("curve", smartcontract.IntegerType))
-	md = NewMethodAndPrice(c.verifyWithECDsaPreCockatrice, 1<<15, callflag.NoneFlag, config.HFDefault, config.HFCockatrice)
+	md = NewMethodAndPrice(c.verifyWithECDsaV0, 1<<15, callflag.NoneFlag, config.HFDefault, config.HFCockatrice)
 	c.AddMethod(md, desc)
 
 	desc = NewDescriptor("verifyWithECDsa", smartcontract.BoolType,
@@ -79,7 +79,15 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType),
 		manifest.NewParameter("curveHash", smartcontract.IntegerType))
-	md = NewMethodAndPrice(c.verifyWithECDsa, 1<<15, callflag.NoneFlag, config.HFCockatrice)
+	md = NewMethodAndPrice(c.verifyWithECDsaV1, 1<<15, callflag.NoneFlag, config.HFCockatrice, config.HFGorgon)
+	c.AddMethod(md, desc)
+
+	desc = NewDescriptor("verifyWithECDsa", smartcontract.BoolType,
+		manifest.NewParameter("message", smartcontract.ByteArrayType),
+		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
+		manifest.NewParameter("signature", smartcontract.ByteArrayType),
+		manifest.NewParameter("curveHash", smartcontract.IntegerType))
+	md = NewMethodAndPrice(c.verifyWithECDsaV2, 1<<15, callflag.NoneFlag, config.HFGorgon)
 	c.AddMethod(md, desc)
 
 	desc = NewDescriptor("bls12381Serialize", smartcontract.ByteArrayType,
@@ -126,7 +134,14 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("message", smartcontract.ByteArrayType),
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
-	md = NewMethodAndPrice(c.verifyWithEd25519, 1<<15, callflag.NoneFlag, config.HFEchidna)
+	md = NewMethodAndPrice(c.verifyWithEd25519V0, 1<<15, callflag.NoneFlag, config.HFEchidna, config.HFGorgon)
+	c.AddMethod(md, desc)
+
+	desc = NewDescriptor("verifyWithEd25519", smartcontract.BoolType,
+		manifest.NewParameter("message", smartcontract.ByteArrayType),
+		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
+		manifest.NewParameter("signature", smartcontract.ByteArrayType))
+	md = NewMethodAndPrice(c.verifyWithEd25519V1, 1<<15, callflag.NoneFlag, config.HFGorgon)
 	c.AddMethod(md, desc)
 
 	desc = NewDescriptor("recoverSecp256K1", smartcontract.ByteArrayType,
@@ -165,15 +180,19 @@ func (c *Crypto) murmur32(_ *interop.Context, args []stackitem.Item) stackitem.I
 	return stackitem.NewByteArray(result)
 }
 
-func (c *Crypto) verifyWithECDsaPreCockatrice(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	return verifyWithECDsaGeneric(args, false)
+func (c *Crypto) verifyWithECDsaV0(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	return verifyWithECDsaGeneric(args, false, false)
 }
 
-func (c *Crypto) verifyWithECDsa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	return verifyWithECDsaGeneric(args, true)
+func (c *Crypto) verifyWithECDsaV1(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	return verifyWithECDsaGeneric(args, true, false)
 }
 
-func verifyWithECDsaGeneric(args []stackitem.Item, allowKeccak bool) stackitem.Item {
+func (c *Crypto) verifyWithECDsaV2(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	return verifyWithECDsaGeneric(args, true, true)
+}
+
+func verifyWithECDsaGeneric(args []stackitem.Item, allowKeccak bool, panicOnInvalidFormat bool) stackitem.Item {
 	msg, err := args[0].TryBytes()
 	if err != nil {
 		panic(fmt.Errorf("invalid message stackitem: %w", err))
@@ -194,6 +213,9 @@ func verifyWithECDsaGeneric(args []stackitem.Item, allowKeccak bool) stackitem.I
 	pkey, err := keys.NewPublicKeyFromBytes(pubkey, curve)
 	if err != nil {
 		panic(fmt.Errorf("failed to decode pubkey: %w", err))
+	}
+	if panicOnInvalidFormat && len(signature) != keys.SignatureLen {
+		panic(fmt.Errorf("invalid signature length: expected %d, got %d", keys.SignatureLen, len(signature)))
 	}
 	res := pkey.Verify(signature, hashToCheck.BytesBE())
 	return stackitem.NewBool(res)
@@ -228,7 +250,15 @@ func curveHasherFromStackitem(si stackitem.Item, allowKeccak bool) (elliptic.Cur
 	}
 }
 
-func (c *Crypto) verifyWithEd25519(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+func (c *Crypto) verifyWithEd25519V0(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return c.verifyWithEd25519Generic(ic, args, false)
+}
+
+func (c *Crypto) verifyWithEd25519V1(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return c.verifyWithEd25519Generic(ic, args, true)
+}
+
+func (c *Crypto) verifyWithEd25519Generic(_ *interop.Context, args []stackitem.Item, panicOnInvalidFormat bool) stackitem.Item {
 	msg, err := args[0].TryBytes()
 	if err != nil {
 		panic(fmt.Errorf("invalid message stackitem: %w", err))
@@ -242,9 +272,15 @@ func (c *Crypto) verifyWithEd25519(_ *interop.Context, args []stackitem.Item) st
 		panic(fmt.Errorf("invalid signature stackitem: %w", err))
 	}
 	if len(signature) != ed25519.SignatureSize {
+		if panicOnInvalidFormat {
+			panic(fmt.Errorf("invalid signature length: expected %d, got %d", ed25519.SignatureSize, len(signature)))
+		}
 		return stackitem.NewBool(false)
 	}
 	if len(pubkey) != ed25519.PublicKeySize {
+		if panicOnInvalidFormat {
+			panic(fmt.Errorf("invalid pubkey length: expected %d, got %d", ed25519.PublicKeySize, len(pubkey)))
+		}
 		return stackitem.NewBool(false)
 	}
 	return stackitem.NewBool(ed25519.Verify(pubkey, msg, signature))

@@ -79,6 +79,9 @@ var (
 		nativenames.Notary:   `{"id":-10,"hash":"0xc1e14f19c3e60d0b9244d06dd7ba9b113135ec3b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0A=","checksum":1110259869},"manifest":{"name":"Notary","abi":{"methods":[{"name":"balanceOf","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"expirationOf","offset":7,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"getMaxNotValidBeforeDelta","offset":14,"parameters":[],"returntype":"Integer","safe":true},{"name":"lockDepositUntil","offset":21,"parameters":[{"name":"account","type":"Hash160"},{"name":"till","type":"Integer"}],"returntype":"Boolean","safe":false},{"name":"onNEP17Payment","offset":28,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Void","safe":false},{"name":"setMaxNotValidBeforeDelta","offset":35,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"verify","offset":42,"parameters":[{"name":"signature","type":"ByteArray"}],"returntype":"Boolean","safe":true},{"name":"withdraw","offset":49,"parameters":[{"name":"from","type":"Hash160"},{"name":"to","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":["NEP-27","NEP-30"],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.Treasury: `{"id":-11,"hash":"0x156326f25b1b5d839a4d326aeaa75383c9563ac1","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":1592866325},"manifest":{"name":"Treasury","abi":{"methods":[{"name":"onNEP11Payment","offset":0,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"tokenId","type":"ByteArray"},{"name":"data","type":"Any"}],"returntype":"Void","safe":true},{"name":"onNEP17Payment","offset":7,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Void","safe":true},{"name":"verify","offset":14,"parameters":[],"returntype":"Boolean","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":["NEP-26","NEP-27","NEP-30"],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
+	gorgonCSS = map[string]string{
+		nativenames.CryptoLib: `{"id":-3,"hash":"0x726cb6e0cd8628a1350a611384688911ab75f51b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":174904780},"manifest":{"name":"CryptoLib","abi":{"methods":[{"name":"bls12381Add","offset":0,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Deserialize","offset":7,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Equal","offset":14,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"Boolean","safe":true},{"name":"bls12381Mul","offset":21,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"mul","type":"ByteArray"},{"name":"neg","type":"Boolean"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Pairing","offset":28,"parameters":[{"name":"g1","type":"InteropInterface"},{"name":"g2","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Serialize","offset":35,"parameters":[{"name":"g","type":"InteropInterface"}],"returntype":"ByteArray","safe":true},{"name":"keccak256","offset":42,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"murmur32","offset":49,"parameters":[{"name":"data","type":"ByteArray"},{"name":"seed","type":"Integer"}],"returntype":"ByteArray","safe":true},{"name":"recoverSecp256K1","offset":56,"parameters":[{"name":"messageHash","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"ripemd160","offset":63,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"sha256","offset":70,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"verifyWithECDsa","offset":77,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"},{"name":"curveHash","type":"Integer"}],"returntype":"Boolean","safe":true},{"name":"verifyWithEd25519","offset":84,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"Boolean","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+	}
 )
 
 func init() {
@@ -95,6 +98,11 @@ func init() {
 	for k, v := range echidnaCSS {
 		if _, ok := faunCSS[k]; !ok {
 			faunCSS[k] = v
+		}
+	}
+	for k, v := range faunCSS {
+		if _, ok := gorgonCSS[k]; !ok {
+			gorgonCSS[k] = v
 		}
 	}
 }
@@ -220,6 +228,20 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 			}
 		})
 		check(t, mgmt, faunCSS)
+	})
+	t.Run("Gorgon enabled", func(t *testing.T) {
+		mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       0,
+				config.HFEchidna.String():       0,
+				config.HFFaun.String():          0,
+				config.HFGorgon.String():        0,
+			}
+		})
+		check(t, mgmt, gorgonCSS)
 	})
 }
 
