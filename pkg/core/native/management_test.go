@@ -102,7 +102,7 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, refContract, upContract)
 
-	_, err = mgmt.Destroy(ic, h)
+	_, err = mgmt.Destroy(ic, h, false)
 	require.NoError(t, err)
 	_, err = GetContract(d, mgmt.ID, h)
 	require.Error(t, err)
