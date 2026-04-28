@@ -922,6 +922,25 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 	return s.bQueue.Put(block)
 }
 
+// advertiseConsensusExtensibles advertises hashes of verified consensus payloads
+// to the peer via high-priority extensible messages if the peer is not ahead of
+// the node.
+func (s *Server) advertiseConsensusExtensibles(p Peer) error {
+	if !s.syncReached.Load() || p.LastBlockIndex() > s.chain.BlockHeight() {
+		return nil
+	}
+
+	consensusMsgs := s.extensiblePool.GetCategory(payload.ConsensusCategory)
+	for chunk := range slices.Chunk(consensusMsgs, payload.MaxHashesCount) {
+		msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, chunk))
+		err := p.EnqueueHPMessage(msg)
+		if err != nil {
+			return fmt.Errorf("failed to enqueue high priority consensus extensibles: %w", err)
+		}
+	}
+	return nil
+}
+
 // handlePing processes a ping request.
 func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
 	err := p.HandlePing(ping)
