@@ -533,11 +533,12 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		subscr := &subscriber{writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
 		s.subsLock.Lock()
 		s.subscribers[subscr] = true
+		numOfSubs = len(s.subscribers)
 		s.subsLock.Unlock()
-		s.log.Info("websocket client connected", zap.String("remoteAddr", remote))
+		updateWSConnectionsCnt(numOfSubs)
+		s.log.Info("websocket client connected", zap.String("remoteAddr", remote), zap.Int("numOfSubs", numOfSubs))
 		go s.handleWsWrites(ws, resChan, subChan)
-		s.handleWsReads(ws, resChan, subscr)
-		s.log.Info("websocket client disconnected", zap.String("remoteAddr", remote))
+		s.handleWsReads(ws, resChan, subscr, remote)
 		return
 	}
 
@@ -574,8 +575,10 @@ func (s *Server) RegisterLocal(ctx context.Context, events chan<- neorpc.Notific
 	subscr := &subscriber{writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
 	s.subsLock.Lock()
 	s.subscribers[subscr] = true
+	numOfSubs := len(s.subscribers)
 	s.subsLock.Unlock()
-	s.log.Info("local websocket client connected")
+	updateWSConnectionsCnt(numOfSubs)
+	s.log.Info("local websocket client connected", zap.Int("numOfSubs", numOfSubs))
 	go s.handleLocalNotifications(ctx, events, subChan, subscr)
 	return func(req *neorpc.Request) (*neorpc.Response, error) {
 		return s.handleInternal(req, subscr)
@@ -682,7 +685,7 @@ eventloop:
 		}
 	}
 	close(events)
-	s.dropSubscriber(subscr)
+	numOfSubs := s.dropSubscriber(subscr)
 drainloop:
 	for {
 		select {
@@ -691,7 +694,7 @@ drainloop:
 			break drainloop
 		}
 	}
-	s.log.Info("local websocket client disconnected")
+	s.log.Info("local websocket client disconnected", zap.Int("numOfSubs", numOfSubs))
 }
 
 func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan abstractResult, subChan <-chan intEvent) {
@@ -746,7 +749,7 @@ drainloop:
 	}
 }
 
-func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- abstractResult, subscr *subscriber) {
+func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- abstractResult, subscr *subscriber, remoteAddr string) {
 	ws.SetReadLimit(s.wsReadLimit)
 	err := ws.SetReadDeadline(time.Now().Add(wsPongLimit))
 	ws.SetPongHandler(func(string) error { return ws.SetReadDeadline(time.Now().Add(wsPongLimit)) })
@@ -767,15 +770,18 @@ requestloop:
 		case resChan <- res:
 		}
 	}
-	s.dropSubscriber(subscr)
+	numOfSubs := s.dropSubscriber(subscr)
+	s.log.Info("websocket client disconnected", zap.String("remoteAddr", remoteAddr), zap.Int("numOfSubs", numOfSubs))
 	close(resChan)
 	ws.Close()
 }
 
-func (s *Server) dropSubscriber(subscr *subscriber) {
+func (s *Server) dropSubscriber(subscr *subscriber) int {
 	s.subsLock.Lock()
 	delete(s.subscribers, subscr)
+	numOfSubs := len(s.subscribers)
 	s.subsLock.Unlock()
+	updateWSConnectionsCnt(numOfSubs)
 	s.subsCounterLock.Lock()
 	for _, e := range subscr.feeds {
 		if e.event != neorpc.InvalidEventID {
@@ -783,6 +789,7 @@ func (s *Server) dropSubscriber(subscr *subscriber) {
 		}
 	}
 	s.subsCounterLock.Unlock()
+	return numOfSubs
 }
 
 func (s *Server) getBestBlockHash(_ params.Params) (any, *neorpc.Error) {

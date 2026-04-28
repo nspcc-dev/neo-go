@@ -9,7 +9,14 @@ import (
 
 // Metrics used in monitoring service.
 var (
-	rpcTimes = map[string]prometheus.Histogram{}
+	rpcTimes         = map[string]prometheus.Histogram{}
+	wsConnectionsCnt = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Help:      "WS connections count (local and remote clients)",
+			Name:      "wsconnections_count",
+			Namespace: "neogo",
+		},
+	)
 )
 
 func addReqTimeMetric(name string, t time.Duration) {
@@ -37,4 +44,9 @@ func init() {
 	for call := range rpcWsHandlers {
 		regCounter(call)
 	}
+	prometheus.MustRegister(wsConnectionsCnt)
+}
+
+func updateWSConnectionsCnt(cnt int) {
+	wsConnectionsCnt.Set(float64(cnt))
 }
