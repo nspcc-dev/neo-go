@@ -237,13 +237,15 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		handshake:       make(chan Peer),
 		peers:           make(map[Peer]bool),
 		mempool:         chain.GetMemPool(),
-		extensiblePool:  extpool.New(chain, config.ExtensiblePoolSize),
 		log:             log,
 		transactions:    make(chan *transaction.Transaction, 64),
 		services:        make(map[string]Service),
 		extensHandlers:  make(map[string]func(*payload.Extensible) error),
 		stateSync:       stSync,
 	}
+	s.extensiblePool = extpool.New(chain, config.ExtensiblePoolSize, func(hs []util.Uint256) {
+		s.broadcastHashes(payload.ExtensibleType, true, hs)
+	})
 	s.txIn = newInMap[*transaction.Transaction](64, s.mempool.ContainsKey)
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
@@ -355,6 +357,7 @@ func (s *Server) Start() {
 	s.log.Info("node started",
 		zap.Uint32("blockHeight", s.chain.BlockHeight()),
 		zap.Uint32("headerHeight", s.chain.HeaderHeight()))
+	s.extensiblePool.Start()
 
 	s.tryStartServices()
 	s.initStaleMemPools()
@@ -424,6 +427,7 @@ func (s *Server) Shutdown() {
 	<-s.runFin
 	s.txHandlerLoopWG.Wait()
 	s.notaryRequestLoopWG.Wait()
+	s.extensiblePool.Stop()
 
 	_ = s.log.Sync()
 }
@@ -1864,12 +1868,17 @@ func (s *Server) broadcastTX(t *transaction.Transaction, _ any) {
 	}
 }
 
-func (s *Server) broadcastTxHashes(hs []util.Uint256) {
-	msg := NewMessage(CMDInv, payload.NewInventory(payload.TXType, hs))
-
+func (s *Server) broadcastHashes(typ payload.InventoryType, highPriority bool, hs []util.Uint256) {
 	// We need to filter out non-relaying nodes, so plain broadcast
 	// functions don't fit here.
-	s.iteratePeersWithSendMsg(msg, Peer.BroadcastPacket, Peer.IsFullNode)
+	send := Peer.BroadcastPacket
+	if highPriority {
+		send = Peer.BroadcastHPPacket
+	}
+	for chunk := range slices.Chunk(hs, payload.MaxHashesCount) {
+		msg := NewMessage(CMDInv, payload.NewInventory(typ, chunk))
+		s.iteratePeersWithSendMsg(msg, send, Peer.IsFullNode)
+	}
 }
 
 // initStaleMemPools initializes mempools for stale tx/payload processing.
@@ -1902,7 +1911,7 @@ func (s *Server) broadcastTxLoop() {
 	}
 
 	broadcast := func() {
-		s.broadcastTxHashes(txs)
+		s.broadcastHashes(payload.TXType, false, txs)
 		txs = txs[:0]
 		if timer != nil {
 			timer.Stop()
