@@ -9,16 +9,16 @@ var (
 	// blockHeight prometheus metric.
 	blockHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Help:      "Current index of processed block",
-			Name:      "current_block_height",
+			Help:      "Index of processed block",
+			Name:      "block_height",
 			Namespace: "neogo",
 		},
 	)
 	// persistedHeight prometheus metric.
 	persistedHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Help:      "Current persisted block count",
-			Name:      "current_persisted_height",
+			Help:      "Persisted block count",
+			Name:      "persisted_height",
 			Namespace: "neogo",
 		},
 	)
@@ -33,8 +33,8 @@ var (
 	// headerHeight prometheus metric.
 	headerHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Help:      "Current header height",
-			Name:      "current_header_height",
+			Help:      "Header height",
+			Name:      "header_height",
 			Namespace: "neogo",
 		},
 	)
