@@ -422,6 +422,7 @@ func mkConsensus(config config.Consensus, chain *core.Blockchain, serv *network.
 	srv, err := consensus.NewService(consensus.Config{
 		Logger:                log,
 		Broadcast:             serv.BroadcastExtensible,
+		Rebroadcast:           serv.BroadcastConsensusExtensibles,
 		Chain:                 chain,
 		BlockQueue:            serv.GetBlockQueue(),
 		ProtocolConfiguration: chain.GetConfig().ProtocolConfiguration,
