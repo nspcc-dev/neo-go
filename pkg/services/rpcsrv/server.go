@@ -522,6 +522,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 			)
 			return
 		}
+		remote := httpRequest.RemoteAddr
 		ws, err := s.upgrader.Upgrade(w, httpRequest, nil)
 		if err != nil {
 			s.log.Info("websocket connection upgrade failed", zap.Error(err))
@@ -533,8 +534,10 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		s.subsLock.Lock()
 		s.subscribers[subscr] = true
 		s.subsLock.Unlock()
+		s.log.Info("websocket client connected", zap.String("remoteAddr", remote))
 		go s.handleWsWrites(ws, resChan, subChan)
 		s.handleWsReads(ws, resChan, subscr)
+		s.log.Info("websocket client disconnected", zap.String("remoteAddr", remote))
 		return
 	}
 
@@ -572,6 +575,7 @@ func (s *Server) RegisterLocal(ctx context.Context, events chan<- neorpc.Notific
 	s.subsLock.Lock()
 	s.subscribers[subscr] = true
 	s.subsLock.Unlock()
+	s.log.Info("local websocket client connected")
 	go s.handleLocalNotifications(ctx, events, subChan, subscr)
 	return func(req *neorpc.Request) (*neorpc.Response, error) {
 		return s.handleInternal(req, subscr)
@@ -687,6 +691,7 @@ drainloop:
 			break drainloop
 		}
 	}
+	s.log.Info("local websocket client disconnected")
 }
 
 func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan abstractResult, subChan <-chan intEvent) {
