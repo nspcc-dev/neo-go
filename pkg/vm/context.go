@@ -48,9 +48,15 @@ type scriptContext struct {
 	Manifest *manifest.Manifest
 	// invTree is an invocation tree (or a branch of it) for this context.
 	invTree *invocations.Tree
-	// onUnload is a callback that should be called after current context unloading
-	// if no exception occurs.
+	// onUnload is a callback that should be called after the current context
+	// is removed from the VM's invocation stack and after return values are
+	// copied from the unloaded context estack to the parent's context estack.
+	// This method is called even if there's an uncaught VM exception.
 	onUnload ContextUnloadCallback
+	// onUnloaded is a callback that should be called after the current context
+	// is fully unloaded from the VM's invocation stack iff there's no uncaught
+	// VM exception. It's OK for this function to panic.
+	onUnloaded ContextUnloadedCallback
 	// whitelisted denotes whether execution fee charging should be omitted for
 	// the current context.
 	whitelisted bool
@@ -79,8 +85,16 @@ type contextAux struct {
 	Caller string
 }
 
-// ContextUnloadCallback is a callback method used on context unloading from istack.
-type ContextUnloadCallback func(v *VM, ctx *Context, commit bool) error
+type (
+	// ContextUnloadCallback is a callback method used on context unloading from istack.
+	// It is called after the context is removed from the VM's invocation stack but
+	// before return values are copied from the unloaded context estack to the parent's
+	// context estack.
+	ContextUnloadCallback func(v *VM, ctx *Context, commit bool) error
+	// ContextUnloadedCallback is a callback method that is called after the context
+	// is fully unloaded from the VM's invocation stack if no exception occurs.
+	ContextUnloadedCallback func(v *VM)
+)
 
 // ErrMultiRet is returned when caller does not expect multiple return values
 // from callee.

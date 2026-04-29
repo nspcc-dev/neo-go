@@ -175,8 +175,15 @@ func (s *Stack) InsertAt(e Element, n int) {
 
 // Push pushes the given element on the stack.
 func (s *Stack) Push(e Element) {
-	s.elems = append(s.elems, e)
+	s.pushNoRef(e)
 	s.refs.Add(e.value)
+}
+
+// pushNoRef pushes the given element on the stack without changing the reference
+// counter. Be super-careful when using it and only use it when you understand
+// what you're doing.
+func (s *Stack) pushNoRef(e Element) {
+	s.elems = append(s.elems, e)
 }
 
 // PushItem pushes an Item to the stack.

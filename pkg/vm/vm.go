@@ -409,14 +409,14 @@ func (v *VM) LoadScript(b []byte) {
 
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, nil, false)
+	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, nil, nil, false)
 }
 
 // LoadDynamicScript loads the given script with the given flags. This script is
 // considered to be dynamic, it can either return no value at all or return
 // exactly one value.
 func (v *VM) LoadDynamicScript(b []byte, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, DynamicOnUnload, false)
+	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, DynamicOnUnload, nil, false)
 }
 
 // LoadScriptWithHash is similar to the LoadScriptWithFlags method, but it also loads
@@ -426,19 +426,19 @@ func (v *VM) LoadDynamicScript(b []byte, f callflag.CallFlag) {
 // accordingly). It's up to the user of this function to make sure the script and hash match
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), hash, f, 1, 0, nil, false)
+	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), hash, f, 1, 0, nil, nil, false)
 }
 
 // LoadNEFMethod allows to create a context to execute a method from the NEF
 // file with the specified caller and executing hash, call flags, return value,
 // method and _initialize offsets.
 func (v *VM) LoadNEFMethod(exe *nef.File, manifest *manifest.Manifest, caller util.Uint160, hash util.Uint160, f callflag.CallFlag,
-	hasReturn bool, methodOff int, initOff int, onContextUnload ContextUnloadCallback, whitelisted bool) {
+	hasReturn bool, methodOff int, initOff int, onContextUnload ContextUnloadCallback, onContextUnloaded ContextUnloadedCallback, whitelisted bool) {
 	var rvcount int
 	if hasReturn {
 		rvcount = 1
 	}
-	v.loadScriptWithCallingHash(exe.Script, exe, manifest, caller, hash, f, rvcount, methodOff, onContextUnload, whitelisted)
+	v.loadScriptWithCallingHash(exe.Script, exe, manifest, caller, hash, f, rvcount, methodOff, onContextUnload, onContextUnloaded, whitelisted)
 	if initOff >= 0 {
 		v.Call(initOff)
 	}
@@ -447,7 +447,7 @@ func (v *VM) LoadNEFMethod(exe *nef.File, manifest *manifest.Manifest, caller ut
 // loadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
 func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, manifest *manifest.Manifest, caller util.Uint160,
-	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int, onContextUnload ContextUnloadCallback, whitelisted bool) {
+	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int, onContextUnload ContextUnloadCallback, onContextUnloaded ContextUnloadedCallback, whitelisted bool) {
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, rvcount, offset)
 	parent := v.Context()
@@ -476,6 +476,7 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, manifest *manife
 		ctx.sc.invTree = newTree
 	}
 	ctx.sc.onUnload = onContextUnload
+	ctx.sc.onUnloaded = onContextUnloaded
 	v.istack = append(v.istack, ctx)
 }
 
@@ -1658,27 +1659,32 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.RET:
 		oldCtx := v.istack[len(v.istack)-1]
 		v.istack = v.istack[:len(v.istack)-1]
-		oldEstack := v.estack
-
-		v.unloadContext(oldCtx)
-		if len(v.istack) == 0 {
-			v.state = vmstate.Halt
-			break
+		oldEstack := oldCtx.Estack()
+		newEstack := v.estack
+		if len(v.istack) != 0 {
+			newEstack = v.Context().Estack()
 		}
 
-		newEstack := v.Context().sc.estack
-		if oldEstack != newEstack {
+		if len(v.istack) != 0 && oldEstack != newEstack {
 			if oldCtx.retCount >= 0 && oldEstack.Len() != oldCtx.retCount {
 				panic(fmt.Errorf("invalid return values count: expected %d, got %d",
 					oldCtx.retCount, oldEstack.Len()))
 			}
 			rvcount := oldEstack.Len()
 			for i := rvcount; i > 0; i-- {
-				elem := oldEstack.RemoveAt(i - 1)
-				newEstack.Push(elem)
+				// Do not modify the unloaded context's stack since v.unloadContext interacts with it (DynamicOnUnload tracks return values).
+				// Ref. https://github.com/neo-project/neo-vm/blob/ed0eb66359fd1d76ddb5be91cc5a703ddc714a18/src/Neo.VM/JumpTable/JumpTable.Control.cs#L540.
+				elem := oldEstack.Peek(i - 1)
+				// However, these items are already added to VM's refs in the old context, so
+				// there's no need to count them twice.
+				newEstack.pushNoRef(elem)
 			}
 			v.estack = newEstack
 		}
+		if len(v.istack) == 0 {
+			v.state = vmstate.Halt
+		}
+		v.unloadContext(oldCtx)
 
 	case opcode.NEWMAP:
 		v.estack.PushItem(stackitem.NewMap())
@@ -1858,6 +1864,12 @@ func (v *VM) unloadContext(ctx *Context) {
 				}
 				panic(errors.New(errMessage))
 			}
+		}
+		if ctx.sc.onUnloaded != nil {
+			if v.uncaughtException != nil {
+				panic(v.uncaughtException)
+			}
+			ctx.sc.onUnloaded(v)
 		}
 	}
 }

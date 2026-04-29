@@ -48,7 +48,7 @@ func newGAS(init int64) *GAS {
 	return g
 }
 
-func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) (func(), error) {
+func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) (*gasDistribution, error) {
 	acc, err := state.NEP17BalanceFromBytes(*si)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func (g *GAS) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 	if err != nil {
 		return err
 	}
-	g.Mint(ic, h, big.NewInt(g.initialSupply), false)
+	g.MintDeferrable(ic, h, big.NewInt(g.initialSupply), false, func() { /*no continuation*/ })
 	return nil
 }
 
@@ -127,7 +127,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 			netFee -= (int64(na.NKeys) + 1) * g.Policy.GetAttributeFeeInternal(ic.DAO, transaction.NotaryAssistedT)
 		}
 	}
-	g.Mint(ic, primary, big.NewInt(int64(netFee)), false)
+	g.MintDeferrable(ic, primary, big.NewInt(int64(netFee)), false, func() { /*no continuation*/ })
 	return nil
 }
 

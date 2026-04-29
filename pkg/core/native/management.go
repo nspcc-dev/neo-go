@@ -101,35 +101,35 @@ func NewManagement() *Management {
 	desc = NewDescriptor("deploy", smartcontract.ArrayType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = NewMethodAndPrice(m.deploy, 0, callflag.All)
+	md = NewMethodAndPriceDeferrable(m.deployDeferrable, 0, callflag.All)
 	m.AddMethod(md, desc)
 
 	desc = NewDescriptor("deploy", smartcontract.ArrayType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md = NewMethodAndPrice(m.deployWithData, 0, callflag.All)
+	md = NewMethodAndPriceDeferrable(m.deployWithDataDeferrable, 0, callflag.All)
 	m.AddMethod(md, desc)
 
 	desc = NewDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = NewMethodAndPrice(m.update, 0, callflag.All)
+	md = NewMethodAndPriceDeferrable(m.updateDeferrable, 0, callflag.All)
 	m.AddMethod(md, desc)
 
 	desc = NewDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
 		manifest.NewParameter("data", smartcontract.AnyType))
-	md = NewMethodAndPrice(m.updateWithData, 0, callflag.All)
+	md = NewMethodAndPriceDeferrable(m.updateWithDataDeferrable, 0, callflag.All)
 	m.AddMethod(md, desc)
 
 	desc = NewDescriptor("destroy", smartcontract.VoidType)
-	md = NewMethodAndPrice(m.destroyV0, 1<<15, callflag.States|callflag.AllowNotify, config.HFDefault, config.HFGorgon)
+	md = NewMethodAndPriceDeferrable(m.destroyDeferrableV0, 1<<15, callflag.States|callflag.AllowNotify, config.HFDefault, config.HFGorgon)
 	m.AddMethod(md, desc)
 
 	desc = NewDescriptor("destroy", smartcontract.VoidType)
-	md = NewMethodAndPrice(m.destroyV1, 1<<15, callflag.States|callflag.AllowNotify, config.HFGorgon)
+	md = NewMethodAndPriceDeferrable(m.destroyDeferrableV1, 1<<15, callflag.States|callflag.AllowNotify, config.HFGorgon)
 	m.AddMethod(md, desc)
 
 	desc = NewDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
@@ -351,14 +351,14 @@ func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stac
 	return resNef, resManifest, nil
 }
 
-// deploy is an implementation of public 2-argument deploy method.
-func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	return m.deployWithData(ic, append(args, stackitem.Null{}))
+// deployDeferrable is an implementation of public 2-argument deploy method.
+func (m *Management) deployDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
+	m.deployWithDataDeferrable(ic, append(args, stackitem.Null{}), popArgsPushRes)
 }
 
-// deployWithData is an implementation of public 3-argument deploy method.
+// deployWithDataDeferrable is an implementation of public 3-argument deploy method.
 // It's run under VM protections, so it's OK for it to panic instead of returning errors.
-func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+func (m *Management) deployWithDataDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
 	neff, manif, err := m.getNefAndManifestFromItems(ic, args, true)
 	if err != nil {
 		panic(err)
@@ -376,12 +376,14 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 	if err != nil {
 		panic(err)
 	}
-	m.callDeploy(ic, newcontract, args[2], false)
-	err = m.emitNotification(ic, contractDeployNotificationName, newcontract.Hash)
-	if err != nil {
-		panic(err)
-	}
-	return contractToStack(newcontract)
+	m.callDeployDeferrable(ic, newcontract, args[2], false, func(v *vm.VM) {
+		// _deploy returns void => no need to pop the result from the parent's stack.
+		err = m.emitNotification(ic, contractDeployNotificationName, newcontract.Hash)
+		if err != nil {
+			panic(err)
+		}
+		popArgsPushRes(contractToStack(newcontract))
+	})
 }
 
 func markUpdated(d *dao.Simple, managementID int32, hash util.Uint160, cs *state.Contract) {
@@ -433,13 +435,13 @@ func (m *Management) Deploy(ic *interop.Context, sender util.Uint160, neff *nef.
 	return newcontract, nil
 }
 
-func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	return m.updateWithData(ic, append(args, stackitem.Null{}))
+func (m *Management) updateDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
+	m.updateWithDataDeferrable(ic, append(args, stackitem.Null{}), popArgsPushRes)
 }
 
-// update is an implementation of public update method, it's run under
+// updateWithDataDeferrable is an implementation of public update method, it's run under
 // VM protections, so it's OK for it to panic instead of returning errors.
-func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+func (m *Management) updateWithDataDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
 	neff, manif, err := m.getNefAndManifestFromItems(ic, args, false)
 	if err != nil {
 		panic(err)
@@ -451,12 +453,14 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 	if err != nil {
 		panic(err)
 	}
-	m.callDeploy(ic, contract, args[2], true)
-	err = m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
-	if err != nil {
-		panic(err)
-	}
-	return stackitem.Null{}
+	m.callDeployDeferrable(ic, contract, args[2], true, func(v *vm.VM) {
+		// _deploy returns void => no need to pop the result from the parent's stack.
+		err = m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
+		if err != nil {
+			panic(err)
+		}
+		popArgsPushRes(stackitem.Null{})
+	})
 }
 
 // Update updates contract's script and/or manifest in the given DAO.
@@ -505,67 +509,67 @@ func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.Fi
 	return &contract, nil
 }
 
-// destroyV0 is a pre-Gorgon implementation of the public destroy method, it's
+// destroyDeferrableV0 is a pre-Gorgon implementation of the public destroy method, it's
 // run under VM protections, so it's OK for it to panic instead of returning errors.
-func (m *Management) destroyV0(ic *interop.Context, sis []stackitem.Item) stackitem.Item {
-	return m.destroyInternal(ic, sis, false)
+func (m *Management) destroyDeferrableV0(ic *interop.Context, sis []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
+	m.destroyInternalDeferrable(ic, sis, popArgsPushRes, false)
 }
 
-// destroyV1 is a post-Gorgon implementation of the public destroy method, it's
+// destroyDeferrableV1 is a post-Gorgon implementation of the public destroy method, it's
 // run under VM protections, so it's OK for it to panic instead of returning errors.
-func (m *Management) destroyV1(ic *interop.Context, sis []stackitem.Item) stackitem.Item {
-	return m.destroyInternal(ic, sis, true)
+func (m *Management) destroyDeferrableV1(ic *interop.Context, sis []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
+	m.destroyInternalDeferrable(ic, sis, popArgsPushRes, true)
 }
 
-// destroy is an implementation of the public destroy method, it's run under
+// destroyDeferrable is an implementation of the public destroy method, it's run under
 // VM protections, so it's OK for it to panic instead of returning errors.
-func (m *Management) destroyInternal(ic *interop.Context, sis []stackitem.Item, blockBeforeErase bool) stackitem.Item {
+func (m *Management) destroyInternalDeferrable(ic *interop.Context, _ []stackitem.Item, popArgsPushRes func(res stackitem.Item), blockBeforeErase bool) {
 	hash := ic.VM.GetCallingScriptHash()
-	_, err := m.Destroy(ic, hash, blockBeforeErase)
-	if err != nil {
-		panic(err)
-	}
-	err = m.emitNotification(ic, contractDestroyNotificationName, hash)
-	if err != nil {
-		panic(err)
-	}
-	return stackitem.Null{}
-}
-
-// Destroy drops the given contract from DAO along with its storage. It doesn't emit notification.
-func (m *Management) Destroy(ic *interop.Context, hash util.Uint160, blockBeforeErase bool) (*state.Contract, error) {
 	contract, err := GetContract(ic.DAO, m.ID, hash)
 	if err != nil {
-		return nil, err
+		panic(err)
+	}
+
+	erase := func() {
+		key := MakeContractKey(hash)
+		ic.DAO.DeleteStorageItem(m.ID, key)
+		key = putHashKey(key, contract.ID)
+		ic.DAO.DeleteStorageItem(m.ID, key)
+		ic.DAO.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
+			ic.DAO.DeleteStorageItem(contract.ID, k)
+			return true
+		})
+		markUpdated(ic.DAO, m.ID, hash, nil)
 	}
 
 	if blockBeforeErase {
-		m.Policy.BlockAccountInternal(ic, hash)
-		err = m.Policy.CleanWhitelist(ic, hash)
-		if err != nil {
-			panic(fmt.Errorf("failed to clean whitelist for %s: %w", contract.Hash.StringLE(), err))
-		}
+		m.Policy.BlockAccountInternalDeferrable(ic, hash, func(_ bool) { // no `blockAccount` result handling.
+			err = m.Policy.CleanWhitelist(ic, hash)
+			if err != nil {
+				panic(fmt.Errorf("failed to clean whitelist for %s: %w", contract.Hash.StringLE(), err))
+			}
+			erase()
+			err = m.emitNotification(ic, contractDestroyNotificationName, hash)
+			if err != nil {
+				panic(err)
+			}
+			popArgsPushRes(stackitem.Null{})
+		})
+	} else {
+		erase()
+
+		m.Policy.BlockAccountInternalDeferrable(ic, hash, func(_ bool) { // no `blockAccount` result handling.
+			err = m.Policy.CleanWhitelist(ic, hash)
+			if err != nil {
+				panic(fmt.Errorf("failed to clean whitelist for %s: %w", contract.Hash.StringLE(), err))
+			}
+			err = m.emitNotification(ic, contractDestroyNotificationName, hash)
+			if err != nil {
+				panic(err)
+			}
+			popArgsPushRes(stackitem.Null{})
+		})
 	}
-
-	key := MakeContractKey(hash)
-	ic.DAO.DeleteStorageItem(m.ID, key)
-	key = putHashKey(key, contract.ID)
-	ic.DAO.DeleteStorageItem(m.ID, key)
-	ic.DAO.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
-		ic.DAO.DeleteStorageItem(contract.ID, k)
-		return true
-	})
-	markUpdated(ic.DAO, m.ID, hash, nil)
-
-	if !blockBeforeErase {
-		m.Policy.BlockAccountInternal(ic, hash)
-		err = m.Policy.CleanWhitelist(ic, hash)
-		if err != nil {
-			panic(fmt.Errorf("failed to clean whitelist for %s: %w", contract.Hash.StringLE(), err))
-		}
-	}
-
-	return contract, nil
 }
 
 func (m *Management) getMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -589,14 +593,16 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	return stackitem.Null{}
 }
 
-func (m *Management) callDeploy(ic *interop.Context, cs *state.Contract, data stackitem.Item, isUpdate bool) {
+func (m *Management) callDeployDeferrable(ic *interop.Context, cs *state.Contract, data stackitem.Item, isUpdate bool, onUnloaded func(v *vm.VM)) {
 	md := cs.Manifest.ABI.GetMethod(manifest.MethodDeploy, 2)
 	if md != nil {
 		err := contract.CallFromNative(ic, m.Hash, cs, manifest.MethodDeploy,
-			[]stackitem.Item{data, stackitem.NewBool(isUpdate)}, false)
+			[]stackitem.Item{data, stackitem.NewBool(isUpdate)}, false, onUnloaded)
 		if err != nil {
 			panic(err)
 		}
+	} else {
+		onUnloaded(ic.VM)
 	}
 }
 

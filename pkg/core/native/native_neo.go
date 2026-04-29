@@ -35,7 +35,7 @@ import (
 // NEO represents NEO native contract.
 type NEO struct {
 	nep17TokenNative
-	GAS    IGAS
+	gas    IGAS
 	Policy IPolicy
 
 	// Configuration and standby keys are set in constructor and then
@@ -77,6 +77,12 @@ type NeoCache struct {
 	// It is set in state-modifying methods only and read in `PostPersist`, thus is not protected
 	// by any mutex.
 	gasPerVoteCache map[string]big.Int
+}
+
+// gasDistribution represents a task to distribute GAS to the specified account.
+type gasDistribution struct {
+	To     util.Uint160
+	Amount *big.Int
 }
 
 const (
@@ -166,8 +172,8 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 }
 
 // NewNEO returns NeoToken native contract.
-func NewNEO(cfg config.ProtocolConfiguration) *NEO {
-	n := &NEO{}
+func NewNEO(cfg config.ProtocolConfiguration, gas IGAS) *NEO {
+	n := &NEO{gas: gas}
 	defer n.BuildHFSpecificMD(n.ActiveIn())
 
 	nep17 := newNEP17Native(nativenames.Neo, nativeids.NeoToken, func(m *manifest.Manifest, hf config.Hardfork) {
@@ -180,6 +186,7 @@ func NewNEO(cfg config.ProtocolConfiguration) *NEO {
 	nep17.factor = 1
 	nep17.incBalance = n.increaseBalance
 	nep17.balFromBytes = n.balanceFromBytes
+	nep17.gasMinter = gas
 
 	n.nep17TokenNative = *nep17
 
@@ -220,10 +227,10 @@ func NewNEO(cfg config.ProtocolConfiguration) *NEO {
 	desc = NewDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("voteTo", smartcontract.PublicKeyType))
-	md = NewMethodAndPrice(n.vote, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
+	md = NewMethodAndPriceDeferrable(n.voteDeferrable, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
 	n.AddMethod(md, desc)
 
-	md = NewMethodAndPrice(n.vote, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	md = NewMethodAndPriceDeferrable(n.voteDeferrable, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
 	desc = NewDescriptor("getCandidates", smartcontract.ArrayType)
@@ -337,7 +344,7 @@ func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 	if err != nil {
 		return err
 	}
-	n.Mint(ic, h, big.NewInt(NEOTotalSupply), false)
+	n.MintDeferrable(ic, h, big.NewInt(NEOTotalSupply), false, func() {}) // no onNEP17Payment call => no source of asynchronous execution.
 
 	var index uint32
 	value := big.NewInt(5 * GASFactor)
@@ -500,7 +507,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 	committeeSize := n.cfg.GetCommitteeSize(ic.Block.Index)
 	index := int(ic.Block.Index) % committeeSize
 	committeeReward := new(big.Int).Mul(gas, bigCommitteeRewardRatio)
-	n.GAS.Mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false)
+	n.gas.MintDeferrable(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false, func() {}) // no onNEP17Payment call => no source of asynchronous execution.
 
 	var isCacheRW bool
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
@@ -579,9 +586,8 @@ func (n *NEO) getLatestGASPerVote(d *dao.Simple, key []byte) big.Int {
 	return g
 }
 
-func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) (func(), error) {
-	var postF func()
-
+func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) (*gasDistribution, error) {
+	var dist *gasDistribution
 	acc, err := state.NEOBalanceFromBytes(*si)
 	if err != nil {
 		return nil, err
@@ -595,11 +601,14 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		return nil, err
 	}
 	if newGas != nil { // Can be if it was already distributed in the same block.
-		postF = func() { n.GAS.Mint(ic, h, newGas, true) }
+		dist = &gasDistribution{
+			To:     h,
+			Amount: newGas,
+		}
 	}
 	if amount.Sign() == 0 {
 		*si = acc.Bytes(ic.DAO.GetItemCtx())
-		return postF, nil
+		return dist, nil
 	}
 	if err := n.ModifyAccountVotes(acc, ic.DAO, amount, false); err != nil {
 		return nil, err
@@ -615,7 +624,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 	} else {
 		*si = nil
 	}
-	return postF, nil
+	return dist, nil
 }
 
 func (n *NEO) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
@@ -885,7 +894,7 @@ func (n *NEO) onNEP17Payment(ic *interop.Context, args []stackitem.Item) stackit
 		regPrice = n.getRegisterPriceInternal(ic.DAO)
 	)
 
-	if caller != n.GAS.Metadata().Hash {
+	if caller != n.gas.Metadata().Hash {
 		panic("only GAS is accepted")
 	}
 	if !amount.IsInt64() || amount.Int64() != regPrice {
@@ -895,7 +904,7 @@ func (n *NEO) onNEP17Payment(ic *interop.Context, args []stackitem.Item) stackit
 	if err != nil {
 		panic(err)
 	}
-	n.GAS.Burn(ic, n.Hash, amount)
+	n.gas.Burn(ic, n.Hash, amount)
 	return stackitem.Null{}
 }
 
@@ -984,45 +993,51 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 	return nil
 }
 
-func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+func (n *NEO) voteDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
 	acc := toUint160(args[0])
 	var pub *keys.PublicKey
 	if _, ok := args[1].(stackitem.Null); !ok {
 		pub = toPublicKey(args[1])
 	}
-	err := n.VoteInternal(ic, acc, pub)
-	return stackitem.NewBool(err == nil)
-}
-
-// VoteInternal votes from account h for validarors specified in pubs. This method
-// must not be called outside of VM since it panics on critical errors.
-func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.PublicKey) error {
-	ok, err := runtime.CheckHashedWitness(ic, h)
+	ok, err := runtime.CheckHashedWitness(ic, acc)
 	if err != nil {
-		return err
-	} else if !ok {
-		return errors.New("invalid signature")
+		popArgsPushRes(stackitem.NewBool(false))
+		return
 	}
-	return n.voteInternalUnchecked(ic, h, pub)
+	if !ok {
+		popArgsPushRes(stackitem.NewBool(false))
+		return
+	}
+	continuationScheduled, err := n.voteInternalUncheckedDeferrable(ic, acc, pub, func() {
+		// voteInternalUncheckedDeferrable either panics or returns an error or completes successfully.
+		// The first two cases are covered by the code out of continuation. The last case should always push `true` on stack:
+		popArgsPushRes(stackitem.NewBool(true))
+	})
+	if !continuationScheduled {
+		popArgsPushRes(stackitem.NewBool(err == nil))
+		return
+	}
 }
 
-// RevokeVotes implements INEO interface. It revokes votes of account h and
+// RevokeVotesDeferrable implements INEO interface. It revokes votes of account h and
 // doesn't check the h's witness.
-func (n *NEO) RevokeVotes(ic *interop.Context, h util.Uint160) error {
-	return n.voteInternalUnchecked(ic, h, nil)
+func (n *NEO) RevokeVotesDeferrable(ic *interop.Context, h util.Uint160, continuation func()) (bool, error) {
+	return n.voteInternalUncheckedDeferrable(ic, h, nil, continuation)
 }
 
-// VoteInternalUnchecked it's an internal representation of VoteInternal that
+// VoteInternalUnchecked it's an internal representation of VoteInternalDeferrable that
 // votes of the specified account without checking the voter's signature.
-func (n *NEO) voteInternalUnchecked(ic *interop.Context, h util.Uint160, pub *keys.PublicKey) error {
+// It returns a boolean value denoting whether continuation call was scheduled
+// and an error.
+func (n *NEO) voteInternalUncheckedDeferrable(ic *interop.Context, h util.Uint160, pub *keys.PublicKey, continuation func()) (bool, error) {
 	key := makeAccountKey(h)
 	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
-		return errors.New("invalid account")
+		return false, errors.New("invalid account")
 	}
 	acc, err := state.NEOBalanceFromBytes(si)
 	if err != nil {
-		return err
+		return false, err
 	}
 	// we should put it in storage anyway as it affects dumps
 	ic.DAO.PutStorageItem(n.ID, key, si)
@@ -1030,13 +1045,13 @@ func (n *NEO) voteInternalUnchecked(ic *interop.Context, h util.Uint160, pub *ke
 		valKey := makeValidatorKey(pub)
 		valSi := ic.DAO.GetStorageItem(n.ID, valKey)
 		if valSi == nil {
-			return errors.New("unknown validator")
+			return false, errors.New("unknown validator")
 		}
 		cd := new(candidate).FromBytes(valSi)
 		// we should put it in storage anyway as it affects dumps
 		ic.DAO.PutStorageItem(n.ID, valKey, valSi)
 		if !cd.Registered {
-			return errors.New("validator must be registered")
+			return false, errors.New("validator must be registered")
 		}
 	}
 
@@ -1046,15 +1061,15 @@ func (n *NEO) voteInternalUnchecked(ic *interop.Context, h util.Uint160, pub *ke
 			val = new(big.Int).Neg(val)
 		}
 		if err := n.modifyVoterTurnout(ic.DAO, val); err != nil {
-			return err
+			return false, err
 		}
 	}
 	newGas, err := n.distributeGas(ic, acc)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance), false); err != nil {
-		return err
+		return false, err
 	}
 	if pub != nil && pub != acc.VoteTo {
 		acc.LastGasPerVote = n.getLatestGASPerVote(ic.DAO, makeVoterKey(pub.Bytes()))
@@ -1062,7 +1077,7 @@ func (n *NEO) voteInternalUnchecked(ic *interop.Context, h util.Uint160, pub *ke
 	oldVote := acc.VoteTo
 	acc.VoteTo = pub
 	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, true); err != nil {
-		return err
+		return false, err
 	}
 	if pub == nil {
 		acc.LastGasPerVote = *big.NewInt(0)
@@ -1081,9 +1096,10 @@ func (n *NEO) voteInternalUnchecked(ic *interop.Context, h util.Uint160, pub *ke
 	}
 
 	if newGas != nil { // Can be if it was already distributed in the same block.
-		n.GAS.Mint(ic, h, newGas, true)
+		n.gas.MintDeferrable(ic, h, newGas, true, continuation)
+		return true, nil
 	}
-	return nil
+	return false, nil
 }
 
 func keyToStackItem(k *keys.PublicKey) stackitem.Item {

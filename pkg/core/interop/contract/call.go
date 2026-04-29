@@ -108,12 +108,19 @@ func callInternal(ic *interop.Context, cs *state.Contract, md *manifest.Method, 
 			return errors.New("disallowed method call")
 		}
 	}
-	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, md.Name, args, f, hasReturn, isDynamic, false)
+	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, md.Name, args, f, hasReturn, isDynamic)
 }
 
-// callExFromNative calls a contract with flags using the provided calling hash.
+// callExFromNative creates a new execution context with the specified contract
+// call using the provided flags and calling hash and pushes this context to the
+// invocation stack. onUnloaded callback must be provided iff called directly
+// from the native contract.
 func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract,
-	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool, isDynamic bool, callFromNative bool) error {
+	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool, isDynamic bool, onUnloaded ...func(v *vm.VM)) error {
+	if isDynamic && len(onUnloaded) != 0 {
+		panic("program bug: onUnloaded callback must not be used for dynamic contract calls")
+	}
+	callFromNative := len(onUnloaded) != 0
 	md := cs.Manifest.ABI.GetMethod(name, len(args))
 	if md == nil {
 		return fmt.Errorf("method '%s' not found", name)
@@ -162,7 +169,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 					return fmt.Errorf("failed to persist changes %w", err)
 				}
 			} else {
-				ic.Notifications = ic.Notifications[:baseNtfCount] // Rollback all notification changes made by current context.
+				ic.Notifications = ic.Notifications[:baseNtfCount] // rollback all notification changes made by the current context and its possible spawned children contexts.
 			}
 			ic.DAO = baseDAO
 		}
@@ -174,8 +181,12 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 		}
 		return nil
 	}
+	var onUnloadedF func(v *vm.VM)
+	if len(onUnloaded) != 0 {
+		onUnloadedF = onUnloaded[0]
+	}
 	ic.VM.LoadNEFMethod(&cs.NEF, &cs.Manifest, caller, cs.Hash, f,
-		hasReturn, methodOff, initOff, onUnload, whitelisted)
+		hasReturn, methodOff, initOff, onUnload, onUnloadedF, whitelisted)
 
 	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
 		e.PushItem(args[i])
@@ -183,25 +194,13 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	return nil
 }
 
-// ErrNativeCall is returned for failed calls from native.
-var ErrNativeCall = errors.New("failed native call")
-
-// CallFromNative performs synchronous call from native contract.
-func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract, method string, args []stackitem.Item, hasReturn bool) error {
-	startSize := len(ic.VM.Istack())
-	if err := callExFromNative(ic, caller, cs, method, args, callflag.All, hasReturn, false, true); err != nil {
-		return err
-	}
-
-	for !ic.VM.HasStopped() && len(ic.VM.Istack()) > startSize {
-		if err := ic.VM.Step(); err != nil {
-			return fmt.Errorf("%w: %w", ErrNativeCall, err)
-		}
-	}
-	if ic.VM.HasFailed() {
-		return ErrNativeCall
-	}
-	return nil
+// CallFromNative performs an asynchronous call from native contract. It creates
+// a new context with the calling contract script and pushes this context to the
+// invocation stack. The actual invocation happens later, once the current
+// instruction processing is finished. onUnloaded callback will be called on
+// the current context unloading if no exception occurs.
+func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract, method string, args []stackitem.Item, hasReturn bool, onUnloaded ...func(v *vm.VM)) error {
+	return callExFromNative(ic, caller, cs, method, args, callflag.All, hasReturn, false, onUnloaded...)
 }
 
 // GetCallFlags returns current context calling flags.

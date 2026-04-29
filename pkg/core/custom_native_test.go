@@ -97,8 +97,10 @@ func (g *gas) PostPersist(*interop.Context) error {
 func (g *gas) BalanceOf(d *dao.Simple, acc util.Uint160) *big.Int {
 	return big.NewInt(1)
 }
-func (g *gas) Burn(ic *interop.Context, h util.Uint160, amount *big.Int)                     {}
-func (g *gas) Mint(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool) {}
+func (g *gas) Burn(ic *interop.Context, h util.Uint160, amount *big.Int) {
+}
+func (g *gas) MintDeferrable(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool, continuation func()) {
+}
 func (g *gas) getInt(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	// An example of how cross-native methods may be used:
 	if g.policy.IsBlocked(ic.DAO, ic.Container.(*transaction.Transaction).Sender()) {
@@ -167,7 +169,9 @@ func (n *neo) CheckAlmostFullCommittee(ic *interop.Context) bool {
 func (n *neo) getBool(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewBool(true)
 }
-func (n *neo) RevokeVotes(ic *interop.Context, acc util.Uint160) error { return nil }
+func (n *neo) RevokeVotesDeferrable(ic *interop.Context, acc util.Uint160, continuation func()) (bool, error) {
+	return true, nil
+}
 
 func newPolicy() *policy {
 	p := &policy{}
@@ -202,9 +206,10 @@ func (p *policy) GetMaxValidUntilBlockIncrementFromCache(d *dao.Simple) uint32 {
 func (p *policy) GetAttributeFeeInternal(d *dao.Simple, attrType transaction.AttrType) int64 {
 	return 1
 }
-func (p *policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error      { return nil }
-func (p *policy) GetFeePerByteInternal(d *dao.Simple) int64                         { return 1 }
-func (p *policy) BlockAccountInternal(ic *interop.Context, hash util.Uint160) bool  { return false }
+func (p *policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error { return nil }
+func (p *policy) GetFeePerByteInternal(d *dao.Simple) int64                    { return 1 }
+func (p *policy) BlockAccountInternalDeferrable(ic *interop.Context, hash util.Uint160, handleRes func(bool)) {
+}
 func (p *policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool                 { return false }
 func (p *policy) WhitelistedFee(d *dao.Simple, hash util.Uint160, offset int) int64 { return -1 }
 func (p *policy) CleanWhitelist(ic *interop.Context, h util.Uint160) error          { return nil }

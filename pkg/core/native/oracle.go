@@ -27,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -136,7 +137,7 @@ func newOracle() *Oracle {
 	o.AddMethod(md, desc)
 
 	desc = NewDescriptor("finish", smartcontract.VoidType)
-	md = NewMethodAndPrice(o.finish, 0, callflag.States|callflag.AllowCall|callflag.AllowNotify)
+	md = NewMethodAndPriceDeferrable(o.finishDeferrable, 0, callflag.States|callflag.AllowCall|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
 	desc = NewDescriptor("verify", smartcontract.BoolType)
@@ -235,7 +236,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 	}
 	for i := range reward {
-		o.GAS.Mint(ic, nodes[i].GetScriptHash(), &reward[i], false)
+		o.GAS.MintDeferrable(ic, nodes[i].GetScriptHash(), &reward[i], false, func() {}) // no onNEP17Payment call => no source of asynchronous execution.
 	}
 
 	if len(removedIDs) != 0 {
@@ -301,48 +302,37 @@ func getResponse(tx *transaction.Transaction) *transaction.OracleResponse {
 	return nil
 }
 
-func (o *Oracle) finish(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	err := o.FinishInternal(ic)
-	if err != nil {
-		panic(err)
-	}
-	return stackitem.Null{}
-}
-
-// FinishInternal processes an oracle response.
-func (o *Oracle) FinishInternal(ic *interop.Context) error {
+func (o *Oracle) finishDeferrable(ic *interop.Context, _ []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
 	if len(ic.VM.Istack()) != 2 {
-		return errors.New("'Oracle.finish' called from non-entry script")
+		panic(errors.New("'Oracle.finish' called from non-entry script"))
 	}
 	if ic.Invocations[o.Hash] != 1 {
-		return errors.New("'Oracle.finish' called multiple times")
+		panic(errors.New("'Oracle.finish' called multiple times"))
 	}
 	resp := getResponse(ic.Tx)
 	if resp == nil {
-		return ErrResponseNotFound
+		panic(ErrResponseNotFound)
 	}
 	req, err := o.GetRequestInternal(ic.DAO, resp.ID)
 	if err != nil {
-		return ErrRequestNotFound
+		panic(ErrRequestNotFound)
 	}
 	err = ic.AddNotification(o.Hash, "OracleResponse", stackitem.NewArray([]stackitem.Item{
 		stackitem.Make(resp.ID),
 		stackitem.Make(req.OriginalTxID.BytesBE()),
 	}))
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	origTx, _, err := ic.DAO.GetTransaction(req.OriginalTxID)
 	if err != nil {
-		return ErrRequestNotFound
+		panic(ErrRequestNotFound)
 	}
-	ic.UseSigners(origTx.Signers)
-	defer ic.UseSigners(nil)
 
 	userData, err := stackitem.Deserialize(req.UserData)
 	if err != nil {
-		return err
+		panic(err)
 	}
 	args := []stackitem.Item{
 		stackitem.Make(req.URL),
@@ -352,9 +342,19 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 	}
 	cs, err := ic.GetContract(req.CallbackContract)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	return contract.CallFromNative(ic, o.Hash, cs, req.CallbackMethod, args, false)
+
+	ic.UseSigners(origTx.Signers)
+	err = contract.CallFromNative(ic, o.Hash, cs, req.CallbackMethod, args, false, func(v *vm.VM) {
+		// req.CallbackMethod returns void => no need to pop the result from the parent's stack.
+		ic.UseSigners(nil)
+		popArgsPushRes(stackitem.Null{})
+	})
+	if err != nil {
+		ic.UseSigners(nil)
+		panic(err)
+	}
 }
 
 func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -406,7 +406,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return fmt.Errorf("%w minting reward for Oracle request", err)
 	}
 	callingHash := ic.VM.GetCallingScriptHash()
-	o.GAS.Mint(ic, o.Hash, gas, false)
+	o.GAS.MintDeferrable(ic, o.Hash, gas, false, func() {}) // no onNEP17Payment call => no source of asynchronous execution.
 	si := ic.DAO.GetStorageItem(o.ID, prefixRequestID)
 	itemID := bigint.FromBytes(si)
 	id := itemID.Uint64()
