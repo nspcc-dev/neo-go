@@ -411,7 +411,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		store:       s,
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
-		memPool:     mempool.New(cfg.MemPoolSize, 0, cfg.MempoolSubscriptionsEnabled, updateMempoolMetrics),
+		memPool:     mempool.New(cfg.MemPoolSize, 0, cfg.MempoolSubscriptionsEnabled, updateMempoolMetrics, log),
 		log:         log,
 		events:      make(chan bcEvent),
 		subCh:       make(chan any),
@@ -1735,6 +1735,7 @@ func (bc *Blockchain) notificationDispatcher() {
 				panic(fmt.Sprintf("bad unsubscription: %T", unsub))
 			}
 		case event := <-bc.events:
+			bc.log.Info("block event received", zap.Uint32("index", event.block.Index))
 			// We don't want to waste time looping through transactions when there are no
 			// subscribers.
 			if len(txFeed) != 0 || len(notificationFeed) != 0 || len(executionFeed) != 0 {
@@ -1801,6 +1802,7 @@ func (bc *Blockchain) notificationDispatcher() {
 			for ch := range blockFeed {
 				ch <- event.block
 			}
+			bc.log.Info("block event advertised", zap.Uint32("index", event.block.Index))
 		}
 	}
 }
@@ -1855,7 +1857,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
 		}
-		mp = mempool.New(len(block.Transactions), 0, false, nil)
+		mp = mempool.New(len(block.Transactions), 0, false, nil, nil)
 		for _, tx := range block.Transactions {
 			var err error
 			// Transactions are verified before adding them
@@ -1965,6 +1967,8 @@ func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
 // transactions with all appropriate side-effects and updates Blockchain state.
 // This is the only way to change Blockchain state.
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
+	bc.log.Info("storeBlock start", zap.Uint32("index", block.Index))
+	defer bc.log.Info("storeBlock end", zap.Uint32("index", block.Index))
 	var (
 		cache          = bc.dao.GetPrivate()
 		aerCache       = bc.dao.GetPrivate()
@@ -2143,7 +2147,11 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	bc.stateRoot.UpdateCurrentLocal(mpt, sr)
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
+	before := bc.memPool.Count()
+	beforeT := time.Now()
 	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.IsTxStillRelevant(tx, txpool, false) }, bc)
+	after := bc.memPool.Count()
+	bc.log.Info("removeStale", zap.Uint32("index", block.Index), zap.Int("before", before), zap.Int("after", after), zap.Int("count", before-after), zap.Duration("took", time.Now().Sub(beforeT)))
 	for _, f := range bc.postBlock {
 		f(bc.IsTxStillRelevant, txpool, block)
 	}
@@ -3134,7 +3142,10 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 		}
 	}
 	if recheckWitness {
-		return bc.verifyTxWitnesses(t, nil, isPartialTx) == nil
+		now := time.Now()
+		ok := bc.verifyTxWitnesses(t, nil, isPartialTx) == nil
+		bc.log.Info("IsTxStillRelevant.verifyTxWitnesses", zap.String("hash", t.Hash().StringLE()), zap.Duration("took", time.Since(now)))
+		return ok
 	}
 	return true
 }
@@ -3143,7 +3154,7 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 // current blockchain state. Note that this verification is completely isolated
 // from the main node's mempool.
 func (bc *Blockchain) VerifyTx(t *transaction.Transaction) error {
-	var mp = mempool.New(1, 0, false, nil)
+	var mp = mempool.New(1, 0, false, nil, nil)
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 	return bc.verifyAndPoolOffChainTx(t, mp, bc)
@@ -3152,6 +3163,7 @@ func (bc *Blockchain) VerifyTx(t *transaction.Transaction) error {
 // PoolTx verifies and tries to add given transaction into the mempool. If not
 // given, the default mempool is used. Passing multiple pools is not supported.
 func (bc *Blockchain) PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error {
+	bc.log.Info("PoolTx", zap.String("hash", t.Hash().StringLE()))
 	var pool = bc.memPool
 
 	bc.lock.RLock()
@@ -3163,7 +3175,9 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction, pools ...*mempool.Pool)
 	if len(pools) == 1 {
 		pool = pools[0]
 	}
-	return bc.verifyAndPoolOffChainTx(t, pool, bc)
+	err := bc.verifyAndPoolOffChainTx(t, pool, bc)
+	bc.log.Info("PoolTx end", zap.String("hash", t.Hash().StringLE()))
+	return err
 }
 
 // PoolTxWithData verifies and tries to add given transaction with additional data into the mempool.

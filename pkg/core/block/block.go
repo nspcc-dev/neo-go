@@ -41,6 +41,14 @@ type Block struct {
 	Trimmed bool
 }
 
+func (h *Block) GetHashes() []string {
+	hs := make([]string, len(h.Transactions))
+	for i, tx := range h.Transactions {
+		hs[i] = tx.Hash().StringLE()
+	}
+	return hs
+}
+
 // auxBlockOut is used for JSON i/o.
 type auxBlockOut struct {
 	Transactions []*transaction.Transaction `json:"tx"`

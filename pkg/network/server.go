@@ -244,11 +244,11 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		extensHandlers:  make(map[string]func(*payload.Extensible) error),
 		stateSync:       stSync,
 	}
-	s.txIn = newInMap[*transaction.Transaction](64, s.mempool.ContainsKey)
+	s.txIn = newInMap[*transaction.Transaction](64, s.mempool.ContainsKey, log)
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
-		s.notaryRequestPool = mempool.New(s.config.P2PNotaryRequestPayloadPoolSize, 1, true, updateNotarypoolMetrics)
-		s.notaryRequestIn = newInMap[notaryRequestInAdapter](64, s.notaryRequestPool.ContainsKey)
+		s.notaryRequestPool = mempool.New(s.config.P2PNotaryRequestPayloadPoolSize, 1, true, updateNotarypoolMetrics, nil)
+		s.notaryRequestIn = newInMap[notaryRequestInAdapter](64, s.notaryRequestPool.ContainsKey, nil)
 		chain.RegisterPostBlock(func(isRelevant func(*transaction.Transaction, *mempool.Pool, bool) bool, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return isRelevant(t, txpool, true)
@@ -919,6 +919,11 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 	if s.stateSync.IsActive() {
 		return s.bSyncQueue.Put(block)
 	}
+	hs := make([]string, len(block.Transactions))
+	for i, tx := range block.Transactions {
+		hs[i] = tx.Hash().StringLE()
+	}
+	s.log.Info("received CMDBlock", zap.Uint32("index", block.Index), zap.Strings("txs", hs), zap.String("from", p.PeerAddr().String()))
 	return s.bQueue.Put(block)
 }
 
@@ -1048,6 +1053,19 @@ func (s *Server) handleMempoolCmd(p Peer) error {
 // handleGetDataCmd processes the received inventory.
 func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 	var (
+		hsLog   []string
+		needLog = inv.Type == payload.TXType || inv.Type == payload.BlockType
+		start   = time.Now()
+	)
+	if needLog {
+		hsLog = make([]string, len(inv.Hashes))
+		for i, h := range inv.Hashes {
+			hsLog[i] = h.StringLE()
+		}
+		s.log.Info("received CMDGetData", zap.String("typ", inv.Type.String()), zap.Strings("hashes", hsLog), zap.String("from", p.PeerAddr().String()))
+	}
+
+	var (
 		err      error
 		notFound []util.Uint256
 		reply    = io.NewBufBinWriter()
@@ -1101,7 +1119,15 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 	if reply.Len() == 0 {
 		return nil
 	}
-	return send(reply.Bytes())
+	err = send(reply.Bytes())
+	if needLog {
+		s.log.Info("replied to CMDGetData", zap.String("typ", inv.Type.String()),
+			zap.Strings("hashes", hsLog),
+			zap.String("from", p.PeerAddr().String()),
+			zap.Duration("took", time.Now().Sub(start)),
+			zap.Error(err))
+	}
+	return err
 }
 
 // addMessageToPacket serializes given message into the given buffer and sends whole
@@ -1310,7 +1336,8 @@ func (s *Server) advertiseExtensible(e *payload.Extensible) {
 
 // handleTxCmd processes the received transaction.
 // It never returns an error.
-func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
+func (s *Server) handleTxCmd(p Peer, tx *transaction.Transaction) error {
+	s.log.Info("received CMDTx", zap.String("hash", tx.Hash().StringLE()), zap.String("from", p.PeerAddr().String()))
 	s.txIn.Add(tx)
 	return nil
 }
@@ -1330,7 +1357,9 @@ txloop:
 					var list = cbList.([]util.Uint256)
 					_, found := slices.BinarySearchFunc(list, tx.Hash(), util.Uint256.Compare)
 					if found {
+						s.log.Info("new tx callback", zap.String("hash", tx.Hash().StringLE()))
 						txCallback(tx)
+						s.log.Info("new tx callback end", zap.String("hash", tx.Hash().StringLE()))
 					}
 				}
 			}
@@ -1582,7 +1611,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 			return s.handleExtensibleCmd(cp)
 		case CMDTX:
 			tx := msg.Payload.(*transaction.Transaction)
-			return s.handleTxCmd(tx)
+			return s.handleTxCmd(peer, tx)
 		case CMDP2PNotaryRequest:
 			r := msg.Payload.(*payload.P2PNotaryRequest)
 			return s.handleP2PNotaryRequestCmd(r)
@@ -1695,6 +1724,7 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 	slices.SortFunc(sorted, util.Uint256.Compare)
 	s.txCbList.Store(sorted)
 
+	hs := make([]string, 0, payload.MaxHashesCount)
 	for i := range len(hashes)/payload.MaxHashesCount + 1 {
 		start := i * payload.MaxHashesCount
 		stop := (i + 1) * payload.MaxHashesCount
@@ -1702,7 +1732,12 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 		if start == stop {
 			break
 		}
+		for _, h := range hashes[start:stop] {
+			hs = append(hs, h.StringLE())
+		}
+		s.log.Info("broadcasting tx request", zap.Strings("hashes", hs))
 		msg := NewMessage(CMDGetData, payload.NewInventory(payload.TXType, hashes[start:stop]))
+		hs = hs[:0]
 		// It's high priority because it directly affects consensus process,
 		// even though it's getdata.
 		s.broadcastHPMessage(msg)
@@ -1801,6 +1836,11 @@ mainloop:
 			s.chain.UnsubscribeFromBlocks(ch)
 			break mainloop
 		case b := <-ch:
+			hs := make([]string, len(b.Transactions))
+			for i, tx := range b.Transactions {
+				hs[i] = tx.Hash().StringLE()
+			}
+			s.log.Info("broadcasting block", zap.Uint32("index", b.Index), zap.Strings("txs", hs))
 			msg := NewMessage(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
 			// Filter out nodes that are more current (avoid spamming the network
 			// during initial sync).
@@ -1808,6 +1848,7 @@ mainloop:
 				return p.Handshaked() && p.LastBlockIndex() < b.Index
 			})
 			s.extensiblePool.RemoveStale(b.Index)
+			s.log.Info("broadcasting block end", zap.Uint32("index", b.Index))
 		}
 	}
 drainBlocksLoop:
@@ -1824,15 +1865,19 @@ drainBlocksLoop:
 
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.
 func (s *Server) verifyAndPoolTX(t *transaction.Transaction) error {
-	return s.chain.PoolTx(t)
+	err := s.chain.PoolTx(t)
+	return err
 }
 
 // RelayTxn a new transaction to the local node and the connected peers.
 // Reference: the method OnRelay in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L159
 func (s *Server) RelayTxn(t *transaction.Transaction) error {
+	s.log.Info("verifyAndPoolTx", zap.String("hash", t.Hash().StringLE()))
 	err := s.verifyAndPoolTX(t)
 	if err == nil {
 		s.broadcastTX(t, nil)
+	} else {
+		s.log.Info("verifyAndPoolTX failed", zap.String("hash", t.Hash().StringLE()), zap.Error(err))
 	}
 	return err
 }
@@ -1881,10 +1926,16 @@ func (s *Server) broadcastTxLoop() {
 		}
 		return timer.C
 	}
-
+	hs := make([]string, 0, batchSize)
 	broadcast := func() {
+		for _, h := range txs {
+			hs = append(hs, h.StringLE())
+		}
+		s.log.Info("broadcasting batch", zap.Int("count", len(txs)), zap.Strings("hashes", hs))
 		s.broadcastTxHashes(txs)
+		s.log.Info("broadcasting batch end", zap.Int("count", len(txs)))
 		txs = txs[:0]
+		hs = hs[:0]
 		if timer != nil {
 			timer.Stop()
 		}
@@ -1910,7 +1961,7 @@ func (s *Server) broadcastTxLoop() {
 			if len(txs) == 0 {
 				timer = time.NewTimer(s.BroadcastTxsBatchDelay)
 			}
-
+			s.log.Info("broadcastTx task", zap.String("hash", tx.Hash().StringLE()))
 			txs = append(txs, tx.Hash())
 			if len(txs) == batchSize {
 				broadcast()

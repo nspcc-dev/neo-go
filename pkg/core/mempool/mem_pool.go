@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"go.uber.org/zap"
 )
 
 var (
@@ -69,6 +70,8 @@ type Pool struct {
 	feePerByte      int64
 	payerIndex      int
 	updateMetricsCb func(int)
+
+	log *zap.Logger
 
 	resendThreshold uint32
 	resendFunc      func(*transaction.Transaction, any)
@@ -301,6 +304,9 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	if sub != nil && sub != chan struct{}(nil) {
 		close(sub.(chan struct{}))
 	}
+	if mp.log != nil {
+		mp.log.Info("mempool event", zap.String("type", mempoolevent.TransactionAdded.String()), zap.String("hash", pItem.txn.Hash().StringLE()))
+	}
 	if mp.subscriptionsOn.Load() {
 		mp.events <- mempoolevent.Event{
 			Type: mempoolevent.TransactionAdded,
@@ -361,6 +367,9 @@ func (mp *Pool) removeFromMapWithFeesAndAttrs(itm item) {
 	if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 		delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 	}
+	if mp.log != nil {
+		mp.log.Info("mempool event", zap.String("type", mempoolevent.TransactionRemoved.String()), zap.String("hash", itm.txn.Hash().StringLE()))
+	}
 	if mp.subscriptionsOn.Load() {
 		mp.events <- mempoolevent.Event{
 			Type: mempoolevent.TransactionRemoved,
@@ -405,6 +414,9 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 			if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 				delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 			}
+			if mp.log != nil {
+				mp.log.Info("mempool event", zap.String("type", mempoolevent.TransactionRemoved.String()), zap.String("hash", itm.txn.Hash().StringLE()))
+			}
 			if mp.subscriptionsOn.Load() {
 				mp.events <- mempoolevent.Event{
 					Type: mempoolevent.TransactionRemoved,
@@ -441,7 +453,7 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 }
 
 // New returns a new Pool struct.
-func New(capacity int, payerIndex int, enableSubscriptions bool, updateMetricsCb func(int)) *Pool {
+func New(capacity int, payerIndex int, enableSubscriptions bool, updateMetricsCb func(int), log *zap.Logger) *Pool {
 	mp := &Pool{
 		verifiedMap:          make(map[util.Uint256]*transaction.Transaction, capacity),
 		verifiedTxes:         make([]item, 0, capacity),
@@ -456,6 +468,7 @@ func New(capacity int, payerIndex int, enableSubscriptions bool, updateMetricsCb
 		subCh:                make(chan chan<- mempoolevent.Event),
 		unsubCh:              make(chan chan<- mempoolevent.Event),
 		updateMetricsCb:      updateMetricsCb,
+		log:                  log,
 	}
 	mp.subscriptionsOn.Store(false)
 	return mp

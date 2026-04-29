@@ -346,6 +346,7 @@ events:
 			break events
 		case <-s.poolEvents:
 			s.poolEvents = nil
+			s.log.Info("dbft.OnNewTransaction")
 			s.dbft.OnNewTransaction()
 		case <-s.dbft.Timer.C():
 			h, v := s.dbft.Timer.Height(), s.dbft.Timer.View()
@@ -378,8 +379,20 @@ events:
 			}
 
 			s.log.Debug("received message", fields...)
+			switch t := msg.Type(); t {
+			case dbft.PrepareRequestType:
+				req := msg.GetPrepareRequest().(*prepareRequest)
+				hs := make([]string, len(req.transactionHashes))
+				for i, h := range req.transactionHashes {
+					hs[i] = h.StringLE()
+				}
+				s.log.Info("received PrepareRequest", zap.Uint32("index", msg.Height()), zap.Uint16("from", msg.ValidatorIndex()), zap.Strings("txs", hs))
+			default:
+				s.log.Info(fmt.Sprintf("received %s", t), zap.Uint32("index", msg.Height()), zap.Uint16("from", msg.ValidatorIndex()))
+			}
 			s.dbft.OnReceive(&msg)
 		case tx := <-s.transactions:
+			s.log.Info("pass tx to dBFT", zap.String("hash", tx.Hash().StringLE()))
 			s.dbft.OnTransaction(tx)
 		case b := <-s.blockEvents:
 			s.handleChainBlock(b)
@@ -548,7 +561,7 @@ func (s *service) verifyBlock(b dbft.Block[util.Uint256]) bool {
 	}
 
 	var fee int64
-	var pool = mempool.New(len(coreb.Transactions), 0, false, nil)
+	var pool = mempool.New(len(coreb.Transactions), 0, false, nil, nil)
 	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
 		var err error
@@ -705,16 +718,19 @@ func (s *service) getVerifiedTx() []dbft.Transaction[util.Uint256] {
 	} else {
 		txx = pool.GetVerifiedTransactions()
 	}
+	txxCnt := len(txx)
 
 	if len(txx) > 0 {
 		txx = s.Chain.ApplyPolicyToTxSet(txx)
 	}
 
+	txxCnt1 := len(txx)
 	res := make([]dbft.Transaction[util.Uint256], len(txx))
 	for i := range txx {
 		res[i] = txx[i]
 	}
 
+	s.log.Info("getVerifiedTx", zap.Int("poolSize", txxCnt), zap.Int("verifiedSize", txxCnt1))
 	return res
 }
 

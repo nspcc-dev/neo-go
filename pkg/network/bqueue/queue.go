@@ -31,6 +31,7 @@ const (
 // Queueable is an interface for a queue element.
 type Queueable interface {
 	Indexable
+	GetHashes() []string
 	comparable
 }
 
@@ -142,6 +143,10 @@ func (bq *Queue[Q]) Run() {
 
 // Put enqueues Queueable element to be added to the chain.
 func (bq *Queue[Q]) Put(element Q) error {
+	hs := element.GetHashes()
+	if hs != nil {
+		bq.log.Info("new block in the queue", zap.Uint32("index", element.GetIndex()), zap.Strings("hashes", hs))
+	}
 	h := bq.chain.Height()
 	bq.queueLock.Lock()
 	defer bq.queueLock.Unlock()

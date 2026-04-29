@@ -64,6 +64,10 @@ type Header struct {
 	hash util.Uint256
 }
 
+func (h *Header) GetHashes() []string {
+	return nil
+}
+
 // baseAux is used to marshal/unmarshal to/from JSON, it's almost the same
 // as original Base, but with Nonce and NextConsensus fields differing and
 // Hash added.

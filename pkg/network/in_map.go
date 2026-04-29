@@ -5,11 +5,13 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"go.uber.org/zap"
 )
 
 // inMap manages incoming hashable items (transactions and notary requests) that
 // are enqueued by the server to be added to the underlying memory pool.
 type inMap[T hash.Hashable] struct {
+	log      *zap.Logger
 	lock     sync.RWMutex
 	in       chan T
 	m        map[util.Uint256]struct{}
@@ -17,11 +19,12 @@ type inMap[T hash.Hashable] struct {
 }
 
 // newInMap creates a new instance of inMap.
-func newInMap[T hash.Hashable](capacity int, isInPool func(h util.Uint256) bool) *inMap[T] {
+func newInMap[T hash.Hashable](capacity int, isInPool func(h util.Uint256) bool, log *zap.Logger) *inMap[T] {
 	return &inMap[T]{
 		in:       make(chan T, capacity),
 		m:        make(map[util.Uint256]struct{}),
 		isInPool: isInPool,
+		log:      log,
 	}
 }
 
@@ -55,6 +58,9 @@ func (m *inMap[T]) Add(item T) {
 	m.m[item.Hash()] = struct{}{}
 	m.lock.Unlock()
 
+	if m.log != nil {
+		m.log.Info("new tx in", zap.String("hash", item.Hash().StringLE()))
+	}
 	m.in <- item
 }
 
