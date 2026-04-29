@@ -5,8 +5,8 @@ import "github.com/prometheus/client_golang/prometheus"
 // stateHeight prometheus metric.
 var stateHeight = prometheus.NewGauge(
 	prometheus.GaugeOpts{
-		Help:      "Current verified state height",
-		Name:      "current_state_height",
+		Help:      "Verified state height",
+		Name:      "verified_state_height",
 		Namespace: "neogo",
 	},
 )
