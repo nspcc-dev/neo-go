@@ -65,7 +65,7 @@ func (r *P2PNotaryRequest) createHash() error {
 	return nil
 }
 
-// DecodeBinaryUnsigned reads payload from the w excluding signature.
+// decodeHashableFields reads payload from the br excluding signature.
 func (r *P2PNotaryRequest) decodeHashableFields(br *io.BinReader) {
 	r.MainTransaction = &transaction.Transaction{}
 	r.FallbackTransaction = &transaction.Transaction{}
