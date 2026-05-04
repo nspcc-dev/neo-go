@@ -1,6 +1,8 @@
 package stateroot
 
 import (
+	"slices"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -28,7 +30,7 @@ func (s *Module) UpdateStateValidators(height uint32, pubs keys.PublicKeys) {
 }
 
 func (s *Module) getKeyCacheForHeight(h uint32) keyCache {
-	for i := len(s.keys) - 1; i >= 0; i-- {
+	for i := range slices.Backward(s.keys) {
 		if s.keys[i].height <= h && (i+1 == len(s.keys) || s.keys[i+1].height < h) {
 			return s.keys[i]
 		}

@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"math/big"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -148,7 +149,7 @@ func (lg *TokenTransferLog) ForEachNEP11(f func(*NEP11Transfer) (bool, error)) (
 	if r.Err != nil {
 		return false, r.Err
 	}
-	for i := len(transfers) - 1; i >= 0; i-- {
+	for i := range slices.Backward(transfers) {
 		cont, err := f(&transfers[i])
 		if err != nil || !cont {
 			return false, err
@@ -170,7 +171,7 @@ func (lg *TokenTransferLog) ForEachNEP17(f func(*NEP17Transfer) (bool, error)) (
 	if r.Err != nil {
 		return false, r.Err
 	}
-	for i := len(transfers) - 1; i >= 0; i-- {
+	for i := range slices.Backward(transfers) {
 		cont, err := f(&transfers[i])
 		if err != nil || !cont {
 			return false, err

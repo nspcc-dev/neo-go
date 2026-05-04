@@ -683,7 +683,7 @@ func (n *NEO) getSortedGASRecordFromDAO(d *dao.Simple) gasRecord {
 func (n *NEO) GetGASPerBlock(d *dao.Simple, index uint32) *big.Int {
 	cache := d.GetROCache(n.ID).(*NeoCache)
 	gr := cache.gasPerBlock
-	for i := len(gr) - 1; i >= 0; i-- {
+	for i := range slices.Backward(gr) {
 		if gr[i].Index <= index {
 			g := gr[i].GASPerBlock
 			return &g
@@ -846,7 +846,7 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 	cache := d.GetROCache(n.ID).(*NeoCache)
 	gr := cache.gasPerBlock
 	var sum, tmp big.Int
-	for i := len(gr) - 1; i >= 0; i-- {
+	for i := range slices.Backward(gr) {
 		if gr[i].Index >= end {
 			continue
 		} else if gr[i].Index <= start {

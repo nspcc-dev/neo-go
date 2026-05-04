@@ -1165,7 +1165,7 @@ func handleRun(c *cli.Context) error {
 				v.AddBreakPoint(bp)
 			}
 		}
-		for i := len(params) - 1; i >= 0; i-- {
+		for i := range slices.Backward(params) {
 			v.Estack().PushVal(params[i])
 		}
 	}

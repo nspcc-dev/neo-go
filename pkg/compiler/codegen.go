@@ -230,7 +230,7 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 
 // emitLoadField loads a field using the given path in reverse order from innermost to outermost.
 func (c *codegen) emitLoadField(path []int) {
-	for i := len(path) - 1; i >= 0; i-- {
+	for i := range slices.Backward(path) {
 		emit.Int(c.prog.BinWriter, int64(path[i]))
 		emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
 	}
@@ -740,7 +740,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			emit.Int(c.prog.BinWriter, int64(len(n.Lhs)))
 			emit.Opcodes(c.prog.BinWriter, opcode.REVERSEN)
 		}
-		for i := len(n.Lhs) - 1; i >= 0; i-- {
+		for i := range slices.Backward(n.Lhs) {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
 				if n.Tok == token.DEFINE {
@@ -809,9 +809,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			results := c.scope.decl.Type.Results
 			if results.NumFields() != 0 {
 				// function with named returns
-				for i := len(results.List) - 1; i >= 0; i-- {
+				for i := range slices.Backward(results.List) {
 					names := results.List[i].Names
-					for j := len(names) - 1; j >= 0; j-- {
+					for j := range slices.Backward(names) {
 						if names[j].Name == "_" {
 							c.emitDefault(c.typeOf(results.List[i].Type))
 						} else {
@@ -822,7 +822,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 		} else {
 			// first result should be on top of the stack
-			for i := len(n.Results) - 1; i >= 0; i-- {
+			for i := range slices.Backward(n.Results) {
 				ast.Walk(c, n.Results[i])
 			}
 		}
@@ -1566,7 +1566,7 @@ func (c *codegen) isCallExprSyscall(e ast.Expr) bool {
 //  5. In CATCH block we set Y to true and emit default return values if it is the last defer.
 //  6. Execute FINALLY block only if Y is false.
 func (c *codegen) processDefers() {
-	for i := len(c.scope.deferStack) - 1; i >= 0; i-- {
+	for i := range slices.Backward(c.scope.deferStack) {
 		stmt := c.scope.deferStack[i]
 		after := c.newLabel()
 
@@ -1588,7 +1588,7 @@ func (c *codegen) processDefers() {
 			if results.NumFields() != 0 {
 				// After panic, default values must be returns, except for named returns,
 				// which we don't support here for now.
-				for i := len(results.List) - 1; i >= 0; i-- {
+				for i := range slices.Backward(results.List) {
 					c.emitDefault(c.typeOf(results.List[i].Type))
 				}
 			}
