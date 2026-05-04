@@ -29,8 +29,8 @@ node-related settings described in the table below.
 | Oracle | [Oracle Configuration](#Oracle-Configuration) | | Oracle module configuration. See the [Oracle Configuration](#Oracle-Configuration) section for details. |
 | P2P | [P2P Configuration](#P2P-Configuration) | | Configuration values for P2P network interaction. See the [P2P Configuration](#P2P-Configuration) section for details. |
 | P2PNotary | [P2P Notary Configuration](#P2P-Notary-Configuration) | | P2P Notary module configuration. See the [P2P Notary Configuration](#P2P-Notary-Configuration) section for details. |
-| Pprof | [Metrics Services Configuration](#Metrics-Services-Configuration) | | Configuration for pprof service (profiling statistics gathering). See the [Metrics Services Configuration](#Metrics-Services-Configuration) section for details. |
-| Prometheus | [Metrics Services Configuration](#Metrics-Services-Configuration) | | Configuration for Prometheus (monitoring system). See the [Metrics Services Configuration](#Metrics-Services-Configuration) section for details |
+| Pprof | [Pprof Configuration](#Pprof-Configuration) | | Configuration for pprof service (profiling statistics gathering). See the [Pprof Configuration](#Pprof-Configuration) |
+| Prometheus | [Prometheus Metrics Service Configuration](#Prometheus-Metrics-Service-Configuration) | | Configuration for Prometheus (monitoring system). See the [Prometheus Metrics Service Configuration](#Prometheus-Metrics-Service-Configuration) section for details |
 | Relay | `bool` | `true` | Determines whether the server is forwarding its inventory. |
 | Consensus | [Consensus Configuration](#Consensus-Configuration) |  | Describes consensus (dBFT) configuration. See the [Consensus Configuration](#Consensus-Configuration) for details. |
 | RemoveUntraceableBlocks | `bool`| `false` | Denotes whether old blocks, headers, transactions, execution results and transfer logs should be removed from cache and database. If enabled, then only the last `MaxTraceableBlocks` are stored and accessible to smart contracts. Old MPT data is also deleted in accordance with `GarbageCollectionPeriod` setting. If enabled along with `P2PStateExchangeExtensions` protocol extension, then old blocks and MPT states will be removed up to the second latest state synchronisation point (see `StateSyncInterval`). |
@@ -260,15 +260,28 @@ If `NeoFSStateFetcher` section is not specified and `NeoFSStateSyncExtensions` i
 `true`, then [NeoFS StateFetcher Configuration](#NeoFS-StateFetcher-Configuration)
 module configuration will be used.
 
-### Metrics Services Configuration
+### Pprof Configuration
 
-Metrics services configuration describes options for metrics services (pprof,
-Prometheus) and has the following structure:
+Pprof basic setup (enabled/addresses follows the same structure used by
+[Prometheus](#Prometheus-Metrics-Service-Configuration), however it has two
+additional boolean fields:
 ```
 Pprof:
   Enabled: false
+  EnableBlock: false
+  EnableMutex: false
   Addresses:
     - ":30001"
+```
+where:
+- `EnableBlock` turns on routine block profiling which can affect performance.
+- `EnableMutex` turns on mutex profiling which can affect performance.
+
+### Prometheus Metrics Service Configuration
+
+Metrics service configuration describes options for Prometheus and has the
+following structure:
+```
 Prometheus:
   Enabled: false
   Addresses:
