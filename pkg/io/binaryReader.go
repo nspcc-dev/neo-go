@@ -102,7 +102,7 @@ func (r *BinReader) ReadBool() bool {
 // a pointer to a slice.
 func (r *BinReader) ReadArray(t any, maxSize ...int) {
 	value := reflect.ValueOf(t)
-	if value.Kind() != reflect.Ptr || value.Elem().Kind() != reflect.Slice {
+	if value.Kind() != reflect.Pointer || value.Elem().Kind() != reflect.Slice {
 		panic(value.Type().String() + " is not a pointer to a slice")
 	}
 
@@ -112,7 +112,7 @@ func (r *BinReader) ReadArray(t any, maxSize ...int) {
 
 	sliceType := value.Elem().Type()
 	elemType := sliceType.Elem()
-	isPtr := elemType.Kind() == reflect.Ptr
+	isPtr := elemType.Kind() == reflect.Pointer
 
 	ms := MaxArraySize
 	if len(maxSize) != 0 {
