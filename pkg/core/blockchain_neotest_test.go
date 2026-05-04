@@ -2497,7 +2497,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				notaryServiceFeePerKey + // fee for Notary attribute
 				vm.PicoGasToDatoshi(fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
-					opcode.PUSH0, opcode.SYSCALL, opcode.RET)) + // Neo.Native.Call
+					opcode.PUSH0, opcode.SYSCALL, opcode.RET)/vm.OpcodePriceMultiplier) + // Neo.Native.Call
 				vm.PicoGasToDatoshi(nativeprices.NotaryVerificationPrice*bc.GetBaseExecFee()) // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{

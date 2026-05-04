@@ -68,11 +68,11 @@ func TestVM_SetPriceGetter(t *testing.T) {
 		require.EqualValues(t, 0, v.GasConsumed())
 	})
 
-	v.SetPriceGetter(func(op opcode.Opcode, p []byte) int64 {
+	v.SetPriceGetter(func(op opcode.Opcode, p []byte, args *OpcodePriceArgs) int64 {
 		if op == opcode.PUSH4 {
-			return 1 * ExecFeeFactorMultiplier
+			return 1 * ExecFeeFactorMultiplier * OpcodePriceMultiplier
 		} else if op == opcode.PUSHDATA1 && bytes.Equal(p, []byte{0xCA, 0xFE}) {
-			return 7 * ExecFeeFactorMultiplier
+			return 7 * ExecFeeFactorMultiplier * OpcodePriceMultiplier
 		}
 
 		return 0
@@ -134,7 +134,7 @@ func TestPushBytes1to75(t *testing.T) {
 		assert.IsType(t, elem.Bytes(), b)
 		assert.Equal(t, 0, vm.estack.Len())
 
-		errExec := vm.execute(nil, opcode.RET, nil)
+		_, errExec := vm.execute(nil, opcode.RET, nil)
 		require.NoError(t, errExec)
 
 		assert.Nil(t, vm.Context())

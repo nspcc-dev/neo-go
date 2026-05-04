@@ -355,11 +355,13 @@ func (i *Struct) Convert(typ Type) (Item, error) {
 	}
 }
 
-// Clone returns a Struct with all Struct fields copied by the value.
-// Array fields are still copied by reference.
-func (i *Struct) Clone() (*Struct, error) {
+// Clone returns a Struct with all Struct fields copied by the value
+// and number of cloned fields including the struct itself. Array fields
+// are still copied by reference.
+func (i *Struct) Clone() (*Struct, int, error) {
 	var limit = MaxClonableNumOfItems - 1 // For this struct itself.
-	return i.clone(&limit)
+	cloned, err := i.clone(&limit)
+	return cloned, MaxClonableNumOfItems - limit, err
 }
 
 func (i *Struct) clone(limit *int) (*Struct, error) {
