@@ -588,6 +588,9 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 		}
 	}
 	_, err := checkBalance(tx, expectedSenderFee)
+	if !ok && err == nil { // ok is for cache check at the beginning.
+		mp.fees[payer] = actualSenderFee
+	}
 	return conflictsToBeRemoved, err
 }
 
