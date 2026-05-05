@@ -30,7 +30,7 @@ GOMODDIRS=$(dir $(shell find $(ROOT_DIR) -name go.mod))
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
 .PHONY: build $(BINARY) deps image docker/$(BINARY) image-latest image-push image-push-latest clean-cluster \
-	test vet lint fmt modernize cover version gh-docker-vars
+	test vet lint fmt modernize cover version gh-docker-vars env_down.one env_down.two env_down.three env_down.four
 
 build: deps
 	@echo "=> Building binary"
@@ -153,6 +153,22 @@ env_single:
 env_down:
 	@echo "=> Stop environment"
 	@docker compose -f $(DC_FILE) down
+
+env_down.one:
+	@echo "=> Stop node one"
+	@docker compose -f $(DC_FILE) down node_one
+
+env_down.two:
+	@echo "=> Stop node two"
+	@docker compose -f $(DC_FILE) down node_two
+
+env_down.three:
+	@echo "=> Stop node three"
+	@docker compose -f $(DC_FILE) down node_three
+
+env_down.four:
+	@echo "=> Stop node four"
+	@docker compose -f $(DC_FILE) down node_four
 
 env_restart:
 	@echo "=> Stop and start environment"

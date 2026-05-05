@@ -109,6 +109,20 @@ func (p *Pool) Get(h util.Uint256) *payload.Extensible {
 	return elem.Value.(*payload.Extensible)
 }
 
+// GetCategory returns the list of extensible hashes matching the specified category.
+func (p *Pool) GetCategory(category string) []util.Uint256 {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
+	var res []util.Uint256
+	for h, e := range p.verified {
+		if e.Value.(*payload.Extensible).Category == category {
+			res = append(res, h)
+		}
+	}
+	return res
+}
+
 const extensibleVerifyMaxGAS = 6000000
 
 // RemoveStale removes invalid payloads after block processing.

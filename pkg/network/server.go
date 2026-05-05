@@ -142,18 +142,20 @@ type (
 		// lastRequestedBlock contains a height of the last requested block.
 		lastRequestedBlock atomic.Uint32
 		// lastRequestedHeader contains a height of the last requested header.
-		lastRequestedHeader atomic.Uint32
-		register            chan Peer
-		unregister          chan peerDrop
-		handshake           chan Peer
-		quit                chan struct{}
-		relayFin            chan struct{}
-		runFin              chan struct{}
-		broadcastTxFin      chan struct{}
-		runProtoFin         chan struct{}
-		blockFetcherFin     chan struct{}
+		lastRequestedHeader       atomic.Uint32
+		register                  chan Peer
+		unregister                chan peerDrop
+		handshake                 chan Peer
+		quit                      chan struct{}
+		relayFin                  chan struct{}
+		runFin                    chan struct{}
+		broadcastTxFin            chan struct{}
+		broadcastConsensusMsgsFin chan struct{}
+		runProtoFin               chan struct{}
+		blockFetcherFin           chan struct{}
 
-		transactions chan *transaction.Transaction
+		transactions  chan *transaction.Transaction
+		consensusMsgs chan struct{}
 
 		syncReached atomic.Bool
 
@@ -222,27 +224,29 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	}
 
 	s := &Server{
-		ServerConfig:    config,
-		chain:           chain,
-		id:              randomID(),
-		config:          chain.GetConfig().ProtocolConfiguration,
-		quit:            make(chan struct{}),
-		relayFin:        make(chan struct{}),
-		runFin:          make(chan struct{}),
-		broadcastTxFin:  make(chan struct{}),
-		runProtoFin:     make(chan struct{}),
-		blockFetcherFin: make(chan struct{}),
-		register:        make(chan Peer),
-		unregister:      make(chan peerDrop),
-		handshake:       make(chan Peer),
-		peers:           make(map[Peer]bool),
-		mempool:         chain.GetMemPool(),
-		extensiblePool:  extpool.New(chain, config.ExtensiblePoolSize),
-		log:             log,
-		transactions:    make(chan *transaction.Transaction, 64),
-		services:        make(map[string]Service),
-		extensHandlers:  make(map[string]func(*payload.Extensible) error),
-		stateSync:       stSync,
+		ServerConfig:              config,
+		chain:                     chain,
+		id:                        randomID(),
+		config:                    chain.GetConfig().ProtocolConfiguration,
+		quit:                      make(chan struct{}),
+		relayFin:                  make(chan struct{}),
+		runFin:                    make(chan struct{}),
+		broadcastTxFin:            make(chan struct{}),
+		broadcastConsensusMsgsFin: make(chan struct{}),
+		runProtoFin:               make(chan struct{}),
+		blockFetcherFin:           make(chan struct{}),
+		register:                  make(chan Peer),
+		unregister:                make(chan peerDrop),
+		handshake:                 make(chan Peer),
+		peers:                     make(map[Peer]bool),
+		mempool:                   chain.GetMemPool(),
+		extensiblePool:            extpool.New(chain, config.ExtensiblePoolSize),
+		log:                       log,
+		transactions:              make(chan *transaction.Transaction, 64),
+		consensusMsgs:             make(chan struct{}), // non-buffered since it accepts broadcast signals.
+		services:                  make(map[string]Service),
+		extensHandlers:            make(map[string]func(*payload.Extensible) error),
+		stateSync:                 stSync,
 	}
 	s.txIn = newInMap[*transaction.Transaction](64, s.mempool.ContainsKey)
 	if chain.P2PSigExtensionsEnabled() {
@@ -369,6 +373,7 @@ func (s *Server) Start() {
 		}
 	}
 	go s.broadcastTxLoop()
+	go s.broadcastConsensusMsgsLoop()
 	go s.relayBlocksLoop()
 	go s.bQueue.Run()
 	go s.bFetcherQueue.Run()
@@ -419,6 +424,7 @@ func (s *Server) Shutdown() {
 	}
 	close(s.quit)
 	<-s.broadcastTxFin
+	<-s.broadcastConsensusMsgsFin
 	<-s.runProtoFin
 	<-s.relayFin
 	<-s.runFin
@@ -920,6 +926,37 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 		return s.bSyncQueue.Put(block)
 	}
 	return s.bQueue.Put(block)
+}
+
+// advertiseConsensusExtensibles advertises hashes of verified consensus payloads
+// to the peer via high-priority extensible messages if the peer is not ahead of
+// the node.
+func (s *Server) advertiseConsensusExtensibles(p Peer) error {
+	if !s.syncReached.Load() || p.LastBlockIndex() > s.chain.BlockHeight() {
+		return nil
+	}
+
+	reply := io.NewBufBinWriter()
+	send := p.EnqueueHPPacket
+	consensusMsgs := s.extensiblePool.GetCategory(payload.ConsensusCategory)
+	for {
+		cnt := min(payload.MaxHashesCount, len(consensusMsgs))
+		if cnt == 0 {
+			break
+		}
+		msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, consensusMsgs[:cnt]))
+		err := addMessageToPacket(reply, msg, send)
+		if err != nil {
+			return err
+		}
+
+		consensusMsgs = consensusMsgs[cnt:]
+	}
+
+	if reply.Len() == 0 {
+		return nil
+	}
+	return send(reply.Bytes())
 }
 
 // handlePing processes a ping request.
@@ -1845,12 +1882,31 @@ func (s *Server) broadcastTX(t *transaction.Transaction, _ any) {
 	}
 }
 
-func (s *Server) broadcastTxHashes(hs []util.Uint256) {
-	msg := NewMessage(CMDInv, payload.NewInventory(payload.TXType, hs))
+// BroadcastConsensusExtensibles schedules broadcast of inventory message about
+// all consensus payloads in the extensible pool.
+func (s *Server) BroadcastConsensusExtensibles() {
+	select {
+	case s.consensusMsgs <- struct{}{}:
+	default: // non-blocking.
+	}
+}
 
+func (s *Server) broadcastHashes(typ payload.InventoryType, highPriority bool, hs []util.Uint256) {
 	// We need to filter out non-relaying nodes, so plain broadcast
 	// functions don't fit here.
-	s.iteratePeersWithSendMsg(msg, Peer.BroadcastPacket, Peer.IsFullNode)
+	send := Peer.BroadcastPacket
+	if highPriority {
+		send = Peer.BroadcastHPPacket
+	}
+	for {
+		cnt := min(payload.MaxHashesCount, len(hs))
+		if cnt == 0 {
+			break
+		}
+		msg := NewMessage(CMDInv, payload.NewInventory(typ, hs))
+		s.iteratePeersWithSendMsg(msg, send, Peer.IsFullNode)
+		hs = hs[cnt:]
+	}
 }
 
 // initStaleMemPools initializes mempools for stale tx/payload processing.
@@ -1863,6 +1919,51 @@ func (s *Server) initStaleMemPools() {
 	s.mempool.SetResendThreshold(uint32(threshold), s.broadcastTX)
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.SetResendThreshold(uint32(threshold), s.broadcastP2PNotaryRequestPayload)
+	}
+}
+
+// broadcastConsensusMsgsLoop is a loop for sending consensus message hashes in
+// an INV payload on a signal, but not frequenter than once in TimePerBlock.
+func (s *Server) broadcastConsensusMsgsLoop() {
+	defer close(s.broadcastConsensusMsgsFin)
+
+	var (
+		timer         *time.Timer
+		needBroadcast bool
+	)
+	timerCh := func() <-chan time.Time {
+		if timer == nil {
+			return nil
+		}
+		return timer.C
+	}
+	broadcast := func() {
+		hs := s.extensiblePool.GetCategory(payload.ConsensusCategory)
+		s.broadcastHashes(payload.ExtensibleType, true, hs)
+		needBroadcast = false
+	}
+
+	for {
+		select {
+		case <-s.quit:
+			return
+		case <-timerCh():
+			if needBroadcast {
+				broadcast()
+				timer = nil
+			}
+		case <-s.consensusMsgs:
+			if needBroadcast {
+				continue
+			}
+			if timer != nil {
+				needBroadcast = true
+				continue
+			}
+
+			timer = time.NewTimer(time.Duration(s.chain.GetMillisecondsPerBlock()) * time.Millisecond) // TODO: make the constraint more dBFT-specific?
+			broadcast()
+		}
 	}
 }
 
@@ -1883,7 +1984,7 @@ func (s *Server) broadcastTxLoop() {
 	}
 
 	broadcast := func() {
-		s.broadcastTxHashes(txs)
+		s.broadcastHashes(payload.TXType, false, txs)
 		txs = txs[:0]
 		if timer != nil {
 			timer.Stop()

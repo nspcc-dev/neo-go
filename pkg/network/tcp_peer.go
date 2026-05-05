@@ -304,6 +304,11 @@ func (p *TCPPeer) StartProtocol() {
 		p.Disconnect(err)
 		return
 	}
+	err = p.server.advertiseConsensusExtensibles(p)
+	if err != nil {
+		p.Disconnect(fmt.Errorf("failed to advertise consensus extensibles: %w", err))
+		return
+	}
 
 	var ticker = time.NewTicker(p.server.ProtoTickInterval)
 	for {

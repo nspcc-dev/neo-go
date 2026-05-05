@@ -115,6 +115,9 @@ type Config struct {
 	// Broadcast is a callback which is called to notify the server
 	// about a new consensus payload to be sent.
 	Broadcast func(p *npayload.Extensible)
+	// Rebroadcast is a non-blocking callback that sends a signal to the server
+	// to broadcast existing consensus payloads from the extensible pool.
+	Rebroadcast func()
 	// Chain is a Ledger instance.
 	Chain Ledger
 	// BlockQueue is a BlockQueuer instance.
@@ -359,7 +362,8 @@ events:
 				zap.Stringer("type", msg.Type()),
 			}
 
-			if msg.Type() == dbft.RecoveryMessageType {
+			switch msg.Type() {
+			case dbft.RecoveryMessageType:
 				rec := msg.GetRecoveryMessage().(*recoveryMessage)
 				if rec.preparationHash == nil {
 					req := rec.GetPrepareRequest(&msg, s.dbft.Validators, uint16(s.dbft.PrimaryIndex))
@@ -375,6 +379,9 @@ events:
 					zap.Int("#changeview", len(rec.changeViewPayloads)),
 					zap.Bool("#request", rec.prepareRequest != nil),
 					zap.Bool("#hash", rec.preparationHash != nil))
+			case dbft.ChangeViewType:
+				s.Rebroadcast()
+			default:
 			}
 
 			s.log.Debug("received message", fields...)

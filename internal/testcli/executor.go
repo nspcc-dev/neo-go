@@ -164,6 +164,7 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 	cons, err := consensus.NewService(consensus.Config{
 		Logger:                zap.NewNop(),
 		Broadcast:             netSrv.BroadcastExtensible,
+		Rebroadcast:           netSrv.BroadcastConsensusExtensibles,
 		Chain:                 chain,
 		BlockQueue:            netSrv.GetBlockQueue(),
 		ProtocolConfiguration: cfg.ProtocolConfiguration,
