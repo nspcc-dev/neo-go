@@ -3,7 +3,7 @@ Description=Neo Go node
 Requires=network.target
 
 [Service]
-Type=simple
+Type=notify
 ExecStart=BINDIR/neo-go node --mainnet --config-path=SYSCONFIGDIR/neo-go
 User=neo-go
 Group=neo-go
