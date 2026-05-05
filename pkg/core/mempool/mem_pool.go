@@ -243,8 +243,15 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	n := sort.Search(len(mp.verifiedTxes), func(n int) bool {
 		return pItem.Compare(mp.verifiedTxes[n]) > 0
 	})
-	// Changing sort.Search to slices.BinarySearchFunc() is not recommended
-	// above, as of Go 1.23 this results in
+	// Changing sort.Search to slices.BinarySearchFunc() like
+	//	n, _ := slices.BinarySearchFunc(mp.verifiedTxes, pItem, func (e, t item) int {
+	//		if t.Compare(e) > 0 {
+	//			return 1
+	//		}
+	//		return -1
+	//	})
+
+	// is not recommended, as of Go 1.23 this results in
 	// cpu: AMD Ryzen 7 PRO 7840U w/ Radeon 780M Graphics
 	//                        │ pool.current │              pool.new              │
 	//                        │    sec/op    │   sec/op     vs base               │
@@ -253,6 +260,15 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	// Pool/many,_same_fee-16    3.100m ± 1%   3.099m ± 1%       ~ (p=0.631 n=10)
 	// Pool/many,_incr_fee-16    14.11m ± 1%   14.20m ± 1%       ~ (p=0.315 n=10)
 	// geomean                   5.556m        5.624m       +1.22%
+	//
+	// as of Go 1.26 that's
+	//                        │     old     │             new.slices             │
+	//                        │   sec/op    │   sec/op     vs base               │
+	// Pool/one,_same_fee-16    1.970m ± 1%   2.133m ± 2%  +8.29% (p=0.000 n=10)
+	// Pool/one,_incr_fee-16    13.50m ± 1%   13.70m ± 2%  +1.50% (p=0.002 n=10)
+	// Pool/many,_same_fee-16   2.717m ± 5%   2.941m ± 4%  +8.26% (p=0.000 n=10)
+	// Pool/many,_incr_fee-16   14.60m ± 1%   14.83m ± 2%  +1.58% (p=0.001 n=10)
+	// geomean                  5.699m        5.975m       +4.85%
 
 	// We've reached our capacity already.
 	if len(mp.verifiedTxes) == mp.capacity {
@@ -588,6 +604,9 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 		}
 	}
 	_, err := checkBalance(tx, expectedSenderFee)
+	if !ok && err == nil { // ok is for cache check at the beginning.
+		mp.fees[payer] = actualSenderFee
+	}
 	return conflictsToBeRemoved, err
 }
 
