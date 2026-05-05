@@ -84,7 +84,7 @@ func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, err
 		return nil, errors.New("witness not found")
 	}
 	bw := io.NewBufBinWriter()
-	for i := len(item.Parameters) - 1; i >= 0; i-- {
+	for i := range slices.Backward(item.Parameters) {
 		if item.Parameters[i].Type != smartcontract.SignatureType {
 			return nil, fmt.Errorf("unsupported %s parameter #%d", item.Parameters[i].Type.String(), i)
 		} else if item.Parameters[i].Value == nil {

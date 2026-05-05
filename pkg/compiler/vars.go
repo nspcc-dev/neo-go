@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"go/ast"
+	"slices"
 	"strconv"
 )
 
@@ -50,7 +51,7 @@ func (c *varScope) addAlias(name string, vt varType, index int, ctx *varContext)
 }
 
 func (c *varScope) getVarInfo(name string) *varInfo {
-	for i := len(c.locals) - 1; i >= 0; i-- {
+	for i := range slices.Backward(c.locals) {
 		if vi, ok := c.locals[i][name]; ok {
 			return &vi
 		}

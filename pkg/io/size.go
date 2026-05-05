@@ -56,7 +56,7 @@ func GetVarSize(value any) int {
 		reflect.Uint32,
 		reflect.Uint64:
 		return getVarIntSize(int(v.Uint()))
-	case reflect.Ptr:
+	case reflect.Pointer:
 		vser, ok := reflect.TypeAssert[Serializable](v)
 		if !ok {
 			panic("unable to calculate GetVarSize for a non-Serializable pointer")

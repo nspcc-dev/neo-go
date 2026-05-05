@@ -3,6 +3,7 @@ package params
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -101,7 +102,7 @@ func ExpandFuncParameterIntoScript(script *io.BinWriter, fp FuncParam) error {
 // ExpandArrayIntoScript pushes all FuncParam parameters from the given array
 // into the given buffer in the reverse order.
 func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
-	for j := len(slice) - 1; j >= 0; j-- {
+	for j := range slices.Backward(slice) {
 		fp, err := slice[j].GetFuncParam()
 		if err != nil {
 			return err
@@ -137,7 +138,7 @@ func ExpandMapIntoScriptAndPack(script *io.BinWriter, slice []Param) error {
 		emit.Opcodes(script, opcode.NEWMAP)
 		return script.Err
 	}
-	for i := len(slice) - 1; i >= 0; i-- {
+	for i := range slices.Backward(slice) {
 		pair, err := slice[i].GetFuncParamPair()
 		if err != nil {
 			return err

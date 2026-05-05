@@ -19,7 +19,7 @@ type ApplicationConfiguration struct {
 
 	P2P P2P `yaml:"P2P"`
 
-	Pprof      BasicService `yaml:"Pprof"`
+	Pprof      Pprof        `yaml:"Pprof"`
 	Prometheus BasicService `yaml:"Prometheus"`
 
 	Relay             bool `yaml:"Relay"`

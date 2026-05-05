@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand/v2"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -2060,7 +2061,7 @@ func TestPACKGood(t *testing.T) {
 			vm := load(prog)
 			// canary
 			vm.estack.PushVal(1)
-			for i := len(elements) - 1; i >= 0; i-- {
+			for i := range slices.Backward(elements) {
 				vm.estack.PushVal(elements[i])
 			}
 			vm.estack.PushVal(len(elements))
@@ -2083,7 +2084,7 @@ func TestPACK_UNPACK_MaxSize(t *testing.T) {
 	vm := load(prog)
 	// canary
 	vm.estack.PushVal(1)
-	for i := len(elements) - 1; i >= 0; i-- {
+	for i := range slices.Backward(elements) {
 		vm.estack.PushVal(elements[i])
 	}
 	vm.estack.PushVal(len(elements))
@@ -2106,7 +2107,7 @@ func TestPACK_UNPACK_PACK_MaxSize(t *testing.T) {
 	vm := load(prog)
 	// canary
 	vm.estack.PushVal(1)
-	for i := len(elements) - 1; i >= 0; i-- {
+	for i := range slices.Backward(elements) {
 		vm.estack.PushVal(elements[i])
 	}
 	vm.estack.PushVal(len(elements))
@@ -2129,7 +2130,7 @@ func TestPACKMAP_UNPACK_PACKMAP_MaxSize(t *testing.T) {
 	vm := load(prog)
 	// canary
 	vm.estack.PushVal(-1)
-	for i := len(elements) - 1; i >= 0; i-- {
+	for i := range slices.Backward(elements) {
 		elements[i] = i
 		vm.estack.PushVal(i * 2)
 		vm.estack.PushVal(i)

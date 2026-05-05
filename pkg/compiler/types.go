@@ -9,7 +9,7 @@ import (
 )
 
 func (c *codegen) typeAndValueOf(e ast.Expr) types.TypeAndValue {
-	for i := len(c.pkgInfoInline) - 1; i >= 0; i-- {
+	for i := range slices.Backward(c.pkgInfoInline) {
 		if tv, ok := c.pkgInfoInline[i].TypesInfo.Types[e]; ok {
 			return tv
 		}
@@ -29,7 +29,7 @@ func (c *codegen) typeAndValueOf(e ast.Expr) types.TypeAndValue {
 }
 
 func (c *codegen) typeOf(e ast.Expr) types.Type {
-	for i := len(c.pkgInfoInline) - 1; i >= 0; i-- {
+	for i := range slices.Backward(c.pkgInfoInline) {
 		if typ := c.pkgInfoInline[i].TypesInfo.TypeOf(e); typ != nil {
 			return typ
 		}
