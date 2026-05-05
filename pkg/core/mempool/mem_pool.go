@@ -240,9 +240,16 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	// prioritized than our new item because we do expect a lot of
 	// transactions with the same priority and appending to the end of the
 	// slice is always more efficient.
-	n := sort.Search(len(mp.verifiedTxes), func(n int) bool {
-		return pItem.Compare(mp.verifiedTxes[n]) > 0
-	})
+	var n int
+	if len(mp.verifiedTxes) > 0 {
+		if pItem.Compare(mp.verifiedTxes[len(mp.verifiedTxes)-1]) == 0 {
+			n = len(mp.verifiedTxes)
+		} else {
+			n = sort.Search(len(mp.verifiedTxes), func(n int) bool {
+				return pItem.Compare(mp.verifiedTxes[n]) > 0
+			})
+		}
+	}
 	// Changing sort.Search to slices.BinarySearchFunc() like
 	//	n, _ := slices.BinarySearchFunc(mp.verifiedTxes, pItem, func (e, t item) int {
 	//		if t.Compare(e) > 0 {
