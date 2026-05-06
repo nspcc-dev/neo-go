@@ -14,6 +14,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/internal/sdnotify"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
@@ -544,6 +545,10 @@ func startServer(ctx *cli.Context) error {
 	fmt.Fprintln(ctx.App.Writer, serv.UserAgent)
 	fmt.Fprintln(ctx.App.Writer)
 
+	if err := sdnotify.Send(sdnotify.Ready); err != nil {
+		log.Warn("failed to notify systemd about readiness", zap.Error(err))
+	}
+
 	var shutdownErr error
 Main:
 	for {
@@ -577,6 +582,9 @@ Main:
 			}
 			switch sig {
 			case sighup:
+				if err := sdnotify.Send(sdnotify.Reloading); err != nil {
+					log.Warn("failed to notify systemd about reloading", zap.Error(err))
+				}
 				if newLogLevel != zapcore.InvalidLevel {
 					logLevel.SetLevel(newLogLevel)
 					log.Warn("using new logging level", zap.Stringer("level", newLogLevel))
@@ -602,6 +610,11 @@ Main:
 				if err != nil {
 					shutdownErr = fmt.Errorf("failed to start Prometheus service: %w", err)
 					cancel() // Fatal error, like for RPC server.
+				}
+				if shutdownErr == nil {
+					if err := sdnotify.Send(sdnotify.Ready); err != nil {
+						log.Warn("failed to notify systemd about readiness after reload", zap.Error(err))
+					}
 				}
 			case sigusr1:
 				if oracleSrv != nil {
@@ -663,6 +676,9 @@ Main:
 			cfg = cfgnew
 		case <-grace.Done():
 			signal.Stop(sigCh)
+			if err := sdnotify.Send(sdnotify.Stopping); err != nil {
+				log.Warn("failed to notify systemd about stopping", zap.Error(err))
+			}
 			serv.Shutdown()
 			break Main
 		}
