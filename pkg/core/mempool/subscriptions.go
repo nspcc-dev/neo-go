@@ -8,8 +8,7 @@ func (mp *Pool) RunSubscriptions() {
 	if !mp.subscriptionsEnabled {
 		panic("subscriptions are disabled")
 	}
-	if !mp.subscriptionsOn.Load() {
-		mp.subscriptionsOn.Store(true)
+	if mp.subscriptionsOn.CompareAndSwap(false, true) {
 		go mp.notificationDispatcher()
 	}
 }
@@ -19,8 +18,7 @@ func (mp *Pool) StopSubscriptions() {
 	if !mp.subscriptionsEnabled {
 		panic("subscriptions are disabled")
 	}
-	if mp.subscriptionsOn.Load() {
-		mp.subscriptionsOn.Store(false)
+	if mp.subscriptionsOn.CompareAndSwap(true, false) {
 		close(mp.stopCh)
 	}
 }
