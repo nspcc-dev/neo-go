@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -16,6 +17,7 @@ import (
 // Ledger is enough of Blockchain to satisfy Pool.
 type Ledger interface {
 	BlockHeight() uint32
+	GetConfig() config.Blockchain
 	GetMillisecondsPerBlock() uint32
 	IsExtensibleAllowed(util.Uint160) bool
 	VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
@@ -59,6 +61,9 @@ func New(bc Ledger, capacity int, resendFunc func([]util.Uint256)) *Pool {
 // Start starts the Pool's payload resend dispatcher. Caller should wait for
 // Start to finish for normal operation.
 func (p *Pool) Start() {
+	if p.chain.GetConfig().GetNumOfCNs(p.chain.BlockHeight()) == 1 {
+		return
+	}
 	if p.resendDispatcherOn.CompareAndSwap(false, true) {
 		go p.resendDispatcher()
 	}

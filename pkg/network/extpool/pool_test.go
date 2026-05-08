@@ -7,6 +7,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -116,79 +117,110 @@ func TestRemoveStale(t *testing.T) {
 }
 
 func TestRebroadcast(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		bc := newTestChain()
-		bc.height = 10
-		bc.msPerBlock = 100500
-		resendThreshold := time.Millisecond * time.Duration(bc.msPerBlock) / 2
+	t.Run("single CN", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			bc := newTestChain()
+			bc.validatorsCnt = 1
+			bc.height = 10
+			bc.msPerBlock = 100500
+			resendThreshold := time.Millisecond * time.Duration(bc.msPerBlock) / 2
+			var (
+				lock   sync.RWMutex
+				actual []util.Uint256
+			)
+			p := New(bc, 100, func(hs []util.Uint256) {
+				lock.Lock()
+				defer lock.Unlock()
+				actual = append(actual, hs...)
+			})
+			p.Start()
+			t.Cleanup(p.Stop)
+			ep1 := &payload.Extensible{ValidBlockEnd: 100, Category: payload.ConsensusCategory}
+			p.testAdd(t, true, nil, ep1)
 
-		var (
-			lock             sync.RWMutex
-			expected, actual []util.Uint256
-		)
-		check := func(t *testing.T) {
+			time.Sleep(resendThreshold)
+			synctest.Wait()
 			lock.RLock()
-			require.ElementsMatch(t, expected, actual) // the order in pool's hashes map is undefined.
+			require.Equal(t, []util.Uint256(nil), actual)
 			lock.RUnlock()
-		}
-		p := New(bc, 100, func(hs []util.Uint256) {
-			lock.Lock()
-			defer lock.Unlock()
-			actual = append(actual, hs...)
 		})
-		p.Start()
-		t.Cleanup(p.Stop)
-		ep1 := &payload.Extensible{ValidBlockEnd: 100, Category: payload.ConsensusCategory}
-		p.testAdd(t, true, nil, ep1)
+	})
+	t.Run("multiple CNs", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			bc := newTestChain()
+			bc.validatorsCnt = 4
+			bc.height = 10
+			bc.msPerBlock = 100500
+			resendThreshold := time.Millisecond * time.Duration(bc.msPerBlock) / 2
 
-		// Check payload is rebroadcasted through resendThreshold, 2*resendThreshold, 3*resendThreshold.
-		for i := range 3 {
-			time.Sleep(resendThreshold<<i - 1) // timer is not yet fired.
+			var (
+				lock             sync.RWMutex
+				expected, actual []util.Uint256
+			)
+			check := func(t *testing.T) {
+				lock.RLock()
+				require.ElementsMatch(t, expected, actual) // the order in pool's hashes map is undefined.
+				lock.RUnlock()
+			}
+			p := New(bc, 100, func(hs []util.Uint256) {
+				lock.Lock()
+				defer lock.Unlock()
+				actual = append(actual, hs...)
+			})
+			p.Start()
+			t.Cleanup(p.Stop)
+			ep1 := &payload.Extensible{ValidBlockEnd: 100, Category: payload.ConsensusCategory}
+			p.testAdd(t, true, nil, ep1)
+
+			// Check payload is rebroadcasted through resendThreshold, 2*resendThreshold, 3*resendThreshold.
+			for i := range 3 {
+				time.Sleep(resendThreshold<<i - 1) // timer is not yet fired.
+				synctest.Wait()
+				check(t)
+
+				// Wait 1ns more, timer should fire.
+				time.Sleep(1) //nolint:staticcheck
+				synctest.Wait()
+				expected = append(expected, ep1.Hash())
+				check(t)
+			}
+
+			// Sleep almost until timer firing and reset it via Add.
+			time.Sleep(resendThreshold<<3 - 1)
 			synctest.Wait()
 			check(t)
-
-			// Wait 1ns more, timer should fire.
+			ep2 := &payload.Extensible{ValidBlockEnd: 101, Category: payload.ConsensusCategory}
+			p.testAdd(t, true, nil, ep2)
+			// Sleeping the rest of 1ns won't trigger the timer since it was reset.
 			time.Sleep(1) //nolint:staticcheck
 			synctest.Wait()
-			expected = append(expected, ep1.Hash())
 			check(t)
-		}
 
-		// Sleep almost until timer firing and reset it via Add.
-		time.Sleep(resendThreshold<<3 - 1)
-		synctest.Wait()
-		check(t)
-		ep2 := &payload.Extensible{ValidBlockEnd: 101, Category: payload.ConsensusCategory}
-		p.testAdd(t, true, nil, ep2)
-		// Sleeping the rest of 1ns won't trigger the timer since it was reset.
-		time.Sleep(1) //nolint:staticcheck
-		synctest.Wait()
-		check(t)
+			// Wait the rest of resendThreshold for timer firing.
+			time.Sleep(resendThreshold - 1)
+			synctest.Wait()
+			expected = append(expected, ep1.Hash(), ep2.Hash())
+			check(t)
 
-		// Wait the rest of resendThreshold for timer firing.
-		time.Sleep(resendThreshold - 1)
-		synctest.Wait()
-		expected = append(expected, ep1.Hash(), ep2.Hash())
-		check(t)
+			// Ensure the timer is fired after RemoveStale if there's at least one consensus extensible left.
+			p.RemoveStale(100) // one payload should be left.
+			synctest.Wait()
+			require.Equal(t, []util.Uint256{ep2.Hash()}, p.GetCategory(payload.ConsensusCategory))
+			check(t)
+			time.Sleep(resendThreshold)
+			synctest.Wait()
+			expected = append(expected, ep2.Hash())
+			check(t)
 
-		// Ensure the timer is fired after RemoveStale if there's at least one consensus extensible left.
-		p.RemoveStale(100) // one payload should be left.
-		synctest.Wait()
-		require.Equal(t, []util.Uint256{ep2.Hash()}, p.GetCategory(payload.ConsensusCategory))
-		check(t)
-		time.Sleep(resendThreshold)
-		synctest.Wait()
-		expected = append(expected, ep2.Hash())
-		check(t)
-
-		// Ensure the timer won't fire if no consensus payloads left.
-		p.RemoveStale(101) // one payload should be left.
-		synctest.Wait()
-		require.Equal(t, []util.Uint256(nil), p.GetCategory(payload.ConsensusCategory))
-		check(t)
-		time.Sleep(resendThreshold)
-		synctest.Wait()
-		check(t)
+			// Ensure the timer won't fire if no consensus payloads left.
+			p.RemoveStale(101) // one payload should be left.
+			synctest.Wait()
+			require.Equal(t, []util.Uint256(nil), p.GetCategory(payload.ConsensusCategory))
+			check(t)
+			time.Sleep(resendThreshold)
+			synctest.Wait()
+			check(t)
+		})
 	})
 }
 
@@ -208,6 +240,7 @@ type testChain struct {
 	verifyWitness func(util.Uint160) bool
 	isAllowed     func(util.Uint160) bool
 	msPerBlock    uint32
+	validatorsCnt uint32
 }
 
 var errVerification = errors.New("verification failed")
@@ -233,3 +266,6 @@ func (c *testChain) IsExtensibleAllowed(u util.Uint160) bool {
 }
 func (c *testChain) BlockHeight() uint32             { return c.height }
 func (c *testChain) GetMillisecondsPerBlock() uint32 { return c.msPerBlock }
+func (c *testChain) GetConfig() config.Blockchain {
+	return config.Blockchain{ProtocolConfiguration: config.ProtocolConfiguration{ValidatorsCount: c.validatorsCnt}}
+}
