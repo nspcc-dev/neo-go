@@ -2121,18 +2121,21 @@ func makeArrayOfType(n int, typ stackitem.Type) []stackitem.Item {
 	if !typ.IsValid() {
 		panic(fmt.Sprintf("invalid stack item type: %d", typ))
 	}
-	items := make([]stackitem.Item, n)
-	for i := range items {
-		switch typ {
-		case stackitem.BooleanT:
-			items[i] = stackitem.NewBool(false)
-		case stackitem.IntegerT:
-			items[i] = stackitem.NewBigInteger(big.NewInt(0))
-		case stackitem.ByteArrayT:
-			items[i] = stackitem.NewByteArray([]byte{})
-		default:
-			items[i] = stackitem.Null{}
-		}
+	items := make([]stackitem.Item, 0, n)
+	var item stackitem.Item
+	switch typ {
+	case stackitem.BooleanT:
+		item = stackitem.NewBool(false)
+	case stackitem.IntegerT:
+		item = stackitem.NewBigInteger(big.NewInt(0))
+	case stackitem.ByteArrayT:
+		item = stackitem.NewByteArray([]byte{})
+	default:
+		item = stackitem.Null{}
+	}
+	// Use one immutable item to initialize the entire array.
+	for range n {
+		items = append(items, item)
 	}
 	return items
 }

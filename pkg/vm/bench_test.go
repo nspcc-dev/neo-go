@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -194,6 +195,23 @@ func BenchmarkScriptValuesArray(t *testing.B) {
 		byte(opcode.STSFLD0),
 		byte(opcode.LDSFLD0),
 		byte(opcode.JMPIF), 0xfb,
+	}
+	benchScript(t, script)
+}
+
+func BenchmarkScriptNewArrayT(t *testing.B) {
+	var script = []byte{
+		byte(opcode.INITSSLOT), 1,
+		byte(opcode.PUSHINT16), 0, 2,
+		byte(opcode.STSFLD0),
+		byte(opcode.PUSHINT16), 0, 7,
+		byte(opcode.NEWARRAYT), byte(stackitem.ByteArrayT),
+		byte(opcode.DROP),
+		byte(opcode.LDSFLD0),
+		byte(opcode.DEC),
+		byte(opcode.STSFLD0),
+		byte(opcode.LDSFLD0),
+		byte(opcode.JMPIF), 0xf6,
 	}
 	benchScript(t, script)
 }
