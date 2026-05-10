@@ -831,6 +831,29 @@ func TestManagement_ContractDeploy(t *testing.T) {
 			managementInvoker.Invoke(t, stackitem.Null{}, "getContract", h.BytesBE())
 		})
 	})
+	t.Run("invalid _deploy signature", func(t *testing.T) {
+		// https://github.com/nspcc-dev/neo-go/pull/4253.
+		deployScript := []byte{byte(opcode.RET)}
+		m := manifest.NewManifest("TestDeploy")
+		m.ABI.Methods = []manifest.Method{
+			{
+				Name:   manifest.MethodDeploy,
+				Offset: 0,
+				Parameters: []manifest.Parameter{
+					manifest.NewParameter("data", smartcontract.AnyType),
+					manifest.NewParameter("isUpdate", smartcontract.BoolType),
+				},
+				ReturnType: smartcontract.ArrayType,
+			},
+		}
+		nefD, err := nef.NewFile(deployScript)
+		require.NoError(t, err)
+		nefDb, err := nefD.Bytes()
+		require.NoError(t, err)
+		manifD, err := json.Marshal(m)
+		require.NoError(t, err)
+		managementInvoker.InvokeFail(t, "at instruction 1 (SYSCALL): method '_deploy' return type mismatch: got Array, expected to be void: true", "deploy", nefDb, manifD)
+	})
 	t.Run("bad _deploy", func(t *testing.T) { // invalid _deploy signature
 		deployScript := []byte{byte(opcode.RET)}
 		m := manifest.NewManifest("TestBadDeploy")
@@ -842,7 +865,7 @@ func TestManagement_ContractDeploy(t *testing.T) {
 					manifest.NewParameter("data", smartcontract.AnyType),
 					manifest.NewParameter("isUpdate", smartcontract.BoolType),
 				},
-				ReturnType: smartcontract.ArrayType,
+				ReturnType: smartcontract.VoidType,
 			},
 		}
 		nefD, err := nef.NewFile(deployScript)

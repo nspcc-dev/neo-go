@@ -144,6 +144,9 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	if len(args) != len(md.Parameters) {
 		return fmt.Errorf("invalid argument count: %d (expected %d)", len(args), len(md.Parameters))
 	}
+	if hasReturn != (md.ReturnType != smartcontract.VoidType) {
+		return fmt.Errorf("method '%s' return type mismatch: got %s, expected to be void: %t", name, md.ReturnType, !hasReturn)
+	}
 
 	methodOff := md.Offset
 	initOff := -1
