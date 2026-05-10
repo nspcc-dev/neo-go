@@ -71,7 +71,7 @@ type ActorOptions struct {
 	// allows you to give it some other scope to be used in complex fallback
 	// scripts.
 	FbSigner actor.SignerAccount
-	// MainAttribtues are additional attributes to be added into main
+	// MainAttributes are additional attributes to be added into main
 	// transaction by an appropriate actor. Irrespective of this setting
 	// (which defaults to nil) NotaryAssisted attribute is always added.
 	MainAttributes []transaction.Attribute
