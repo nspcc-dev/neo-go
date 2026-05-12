@@ -2862,7 +2862,7 @@ func (s *Server) sendrawtransaction(reqParams params.Params) (any, *neorpc.Error
 	if err != nil {
 		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("can't decode transaction: %s", err))
 	}
-	return getRelayResult(s.coreServer.RelayTxn(tx), tx.Hash())
+	return getRelayResult(s.coreServer.RelayTxnDirectly(tx), tx.Hash())
 }
 
 // subscribe handles subscription requests from websocket clients.
