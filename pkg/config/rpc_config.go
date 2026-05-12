@@ -10,7 +10,12 @@ import (
 type (
 	// RPC is an RPC service configuration information.
 	RPC struct {
-		BasicService         `yaml:",inline"`
+		BasicService `yaml:",inline"`
+		// DirectRelay enables fast relay track for incoming transactions that
+		// are not (supposedly) known to the network yet: server will relay a
+		// transaction to peers immediately, skipping the step of transaction
+		// hash advertisement.
+		DirectRelay          bool `yaml:"DirectRelay"`
 		EnableCORSWorkaround bool `yaml:"EnableCORSWorkaround"`
 		// MaxGasInvoke is the maximum amount of GAS which
 		// can be spent during an RPC call.

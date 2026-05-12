@@ -88,6 +88,7 @@ ApplicationConfiguration:
     Enabled: true
     Addresses:
       - ":10332"
+    DirectRelay: true
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
     TLSConfig:

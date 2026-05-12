@@ -62,6 +62,7 @@ ApplicationConfiguration:
       Password: "pass"
   RPC:
     Enabled: true
+    DirectRelay: true
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
     Addresses:

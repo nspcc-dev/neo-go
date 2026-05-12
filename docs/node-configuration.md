@@ -301,6 +301,7 @@ RPC:
   Enabled: true
   Addresses:
     - ":10332"
+  DirectRelay: false
   EnableCORSWorkaround: false
   MaxGasInvoke: 50
   MaxIteratorResultItems: 100
@@ -329,6 +330,9 @@ where:
 - `Enabled` denotes whether an RPC server should be started.
 - `Addresses` is a list of RPC server addresses to be running at and listen to in
   the form of "host:port".
+- `DirectRelay` (`bool`) denotes whether the node should relay the full transaction
+  (instead of its hash) to the peers. Applicable only to those transactions that are
+  assumedly new to the network (submitted via `sendrawtransaction` RPC call).
 - `EnableCORSWorkaround` turns on a set of origin-related behaviors that make
   RPC server wide open for connections from any origins. It enables OPTIONS
   request handling for pre-flight CORS and makes the server send

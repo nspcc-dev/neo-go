@@ -1359,7 +1359,7 @@ txloop:
 			}
 			err := s.verifyAndPoolTX(tx)
 			if err == nil {
-				s.broadcastTX(tx, nil)
+				s.broadcastTX(tx)
 			} else {
 				s.log.Debug("tx handler", zap.Error(err), zap.String("hash", tx.Hash().StringLE()))
 			}
@@ -1850,18 +1850,33 @@ func (s *Server) verifyAndPoolTX(t *transaction.Transaction) error {
 	return s.chain.PoolTx(t)
 }
 
-// RelayTxn a new transaction to the local node and the connected peers.
+// RelayTxn adds a new transaction to the local node and advertises to the
+// connected peers. It broadcasts only transaction hash via CMDInv.
 // Reference: the method OnRelay in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L159
 func (s *Server) RelayTxn(t *transaction.Transaction) error {
+	return s.relayTxn(t, false)
+}
+
+// RelayTxnDirectly adds a new transaction to the local node and relays to the
+// connected peers. It broadcasts the full transaction via CMDTX.
+func (s *Server) RelayTxnDirectly(t *transaction.Transaction) error {
+	return s.relayTxn(t, true)
+}
+
+func (s *Server) relayTxn(t *transaction.Transaction, direct bool) error {
 	err := s.verifyAndPoolTX(t)
 	if err == nil {
-		s.broadcastTX(t, nil)
+		if direct {
+			s.iteratePeersWithSendMsg(NewMessage(CMDTX, t), Peer.BroadcastPacket, Peer.Handshaked)
+		} else {
+			s.broadcastTX(t)
+		}
 	}
 	return err
 }
 
 // broadcastTX broadcasts an inventory message about new transaction.
-func (s *Server) broadcastTX(t *transaction.Transaction, _ any) {
+func (s *Server) broadcastTX(t *transaction.Transaction) {
 	select {
 	case s.transactions <- t:
 	case <-s.quit:
@@ -1888,7 +1903,7 @@ func (s *Server) initStaleMemPools() {
 	numOfCNs := s.config.GetNumOfCNs(s.chain.BlockHeight())
 	threshold = max(threshold, numOfCNs*2)
 
-	s.mempool.SetResendThreshold(uint32(threshold), s.broadcastTX)
+	s.mempool.SetResendThreshold(uint32(threshold), func(t *transaction.Transaction, _ any) { s.broadcastTX(t) })
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.SetResendThreshold(uint32(threshold), s.broadcastP2PNotaryRequestPayload)
 	}

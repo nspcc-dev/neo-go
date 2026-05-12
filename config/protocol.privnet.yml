@@ -56,6 +56,7 @@ ApplicationConfiguration:
     Enabled: true
     Addresses:
       - ":20331"
+    DirectRelay: true
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
     SessionEnabled: true
