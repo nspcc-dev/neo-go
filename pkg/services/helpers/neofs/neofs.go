@@ -3,6 +3,7 @@ package neofs
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -49,7 +50,6 @@ type Client interface {
 	ObjectGetInit(ctx context.Context, container cid.ID, id oid.ID, s user.Signer, get client.PrmObjectGet) (object.Object, *client.PayloadReader, error)
 	ObjectRangeInit(ctx context.Context, container cid.ID, id oid.ID, offset uint64, length uint64, s user.Signer, objectRange client.PrmObjectRange) (*client.ObjectRangeReader, error)
 	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*object.Object, error)
-	ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHash) ([][]byte, error)
 	Close() error
 }
 
@@ -201,17 +201,24 @@ func getHash(ctx context.Context, s user.Signer, c Client, addr *oid.Address, ha
 	if err != nil {
 		return nil, err
 	}
-	var hashPrm client.PrmObjectHash
-	hashPrm.SetRangeList(r.GetOffset(), r.GetLength())
-
-	hashes, err := c.ObjectHash(ctx, addr.Container(), addr.Object(), s, hashPrm)
+	rc, err := c.ObjectRangeInit(ctx, addr.Container(), addr.Object(), r.GetOffset(), r.GetLength(), s, client.PrmObjectRange{})
 	if err != nil {
 		return nil, err
 	}
-	if len(hashes) == 0 {
+
+	sum := sha256.New()
+	n, err := io.Copy(sum, rc)
+	if err != nil {
+		_ = rc.Close()
+		return nil, err
+	}
+	if err = rc.Close(); err != nil {
+		return nil, err
+	}
+	if r.GetLength() != 0 && n == 0 {
 		return nil, fmt.Errorf("%w: empty response", ErrInvalidRange)
 	}
-	u256, err := util.Uint256DecodeBytesBE(hashes[0])
+	u256, err := util.Uint256DecodeBytesBE(sum.Sum(nil))
 	if err != nil {
 		return nil, fmt.Errorf("decode Uint256: %w", err)
 	}
