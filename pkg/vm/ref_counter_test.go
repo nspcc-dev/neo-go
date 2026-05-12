@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -475,6 +476,22 @@ func TestRefCounterPackMapSameKey(t *testing.T) {
 		require.Equal(t, 0, v.estack.Len())
 		require.Equal(t, 0, int(v.refs))
 	})
+}
+
+func TestRefCounterSetItemException(t *testing.T) {
+	prog := makeProgram(opcode.TRY, 4, 0, opcode.SETITEM)
+	v := load(prog)
+	// Push buffer and invalid key.
+	v.estack.PushVal(stackitem.NewBuffer(nil))
+	v.estack.PushVal(stackitem.Make(0))
+	// Push heavy item.
+	v.estack.PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
+	require.Equal(t, 3, v.estack.Len())
+	require.Equal(t, 1+1+2, int(v.refs))
+	runVM(t, v)
+	require.Equal(t, vmstate.Halt, v.state)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, 1, int(v.refs))
 }
 
 func BenchmarkRefCounter_Add(b *testing.B) {
