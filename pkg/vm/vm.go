@@ -1457,7 +1457,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			t.Add(key.value, cloned)
 
 		case *stackitem.Buffer:
-			v.refs-- // We know the type exactly already.
+			v.refs.Remove(cloned)
 			index := toInt(key.BigInt())
 			if index < 0 || index >= t.Len() {
 				msg := fmt.Sprintf("The value %d is out of range.", index)
