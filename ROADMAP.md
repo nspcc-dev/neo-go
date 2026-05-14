@@ -7,7 +7,8 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.119.0 (~Apr 2026)
+## Version 0.120.0 (~Jun 2026)
+ * Gorgon hardfork enabling for N3 networks
  * protocol updates
  * bug fixes
 

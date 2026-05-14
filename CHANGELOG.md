@@ -2,6 +2,75 @@
 
 This document outlines major changes between releases.
 
+## 0.119.0 "Yawl" (14 May 2026)
+
+This version brings a set of Gorgon-related protocol changes along with
+microoptimisations of the memory pool and P2P layer, empowering faster
+transactions broadcast. Also, it fixes a set of bugs related to VM refcounting.
+
+This version is fully compatible with v3.9.2 of the C# node and does not require
+a DB resync. Node operators should update `MaxTransactionsPerBlock` protocol
+configuration value to 200 for mainnet (if didn't yet) and should be aware that
+`sd_notify` support is enabled. A set of prometheus metrics has been renamed
+without a transition period. We'd also recommend to enable `DirectRelay` setting
+of RPC server to speed up the broadcast of transactions submitted via
+`sendrawtransaction` RPC call. DApp developers should migrate their applications
+from deprecated `actor.ErrExecFailed` to `neorpc.FaultException` error.
+
+New features:
+ * `wsconnections_count` Prometheus metric showing the number of active
+   web-socket connections for RPC server (#4239)
+ * `sd_notify` support (#4254)
+
+Behavior changes:
+ * `actor.ErrExecFailed` is deprecated and replaced by `neorpc.FaultException`
+   error (#4212) 
+ * `stackitem.Map` underlying implementation optimization (#4223)
+ * panic on invalid arguments of CryptoLib's `verifyWithECDsa`,
+   `verifyWithEd25519` and `System.Crypto.CheckSig`,
+   `System.Crypto.CheckMultisig` interops starting from Gorgon (#4236)
+ * `MaxTransactionsPerBlock` is set to 200 for mainnet (#4227)
+ * update ContractManagement's cache prior to contract block on destroy starting
+   from Gorgon (#4228)
+ * block contract account prior to contract destruction in ContractManagement
+   starting from Gorgon (#4233)
+ * `current_state_height`, `current_block_height`, `current_persisted_height`
+   and `current_header_height` Prometheus metrics are renamed to
+   `verified_state_height`, `block_height`, `persisted_height` and
+   `header_height` respectively (#4239)
+
+Improvements:
+ * enhanced consensus message delivery (#4240)
+ * avoid requests for empty iterator sessions at the RPC client side (#4194)
+ * optimize refcounting for `VALUES` VM instruction (#4193)
+ * support empty sender/receiver for `(*TransferEvent).FromStackItem` (#4200)
+ * BoltDB upgrade to allocation-optimized version (#4214) 
+ * distinguish native contract name in `contract [test]invokefunction` CLI
+   handler (#4232)
+ * log opened and closed web-socket connections on the RPC server side (#4239)
+ * support block/mutex profiling (`EnableBlock` and `EnableMutex` Pprof
+   settings) (#4242)
+ * mempool microoptimisations (#4244, #4247)
+ * `DirectRelay` RPC server option enabling direct newly submitted transaction
+   broadcast (#4256)  
+
+Bugs fixed:
+ * panic on access to a field of structure initialized in slice (#4203, #4205)
+ * panic on start type assertion (#4204)
+ * missing operand check for `SHR`/`SHL` VM instructions (fix included to
+   Gorgon) (#4197)
+ * missing index bounds check for `HASKEY` VM instruction (fix included to
+   Gorgon) (#4197)
+ * invalid refcounting of `PACKMAP` VM instruction (#4202)
+ * regression of `neotest` coverage calculation (#4211)
+ * improper execution of `System.Contract.CallNative` contract callbacks (#4219)
+ * panic in Ledger's `getBlock` on too high block index (#4238)
+ * sequential parsing of `SYSCALL` VM instruction arguments (#4231)
+ * missing VM slot bounds check in store operations (#4231)
+ * missing validation of method's return value type on contract call handling
+   (#4253)
+ * invalid refcounting of `SETITEM` VM instruction (#4257)
+
 ## 0.118.0 "Yumminess" (13 Mar 2026)
 
 This release focuses on VM refcounter optimizations and improvements across SDK
