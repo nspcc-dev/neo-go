@@ -573,9 +573,6 @@ func (StrangeStackItem) Type() stackitem.Type {
 func (StrangeStackItem) String() string {
 	panic("TODO")
 }
-func (StrangeStackItem) Dup() stackitem.Item {
-	panic("TODO")
-}
 func (StrangeStackItem) TryBool() (bool, error) {
 	panic("TODO")
 }

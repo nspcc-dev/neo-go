@@ -13,7 +13,7 @@ func TestSerializationMaxErr(t *testing.T) {
 	item := Make(base)
 
 	// Pointer is unserializable, but we specifically want to catch ErrTooBig.
-	arr := []Item{item, item.Dup(), NewPointer(0, []byte{})}
+	arr := []Item{item, Make(item.Value()), NewPointer(0, []byte{})}
 	aitem := Make(arr)
 
 	_, err := Serialize(item)

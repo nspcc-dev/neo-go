@@ -100,17 +100,6 @@ func TestPushFromOtherStack(t *testing.T) {
 	assert.Equal(t, 1, s2.Len())
 }
 
-func TestDupElement(t *testing.T) {
-	s := NewStack("test")
-	elemA := NewElement(101)
-	s.Push(elemA)
-
-	dupped := s.Dup(0)
-	s.Push(dupped)
-	assert.Equal(t, 2, s.Len())
-	assert.Equal(t, dupped, s.Peek(0))
-}
-
 func TestBack(t *testing.T) {
 	var (
 		s     = NewStack("test")
@@ -336,7 +325,7 @@ func TestInsertAt(t *testing.T) {
 	s.PushVal(4)
 	s.PushVal(5)
 
-	e := s.Dup(1) // it's `4`
+	e := s.Peek(1) // it's `4`
 	s.InsertAt(e, 3)
 
 	assert.Equal(t, int64(5), s.Peek(0).BigInt().Int64())

@@ -932,13 +932,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.Clear()
 
 	case opcode.DUP:
-		v.estack.Push(v.estack.Dup(0))
+		v.estack.Push(v.estack.Peek(0))
 
 	case opcode.OVER:
 		if v.estack.Len() < 2 {
 			panic("no second element found")
 		}
-		a := v.estack.Dup(1)
+		a := v.estack.Peek(1)
 		v.estack.Push(a)
 
 	case opcode.PICK:
@@ -949,14 +949,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if v.estack.Len() < n+1 {
 			panic("no nth element found")
 		}
-		a := v.estack.Dup(n)
+		a := v.estack.Peek(n)
 		v.estack.Push(a)
 
 	case opcode.TUCK:
 		if v.estack.Len() < 2 {
 			panic("too short stack to TUCK")
 		}
-		a := v.estack.Dup(0)
+		a := v.estack.Peek(0)
 		v.estack.InsertAt(a, 2)
 
 	case opcode.SWAP:
@@ -1387,15 +1387,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				v.throw(stackitem.NewByteArray([]byte(msg)))
 				return
 			}
-			item := arr[index].Dup()
-			v.estack.PushItem(item)
+			v.estack.PushItem(arr[index])
 		case *stackitem.Map:
 			index := t.Index(key.Item())
 			if index < 0 {
 				v.throw(stackitem.NewByteArray([]byte("Key not found in Map")))
 				return
 			}
-			v.estack.PushItem(t.Value().([]stackitem.MapElement)[index].Value.Dup())
+			v.estack.PushItem(t.Value().([]stackitem.MapElement)[index].Value)
 		default:
 			index := toInt(key.BigInt())
 			arr := obj.Bytes()
@@ -1702,7 +1701,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		arr := make([]stackitem.Item, 0, m.Len())
 		for k := range m.Value().([]stackitem.MapElement) {
-			arr = append(arr, m.Value().([]stackitem.MapElement)[k].Key.Dup())
+			arr = append(arr, m.Value().([]stackitem.MapElement)[k].Key)
 		}
 		var res = stackitem.NewArray(arr)
 		res.IncRC()
