@@ -839,10 +839,9 @@ func TestFilteredSubscriptions_InvalidFilter(t *testing.T) {
 			params: `["transaction_executed", {"state":"NOTHALT"}]`,
 		},
 	}
-	_, _, c, respMsgs := initCleanServerAndWSClient(t)
-
 	for name, this := range cases {
 		t.Run(name, func(t *testing.T) {
+			_, _, c, respMsgs := initCleanServerAndWSClient(t)
 			resp := callWSGetRaw(t, c, fmt.Sprintf(`{"jsonrpc": "2.0","method": "subscribe","params": %s,"id": 1}`, this.params), respMsgs)
 			require.NotNil(t, resp.Error)
 			require.Nil(t, resp.Result)
