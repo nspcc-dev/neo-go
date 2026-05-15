@@ -512,8 +512,7 @@ func (i *BigInteger) String() string {
 
 // Dup implements the Item interface.
 func (i *BigInteger) Dup() Item {
-	n := new(big.Int)
-	return (*BigInteger)(n.Set(i.Big()))
+	return i
 }
 
 // Type implements the Item interface.
@@ -687,8 +686,7 @@ func (i *ByteArray) equalsLimited(s Item, limit *int) bool {
 
 // Dup implements the Item interface.
 func (i *ByteArray) Dup() Item {
-	ba := bytes.Clone(*i)
-	return (*ByteArray)(&ba)
+	return i
 }
 
 // Type implements the Item interface.
