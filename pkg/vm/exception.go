@@ -49,11 +49,6 @@ func (c *exceptionHandlingContext) Value() any {
 	return c
 }
 
-// Dup implements the stackitem.Item interface.
-func (c *exceptionHandlingContext) Dup() stackitem.Item {
-	return c
-}
-
 // TryBool implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) TryBool() (bool, error) {
 	panic("can't convert exceptionHandlingContext to Bool")

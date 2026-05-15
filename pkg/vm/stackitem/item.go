@@ -37,8 +37,6 @@ const (
 type Item interface {
 	fmt.Stringer
 	Value() any
-	// Dup duplicates current Item.
-	Dup() Item
 	// TryBool converts Item to a boolean value.
 	TryBool() (bool, error)
 	// TryBytes converts Item to a byte slice. If the underlying type is a
@@ -270,12 +268,6 @@ func (i *Struct) String() string {
 	return "Struct"
 }
 
-// Dup implements the Item interface.
-func (i *Struct) Dup() Item {
-	// it's a reference type, so no copying here.
-	return i
-}
-
 // TryBool implements the Item interface.
 func (i *Struct) TryBool() (bool, error) { return true, nil }
 
@@ -397,13 +389,6 @@ func (i Null) Value() any {
 	return nil
 }
 
-// Dup implements the Item interface.
-// There is no need to perform a real copy here
-// since Null has no internal state.
-func (i Null) Dup() Item {
-	return i
-}
-
 // TryBool implements the Item interface.
 func (i Null) TryBool() (bool, error) { return false, nil }
 
@@ -510,11 +495,6 @@ func (i *BigInteger) String() string {
 	return "BigInteger"
 }
 
-// Dup implements the Item interface.
-func (i *BigInteger) Dup() Item {
-	return i
-}
-
 // Type implements the Item interface.
 func (i *BigInteger) Type() Type { return IntegerT }
 
@@ -548,11 +528,6 @@ func (i Bool) MarshalJSON() ([]byte, error) {
 
 func (i Bool) String() string {
 	return "Boolean"
-}
-
-// Dup implements the Item interface.
-func (i Bool) Dup() Item {
-	return i
 }
 
 // TryBool implements the Item interface.
@@ -684,11 +659,6 @@ func (i *ByteArray) equalsLimited(s Item, limit *int) bool {
 	return bytes.Equal(*i, *val)
 }
 
-// Dup implements the Item interface.
-func (i *ByteArray) Dup() Item {
-	return i
-}
-
 // Type implements the Item interface.
 func (i *ByteArray) Type() Type { return ByteArrayT }
 
@@ -771,12 +741,6 @@ func (i *Array) TryInteger() (*big.Int, error) {
 // Equals implements the Item interface.
 func (i *Array) Equals(s Item) bool {
 	return i == s
-}
-
-// Dup implements the Item interface.
-func (i *Array) Dup() Item {
-	// reference type
-	return i
 }
 
 // Type implements the Item interface.
@@ -890,12 +854,6 @@ func (i *Map) Has(key Item) bool {
 	return ok
 }
 
-// Dup implements the Item interface.
-func (i *Map) Dup() Item {
-	// reference type
-	return i
-}
-
 // Type implements the Item interface.
 func (i *Map) Type() Type { return MapT }
 
@@ -998,12 +956,6 @@ func (i *Interop) String() string {
 	return "InteropInterface"
 }
 
-// Dup implements the Item interface.
-func (i *Interop) Dup() Item {
-	// reference type
-	return i
-}
-
 // TryBool implements the Item interface.
 func (i *Interop) TryBool() (bool, error) { return true, nil }
 
@@ -1089,15 +1041,6 @@ func (p *Pointer) String() string {
 // Value implements the Item interface.
 func (p *Pointer) Value() any {
 	return p.pos
-}
-
-// Dup implements the Item interface.
-func (p *Pointer) Dup() Item {
-	return &Pointer{
-		pos:    p.pos,
-		script: p.script,
-		hash:   p.hash,
-	}
 }
 
 // TryBool implements the Item interface.
@@ -1187,11 +1130,6 @@ func (i *Buffer) TryInteger() (*big.Int, error) {
 // Equals implements the Item interface.
 func (i *Buffer) Equals(s Item) bool {
 	return i == s
-}
-
-// Dup implements the Item interface.
-func (i *Buffer) Dup() Item {
-	return i
 }
 
 // MarshalJSON implements the json.Marshaler interface.
