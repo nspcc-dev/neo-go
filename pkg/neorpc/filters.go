@@ -43,15 +43,17 @@ type (
 	// [MaxNotificationFilterParametersCount] parameters are accepted (see also
 	// [NotificationFilter.IsValid]). `Any`-typed parameter with zero value
 	// allows any notification parameter. Supported parameter types:
-	// - [smartcontract.AnyType]
-	// - [smartcontract.BoolType]
-	// - [smartcontract.IntegerType]
-	// - [smartcontract.ByteArrayType]
-	// - [smartcontract.StringType]
-	// - [smartcontract.Hash160Type]
-	// - [smartcontract.Hash256Type]
-	// - [smartcontract.PublicKeyType]
-	// - [smartcontract.SignatureType]
+	//
+	//   - [smartcontract.AnyType]
+	//   - [smartcontract.BoolType]
+	//   - [smartcontract.IntegerType]
+	//   - [smartcontract.ByteArrayType]
+	//   - [smartcontract.StringType]
+	//   - [smartcontract.Hash160Type]
+	//   - [smartcontract.Hash256Type]
+	//   - [smartcontract.PublicKeyType]
+	//   - [smartcontract.SignatureType]
+	//
 	// nil value treated as missing filter.
 	NotificationFilter struct {
 		Contract        *util.Uint160             `json:"contract,omitzero"`

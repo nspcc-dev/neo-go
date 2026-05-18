@@ -2663,9 +2663,11 @@ func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {
 // removeNOPs converts b to a program where all long JMP*/CALL* specified by absolute offsets
 // are replaced with their corresponding short counterparts. It panics if either b or offsets are invalid.
 // This is done in 2 passes:
-// 1. Alter jump offsets taking into account parts to be removed.
-// 2. Perform actual removal of jump targets.
-// 3. Reevaluate debug sequence points offsets.
+//
+//  1. Alter jump offsets taking into account parts to be removed.
+//  2. Perform actual removal of jump targets.
+//  3. Reevaluate debug sequence points offsets.
+//
 // Note: after jump offsets altering, there can appear new candidates for conversion.
 // These are ignored for now.
 func removeNOPs(b []byte, nopOffsets []int, sequencePoints map[string][]DebugSeqPoint) []byte {

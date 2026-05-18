@@ -228,8 +228,10 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 // decodeCompressedY performs decompression of Y coordinate for the given X and Y's least significant bit.
 // We use here a short-form Weierstrass curve (https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html)
 // y² = x³ + ax + b. Two types of elliptic curves are supported:
-// 1. Secp256k1 (Koblitz curve): y² = x³ + b,
-// 2. Secp256r1 (Random curve): y² = x³ - 3x + b.
+//
+//  1. Secp256k1 (Koblitz curve): y² = x³ + b,
+//  2. Secp256r1 (Random curve): y² = x³ - 3x + b.
+//
 // To decode a compressed curve point, we perform the following operation: y = sqrt(x³ + ax + b mod p)
 // where `p` denotes the order of the underlying curve field.
 func decodeCompressedY(x *big.Int, ylsb uint, curve elliptic.Curve) (*big.Int, error) {

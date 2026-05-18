@@ -321,10 +321,11 @@ func (c *codegen) fillDocumentInfo() {
 // the function being called in declaration). It also analyzes global variables
 // usage preserving the same traversal strategy and rules. Unused global variables
 // are renamed to "_" in the end. Global variable is treated as "used" iff:
-// 1. It belongs either to main or to exported package AND is used directly from the exported (or _init\_deploy) method of the main package.
-// 2. It belongs either to main or to exported package AND is used non-directly from the exported (or _init\_deploy) method of the main package
-// (e.g. via series of function calls or in some expression that is "used").
-// 3. It belongs either to main or to exported package AND contains function call inside its value definition.
+//
+//  1. It belongs either to main or to exported package AND is used directly from the exported (or _init_deploy) method of the main package.
+//  2. It belongs either to main or to exported package AND is used non-directly from the exported (or _init_deploy) method of the main package
+//     (e.g. via series of function calls or in some expression that is "used").
+//  3. It belongs either to main or to exported package AND contains function call inside its value definition.
 func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 	type declPair struct {
 		decl      *ast.FuncDecl

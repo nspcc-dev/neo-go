@@ -1501,9 +1501,10 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 //  2. Every block must eventually be fetched even if the peer sends no answer.
 //
 // Thus, the following algorithm is used:
-// 1. Block range is divided into chunks of [payload.MaxHashesCount].
-// 2. Send requests for chunk in increasing order.
-// 3. After all requests have been sent, request random height.
+//
+//  1. Block range is divided into chunks of [payload.MaxHashesCount].
+//  2. Send requests for chunk in increasing order.
+//  3. After all requests have been sent, request random height.
 func (s *Server) requestBlocks(bq blockHeaderQueuer, p Peer) error {
 	pl := getRequestBlocksPayload(p, bq.BlockHeight(), &s.lastRequestedBlock)
 	lq, capLeft := s.bQueue.LastQueued()
