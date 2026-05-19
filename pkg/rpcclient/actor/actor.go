@@ -250,7 +250,7 @@ func (a *Actor) Sign(tx *transaction.Transaction) error {
 	return nil
 }
 
-// SignAndSend signs arbitrary transaction (see also Sign) and sends it to the
+// SignAndSend signs arbitrary transaction (see also [Actor.Sign]) and sends it to the
 // network.
 func (a *Actor) SignAndSend(tx *transaction.Transaction) (util.Uint256, uint32, error) {
 	return a.sendWrapper(tx, a.Sign(tx))
@@ -265,14 +265,14 @@ func (a *Actor) sendWrapper(tx *transaction.Transaction, err error) (util.Uint25
 }
 
 // SendCall creates a transaction that calls the given method of the given
-// contract with the given parameters (see also MakeCall) and sends it to the
+// contract with the given parameters (see also [Actor.MakeCall]) and sends it to the
 // network.
 func (a *Actor) SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error) {
 	return a.sendWrapper(a.MakeCall(contract, method, params...))
 }
 
 // SendTunedCall creates a transaction that calls the given method of the given
-// contract with the given parameters (see also MakeTunedCall) and attributes,
+// contract with the given parameters (see also [Actor.MakeTunedCall]) and attributes,
 // allowing to check for execution results of this call and modify transaction
 // before it's signed; this transaction is then sent to the network.
 func (a *Actor) SendTunedCall(contract util.Uint160, method string, attrs []transaction.Attribute, txHook TransactionCheckerModifier, params ...any) (util.Uint256, uint32, error) {
@@ -280,14 +280,14 @@ func (a *Actor) SendTunedCall(contract util.Uint160, method string, attrs []tran
 }
 
 // SendRun creates a transaction with the given executable script (see also
-// MakeRun) and sends it to the network.
+// [Actor.MakeRun]) and sends it to the network.
 func (a *Actor) SendRun(script []byte) (util.Uint256, uint32, error) {
 	return a.sendWrapper(a.MakeRun(script))
 }
 
 // SendTunedRun creates a transaction with the given executable script and
 // attributes, allowing to check for execution results of this script and modify
-// transaction before it's signed (see also MakeTunedRun). This transaction is
+// transaction before it's signed (see also [Actor.MakeTunedRun]). This transaction is
 // then sent to the network.
 func (a *Actor) SendTunedRun(script []byte, attrs []transaction.Attribute, txHook TransactionCheckerModifier) (util.Uint256, uint32, error) {
 	return a.sendWrapper(a.MakeTunedRun(script, attrs, txHook))
@@ -295,7 +295,7 @@ func (a *Actor) SendTunedRun(script []byte, attrs []transaction.Attribute, txHoo
 
 // SendUncheckedRun creates a transaction with the given executable script and
 // attributes that can use up to sysfee GAS for its execution, allowing to modify
-// this transaction before it's signed (see also MakeUncheckedRun). This
+// this transaction before it's signed (see also [Actor.MakeUncheckedRun]). This
 // transaction is then sent to the network.
 func (a *Actor) SendUncheckedRun(script []byte, sysfee int64, attrs []transaction.Attribute, txHook TransactionModifier) (util.Uint256, uint32, error) {
 	return a.sendWrapper(a.MakeUncheckedRun(script, sysfee, attrs, txHook))

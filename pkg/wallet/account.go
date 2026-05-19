@@ -95,7 +95,7 @@ func NewAccount() (*Account, error) {
 }
 
 // NewContractAccount creates a contract account belonging to some deployed contract.
-// SignTx can be called on this account with no error and will create invocation script,
+// [Account.SignTx] can be called on this account with no error and will create invocation script,
 // which puts provided arguments on stack for use in `verify`.
 func NewContractAccount(hash util.Uint160, args ...any) *Account {
 	return &Account{
@@ -161,7 +161,7 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 }
 
 // SignHashable signs the given Hashable item and returns the signature. If this
-// account can't sign (CanSign() returns false) nil is returned.
+// account can't sign ([Account.CanSign] returns false) nil is returned.
 func (a *Account) SignHashable(net netmode.Magic, item hash.Hashable) []byte {
 	if !a.CanSign() {
 		return nil
@@ -184,9 +184,9 @@ func (a *Account) GetVerificationScript() []byte {
 }
 
 // Decrypt decrypts the EncryptedWIF with the given passphrase returning error
-// if anything goes wrong. After the decryption Account can be used to sign
+// if anything goes wrong. After the decryption [Account] can be used to sign
 // things unless it's locked. Don't decrypt the key unless you want to sign
-// something and don't forget to call Close after use for maximum safety.
+// something and don't forget to call [Account.Close] after use for maximum safety.
 func (a *Account) Decrypt(passphrase string, scrypt keys.ScryptParams) error {
 	var err error
 
@@ -215,14 +215,14 @@ func (a *Account) Encrypt(passphrase string, scrypt keys.ScryptParams) error {
 // PrivateKey returns private key corresponding to the account if it's unlocked.
 // Please be very careful when using it, do not copy its contents and do not
 // keep a pointer to it unless you absolutely need to. Most of the time you can
-// use other methods (PublicKey, ScriptHash, SignHashable) depending on your
+// use other methods ([Account.PublicKey], [Account.ScriptHash], [Account.SignHashable]) depending on your
 // needs and it'll be safer this way.
 func (a *Account) PrivateKey() *keys.PrivateKey {
 	return a.privateKey
 }
 
 // PublicKey returns the public key associated with the private key corresponding to
-// the account. It can return nil if account is locked (use CanSign to check).
+// the account. It can return nil if account is locked (use [Account.CanSign] to check).
 func (a *Account) PublicKey() *keys.PublicKey {
 	if !a.CanSign() {
 		return nil
@@ -241,7 +241,7 @@ func (a *Account) ScriptHash() util.Uint160 {
 }
 
 // Close cleans up the private key used by Account and disassociates it from
-// Account. The Account can no longer sign anything after this call, but Decrypt
+// Account. The Account can no longer sign anything after this call, but [Account.Decrypt]
 // can make it usable again.
 func (a *Account) Close() {
 	if a.privateKey == nil {
@@ -308,7 +308,7 @@ func (a *Account) ConvertMultisigEncrypted(accKey *keys.PublicKey, m int, pubs [
 	return nil
 }
 
-// NewAccountFromPrivateKey creates a wallet from the given PrivateKey.
+// NewAccountFromPrivateKey creates a wallet from the given [keys.PrivateKey].
 func NewAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubKey := p.PublicKey()
 

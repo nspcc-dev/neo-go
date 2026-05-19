@@ -94,9 +94,9 @@ type (
 		NamedTypes map[string]ExtendedType `yaml:"namedtypes,omitempty"`
 		// Types contains type structure description for various types used in
 		// smartcontract. The map key has one of the following forms:
-		// - `methodName` for method return value;
-		// - `mathodName.paramName` for method's parameter value.
-		// - `eventName.paramName` for event's parameter value.
+		//   - `methodName` for method return value;
+		//   - `methodName.paramName` for method's parameter value.
+		//   - `eventName.paramName` for event's parameter value.
 		Types  map[string]ExtendedType `yaml:"types,omitempty"`
 		Output io.Writer               `yaml:"-"`
 	}

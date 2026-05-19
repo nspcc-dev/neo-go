@@ -18,7 +18,7 @@ import (
 // callback is completely responsible for invocation result checking, including
 // checking for HALT execution state (so if you don't check for it in a callback
 // you can send a transaction that is known to end up in FAULT state). It can
-// also modify the transaction (see TransactionModifier).
+// also modify the transaction (see [TransactionModifier]).
 type TransactionCheckerModifier func(r *result.Invoke, t *transaction.Transaction) error
 
 // TransactionModifier is a callback that receives the transaction before
@@ -38,7 +38,7 @@ func DefaultModifier(t *transaction.Transaction) error {
 	return nil
 }
 
-// DefaultCheckerModifier is the default TransactionCheckerModifier, it checks
+// DefaultCheckerModifier is the default [TransactionCheckerModifier], it checks
 // for HALT state in the invocation result given to it and does nothing else.
 func DefaultCheckerModifier(r *result.Invoke, t *transaction.Transaction) error {
 	if r.State != vmstate.Halt.String() {
@@ -49,9 +49,9 @@ func DefaultCheckerModifier(r *result.Invoke, t *transaction.Transaction) error 
 
 // MakeCall creates a transaction that calls the given method of the given
 // contract with the given parameters. Test call is performed and filtered through
-// Actor-configured TransactionCheckerModifier. The resulting transaction has
+// Actor-configured [TransactionCheckerModifier]. The resulting transaction has
 // Actor-configured attributes added as well. If you need to override attributes
-// and/or TransactionCheckerModifier use MakeTunedCall.
+// and/or [TransactionCheckerModifier] use [Actor.MakeTunedCall].
 func (a *Actor) MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error) {
 	return a.MakeTunedCall(contract, method, nil, nil, params...)
 }
@@ -59,7 +59,7 @@ func (a *Actor) MakeCall(contract util.Uint160, method string, params ...any) (*
 // MakeTunedCall creates a transaction with the given attributes (or Actor default
 // ones if nil) that calls the given method of the given contract with the given
 // parameters. It's filtered through the provided callback (or Actor default
-// one's if nil, see TransactionCheckerModifier documentation also), so the
+// one's if nil, see [TransactionCheckerModifier] documentation also), so the
 // process can be aborted and transaction can be modified before signing.
 func (a *Actor) MakeTunedCall(contract util.Uint160, method string, attrs []transaction.Attribute, txHook TransactionCheckerModifier, params ...any) (*transaction.Transaction, error) {
 	r, err := a.Call(contract, method, params...)
@@ -68,9 +68,9 @@ func (a *Actor) MakeTunedCall(contract util.Uint160, method string, attrs []tran
 
 // MakeRun creates a transaction with the given executable script. Test
 // invocation of this script is performed and filtered through Actor's
-// TransactionCheckerModifier. The resulting transaction has attributes that are
+// [TransactionCheckerModifier]. The resulting transaction has attributes that are
 // configured for current Actor. If you need to override them or use a different
-// TransactionCheckerModifier use MakeTunedRun.
+// [TransactionCheckerModifier] use [Actor.MakeTunedRun].
 func (a *Actor) MakeRun(script []byte) (*transaction.Transaction, error) {
 	return a.MakeTunedRun(script, nil, nil)
 }
@@ -78,7 +78,7 @@ func (a *Actor) MakeRun(script []byte) (*transaction.Transaction, error) {
 // MakeTunedRun creates a transaction with the given attributes (or Actor default
 // ones if nil) that executes the given script. It's filtered through the
 // provided callback (if not nil, otherwise Actor default one is used, see
-// TransactionCheckerModifier documentation also), so the process can be aborted
+// [TransactionCheckerModifier] documentation also), so the process can be aborted
 // and transaction can be modified before signing.
 func (a *Actor) MakeTunedRun(script []byte, attrs []transaction.Attribute, txHook TransactionCheckerModifier) (*transaction.Transaction, error) {
 	r, err := a.Run(script)
@@ -100,7 +100,7 @@ func (a *Actor) makeUncheckedWrapper(r *result.Invoke, err error, attrs []transa
 // MakeUncheckedRun creates a transaction with the given attributes (or Actor
 // default ones if nil) that executes the given script and is expected to use
 // up to sysfee GAS for its execution. The transaction is filtered through the
-// provided callback (or Actor default one, see TransactionModifier documentation
+// provided callback (or Actor default one, see [TransactionModifier] documentation
 // also), so the process can be aborted and transaction can be modified before
 // signing. This method is mostly useful when test invocation is already
 // performed and the script and required system fee values are already known.

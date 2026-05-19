@@ -88,12 +88,12 @@ type WSClient struct {
 
 // WSOptions defines options for the web-socket RPC client. It contains a
 // set of options for the underlying standard RPC client as far as
-// WSClient-specific options. See Options documentation for more details.
+// [WSClient]-specific options. See [Options] documentation for more details.
 type WSOptions struct {
 	Options
-	// CloseNotificationChannelIfFull allows WSClient to close a subscriber's
+	// CloseNotificationChannelIfFull allows [WSClient] to close a subscriber's
 	// receive channel in case if the channel isn't read properly and no more
-	// events can be pushed to it. This option, if set, allows to avoid WSClient
+	// events can be pushed to it. This option, if set, allows to avoid [WSClient]
 	// blocking on a subsequent notification dispatch. However, if enabled, the
 	// corresponding subscription is kept even after receiver's channel closing,
 	// thus it's still the caller's duty to call Unsubscribe() for this
@@ -490,18 +490,18 @@ const (
 // ErrNilNotificationReceiver is returned when notification receiver channel is nil.
 var ErrNilNotificationReceiver = errors.New("nil notification receiver")
 
-// ErrWSConnLost is a WSClient-specific error that will be returned for any
+// ErrWSConnLost is a [WSClient]-specific error that will be returned for any
 // requests after disconnection (including intentional ones via
-// (*WSClient).Close). Use errors.Is(err, ErrConnClosedByUser) check to
+// [WSClient.Close]). Use errors.Is(err, [ErrConnClosedByUser]) check to
 // distinguish the latter case from a side reason of lost connection.
 var ErrWSConnLost = errors.New("connection lost")
 
-// ErrConnClosedByUser is a WSClient error returned iff RPC request is sent after
-// the user calls (*WSClient).Close method by himself. Note that this error won't
-// be returned from (*WSClient).GetError method.
+// ErrConnClosedByUser is a [WSClient] error returned iff RPC request is sent after
+// the user calls [WSClient.Close] method by himself. Note that this error won't
+// be returned from [WSClient.GetError] method.
 var ErrConnClosedByUser = errors.New("closed by user")
 
-// NewWS returns a new WSClient ready to use (with established websocket
+// NewWS returns a new [WSClient] ready to use (with established websocket
 // connection). You need to use websocket URL for it like `ws://1.2.3.4/ws`.
 // You should call Init method to initialize the network magic the client is
 // operating on.
@@ -852,8 +852,8 @@ func (c *WSClient) performSubscription(params []any, rcvr notificationReceiver) 
 }
 
 // ReceiveBlocks registers provided channel as a receiver for the new block events.
-// Events can be filtered by the given BlockFilter, nil value doesn't add any filter.
-// See WSClient comments for generic Receive* behaviour details.
+// Events can be filtered by the given [neorpc.BlockFilter], nil value doesn't add any filter.
+// See [WSClient] comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Block) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -875,7 +875,7 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 
 // ReceiveHeadersOfAddedBlocks registers provided channel as a receiver for new
 // block's header events. Events can be filtered by the given [neorpc.BlockFilter],
-// nil value doesn't add any filter. See WSClient comments for generic
+// nil value doesn't add any filter. See [WSClient] comments for generic
 // Receive* behaviour details.
 func (c *WSClient) ReceiveHeadersOfAddedBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Header) (string, error) {
 	if rcvr == nil {
@@ -897,8 +897,8 @@ func (c *WSClient) ReceiveHeadersOfAddedBlocks(flt *neorpc.BlockFilter, rcvr cha
 }
 
 // ReceiveTransactions registers provided channel as a receiver for new transaction
-// events. Events can be filtered by the given TxFilter, nil value doesn't add any
-// filter. See WSClient comments for generic Receive* behaviour details.
+// events. Events can be filtered by the given [neorpc.TxFilter], nil value doesn't add any
+// filter. See [WSClient] comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transaction.Transaction) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -916,8 +916,8 @@ func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transa
 }
 
 // ReceiveExecutionNotifications registers provided channel as a receiver for execution
-// events. Events can be filtered by the given NotificationFilter, nil value doesn't add
-// any filter. See WSClient comments for generic Receive* behaviour details.
+// events. Events can be filtered by the given [neorpc.NotificationFilter], nil value doesn't add
+// any filter. See [WSClient] comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter, rcvr chan<- *state.ContainedNotificationEvent) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -936,8 +936,8 @@ func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter,
 
 // ReceiveExecutions registers provided channel as a receiver for
 // application execution result events generated during transaction execution.
-// Events can be filtered by the given ExecutionFilter, nil value doesn't add any filter.
-// See WSClient comments for generic Receive* behaviour details.
+// Events can be filtered by the given [neorpc.ExecutionFilter], nil value doesn't add any filter.
+// See [WSClient] comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *state.AppExecResult) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -955,11 +955,11 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 }
 
 // ReceiveNotaryRequests registers provided channel as a receiver for notary request
-// payload addition or removal events. Events can be filtered by the given NotaryRequestFilter
+// payload addition or removal events. Events can be filtered by the given [neorpc.NotaryRequestFilter]
 // where sender corresponds to notary request sender (the second fallback transaction
 // signer), signer corresponds to main transaction signers and type corresponds to the
 // [mempoolevent.Type] and denotes whether notary request was added to or removed from
-// the notary request pool. nil value doesn't add any filter. See WSClient comments
+// the notary request pool. nil value doesn't add any filter. See [WSClient] comments
 // for generic Receive* behaviour details.
 func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.NotaryRequestFilter, rcvr chan<- *result.NotaryRequestEvent) (string, error) {
 	if rcvr == nil {
@@ -979,10 +979,10 @@ func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.NotaryRequestFilter, rcvr c
 
 // ReceiveMempoolEvents registers the provided channel as a receiver for mempool
 // transaction addition or removal events. Events can be filtered by the given
-// MempoolEventFilter where sender corresponds to the transaction’s sender, signer
+// [neorpc.MempoolEventFilter] where sender corresponds to the transaction’s sender, signer
 // corresponds to one of the transaction’s signers, and type corresponds to the
 // [mempoolevent.Type] and denotes whether the transaction was added to or removed
-// from the mempool. See WSClient comments for generic Receive* behaviour details.
+// from the mempool. See [WSClient] comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveMempoolEvents(flt *neorpc.MempoolEventFilter, rcvr chan<- *result.MempoolEvent) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -1003,7 +1003,7 @@ func (c *WSClient) ReceiveMempoolEvents(flt *neorpc.MempoolEventFilter, rcvr cha
 // error in case if there's no subscription with the provided ID. Call to Unsubscribe
 // doesn't block notifications receive process for given subscriber, thus, ensure
 // that subscriber channel is properly drained while unsubscription is being
-// performed. Failing to do so will cause WSClient to block even regular requests.
+// performed. Failing to do so will cause [WSClient] to block even regular requests.
 // You may probably need to run unsubscription process in a separate
 // routine (in parallel with notification receiver routine) to avoid Client's
 // notification dispatcher blocking.
@@ -1017,7 +1017,7 @@ func (c *WSClient) Unsubscribe(id string) error {
 // chunk of unsubscription errors afterwards. Call to UnsubscribeAll doesn't block
 // notifications receive process for given subscribers, thus, ensure that subscribers
 // channels are properly drained while unsubscription is being performed. Failing to
-// do so will cause WSClient to block even regular requests. You may probably need
+// do so will cause [WSClient] to block even regular requests. You may probably need
 // to run unsubscription process in a separate routine (in parallel with notification
 // receiver routines) to avoid Client's notification dispatcher blocking.
 func (c *WSClient) UnsubscribeAll() error {
@@ -1123,7 +1123,7 @@ func (c *WSClient) getErrorOrClosedByUser() error {
 	return c.closeErr
 }
 
-// Context returns WSClient Cancel context that will be terminated on Client shutdown.
+// Context returns [WSClient] Cancel context that will be terminated on Client shutdown.
 func (c *WSClient) Context() context.Context {
 	return c.ctx
 }

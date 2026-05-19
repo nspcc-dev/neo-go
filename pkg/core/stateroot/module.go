@@ -86,7 +86,7 @@ func (s *Module) GetState(root util.Uint256, key []byte) ([]byte, error) {
 // item with the key equal to the prefix is included into the result; if empty `start` is specified,
 // then the item with the key equal to the prefix is not included into the result.
 // In case there are no results (prefix is unused, start is after the last available
-// element) mpt.ErrNotFound is returned.
+// element) [mpt.ErrNotFound] is returned.
 func (s *Module) FindStates(root util.Uint256, prefix, start []byte, maxNum int) ([]storage.KeyValue, error) {
 	// Allow accessing old values, it's RO thing.
 	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))

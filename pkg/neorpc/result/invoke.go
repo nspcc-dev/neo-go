@@ -56,13 +56,16 @@ type iteratorAux struct {
 }
 
 // Iterator represents a VM iterator identifier. It can be in one of three
-// states: 1. If the JSON-RPC server supports session-based iterators, the
-// ID field is set, and the Values field may contain a partial expansion of
-// the iterator if session expansion is enabled. 2. If the JSON-RPC server
-// does not support sessions but allows in-place iteration, the Values field
-// will be populated, and Truncated will indicate whether more items exist.
-// 3. If the JSON-RPC server neither supports sessions nor in-place iteration,
-// all fields will be unset.
+// states:
+//
+//  1. If the JSON-RPC server supports session-based iterators, the
+//     ID field is set, and the Values field may contain a partial expansion of
+//     the iterator if session expansion is enabled.
+//  2. If the JSON-RPC server does not support sessions but allows in-place
+//     iteration, the Values field will be populated, and Truncated will
+//     indicate whether more items exist.
+//  3. If the JSON-RPC server neither supports sessions nor in-place iteration,
+//     all fields will be unset.
 type Iterator struct {
 	// ID represents iterator ID. It is non-nil iff JSON-RPC server support session mechanism.
 	ID *uuid.UUID

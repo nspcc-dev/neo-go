@@ -46,7 +46,7 @@ const (
 // during serialization or deserialization.
 var ErrInvalidValue = errors.New("invalid value")
 
-// ErrTooDeep is returned when JSON encoder/decoder goes beyond MaxJSONDepth in
+// ErrTooDeep is returned when JSON encoder/decoder goes beyond [MaxJSONDepth] in
 // its processing.
 var ErrTooDeep = errors.New("too deep")
 

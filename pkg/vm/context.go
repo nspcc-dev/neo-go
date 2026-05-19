@@ -100,12 +100,12 @@ type (
 // from callee.
 var ErrMultiRet = errors.New("multiple return values in a cross-contract call")
 
-// NewContext returns a new Context object.
+// NewContext returns a new [Context] object.
 func NewContext(b []byte) *Context {
 	return NewContextWithParams(b, -1, 0)
 }
 
-// NewContextWithParams creates new Context objects using script, parameter count,
+// NewContextWithParams creates new [Context] objects using script, parameter count,
 // return value count and initial position in script.
 func NewContextWithParams(b []byte, rvcount int, pos int) *Context {
 	return &Context{
@@ -213,22 +213,22 @@ func DynamicOnUnload(v *VM, ctx *Context, commit bool) error {
 	return nil
 }
 
-// BreakPoints returns the current set of Context's breakpoints.
+// BreakPoints returns the current set of [Context]'s breakpoints.
 func (c *Context) BreakPoints() []int {
 	return slices.Clone(c.sc.breakPoints)
 }
 
-// ArgumentsSlot returns the arguments slot of Context.
+// ArgumentsSlot returns the arguments slot of [Context].
 func (c *Context) ArgumentsSlot() *Slot {
 	return &c.arguments
 }
 
-// LocalsSlot returns the local slot of Context.
+// LocalsSlot returns the local slot of [Context].
 func (c *Context) LocalsSlot() *Slot {
 	return &c.local
 }
 
-// StaticsSlot returns the static slot of Context.
+// StaticsSlot returns the static slot of [Context].
 func (c *Context) StaticsSlot() *Slot {
 	return &c.sc.static
 }

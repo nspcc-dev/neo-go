@@ -67,7 +67,7 @@ func NewInMemoryWallet() *Wallet {
 	return newWallet(nil)
 }
 
-// NewWalletFromFile creates a Wallet from the given wallet file path.
+// NewWalletFromFile creates a [Wallet] from the given wallet file path.
 func NewWalletFromFile(path string) (*Wallet, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -126,12 +126,12 @@ func (w *Wallet) CreateAccount(name, passphrase string) error {
 	return w.Save()
 }
 
-// AddAccount adds an existing Account to the wallet.
+// AddAccount adds an existing [Account] to the wallet.
 func (w *Wallet) AddAccount(acc *Account) {
 	w.Accounts = append(w.Accounts, acc)
 }
 
-// RemoveAccount removes an Account with the specified addr
+// RemoveAccount removes an [Account] with the specified addr
 // from the wallet.
 func (w *Wallet) RemoveAccount(addr string) error {
 	for i, acc := range w.Accounts {
