@@ -14,7 +14,7 @@ type InternalHook func(context.Context, chan<- neorpc.Notification) func(*neorpc
 // Internal is an experimental "local" client that does not connect to RPC via
 // network. It's made for deeply integrated applications like NeoFS that have
 // blockchain running in the same process, so use it only if you know what you're
-// doing. It provides the same interface WSClient does.
+// doing. It provides the same interface [WSClient] does.
 type Internal struct {
 	WSClient
 

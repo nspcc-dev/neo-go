@@ -426,8 +426,9 @@ type (
 		IsNep24        bool
 		IsNep24Payable bool
 		// ContractWriterStandards is the list of supported standards those RPC bindings matches the following criteria:
-		// 1. Has `nepXX.Contract` structure declared in the package.
-		// 2. Has `nepXX.NewContract(actor, hash) *Contract` constructor (which implies the presence of non-safe methods).
+		//
+		//  1. Has `nepXX.Contract` structure declared in the package.
+		//  2. Has `nepXX.NewContract(actor, hash) *Contract` constructor (which implies the presence of non-safe methods).
 		ContractWriterStandards []string
 
 		HasReader   bool
