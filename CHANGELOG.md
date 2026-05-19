@@ -20,7 +20,7 @@ from deprecated `actor.ErrExecFailed` to `neorpc.FaultException` error.
 New features:
  * `wsconnections_count` Prometheus metric showing the number of active
    web-socket connections for RPC server (#4239)
- * `sd_notify` support (#4254)
+ * `sd_notify` support (#4245)
 
 Behavior changes:
  * `actor.ErrExecFailed` is deprecated and replaced by `neorpc.FaultException`
