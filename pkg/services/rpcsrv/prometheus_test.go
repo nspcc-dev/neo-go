@@ -16,7 +16,7 @@ func TestRPCRequestsMetricNaming(t *testing.T) {
 	mfs, err := prometheus.DefaultGatherer.Gather()
 	require.NoError(t, err)
 
-	var foundMetric, foundCounterType bool
+	var foundMetric, foundCounterType, foundAPILabel bool
 	for _, mf := range mfs {
 		switch mf.GetName() {
 		case "neogo_rpc_requests_total":
@@ -26,7 +26,7 @@ func TestRPCRequestsMetricNaming(t *testing.T) {
 				for _, l := range m.GetLabel() {
 					if l.GetName() == "api" && l.GetValue() == api {
 						require.GreaterOrEqual(t, m.GetCounter().GetValue(), 1.0)
-						return
+						foundAPILabel = true
 					}
 				}
 			}
@@ -39,5 +39,5 @@ func TestRPCRequestsMetricNaming(t *testing.T) {
 
 	require.True(t, foundMetric)
 	require.True(t, foundCounterType)
-	t.Fatal("neogo_rpc_requests_total metric is missing expected api label value")
+	require.True(t, foundAPILabel)
 }
