@@ -3,6 +3,7 @@ package rpcsrv
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
@@ -11,22 +12,34 @@ import (
 func TestRPCRequestsMetricNaming(t *testing.T) {
 	const api = "__test_api__"
 
-	addReqMetric(api)
+	addReqMetric(api, time.Second)
 
 	mfs, err := prometheus.DefaultGatherer.Gather()
 	require.NoError(t, err)
 
-	var foundMetric, foundCounterType, foundAPILabel bool
+	var foundCounterMetric, foundCounterType, foundCounterAPILabel bool
+	var foundHistogramMetric, foundHistogramType, foundHistogramAPILabel bool
 	for _, mf := range mfs {
 		switch mf.GetName() {
 		case "neogo_rpc_requests_total":
-			foundMetric = true
+			foundCounterMetric = true
 			foundCounterType = mf.GetType().String() == "COUNTER"
 			for _, m := range mf.GetMetric() {
 				for _, l := range m.GetLabel() {
 					if l.GetName() == "api" && l.GetValue() == api {
 						require.GreaterOrEqual(t, m.GetCounter().GetValue(), 1.0)
-						foundAPILabel = true
+						foundCounterAPILabel = true
+					}
+				}
+			}
+		case "neogo_rpc_request_duration_seconds":
+			foundHistogramMetric = true
+			foundHistogramType = mf.GetType().String() == "HISTOGRAM"
+			for _, m := range mf.GetMetric() {
+				for _, l := range m.GetLabel() {
+					if l.GetName() == "api" && l.GetValue() == api {
+						require.GreaterOrEqual(t, m.GetHistogram().GetSampleCount(), uint64(1))
+						foundHistogramAPILabel = true
 					}
 				}
 			}
@@ -37,7 +50,10 @@ func TestRPCRequestsMetricNaming(t *testing.T) {
 		}
 	}
 
-	require.True(t, foundMetric)
+	require.True(t, foundCounterMetric)
 	require.True(t, foundCounterType)
-	require.True(t, foundAPILabel)
+	require.True(t, foundCounterAPILabel)
+	require.True(t, foundHistogramMetric)
+	require.True(t, foundHistogramType)
+	require.True(t, foundHistogramAPILabel)
 }
