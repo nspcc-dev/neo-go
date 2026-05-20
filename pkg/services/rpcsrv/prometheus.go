@@ -2,7 +2,6 @@ package rpcsrv
 
 import (
 	"strings"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -26,8 +25,7 @@ var (
 	)
 )
 
-func addReqTimeMetric(name string, t time.Duration) {
-	_ = t
+func addReqMetric(name string) {
 	rpcRequestsTotal.WithLabelValues(strings.ToLower(name)).Inc()
 }
 

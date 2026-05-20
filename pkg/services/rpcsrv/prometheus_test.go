@@ -1,8 +1,8 @@
 package rpcsrv
 
 import (
+	"strings"
 	"testing"
-	"time"
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -12,7 +12,7 @@ import (
 func TestRPCRequestsMetricNaming(t *testing.T) {
 	const api = "__test_api__"
 
-	addReqTimeMetric(api, time.Second)
+	addReqMetric(api)
 
 	mfs, err := prometheus.DefaultGatherer.Gather()
 	require.NoError(t, err)
@@ -22,8 +22,10 @@ func TestRPCRequestsMetricNaming(t *testing.T) {
 		switch mf.GetName() {
 		case "neogo_rpc_requests_total":
 			rpcRequestsTotal = mf
-		case "neogo_rpc_traverseiterator_time", "neogo_rpc_unsubscribe_time":
-			t.Fatalf("obsolete per-method metric %q is still registered", mf.GetName())
+		default:
+			if strings.HasPrefix(mf.GetName(), "neogo_rpc_") && strings.HasSuffix(mf.GetName(), "_time") {
+				t.Fatalf("obsolete per-method metric %q is still registered", mf.GetName())
+			}
 		}
 	}
 
