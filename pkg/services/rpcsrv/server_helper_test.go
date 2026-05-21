@@ -124,11 +124,11 @@ func wrapUnitTestChain(t testing.TB, chain *core.Blockchain, orc OracleHandler, 
 	errCh := make(chan error, 2)
 	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger, errCh)
 	rpcServer.Start()
-	t.Cleanup(rpcServer.Shutdown)
 
 	handler := http.HandlerFunc(rpcServer.handleHTTPRequest)
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
+	t.Cleanup(rpcServer.Shutdown)
 	return chain, rpcServer, srv
 }
 
