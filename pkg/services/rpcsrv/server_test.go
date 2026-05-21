@@ -3803,11 +3803,7 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 			return dialer.DialContext(ctx, "tcp4", addr)
 		},
 	}}
-	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(rpcCall))
-	require.NoErrorf(t, err, "could not make a POST request")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := cl.Do(req)
+	resp, err := cl.Post(url, "application/json", strings.NewReader(rpcCall))
 	require.NoErrorf(t, err, "could not make a POST request")
 	body, err := gio.ReadAll(resp.Body)
 	resp.Body.Close()
