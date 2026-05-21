@@ -3792,6 +3792,7 @@ func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 
 func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	cl := http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
+		DisableKeepAlives:   true,
 		MaxIdleConns:        50,
 		MaxConnsPerHost:     50,
 		MaxIdleConnsPerHost: 50,
