@@ -56,7 +56,7 @@ ApplicationConfiguration:
       - "127.0.0.1:0" # let the system choose port dynamically
     EnableCORSWorkaround: false
     SessionEnabled: true
-    SessionLifetime: 2s # enough for tests as they run locally.
+    SessionLifetime: 10s # enough for tests as they run locally and in slow CI environments.
     MaxFindStoragePageSize: 2 # small value to test server-side paging
     MempoolSubscriptionsEnabled: true
   Prometheus:
