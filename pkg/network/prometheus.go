@@ -47,7 +47,15 @@ var (
 			Namespace: "neogo",
 		},
 	)
-	p2pCmds = make(map[CommandType]prometheus.Histogram)
+	p2pCmds     = make(map[CommandType]struct{})
+	p2pCmdsTime = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Help:      "P2P command handling time",
+			Name:      "p2p_commands_time",
+			Namespace: "neogo",
+		},
+		[]string{"command"},
+	)
 
 	// notarypoolUnsortedTx prometheus metric.
 	notarypoolUnsortedTx = prometheus.NewGauge(
@@ -67,6 +75,7 @@ func init() {
 		poolCount,
 		blockQueueLength,
 		notarypoolUnsortedTx,
+		p2pCmdsTime,
 	)
 	for _, cmd := range []CommandType{CMDVersion, CMDVerack, CMDGetAddr,
 		CMDAddr, CMDPing, CMDPong, CMDGetHeaders, CMDHeaders, CMDGetBlocks,
@@ -74,14 +83,7 @@ func init() {
 		CMDTX, CMDBlock, CMDExtensible, CMDP2PNotaryRequest, CMDGetMPTData,
 		CMDMPTData, CMDReject, CMDFilterLoad, CMDFilterAdd, CMDFilterClear,
 		CMDMerkleBlock, CMDAlert} {
-		p2pCmds[cmd] = prometheus.NewHistogram(
-			prometheus.HistogramOpts{
-				Help:      "P2P " + cmd.String() + " handling time",
-				Name:      "p2p_" + strings.ToLower(cmd.String()) + "_time",
-				Namespace: "neogo",
-			},
-		)
-		prometheus.MustRegister(p2pCmds[cmd])
+		p2pCmds[cmd] = struct{}{}
 	}
 }
 
@@ -107,10 +109,10 @@ func setSeverID(id string) {
 
 func addCmdTimeMetric(cmd CommandType, t time.Duration) {
 	// Shouldn't happen, message decoder checks the type, but better safe than sorry.
-	if p2pCmds[cmd] == nil {
+	if _, ok := p2pCmds[cmd]; !ok {
 		return
 	}
-	p2pCmds[cmd].Observe(t.Seconds())
+	p2pCmdsTime.WithLabelValues(strings.ToLower(cmd.String())).Observe(t.Seconds())
 }
 
 // updateNotarypoolMetrics updates metric of the number of fallback txs inside

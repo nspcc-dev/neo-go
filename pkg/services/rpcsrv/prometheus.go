@@ -9,18 +9,10 @@ import (
 
 // Metrics used in monitoring service.
 var (
-	rpcRequestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Help:      "RPC requests count",
-			Name:      "rpc_requests_total",
-			Namespace: "neogo",
-		},
-		[]string{"api"},
-	)
-	rpcRequestsDuration = prometheus.NewHistogramVec(
+	rpcRequests = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Help:      "RPC request handling time in seconds",
-			Name:      "rpc_request_duration_seconds",
+			Help:      "RPC request handling time",
+			Name:      "rpc_requests_time",
 			Namespace: "neogo",
 		},
 		[]string{"api"},
@@ -35,14 +27,11 @@ var (
 )
 
 func addReqMetric(name string, t time.Duration) {
-	api := strings.ToLower(name)
-	rpcRequestsTotal.WithLabelValues(api).Inc()
-	rpcRequestsDuration.WithLabelValues(api).Observe(t.Seconds())
+	rpcRequests.WithLabelValues(strings.ToLower(name)).Observe(t.Seconds())
 }
 
 func init() {
-	prometheus.MustRegister(rpcRequestsTotal)
-	prometheus.MustRegister(rpcRequestsDuration)
+	prometheus.MustRegister(rpcRequests)
 	prometheus.MustRegister(wsConnectionsCnt)
 }
 
