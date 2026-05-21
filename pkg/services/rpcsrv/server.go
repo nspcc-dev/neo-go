@@ -164,6 +164,9 @@ type (
 		notaryRequestSubs int
 		mempoolEventSubs  int
 
+		wsReaders sync.WaitGroup
+		wsWriters sync.WaitGroup
+
 		blockCh           chan *block.Block
 		blockHeaderCh     chan *block.Header
 		executionCh       chan *state.AppExecResult
@@ -493,6 +496,11 @@ func (s *Server) Shutdown() {
 
 	// Wait for handleSubEvents to finish.
 	<-s.subEventsToExitCh
+
+	// Wait for WS reader/writer routines to finish.
+	s.wsReaders.Wait()
+	s.wsWriters.Wait()
+
 	_ = s.log.Sync()
 }
 
@@ -537,7 +545,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		s.subsLock.Unlock()
 		updateWSConnectionsCnt(numOfSubs)
 		s.log.Info("websocket client connected", zap.String("remoteAddr", remote), zap.Int("numOfSubs", numOfSubs))
-		go s.handleWsWrites(ws, resChan, subChan)
+		s.wsWriters.Go(func() { s.handleWsWrites(ws, resChan, subChan) })
 		s.handleWsReads(ws, resChan, subscr, remote)
 		return
 	}
@@ -579,7 +587,7 @@ func (s *Server) RegisterLocal(ctx context.Context, events chan<- neorpc.Notific
 	s.subsLock.Unlock()
 	updateWSConnectionsCnt(numOfSubs)
 	s.log.Info("local websocket client connected", zap.Int("numOfSubs", numOfSubs))
-	go s.handleLocalNotifications(ctx, events, subChan, subscr)
+	s.wsWriters.Go(func() { s.handleLocalNotifications(ctx, events, subChan, subscr) })
 	return func(req *neorpc.Request) (*neorpc.Response, error) {
 		return s.handleInternal(req, subscr)
 	}
@@ -750,6 +758,8 @@ drainloop:
 }
 
 func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- abstractResult, subscr *subscriber, remoteAddr string) {
+	s.wsReaders.Add(1)
+	defer s.wsReaders.Done()
 	ws.SetReadLimit(s.wsReadLimit)
 	err := ws.SetReadDeadline(time.Now().Add(wsPongLimit))
 	ws.SetPongHandler(func(string) error { return ws.SetReadDeadline(time.Now().Add(wsPongLimit)) })
