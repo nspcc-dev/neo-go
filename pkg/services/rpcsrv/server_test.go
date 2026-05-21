@@ -3805,7 +3805,6 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	}}
 	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(rpcCall))
 	require.NoErrorf(t, err, "could not make a POST request")
-	req.Close = true
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := cl.Do(req)
