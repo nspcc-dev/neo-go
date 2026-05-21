@@ -868,6 +868,14 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 
 func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	pub := toPublicKey(args[0])
+	if !ic.IsHardforkEnabled(config.HFEchidna) { // doesn't affect N3 states but affects execution result, so need to be kept, ref. #4262.
+		ok, err := runtime.CheckKeyedWitness(ic, pub)
+		if err != nil {
+			panic(err)
+		} else if !ok {
+			return stackitem.NewBool(false)
+		}
+	}
 	if err := ic.VM.AddDatoshi(n.getRegisterPriceInternal(ic.DAO)); err != nil {
 		panic(fmt.Errorf("%w executing %s/registerCandidate", err, n.Hash.StringLE()))
 	}
