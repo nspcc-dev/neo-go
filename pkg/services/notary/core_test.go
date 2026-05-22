@@ -152,7 +152,7 @@ func TestNotary(t *testing.T) {
 			defer mtx.RUnlock()
 			completedTx = completedTxes[h]
 			return completedTx != nil
-		}, 10*time.Second, time.Millisecond*50, errors.New("transaction expected to be completed"))
+		}, time.Second*3, time.Millisecond*50, errors.New("transaction expected to be completed"))
 		return completedTx
 	}
 
@@ -659,7 +659,9 @@ func TestNotary(t *testing.T) {
 	setFinalizeWithError(true)
 	// Introduce some slippage between first and second fallback NVBs in order to avoid possible race caused by early
 	// first fallback transaction acceptance. The rest of fallbacks follow X+4 NVB pattern for testing code shortness.
-	requests, requesters = checkCompleteStandardRequest(t, 5, false, 1, 7, 11, 15, 19)
+	// Keep an extra block gap before the 4th and 5th NVB checkpoints to avoid flaky
+	// early acceptance caused by asynchronous block notification handling.
+	requests, requesters = checkCompleteStandardRequest(t, 5, false, 1, 8, 12, 16, 20)
 	checkFallbackTxs(t, requests, false)
 	// generate blocks to reach the most earlier fallback's NVB
 	// Here and below add +1 slippage to ensure that PostPersist for (nvbDiffFallback+1) height is properly handled, i.e.
@@ -693,6 +695,8 @@ func TestNotary(t *testing.T) {
 	setFinalizeWithError(false)
 	e.AddNewBlock(t)
 	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
+	e.AddNewBlock(t)
+	// Allow one more block for PostPersist notifications to settle before asserting removals.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
@@ -740,6 +744,8 @@ func TestNotary(t *testing.T) {
 	e.AddNewBlock(t)
 	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
+	// Allow one more block for PostPersist notifications to settle before asserting removals.
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 
@@ -780,6 +786,8 @@ func TestNotary(t *testing.T) {
 	e.AddNewBlock(t)
 	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
+	// Allow one more block for PostPersist notifications to settle before asserting removals.
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 
@@ -787,6 +795,8 @@ func TestNotary(t *testing.T) {
 	ntr1.OnRequestRemoval(requests[0])
 	e.AddNewBlock(t)
 	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
+	e.AddNewBlock(t)
+	// Allow one more block for PostPersist notifications to settle before asserting removals.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
