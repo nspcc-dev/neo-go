@@ -26,8 +26,8 @@ func TestInternalClientCancel(t *testing.T) {
 		c.ApplicationConfiguration.Consensus.UnlockWallet.Path = "../../cli/testdata/wallet1_solo.json"
 	}, true)
 	t.Cleanup(func() {
-		netSrv.Shutdown()
 		rpcSrv.Shutdown()
+		netSrv.Shutdown()
 		bc.Close()
 	})
 	icl, err := rpcclient.NewInternal(ctx, rpcSrv.RegisterLocal)
