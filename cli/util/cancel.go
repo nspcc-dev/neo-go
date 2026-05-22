@@ -52,7 +52,7 @@ func cancelTx(ctx *cli.Context) error {
 
 	mainTx, _ := c.GetRawTransactionVerbose(txHash)
 	if mainTx != nil && !mainTx.Blockhash.Equals(util.Uint256{}) {
-		return cli.Exit(fmt.Errorf("target transaction %s is accepted at block %s", txHash, mainTx.Blockhash.StringLE()), 1)
+		return cli.Exit(fmt.Errorf("target transaction %s is accepted at block %s", txHash.StringLE(), mainTx.Blockhash.StringLE()), 1)
 	}
 
 	if mainTx != nil && !mainTx.HasSigner(acc.ScriptHash()) {
@@ -92,9 +92,9 @@ func cancelTx(ctx *cli.Context) error {
 		if txHash.Equals(res.Container) {
 			tx, err := c.GetRawTransactionVerbose(txHash)
 			if err != nil {
-				return cli.Exit(fmt.Errorf("target transaction %s is accepted", txHash), 1)
+				return cli.Exit(fmt.Errorf("target transaction %s is accepted", txHash.StringLE()), 1)
 			}
-			return cli.Exit(fmt.Errorf("target transaction %s is accepted at block %s", txHash, tx.Blockhash.StringLE()), 1)
+			return cli.Exit(fmt.Errorf("target transaction %s is accepted at block %s", txHash.StringLE(), tx.Blockhash.StringLE()), 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, "Conflicting transaction accepted")
 	}
