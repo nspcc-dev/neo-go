@@ -640,6 +640,42 @@ func TestGetAppCallFromContext(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, opcode.RET, op)
 	})
+	t.Run("sequential", func(t *testing.T) {
+		h2 := util.Uint160{4, 5, 6}
+		m2 := "myPrettyMethod2"
+		f2 := callflag.ReadStates | callflag.AllowNotify
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, h, m, f, 1, 2, 3)
+		emit.AppCall(w.BinWriter, h2, m2, f2, 4, 5, 6)
+		prog := w.Bytes()
+
+		// Parse the first appcall.
+		ctx := NewContext(prog, 0)
+		actualH, actualM, actualF, args, err := GetAppCallFromContext(ctx)
+		require.NoError(t, err)
+		actualArgs, err := GetListOfEFromPushedItems(args, GetInt64FromInstr)
+		require.NoError(t, err)
+		require.Equal(t, []int64{1, 2, 3}, actualArgs)
+		require.Equal(t, h, actualH)
+		require.Equal(t, m, actualM)
+		require.Equal(t, f, actualF)
+
+		// Parse the second appcall with the same context.
+		actualH2, actualM2, actualF2, args2, err := GetAppCallFromContext(ctx)
+		require.NoError(t, err)
+		actualArgs2, err := GetListOfEFromPushedItems(args2, GetInt64FromInstr)
+		require.NoError(t, err)
+		require.Equal(t, []int64{4, 5, 6}, actualArgs2)
+		require.Equal(t, h2, actualH2)
+		require.Equal(t, m2, actualM2)
+		require.Equal(t, f2, actualF2)
+
+		// Ensure there's no data in the end.
+		require.Equal(t, len(prog), ctx.NextIP())
+		op, _, err := ctx.Next()
+		require.NoError(t, err)
+		require.Equal(t, opcode.RET, op)
+	})
 	t.Run("invalid args", func(t *testing.T) {
 		w := io.NewBufBinWriter()
 		emit.Int(w.BinWriter, 0) // extra arg.
