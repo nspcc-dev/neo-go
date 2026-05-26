@@ -27,6 +27,7 @@ const (
 	STNEP11Transfers               KeyPrefix = 0x72
 	STNEP17Transfers               KeyPrefix = 0x73
 	STTokenTransferInfo            KeyPrefix = 0x74
+	STExpiredStorage               KeyPrefix = 0x75
 	IXHeaderHashList               KeyPrefix = 0x80
 	SYSCurrentBlock                KeyPrefix = 0xc0
 	SYSCurrentHeader               KeyPrefix = 0xc1

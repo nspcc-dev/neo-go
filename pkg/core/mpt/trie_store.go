@@ -37,20 +37,19 @@ func NewTrieStore(root util.Uint256, mode TrieMode, backed storage.Store) *TrieS
 // Get implements the Store interface. It can return [errors.ErrUnsupported]
 // for unsupported operations.
 func (m *TrieStore) Get(key []byte) ([]byte, error) {
-	if len(key) == 0 {
-		return nil, fmt.Errorf("%w: Get is supported only for contract storage items", errors.ErrUnsupported)
-	}
-	switch storage.KeyPrefix(key[0]) {
-	case storage.STStorage, storage.STTempStorage:
-		res, err := m.trie.Get(key[1:])
-		if err != nil && errors.Is(err, ErrNotFound) {
-			// Mimic the real storage behaviour.
-			return nil, storage.ErrKeyNotFound
-		}
-		return res, err
-	default:
-		return nil, fmt.Errorf("%w: Get is supported only for contract storage items", errors.ErrUnsupported)
-	}
+    if len(key) == 0 {
+        return nil, fmt.Errorf("%w: Get is supported only for contract storage items", errors.ErrUnsupported)
+    }
+    switch storage.KeyPrefix(key[0]) {
+    case storage.STStorage, storage.STTempStorage, storage.STExpiredStorage:
+        res, err := m.trie.Get(key[1:])
+        if err != nil && errors.Is(err, ErrNotFound) {
+            return nil, storage.ErrKeyNotFound
+        }
+        return res, err
+    default:
+        return nil, fmt.Errorf("%w: Get is supported only for contract storage items", errors.ErrUnsupported)
+    }
 }
 
 // PutChangeSet implements the Store interface. It's not supported, so it

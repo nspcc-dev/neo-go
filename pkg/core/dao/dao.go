@@ -356,18 +356,29 @@ func decodeTxAndExecResult(buf []byte) (uint32, *transaction.Transaction, *state
 
 // GetStorageItem returns StorageItem if it exists in the given store.
 func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
-	b, err := dao.Store.Get(dao.makeStorageItemKey(id, key))
-	if err != nil {
-		return nil
-	}
-	return b
+    b, err := dao.Store.Get(dao.makeStorageItemKey(id, key))
+    if err == nil { return b }
+    b, err = dao.Store.Get(dao.makeStorageItemKey(id, key, storage.STExpiredStorage))
+    if err == nil { return b }
+    return nil
+}
+
+func (dao *Simple) IsExpired(id int32, key []byte, si state.StorageItem) bool {
+    _, err := dao.GetCurrentBlockHeight()
+    if err != nil { return false }
+    return false
 }
 
 // PutStorageItem puts the given StorageItem for the given id with the given
 // key into the given store.
 func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) {
-	stKey := dao.makeStorageItemKey(id, key)
-	dao.Store.Put(stKey, si)
+    if dao.IsExpired(id, key, si) {
+        stKey := dao.makeStorageItemKey(id, key, storage.STExpiredStorage)
+        dao.Store.Put(stKey, si)
+    } else {
+        stKey := dao.makeStorageItemKey(id, key)
+        dao.Store.Put(stKey, si)
+    }
 }
 
 // GetStorageConvertible deserializes the [stackitem.Convertible] entry retrieved by
@@ -415,8 +426,8 @@ func (dao *Simple) GetInt(id int32, key []byte) (int64, error) {
 // DeleteStorageItem drops a storage item for the given id with the
 // given key from the store.
 func (dao *Simple) DeleteStorageItem(id int32, key []byte) {
-	stKey := dao.makeStorageItemKey(id, key)
-	dao.Store.Delete(stKey)
+    dao.Store.Delete(dao.makeStorageItemKey(id, key))
+    dao.Store.Delete(dao.makeStorageItemKey(id, key, storage.STExpiredStorage))
 }
 
 // Seek executes f for all storage items matching the given `rng` (matching the given prefix and
@@ -439,13 +450,16 @@ func (dao *Simple) SeekAsync(ctx context.Context, id int32, rng storage.SeekRang
 }
 
 // makeStorageItemKey returns the key used to store the StorageItem in the DB.
-func (dao *Simple) makeStorageItemKey(id int32, key []byte) []byte {
-	// 1 for prefix + 4 for Uint32 + len(key) for key
-	buf := dao.getKeyBuf(5 + len(key))
-	buf[0] = byte(dao.Version.StoragePrefix)
-	binary.LittleEndian.PutUint32(buf[1:], uint32(id))
-	copy(buf[5:], key)
-	return buf
+func (dao *Simple) makeStorageItemKey(id int32, key []byte, prefix ...storage.KeyPrefix) []byte {
+    buf := dao.getKeyBuf(5 + len(key))
+    if len(prefix) > 0 {
+        buf[0] = byte(prefix[0])
+    } else {
+        buf[0] = byte(dao.Version.StoragePrefix)
+    }
+    binary.LittleEndian.PutUint32(buf[1:], uint32(id))
+    copy(buf[5:], key)
+    return buf
 }
 
 // -- end storage item.

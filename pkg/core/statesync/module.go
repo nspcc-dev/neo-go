@@ -294,14 +294,14 @@ func (s *Module) notifyStageChanged() {
 // TemporaryPrefix accepts current storage prefix and returns prefix
 // to use for storing intermediate items during synchronization.
 func TemporaryPrefix(currPrefix storage.KeyPrefix) storage.KeyPrefix {
-	switch currPrefix {
-	case storage.STStorage:
-		return storage.STTempStorage
-	case storage.STTempStorage:
-		return storage.STStorage
-	default:
-		panic(fmt.Sprintf("invalid storage prefix: %x", currPrefix))
-	}
+    switch currPrefix {
+    case storage.STStorage, storage.STExpiredStorage:
+        return storage.STTempStorage
+    case storage.STTempStorage:
+        return storage.STStorage
+    default:
+        panic(fmt.Sprintf("invalid storage prefix: %x", currPrefix))
+    }
 }
 
 // defineSyncStage sequentially checks and sets sync state process stage after Module
