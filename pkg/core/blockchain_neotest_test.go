@@ -1977,6 +1977,14 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				require.NoError(t, err)
 			})
 			t.Run("enabled", func(t *testing.T) {
+				t.Run("duplicate", func(t *testing.T) {
+					conflict := random.Uint256()
+					tx := getConflictsTx(e, conflict, conflict)
+
+					err := bc.VerifyTx(tx)
+					require.ErrorIs(t, err, core.ErrInvalidAttribute)
+					require.ErrorContains(t, err, fmt.Sprintf("duplicate Conflicts attribute %s", conflict.StringLE()))
+				})
 				t.Run("dummy on-chain conflict", func(t *testing.T) {
 					t.Run("on-chain conflict signed by malicious party", func(t *testing.T) {
 						tx := newTestTx(t, h, testScript)

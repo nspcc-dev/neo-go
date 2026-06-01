@@ -3019,6 +3019,7 @@ func (bc *Blockchain) CalculateAttributesFee(tx *transaction.Transaction) int64 
 }
 
 func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transaction, isPartialTx bool) error {
+	var conflictsAttrs []transaction.Attribute
 	for i := range tx.Attributes {
 		switch attrType := tx.Attributes[i].Type; attrType {
 		case transaction.HighPriority:
@@ -3078,6 +3079,18 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 			}
 		case transaction.ConflictsT:
 			conflicts := tx.Attributes[i].Value.(*transaction.Conflicts)
+			if conflictsAttrs == nil {
+				conflictsAttrs = tx.GetAttributes(transaction.ConflictsT)
+			}
+			var dup bool
+			for _, c := range conflictsAttrs {
+				if c.Value.(*transaction.Conflicts).Hash.Equals(conflicts.Hash) {
+					if dup {
+						return fmt.Errorf("%w: duplicate Conflicts attribute %s", ErrInvalidAttribute, conflicts.Hash.StringLE())
+					}
+					dup = true
+				}
+			}
 			// Only fully-qualified dao.ErrAlreadyExists error bothers us here, thus, we
 			// can safely omit the signers, current index and MTB arguments to HasTransaction call to improve performance a bit.
 			if err := bc.dao.HasTransaction(conflicts.Hash, nil, 0, 0); errors.Is(err, dao.ErrAlreadyExists) {
