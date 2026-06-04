@@ -7,7 +7,7 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.120.0 (~Jun 2026)
+## Version 0.121.0 (~Jul 2026)
  * Gorgon hardfork enabling for N3 networks
  * protocol updates
  * bug fixes
@@ -42,7 +42,7 @@ The `--decrypt` (`-d`) flag of the `wallet export` CLI command is deprecated
 and has been superseded by the `--format wif` option. Use `--format wif`
 instead of `--decrypt`.
 
-Removal is planned for v0.120.0 release (~June 2026).
+Removal is planned for v0.121.0 release (~July 2026).
 
 ## actor.ErrExecFailed RPC client error
 
@@ -51,4 +51,4 @@ error. Use a set of predefined `neorpc.FaultException` errors with errors.Is to
 detect specific FAULT exceptions or create a custom `neorpc.FaultException`
 error if no suitable standard one is available.
 
-`actor.ErrExecFailed` will be removed in ~v0.121.0 release (~July 2026).
+`actor.ErrExecFailed` will be removed in ~v0.122.0 release (~July 2026).
