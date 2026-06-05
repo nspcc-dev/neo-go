@@ -13,6 +13,7 @@ import (
 	"os"
 	"slices"
 	"text/tabwriter"
+	"time"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -105,7 +106,7 @@ type VM struct {
 	// callback to get interop price
 	getPrice          func(opcode.Opcode, []byte, *OpcodePriceParams) int64
 	isHardforkEnabled func(config.Hardfork) bool
-	opcodeExecutor    func(*Context, opcode.Opcode, []byte) error
+	opcodeExecutor    func(*Context, opcode.Opcode, []byte, map[opcode.Opcode]*S) error
 
 	istack []*Context // invocation stack.
 	estack *Stack     // execution stack.
@@ -185,7 +186,7 @@ func (v *VM) SetIsHardforkEnabled(f func(config.Hardfork) bool) {
 	v.isHardforkEnabled = f
 }
 
-func (v *VM) SetOpcodeExecutor(f func(*Context, opcode.Opcode, []byte) error) {
+func (v *VM) SetOpcodeExecutor(f func(*Context, opcode.Opcode, []byte, map[opcode.Opcode]*S) error) {
 	v.opcodeExecutor = f
 }
 
@@ -556,6 +557,13 @@ func (v *VM) Ready() bool {
 	return len(v.istack) > 0
 }
 
+type S struct {
+	ns *big.Int
+	count int64
+}
+
+const nopNS = 32.19718358
+
 // Run starts execution of the loaded program.
 func (v *VM) Run() error {
 	var ctx *Context
@@ -573,6 +581,15 @@ func (v *VM) Run() error {
 	// vmstate.Halt (the default) or vmstate.Break are safe to continue.
 	v.state = vmstate.None
 	ctx = v.Context()
+	v.SetGasLimit(30 * 20 * 10_000_000)
+	m := make(map[opcode.Opcode]*S)
+	defer func() {
+		for op, s := range m {
+			fr := new(big.Rat).SetFrac(s.ns, big.NewInt(s.count))
+			f, _ := fr.Float64()
+			fmt.Printf("%s: %f %d\n", op, f/nopNS, s.count)
+		}
+	}()
 	for {
 		switch {
 		case v.state.HasFlag(vmstate.Fault):
@@ -583,7 +600,7 @@ func (v *VM) Run() error {
 			// Normal exit from this loop.
 			return nil
 		case v.state == vmstate.None:
-			if err := v.step(ctx); err != nil {
+			if err := v.step(ctx, m); err != nil {
 				return err
 			}
 		default:
@@ -601,11 +618,11 @@ func (v *VM) Run() error {
 // Step 1 instruction in the program.
 func (v *VM) Step() error {
 	ctx := v.Context()
-	return v.step(ctx)
+	return v.step(ctx, make(map[opcode.Opcode]*S))
 }
 
 // step executes one instruction in the given context.
-func (v *VM) step(ctx *Context) error {
+func (v *VM) step(ctx *Context, m map[opcode.Opcode]*S) error {
 	ip := ctx.NextIP()
 	op, param, err := ctx.Next()
 	if v.hooks.onExec != nil {
@@ -616,7 +633,7 @@ func (v *VM) step(ctx *Context) error {
 		v.state = vmstate.Fault
 		return newError(ctx.IP(), op, err)
 	}
-	return v.opcodeExecutor(ctx, op, param)
+	return v.opcodeExecutor(ctx, op, param, m)
 }
 
 // StepInto behaves the same as “step over” in case the line does not contain a function. Otherwise,
@@ -638,7 +655,7 @@ func (v *VM) StepInto() error {
 			v.state = vmstate.Fault
 			return newError(ctx.IP(), op, err)
 		}
-		vErr := v.opcodeExecutor(ctx, op, param)
+		vErr := v.opcodeExecutor(ctx, op, param, make(map[opcode.Opcode]*S))
 		if vErr != nil {
 			return vErr
 		}
@@ -721,7 +738,7 @@ func GetInteropID(parameter []byte) uint32 {
 	return binary.LittleEndian.Uint32(parameter)
 }
 
-func (v *VM) OpcodeExecutorV0(ctx *Context, op opcode.Opcode, parameter []byte) (err error) {
+func (v *VM) OpcodeExecutorV0(ctx *Context, op opcode.Opcode, parameter []byte, m map[opcode.Opcode]*S) (err error) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
 	// each panic at a central point, putting the VM in a fault state and setting error.
 	defer func() {
@@ -745,7 +762,7 @@ func (v *VM) OpcodeExecutorV0(ctx *Context, op opcode.Opcode, parameter []byte) 
 	return
 }
 
-func (v *VM) OpcodeExecutorV1(ctx *Context, op opcode.Opcode, parameter []byte) (err error) {
+func (v *VM) OpcodeExecutorV1(ctx *Context, op opcode.Opcode, parameter []byte, m map[opcode.Opcode]*S) (err error) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
 	// each panic at a central point, putting the VM in a fault state and setting error.
 	var priceParams *OpcodePriceParams
@@ -767,7 +784,14 @@ func (v *VM) OpcodeExecutorV1(ctx *Context, op opcode.Opcode, parameter []byte) 
 			err = newError(ctx.IP(), op, ErrGASLimitExceeded)
 		}
 	}(v.getPrice != nil && ctx.IP() < len(ctx.sc.prog) && !ctx.sc.whitelisted)
+	start := time.Now()
 	priceParams, err = v.execute(ctx, op, parameter)
+	dur := time.Since(start)
+	if m[op] == nil {
+		m[op] = &S{ns: new(big.Int)}
+	}
+	m[op].ns.Add(m[op].ns, big.NewInt(dur.Nanoseconds()))
+	m[op].count++
 	return
 }
 
