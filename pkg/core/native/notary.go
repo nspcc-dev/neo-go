@@ -181,12 +181,15 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 				payer := tx.Signers[1]
 				balance := n.GetDepositFor(ic.DAO, payer.Account)
 				if balance == nil {
-					continue
+					panic(fmt.Sprintf("failed to charge Notary fee: no deposit for %s", payer.Account.StringLE()))
 				}
 				balance.Amount.Sub(balance.Amount, big.NewInt(tx.SystemFee+tx.NetworkFee))
-				if balance.Amount.Sign() == 0 {
+				switch sign := balance.Amount.Sign(); {
+				case sign < 0:
+					panic(fmt.Sprintf("failed to charge Notary fee: negative deposit for %s", payer.Account.StringLE()))
+				case sign == 0:
 					n.removeDepositFor(ic.DAO, payer.Account)
-				} else {
+				default:
 					err := n.putDepositFor(ic.DAO, balance, payer.Account)
 					if err != nil {
 						return fmt.Errorf("failed to update deposit for %s: %w", payer.Account.StringBE(), err)
