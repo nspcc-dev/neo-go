@@ -2941,8 +2941,9 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 
 	height := bc.BlockHeight()
 	isPartialTx := data != nil
-	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+bc.GetMaxValidUntilBlockIncrement() {
-		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d", ErrTxExpired, t.ValidUntilBlock, height)
+	maxValidUntilBlock := height + bc.GetMaxValidUntilBlockIncrement()
+	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > maxValidUntilBlock {
+		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d, max valid = %d", ErrTxExpired, t.ValidUntilBlock, height, maxValidUntilBlock)
 	}
 	// Policying.
 	if err := bc.policy.CheckPolicy(bc.dao, t); err != nil {

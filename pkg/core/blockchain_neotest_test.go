@@ -1538,6 +1538,17 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		checkErr(t, core.ErrTxExpired, tx)
 	})
+	t.Run("ExpiredTooBigVUB", func(t *testing.T) {
+		tx := newTestTx(t, h, testScript)
+		height := bc.BlockHeight()
+		maxValidUntilBlock := height + bc.GetMaxValidUntilBlockIncrement()
+		tx.ValidUntilBlock = maxValidUntilBlock + 1
+		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
+		err := bc.VerifyTx(tx)
+		require.ErrorIs(t, err, core.ErrTxExpired)
+		require.Equal(t, fmt.Sprintf("transaction has expired: ValidUntilBlock = %d, current height = %d, max valid = %d",
+			tx.ValidUntilBlock, height, maxValidUntilBlock), err.Error())
+	})
 	t.Run("BlockedAccount", func(t *testing.T) {
 		tx := newTestTx(t, accs[1].PrivateKey().GetScriptHash(), testScript)
 		require.NoError(t, accs[1].SignTx(netmode.UnitTestNet, tx))
