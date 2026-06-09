@@ -2910,6 +2910,7 @@ func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 // Various errors that could be returned upon verification.
 var (
 	ErrTxExpired         = errors.New("transaction has expired")
+	ErrTxNotYetValid     = errors.New("transaction is not yet valid")
 	ErrInsufficientFunds = errors.New("insufficient funds")
 	ErrTxSmallNetworkFee = errors.New("too small network fee")
 	ErrTxTooBig          = errors.New("too big transaction")
@@ -2941,8 +2942,14 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 
 	height := bc.BlockHeight()
 	isPartialTx := data != nil
-	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+bc.GetMaxValidUntilBlockIncrement() {
+	if t.ValidUntilBlock <= height {
 		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d", ErrTxExpired, t.ValidUntilBlock, height)
+	}
+	if !isPartialTx {
+		maxVUBInc := bc.GetMaxValidUntilBlockIncrement()
+		if t.ValidUntilBlock > height+maxVUBInc {
+			return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d, max allowed ValidUntilBlock = %d", ErrTxNotYetValid, t.ValidUntilBlock, height, height+maxVUBInc)
+		}
 	}
 	// Policying.
 	if err := bc.policy.CheckPolicy(bc.dao, t); err != nil {

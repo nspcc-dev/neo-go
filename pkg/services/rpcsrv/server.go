@@ -2799,7 +2799,7 @@ func getRelayResult(err error, hash util.Uint256) (any, *neorpc.Error) {
 		return result.RelayResult{
 			Hash: hash,
 		}, nil
-	case errors.Is(err, core.ErrTxExpired):
+	case errors.Is(err, core.ErrTxExpired) || errors.Is(err, core.ErrTxNotYetValid):
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrExpiredTransaction, err.Error())
 	case errors.Is(err, core.ErrAlreadyExists):
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrAlreadyExists, err.Error())

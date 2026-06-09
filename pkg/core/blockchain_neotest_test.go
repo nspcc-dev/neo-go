@@ -1538,6 +1538,17 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		checkErr(t, core.ErrTxExpired, tx)
 	})
+	t.Run("NotYetValid", func(t *testing.T) {
+		tx := newTestTx(t, h, testScript)
+		currH := bc.BlockHeight()
+		maxVUBInc := bc.GetMaxValidUntilBlockIncrement()
+		tx.ValidUntilBlock = currH + maxVUBInc + 1
+		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
+		err := bc.VerifyTx(tx)
+		require.ErrorIs(t, err, core.ErrTxNotYetValid)
+		require.Equal(t, fmt.Sprintf("transaction is not yet valid: ValidUntilBlock = %d, current height = %d, max allowed ValidUntilBlock = %d",
+			tx.ValidUntilBlock, currH, currH+maxVUBInc), err.Error())
+	})
 	t.Run("BlockedAccount", func(t *testing.T) {
 		tx := newTestTx(t, accs[1].PrivateKey().GetScriptHash(), testScript)
 		require.NoError(t, accs[1].SignTx(netmode.UnitTestNet, tx))
