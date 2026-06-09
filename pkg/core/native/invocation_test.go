@@ -37,7 +37,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 	gasHash := e.NativeHash(t, nativenames.Gas)
 
 	baseExecFee := bc.GetBaseExecFee()
-	price := fee.Opcode(baseExecFee, opcode.SYSCALL, // System.Contract.Call
+	price := (fee.Opcode(baseExecFee, opcode.SYSCALL, // System.Contract.Call
 		opcode.PUSHDATA1, // contract hash (20 byte)
 		opcode.PUSHDATA1, // method
 		opcode.PUSH15,    // call flags
@@ -49,7 +49,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 		// end args
 		opcode.PUSH4, // amount of args
 		opcode.PACK,  // pack args
-	)
+	) + vm.OpcodePriceMultiplier - 1) / vm.OpcodePriceMultiplier
 	price += systemContractCallPrice*baseExecFee + // System.Contract.Call price
 		transferCPUFee*baseExecFee + // `transfer` itself
 		transferStorageFee*bc.GetStoragePrice() // `transfer` storage price
