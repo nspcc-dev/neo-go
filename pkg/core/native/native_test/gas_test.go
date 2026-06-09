@@ -30,7 +30,7 @@ func TestGAS_Roundtrip(t *testing.T) {
 	getUtilityTokenBalance := func(acc util.Uint160) (*big.Int, uint32) {
 		lub, err := e.Chain.GetTokenLastUpdated(acc)
 		require.NoError(t, err)
-		return e.Chain.GetUtilityTokenBalance(acc), lub[e.NativeID(t, nativenames.Gas)]
+		return e.Chain.GetUtilityTokenBalance(acc, util.Uint160{}), lub[e.NativeID(t, nativenames.Gas)]
 	}
 
 	initialBalance, _ := getUtilityTokenBalance(owner)

@@ -411,7 +411,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		store:       s,
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
-		memPool:     mempool.New(cfg.MemPoolSize, 0, cfg.MempoolSubscriptionsEnabled, updateMempoolMetrics),
+		memPool:     mempool.New(cfg.MemPoolSize, cfg.MempoolSubscriptionsEnabled, updateMempoolMetrics),
 		log:         log,
 		events:      make(chan bcEvent),
 		subCh:       make(chan any),
@@ -1855,7 +1855,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
 		}
-		mp = mempool.New(len(block.Transactions), 0, false, nil)
+		mp = mempool.New(len(block.Transactions), false, nil)
 		for _, tx := range block.Transactions {
 			var err error
 			// Transactions are verified before adding them
@@ -2434,9 +2434,17 @@ func (bc *Blockchain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, e
 	return info.LastUpdated, nil
 }
 
-// GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
-func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
-	bs := bc.gas.BalanceOf(bc.dao, acc)
+// GetUtilityTokenBalance returns utility token (GAS) balance for the primary account.
+// If the primary account is the native Notary contract and secondary account is not empty,
+// it returns the amount of GAS deposited to the native Notary contract by the secondary.
+func (bc *Blockchain) GetUtilityTokenBalance(primary, secondary util.Uint160) *big.Int {
+	if primary.Equals(nativehashes.Notary) && !secondary.Equals(util.Uint160{}) {
+		if bc.notary == native.INotary(nil) || !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight()) {
+			return big.NewInt(0)
+		}
+		return bc.notary.BalanceOf(bc.dao, secondary)
+	}
+	bs := bc.gas.BalanceOf(bc.dao, primary)
 	if bs == nil {
 		return big.NewInt(0)
 	}
@@ -2447,18 +2455,6 @@ func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
 // of the last balance change for the account.
 func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32) {
 	return bc.neo.BalanceOf(bc.dao, acc)
-}
-
-// GetNotaryBalance returns Notary deposit amount for the specified account.
-// Default value is returned if Notary contract is not yet active.
-func (bc *Blockchain) GetNotaryBalance(acc util.Uint160) *big.Int {
-	if bc.notary == native.INotary(nil) {
-		return nil
-	}
-	if !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight()) {
-		return nil
-	}
-	return bc.notary.BalanceOf(bc.dao, acc)
 }
 
 // GetNotaryServiceFeePerKey returns a NotaryAssisted transaction attribute fee
@@ -3163,7 +3159,7 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 // current blockchain state. Note that this verification is completely isolated
 // from the main node's mempool.
 func (bc *Blockchain) VerifyTx(t *transaction.Transaction) error {
-	var mp = mempool.New(1, 0, false, nil)
+	var mp = mempool.New(1, false, nil)
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 	return bc.verifyAndPoolOffChainTx(t, mp, bc)

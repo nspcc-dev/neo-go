@@ -284,13 +284,13 @@ func (e *Executor) CheckTxNotificationEvent(t testing.TB, h util.Uint256, index 
 
 // CheckGASBalance ensures that the provided account owns the specified amount of GAS.
 func (e *Executor) CheckGASBalance(t testing.TB, acc util.Uint160, expected *big.Int) {
-	actual := e.Chain.GetUtilityTokenBalance(acc)
+	actual := e.Chain.GetUtilityTokenBalance(acc, util.Uint160{})
 	require.Equal(t, expected, actual, fmt.Errorf("invalid GAS balance: expected %s, got %s", expected.String(), actual.String()))
 }
 
 // EnsureGASBalance ensures that the provided account owns the amount of GAS that satisfies the provided condition.
 func (e *Executor) EnsureGASBalance(t testing.TB, acc util.Uint160, isOk func(balance *big.Int) bool) {
-	actual := e.Chain.GetUtilityTokenBalance(acc)
+	actual := e.Chain.GetUtilityTokenBalance(acc, util.Uint160{})
 	require.True(t, isOk(actual), fmt.Errorf("invalid GAS balance: got %s, condition is not satisfied", actual.String()))
 }
 

@@ -169,7 +169,7 @@ func (fs *FeerStub) BlockHeight() uint32 {
 	return 0
 }
 
-func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
+func (fs *FeerStub) GetUtilityTokenBalance(primary, secondary util.Uint160) *big.Int {
 	return big.NewInt(1000000 * native.GASFactor)
 }
 

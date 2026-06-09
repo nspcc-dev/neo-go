@@ -1506,6 +1506,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 	}
 	txs = append(txs, neoValidatorsInvoker.PrepareInvoke(t, "transfer", neoOwner, committee.ScriptHash(), neoAmount, nil))
 	txs = append(txs, gasValidatorsInvoker.PrepareInvoke(t, "transfer", neoOwner, committee.ScriptHash(), gasAmount, nil))
+	txs = append(txs, gasValidatorsInvoker.PrepareInvoke(t, "transfer", neoOwner, notaryHash, gasAmount, stackitem.Make([]stackitem.Item{stackitem.Make(validator.ScriptHash()), stackitem.Make(100500)}))) // make Notary deposit.
 	e.AddNewBlock(t, txs...)
 	for _, tx := range txs {
 		e.CheckHalt(t, tx.Hash(), stackitem.NewBool(true))
@@ -1555,7 +1556,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		checkErr(t, core.ErrPolicy, tx)
 	})
 	t.Run("InsufficientGas", func(t *testing.T) {
-		balance := bc.GetUtilityTokenBalance(h)
+		balance := bc.GetUtilityTokenBalance(h, util.Uint160{})
 		tx := newTestTx(t, h, testScript)
 		tx.SystemFee = balance.Int64() + 1
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
@@ -1671,7 +1672,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		checkErr(t, core.ErrInvalidInvocationScript, tx)
 	})
 	t.Run("Conflict", func(t *testing.T) {
-		balance := bc.GetUtilityTokenBalance(h).Int64()
+		balance := bc.GetUtilityTokenBalance(h, util.Uint160{}).Int64()
 		tx := newTestTx(t, h, testScript)
 		tx.NetworkFee = balance / 2
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
@@ -1721,7 +1722,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		require.ErrorIs(t, err, core.ErrAlreadyInPool)
 	})
 	t.Run("MemPoolOOM", func(t *testing.T) {
-		mp := mempool.New(1, 0, false, nil)
+		mp := mempool.New(1, false, nil)
 		tx1 := newTestTx(t, h, testScript)
 		tx1.NetworkFee += 10000 // Give it more priority.
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx1))
@@ -2531,7 +2532,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			return tx
 		}
 
-		mp := mempool.New(10, 1, false, nil)
+		mp := mempool.New(10, false, nil)
 		verificationF := func(tx *transaction.Transaction, data any) error {
 			if data.(int) > 5 {
 				return errors.New("bad data")
