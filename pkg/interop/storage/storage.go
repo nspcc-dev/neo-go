@@ -91,8 +91,8 @@ func Get(ctx Context, key any) any {
 }
 
 // LocalGet is similar to Get, but does not require context.
-func LocalGet(key []byte) any {
-	return neogointernal.Syscall1("System.Storage.Local.Get", key)
+func LocalGet(key []byte) []byte {
+	return neogointernal.Syscall1("System.Storage.Local.Get", key).([]byte)
 }
 
 // Delete removes key-value pair from storage by the given key using given
