@@ -2766,9 +2766,17 @@ func (s *Server) terminateSession(reqParams params.Params) (any, *neorpc.Error) 
 
 // submitBlock broadcasts a raw block over the Neo network.
 func (s *Server) submitBlock(reqParams params.Params) (any, *neorpc.Error) {
-	blockBytes, err := reqParams.Value(0).GetBytesBase64()
+	base64Bytes, err := reqParams.Value(0).GetString()
 	if err != nil {
-		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("missing parameter or not a base64: %s", err))
+		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("not a string: %s", err))
+	}
+	maxBytes := base64.StdEncoding.EncodedLen(int(s.chain.GetConfig().MaxBlockSize))
+	if len(base64Bytes) > maxBytes {
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSize, fmt.Sprintf("base64-encoded block size exceeds maximum allowed: %d vs %d", len(base64Bytes), maxBytes))
+	}
+	blockBytes, err := base64.StdEncoding.DecodeString(base64Bytes)
+	if err != nil {
+		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("not a base64: %s", err))
 	}
 	b := block.New(s.stateRootEnabled)
 	r := io.NewBinReaderFromBuf(blockBytes)
