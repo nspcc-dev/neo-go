@@ -398,14 +398,15 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength {
 		return ErrBigArgument
 	}
-	if gas.Int64() < MinimumResponseGas {
+	iGas := gas.Int64()
+	if iGas < MinimumResponseGas {
 		return ErrLowResponseGas
 	}
 	if strings.HasPrefix(cb, "_") {
 		return errors.New("disallowed callback method (starts with '_')")
 	}
 
-	if err := ic.VM.AddDatoshi(gas.Int64()); err != nil {
+	if err := ic.VM.AddDatoshi(iGas); err != nil {
 		return fmt.Errorf("%w minting reward for Oracle request", err)
 	}
 	callingHash := ic.VM.GetCallingScriptHash()
