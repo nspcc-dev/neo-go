@@ -211,7 +211,14 @@ var uint256ExecFeeFactorMultiplier = uint256.NewInt(ExecFeeFactorMultiplier)
 // GasConsumed returns the amount of GAS consumed during execution in Datoshi
 // units rounded from picoGAS to the upper integer.
 func (v *VM) GasConsumed() int64 {
-	return int64(PicoGasToDatoshi(v.gasConsumed).Uint64())
+	consumed := PicoGasToDatoshi(v.gasConsumed)
+	if consumed.IsUint64() {
+		u64 := consumed.Uint64()
+		if u64 <= math.MaxInt64 {
+			return int64(u64)
+		}
+	}
+	return v.gasLimit / ExecFeeFactorMultiplier // known to be divisible without remnant.
 }
 
 // GasLeft returns the amount of GAS left in Datoshi units rounded from picoGAS
@@ -219,6 +226,9 @@ func (v *VM) GasConsumed() int64 {
 func (v *VM) GasLeft() *big.Int {
 	if v.gasLimit == -1 {
 		return big.NewInt(v.gasLimit)
+	}
+	if !v.gasConsumed.LtUint64(uint64(v.gasLimit)) {
+		return big.NewInt(0)
 	}
 	// (gasLimit - gasConsumed) / ExecFeeFactorMultiplier
 	return new(uint256.Int).Div(new(uint256.Int).Sub(uint256.NewInt(uint64(v.gasLimit)), v.gasConsumed), uint256ExecFeeFactorMultiplier).ToBig()
@@ -245,8 +255,13 @@ func PicoGasToDatoshiInt64(x int64) int64 {
 // executing method is not whitelisted. It returns [ErrGASLimitExceeded] if the
 // gas limit was exceeded.
 func (v *VM) AddPicoGas(gas int64) error {
+	return v.addPicoGasInternal(uint256.NewInt(uint64(gas)))
+}
+
+// addPicoGasInternal is an internal AddPicoGas representation accepting uint256.Int.
+func (v *VM) addPicoGasInternal(gas *uint256.Int) error {
 	if ctx := v.Context(); ctx == nil || !ctx.sc.whitelisted {
-		v.gasConsumed.AddUint64(v.gasConsumed, uint64(gas))
+		v.gasConsumed.Add(v.gasConsumed, gas)
 	}
 	if v.gasLimit < 0 || !v.gasConsumed.GtUint64(uint64(v.gasLimit)) {
 		return nil
@@ -257,7 +272,8 @@ func (v *VM) AddPicoGas(gas int64) error {
 // AddDatoshi consumes the specified amount of gas in Datoshi units. It returns
 // [ErrGASLimitExceeded] if the gas limit was exceeded.
 func (v *VM) AddDatoshi(gas int64) error {
-	return v.AddPicoGas(gas * ExecFeeFactorMultiplier)
+	picoGas := new(uint256.Int).Mul(uint256.NewInt(uint64(gas)), uint256ExecFeeFactorMultiplier)
+	return v.addPicoGasInternal(picoGas)
 }
 
 // Estack returns the evaluation stack, so interop hooks can utilize this.

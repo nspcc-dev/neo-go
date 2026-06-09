@@ -104,11 +104,18 @@ func TestVM_SetPriceGetter(t *testing.T) {
 
 func TestAddGas(t *testing.T) {
 	t.Run("AddDatoshi", func(t *testing.T) {
-		v := newTestVM()
-		v.SetGasLimit(10)
-		require.NoError(t, v.AddDatoshi(5))
-		require.NoError(t, v.AddDatoshi(5))
-		require.Error(t, v.AddDatoshi(1))
+		t.Run("good", func(t *testing.T) {
+			v := newTestVM()
+			v.SetGasLimit(10)
+			require.NoError(t, v.AddDatoshi(5))
+			require.NoError(t, v.AddDatoshi(5))
+			require.Error(t, v.AddDatoshi(1))
+		})
+		t.Run("gasConsumed overflow", func(t *testing.T) {
+			v := newTestVM()
+			v.SetGasLimit(10)
+			require.ErrorIs(t, v.AddDatoshi(math.MaxInt64), ErrGASLimitExceeded)
+		})
 	})
 
 	t.Run("AddPicoGas", func(t *testing.T) {
@@ -117,6 +124,22 @@ func TestAddGas(t *testing.T) {
 		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
 		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
 		require.ErrorIs(t, v.AddPicoGas(1), ErrGASLimitExceeded)
+	})
+}
+
+func TestGasConsumed(t *testing.T) {
+	t.Run("datoshi overflow", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		require.ErrorIs(t, v.AddDatoshi(math.MaxInt64), ErrGASLimitExceeded)
+		require.Equal(t, int64(math.MaxInt64), v.GasConsumed())
+	})
+	t.Run("picoGAS overflow", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		require.NoError(t, v.AddPicoGas(1))
+		require.ErrorIs(t, v.AddPicoGas(math.MaxInt64), ErrGASLimitExceeded)
+		require.Equal(t, int64(((uint64(math.MaxInt64)+1)/ExecFeeFactorMultiplier) /*not divisible by factor, hence +1*/ +1), v.GasConsumed())
 	})
 }
 
