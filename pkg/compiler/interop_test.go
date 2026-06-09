@@ -822,7 +822,7 @@ type UserKey struct {
 func GetUserKey(idKey []byte) *UserKey {
 	data := storage.LocalGet(idKey)
 	if data != nil {
-		return std.Deserialize(data.([]byte)).(*UserKey)
+		return std.Deserialize(data).(*UserKey)
 	}
 	return nil
 }
