@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/elliptic"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -280,6 +281,9 @@ var rpcWsHandlers = map[string]func(*Server, params.Params, *subscriber) (any, *
 	"subscribe":   (*Server).subscribe,
 	"unsubscribe": (*Server).unsubscribe,
 }
+
+// maxBase64TransactionSize is the maximum size of base64-encoded raw transaction.
+var maxBase64TransactionSize = base64.StdEncoding.EncodedLen(transaction.MaxTransactionSize)
 
 // New creates a new Server struct. Pay attention that orc is expected to be either
 // untyped nil or non-nil structure implementing OracleHandler interface.
@@ -2864,7 +2868,14 @@ func (s *Server) sendrawtransaction(reqParams params.Params) (any, *neorpc.Error
 	if len(reqParams) < 1 {
 		return nil, neorpc.NewInvalidParamsError("not enough parameters")
 	}
-	byteTx, err := reqParams[0].GetBytesBase64()
+	base64Bytes, err := reqParams[0].GetString()
+	if err != nil {
+		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("not a string: %s", err))
+	}
+	if len(base64Bytes) > maxBase64TransactionSize {
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSize, fmt.Sprintf("base64-encoded transaction size exceeds maximum allowed: %d vs %d", len(base64Bytes), maxBase64TransactionSize))
+	}
+	byteTx, err := base64.StdEncoding.DecodeString(base64Bytes)
 	if err != nil {
 		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("not a base64: %s", err))
 	}
