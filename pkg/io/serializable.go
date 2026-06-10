@@ -7,14 +7,18 @@ package io
 // caller should handle an error once and all the other code should just not
 // panic while there is an error.
 type Serializable interface {
-	DecodeBinary(*BinReader)
-	EncodeBinary(*BinWriter)
+	Decodable
+	Encodable
 }
 
-type decodable interface {
+// Decodable is something that can be decoded from BinReader. See Serializable
+// for implementation details.
+type Decodable interface {
 	DecodeBinary(*BinReader)
 }
 
-type encodable interface {
+// Encodable is something that can be encoded to BinWriter. See Serializable
+// for implementation details.
+type Encodable interface {
 	EncodeBinary(*BinWriter)
 }
