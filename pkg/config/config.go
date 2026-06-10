@@ -37,7 +37,7 @@ const (
 	DefaultMaxNEP11Tokens = 100
 	// DefaultMaxRequestBodyBytes is the default maximum allowed size of HTTP
 	// request body in bytes.
-	DefaultMaxRequestBodyBytes = 5 * 1024 * 1024
+	DefaultMaxRequestBodyBytes = 1 * 1024 * 1024
 	// DefaultMaxRequestHeaderBytes is the maximum permitted size of the headers
 	// in an HTTP request.
 	DefaultMaxRequestHeaderBytes = http.DefaultMaxHeaderBytes
