@@ -14,17 +14,28 @@ import (
 // https://tools.ietf.org/html/rfc6890
 var reservedCIDRs = []string{
 	// IPv4
-	"10.0.0.0/8",
-	"100.64.0.0/10",
-	"172.16.0.0/12",
+	"10.0.0.0/8",     // private IPv4
+	"100.64.0.0/10",  // CGNAT
+	"127.0.0.0/8",    // loopback
+	"169.254.0.0/16", // link-local / APIPA
+	"172.16.0.0/12",  // private IPv4 (private class B)
 	"192.0.0.0/24",
-	"192.168.0.0/16",
+	"192.168.0.0/16", // private IPv4 (private class C)
 	"198.18.0.0/15",
 	// IPv6
 	"fc00::/7",
+	"fe80::/10",             // link-local / APIPA
+	"fc00::/7", "fec0::/10", // unique/site local IPv6
 }
 
-var privateNets = make([]net.IPNet, 0, len(reservedCIDRs))
+// 6to4 prefix (2002::/16) embedding an IPv4 address.
+// Ref. https://github.com/neo-project/neo-node/blob/36904b643ac6e979d5d2a6782034038c9db20732/plugins/OracleService/Helper.cs#L60.
+var v6tov4CIDR = "2002::/16"
+
+var (
+	privateNets = make([]net.IPNet, 0, len(reservedCIDRs))
+	v6tov4Net   net.IPNet
+)
 
 func init() {
 	for i := range reservedCIDRs {
@@ -34,11 +45,21 @@ func init() {
 		}
 		privateNets = append(privateNets, *ipNet)
 	}
+	_, ipNet, err := net.ParseCIDR(v6tov4CIDR)
+	if err != nil {
+		panic(err)
+	}
+	v6tov4Net = *ipNet
 }
 
 func isReserved(ip net.IP) bool {
 	if !ip.IsGlobalUnicast() {
 		return true
+	}
+	// 6to4 prefix (2002::/16) embedding an IPv4 address, extract the embedded IPv4 bytes (from 2 to 5).
+	// Ref. https://github.com/neo-project/neo-node/blob/36904b643ac6e979d5d2a6782034038c9db20732/plugins/OracleService/Helper.cs#L62
+	if v6tov4Net.Contains(ip) {
+		ip = net.IP{ip[2], ip[3], ip[4], ip[5]}
 	}
 	return slices.ContainsFunc(privateNets, func(pn net.IPNet) bool {
 		return pn.Contains(ip)
