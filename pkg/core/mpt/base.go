@@ -8,6 +8,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
+var errTooManyNodes = fmt.Errorf("too many nodes")
+
 // BaseNode implements basic things every node needs like caching hash and
 // serialized representation. It's a basic node building block intended to be
 // included into all node types.
@@ -92,8 +94,12 @@ func encodeNodeWithType(n Node, w *io.BinWriter) {
 }
 
 // DecodeNodeWithType decodes the node together with its type.
-func DecodeNodeWithType(r *io.BinReader) Node {
+func DecodeNodeWithType(r *io.BinReader, depth int) Node {
 	if r.Err != nil {
+		return nil
+	}
+	if depth > maxPathLength {
+		r.Err = errTooManyNodes
 		return nil
 	}
 	var n Node
@@ -116,6 +122,6 @@ func DecodeNodeWithType(r *io.BinReader) Node {
 		r.Err = fmt.Errorf("invalid node type: %x", typ)
 		return nil
 	}
-	n.DecodeBinary(r)
+	n.decodeBinaryWithDepth(r, depth)
 	return n
 }

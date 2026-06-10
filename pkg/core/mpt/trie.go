@@ -112,9 +112,14 @@ func (t *Trie) getWithPath(curr Node, path []byte, strict bool) (Node, Node, []b
 		return n, res, append([]byte{i}, prefix...), nil
 	case EmptyNode:
 	case *HashNode:
-		if r, err := t.getFromStore(n.hash); err == nil {
+		r, err := t.getFromStore(n.hash)
+		if err == nil {
 			return t.getWithPath(r, path, strict)
 		}
+		if errors.Is(err, errTooManyNodes) {
+			return nil, nil, nil, err
+		}
+
 	case *ExtensionNode:
 		if len(path) == 0 && !strict {
 			return curr, n.next, n.key, nil

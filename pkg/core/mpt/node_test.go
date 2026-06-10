@@ -19,12 +19,13 @@ func getTestFuncEncode(ok bool, expected, actual Node) func(t *testing.T) {
 			if hn, ok := actual.(*HashNode); ok {
 				hn.hashValid = true // this field is set during NodeObject decoding
 			}
-			err = testserdes.DecodeBinary(bs, actual)
+			r := io.NewBinReaderFromBuf(bs)
+			actual.decodeBinaryWithDepth(r, 0)
 			if !ok {
-				require.Error(t, err)
+				require.Error(t, r.Err)
 				return
 			}
-			require.NoError(t, err)
+			require.NoError(t, r.Err)
 			require.Equal(t, expected.Type(), actual.Type())
 			require.Equal(t, expected.Hash(), actual.Hash())
 			require.Equal(t, 1+expected.Size(), len(expected.Bytes()))
@@ -82,7 +83,10 @@ func TestNode_Serializable(t *testing.T) {
 		t.Run("InvalidSize", func(t *testing.T) {
 			buf := io.NewBufBinWriter()
 			buf.WriteBytes(make([]byte, 13))
-			require.Error(t, testserdes.DecodeBinary(buf.Bytes(), &HashNode{BaseNode: BaseNode{hashValid: true}}))
+			r := io.NewBinReaderFromBuf(buf.Bytes())
+			hn := &HashNode{BaseNode: BaseNode{hashValid: true}}
+			hn.decodeBinaryWithDepth(r, 0)
+			require.Error(t, r.Err)
 		})
 	})
 
