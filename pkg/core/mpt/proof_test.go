@@ -3,6 +3,8 @@ package mpt
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,5 +74,35 @@ func TestVerifyProof(t *testing.T) {
 		v, ok := VerifyProof(tr.root.Hash(), key, proof)
 		require.True(t, ok)
 		require.Equal(t, []byte("somevalue"), v)
+	})
+
+	// Ref. https://github.com/neo-project/neo-node/pull/1067.
+	t.Run("malicious nested node compat", func(t *testing.T) {
+		const depth = 10_000
+		var (
+			proof  = make([]byte, depth*3+1)
+			offset int
+		)
+		for range depth { // large chain of Extension nodes, each with an empty key...
+			proof[offset] = 0x01
+			offset++
+			proof[offset] = 0x00
+			offset++
+		}
+		proof[offset] = 0x04 // ... pointing to an Empty node...
+		offset++
+		for range depth { // ... not sure why we need these extra zero bytes in the end.
+			proof[offset] = 0x00
+			offset++
+		}
+		root := hash.DoubleSha256(proof)
+		_, ok := VerifyProof(root, []byte{0x00}, [][]byte{proof})
+		require.False(t, ok)
+
+		// Ensure the error is expected.
+		tr := NewTrie(NewHashNode(root), ModeAll, storage.NewMemCachedStore(storage.NewMemoryStore()))
+		tr.Store.Put(makeStorageKey(root), proof)
+		_, _, _, err := tr.getWithPath(tr.root, []byte{0x00, 0x00}, true)
+		require.ErrorIs(t, err, errTooManyNodes)
 	})
 }

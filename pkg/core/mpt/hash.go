@@ -46,14 +46,14 @@ func (h *HashNode) Bytes() []byte {
 	return h.getBytes(h)
 }
 
-// DecodeBinary implements io.Serializable.
-func (h *HashNode) DecodeBinary(r *io.BinReader) {
+// DecodeBinaryWithDepth implements Node interface.
+func (h *HashNode) decodeBinaryWithDepth(r *io.BinReader, depth int) {
 	if h.hashValid {
 		h.hash.DecodeBinary(r)
 	}
 }
 
-// EncodeBinary implements io.Serializable.
+// EncodeBinary implements io.Encodable.
 func (h HashNode) EncodeBinary(w *io.BinWriter) {
 	if !h.hashValid {
 		return

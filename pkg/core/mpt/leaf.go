@@ -39,8 +39,8 @@ func (n *LeafNode) Bytes() []byte {
 	return n.getBytes(n)
 }
 
-// DecodeBinary implements io.Serializable.
-func (n *LeafNode) DecodeBinary(r *io.BinReader) {
+// DecodeBinaryWithDepth implements Node interface.
+func (n *LeafNode) decodeBinaryWithDepth(r *io.BinReader, depth int) {
 	sz := r.ReadVarUint()
 	if sz > MaxValueLength {
 		r.Err = fmt.Errorf("leaf node value is too big: %d", sz)
@@ -51,7 +51,7 @@ func (n *LeafNode) DecodeBinary(r *io.BinReader) {
 	n.invalidateCache()
 }
 
-// EncodeBinary implements io.Serializable.
+// EncodeBinary implements io.Encodable.
 func (n LeafNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(n.value)
 }

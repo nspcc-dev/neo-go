@@ -51,8 +51,8 @@ func (e *ExtensionNode) Bytes() []byte {
 	return e.getBytes(e)
 }
 
-// DecodeBinary implements io.Serializable.
-func (e *ExtensionNode) DecodeBinary(r *io.BinReader) {
+// DecodeBinaryWithDepth implements Node interface.
+func (e *ExtensionNode) decodeBinaryWithDepth(r *io.BinReader, depth int) {
 	sz := r.ReadVarUint()
 	if sz > maxPathLength {
 		r.Err = fmt.Errorf("extension node key is too big: %d", sz)
@@ -61,12 +61,12 @@ func (e *ExtensionNode) DecodeBinary(r *io.BinReader) {
 	e.key = make([]byte, sz)
 	r.ReadBytes(e.key)
 	no := new(NodeObject)
-	no.DecodeBinary(r)
+	no.decodeBinaryWithDepth(r, depth+1)
 	e.next = no.Node
 	e.invalidateCache()
 }
 
-// EncodeBinary implements io.Serializable.
+// EncodeBinary implements io.Encodable.
 func (e ExtensionNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(e.key)
 	encodeBinaryAsChild(e.next, w)

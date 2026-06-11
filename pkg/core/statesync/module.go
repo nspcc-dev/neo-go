@@ -576,7 +576,7 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 	for _, nBytes := range nodes {
 		var n mpt.NodeObject
 		r := io.NewBinReaderFromBuf(nBytes)
-		n.DecodeBinary(r)
+		n.DecodeBinary(r) // we're OK with counting depth from 0 for every node, maintaining it for every node in pool is excessive.
 		if r.Err != nil {
 			return fmt.Errorf("failed to decode MPT node: %w", r.Err)
 		}
