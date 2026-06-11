@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -103,11 +104,18 @@ func TestVM_SetPriceGetter(t *testing.T) {
 
 func TestAddGas(t *testing.T) {
 	t.Run("AddDatoshi", func(t *testing.T) {
-		v := newTestVM()
-		v.SetGasLimit(10)
-		require.NoError(t, v.AddDatoshi(5))
-		require.NoError(t, v.AddDatoshi(5))
-		require.Error(t, v.AddDatoshi(1))
+		t.Run("good", func(t *testing.T) {
+			v := newTestVM()
+			v.SetGasLimit(10)
+			require.NoError(t, v.AddDatoshi(5))
+			require.NoError(t, v.AddDatoshi(5))
+			require.Error(t, v.AddDatoshi(1))
+		})
+		t.Run("gasConsumed overflow", func(t *testing.T) {
+			v := newTestVM()
+			v.SetGasLimit(10)
+			require.ErrorIs(t, v.AddDatoshi(math.MaxInt64), ErrGASLimitExceeded)
+		})
 	})
 
 	t.Run("AddPicoGas", func(t *testing.T) {
@@ -116,6 +124,22 @@ func TestAddGas(t *testing.T) {
 		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
 		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
 		require.ErrorIs(t, v.AddPicoGas(1), ErrGASLimitExceeded)
+	})
+}
+
+func TestGasConsumed(t *testing.T) {
+	t.Run("datoshi overflow", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		require.ErrorIs(t, v.AddDatoshi(math.MaxInt64), ErrGASLimitExceeded)
+		require.Equal(t, int64(math.MaxInt64), v.GasConsumed())
+	})
+	t.Run("picoGAS overflow", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		require.NoError(t, v.AddPicoGas(1))
+		require.ErrorIs(t, v.AddPicoGas(math.MaxInt64), ErrGASLimitExceeded)
+		require.Equal(t, int64(((uint64(math.MaxInt64)+1)/ExecFeeFactorMultiplier) /*not divisible by factor, hence +1*/ +1), v.GasConsumed())
 	})
 }
 
@@ -2995,7 +3019,8 @@ func TestPicoGasToDatoshi(t *testing.T) {
 		10001: 2,
 	} {
 		t.Run(strconv.Itoa(int(in)), func(t *testing.T) {
-			require.Equal(t, out, PicoGasToDatoshi(in))
+			require.Equal(t, out, PicoGasToDatoshiInt64(in))
+			require.Equal(t, out, int64(PicoGasToDatoshi(uint256.NewInt(uint64(in))).Uint64()))
 		})
 	}
 }
