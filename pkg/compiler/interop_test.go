@@ -612,7 +612,7 @@ func TestCallWithVersion(t *testing.T) {
 
 	policyH := nativehashes.PolicyContract
 	t.Run("good", func(t *testing.T) {
-		c.Invoke(t, vm.PicoGasToDatoshi(e.Chain.GetBaseExecFee()), "callWithVersion", policyH.BytesBE(), 0, "getExecFeeFactor")
+		c.Invoke(t, vm.PicoGasToDatoshiInt64(e.Chain.GetBaseExecFee()), "callWithVersion", policyH.BytesBE(), 0, "getExecFeeFactor")
 	})
 	t.Run("unknown contract", func(t *testing.T) {
 		c.InvokeFail(t, "unknown contract", "callWithVersion", util.Uint160{1, 2, 3}.BytesBE(), 0, "getExecFeeFactor")

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -2995,7 +2996,8 @@ func TestPicoGasToDatoshi(t *testing.T) {
 		10001: 2,
 	} {
 		t.Run(strconv.Itoa(int(in)), func(t *testing.T) {
-			require.Equal(t, out, PicoGasToDatoshi(in))
+			require.Equal(t, out, PicoGasToDatoshiInt64(in))
+			require.Equal(t, out, int64(PicoGasToDatoshi(uint256.NewInt(uint64(in))).Uint64()))
 		})
 	}
 }
