@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"strconv"
@@ -2202,14 +2203,14 @@ func (s *Server) invokeFunctionHistoric(reqParams params.Params) (any, *neorpc.E
 	if len(reqParams) < 2 {
 		return nil, neorpc.ErrInvalidParams
 	}
-	tx, verbose, respErr := s.getInvokeFunctionParams(reqParams[1:])
+	tx, verbose, respErr := s.getInvokeFunctionParams(reqParams[1:], nextH-1)
 	if respErr != nil {
 		return nil, respErr
 	}
 	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, &nextH, verbose)
 }
 
-func (s *Server) getInvokeFunctionParams(reqParams params.Params) (*transaction.Transaction, bool, *neorpc.Error) {
+func (s *Server) getInvokeFunctionParams(reqParams params.Params, currIndex ...uint32) (*transaction.Transaction, bool, *neorpc.Error) {
 	if len(reqParams) < 2 {
 		return nil, false, neorpc.ErrInvalidParams
 	}
@@ -2225,29 +2226,50 @@ func (s *Server) getInvokeFunctionParams(reqParams params.Params) (*transaction.
 	if len(reqParams) > 2 {
 		invparams = &reqParams[2]
 	}
-	tx := &transaction.Transaction{}
-	if len(reqParams) > 3 {
-		signers, _, err := reqParams[3].GetSignersWithWitnesses()
-		if err != nil {
-			return nil, false, neorpc.ErrInvalidParams
-		}
-		tx.Signers = signers
-	}
-	var verbose bool
-	if len(reqParams) > 4 {
-		verbose, err = reqParams[4].GetBoolean()
-		if err != nil {
-			return nil, false, neorpc.ErrInvalidParams
-		}
-	}
-	if len(tx.Signers) == 0 {
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
-	}
 	script, err := params.CreateFunctionInvocationScript(scriptHash, method, invparams)
 	if err != nil {
 		return nil, false, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("can't create invocation script: %s", err))
 	}
-	tx.Script = script
+
+	return s.mockTx(script, reqParams.Value(3), reqParams.Value(4), currIndex...)
+}
+
+func (s *Server) mockTx(script []byte, signersParam *params.Param, verboseParam *params.Param, currIndex ...uint32) (*transaction.Transaction, bool, *neorpc.Error) {
+	tx := &transaction.Transaction{
+		Nonce:      rand.Uint32(),
+		Script:     script,
+		Attributes: []transaction.Attribute{},
+		Scripts:    []transaction.Witness{},
+	}
+	if signersParam != nil {
+		signers, witnesses, err := signersParam.GetSignersWithWitnesses()
+		if err != nil {
+			return nil, false, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("failed to get signers or witnesses: %s", err))
+		}
+		tx.Signers = signers
+		tx.Scripts = witnesses
+	}
+	if len(tx.Signers) == 0 {
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
+	}
+	if len(currIndex) > 0 {
+		tx.ValidUntilBlock = currIndex[0]
+	} else {
+		tx.ValidUntilBlock = s.chain.BlockHeight()
+	}
+	tx.ValidUntilBlock += s.chain.GetMaxValidUntilBlockIncrement()
+
+	var (
+		verbose bool
+		err     error
+	)
+	if verboseParam != nil {
+		verbose, err = verboseParam.GetBoolean()
+		if err != nil {
+			return nil, false, neorpc.ErrInvalidParams
+		}
+	}
+
 	return tx, verbose, nil
 }
 
@@ -2269,40 +2291,20 @@ func (s *Server) invokescripthistoric(reqParams params.Params) (any, *neorpc.Err
 	if len(reqParams) < 2 {
 		return nil, neorpc.ErrInvalidParams
 	}
-	tx, verbose, respErr := s.getInvokeScriptParams(reqParams[1:])
+	tx, verbose, respErr := s.getInvokeScriptParams(reqParams[1:], nextH-1)
 	if respErr != nil {
 		return nil, respErr
 	}
 	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, &nextH, verbose)
 }
 
-func (s *Server) getInvokeScriptParams(reqParams params.Params) (*transaction.Transaction, bool, *neorpc.Error) {
+func (s *Server) getInvokeScriptParams(reqParams params.Params, currIndex ...uint32) (*transaction.Transaction, bool, *neorpc.Error) {
 	script, err := reqParams.Value(0).GetBytesBase64()
 	if err != nil {
 		return nil, false, neorpc.ErrInvalidParams
 	}
 
-	tx := &transaction.Transaction{}
-	if len(reqParams) > 1 {
-		signers, witnesses, err := reqParams[1].GetSignersWithWitnesses()
-		if err != nil {
-			return nil, false, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
-		}
-		tx.Signers = signers
-		tx.Scripts = witnesses
-	}
-	var verbose bool
-	if len(reqParams) > 2 {
-		verbose, err = reqParams[2].GetBoolean()
-		if err != nil {
-			return nil, false, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
-		}
-	}
-	if len(tx.Signers) == 0 {
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
-	}
-	tx.Script = script
-	return tx, verbose, nil
+	return s.mockTx(script, reqParams.Value(1), reqParams.Value(2), currIndex...)
 }
 
 func (s *Server) fakeTxFromParam(p *params.Param) (*transaction.Transaction, *neorpc.Error) {
@@ -2445,15 +2447,12 @@ func (s *Server) getInvokeContractVerifyParams(reqParams params.Params) (util.Ui
 	}
 	invocationScript := bw.Bytes()
 
-	tx := &transaction.Transaction{Script: []byte{byte(opcode.RET)}} // need something in script
-	if len(reqParams) > 2 {
-		signers, witnesses, err := reqParams[2].GetSignersWithWitnesses()
-		if err != nil {
-			return util.Uint160{}, nil, nil, neorpc.ErrInvalidParams
-		}
-		tx.Signers = signers
-		tx.Scripts = witnesses
-	} else { // fill the only known signer - the contract with `verify` method
+	signersParam := reqParams.Value(2)
+	tx, _, respErr := s.mockTx([]byte{byte(opcode.RET) /*need something in script*/}, signersParam, nil)
+	if respErr != nil {
+		return util.Uint160{}, nil, nil, respErr
+	}
+	if signersParam == nil { // fill the only known signer - the contract with `verify` method
 		tx.Signers = []transaction.Signer{{Account: scriptHash}}
 		tx.Scripts = []transaction.Witness{{InvocationScript: invocationScript, VerificationScript: []byte{}}}
 	}
