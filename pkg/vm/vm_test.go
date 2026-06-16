@@ -102,6 +102,31 @@ func TestVM_SetPriceGetter(t *testing.T) {
 	})
 }
 
+// TestNegativeRC ensures that circular references can't lead to negative RC values
+// (which may be misused to break the MaxStackSize limit).
+// Ref. https://github.com/neo-project/neo-vm/issues/580.
+func TestNegativeRC(t *testing.T) {
+	v := newTestVM()
+	prog := []byte{byte(opcode.INITSLOT), 0x01, 0x00,
+		byte(opcode.PUSH16), byte(opcode.INC), byte(opcode.STLOC0),
+		byte(opcode.NEWARRAY0), // first jump target.
+		byte(opcode.DUP),
+		byte(opcode.DUP),
+		byte(opcode.APPEND),
+		byte(opcode.CLEARITEMS),
+		byte(opcode.LDLOC0), byte(opcode.DEC), byte(opcode.DUP),
+		byte(opcode.STLOC0), byte(opcode.PUSH0),
+		byte(opcode.JMPGT), 0xf6,
+		byte(opcode.PUSH16), byte(opcode.PUSH7), byte(opcode.SHL), byte(opcode.PUSH14), byte(opcode.ADD), byte(opcode.STLOC0), // 2048+14
+		byte(opcode.PUSH0), // second jump target.
+		byte(opcode.LDLOC0), byte(opcode.DEC), byte(opcode.DUP),
+		byte(opcode.STLOC0), byte(opcode.PUSH0),
+		byte(opcode.JMPGT), 0xfa,
+	}
+	v.Load(prog)
+	checkVMFailedWithError(t, v, "at instruction 27 (DUP): stack is too big: 2049 vs 2048")
+}
+
 func TestAddGas(t *testing.T) {
 	t.Run("AddDatoshi", func(t *testing.T) {
 		t.Run("good", func(t *testing.T) {
