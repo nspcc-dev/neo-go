@@ -1568,34 +1568,36 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
+			elems := t.Value().([]stackitem.Item)
+			t.Clear()
 			if t.IsReferenced() {
-				for _, item := range t.Value().([]stackitem.Item) {
+				for _, item := range elems {
 					v.refs.Remove(item)
 				}
 			}
-			t.Clear()
 		case *stackitem.Struct:
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
+			elems := t.Value().([]stackitem.Item)
+			t.Clear()
 			if t.IsReferenced() {
-				for _, item := range t.Value().([]stackitem.Item) {
+				for _, item := range elems {
 					v.refs.Remove(item)
 				}
 			}
-			t.Clear()
 		case *stackitem.Map:
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
+			elems := t.Value().([]stackitem.MapElement)
+			t.Clear()
 			if t.IsReferenced() {
-				elems := t.Value().([]stackitem.MapElement)
 				for i := range elems {
 					v.refs.Remove(elems[i].Key)
 					v.refs.Remove(elems[i].Value)
 				}
 			}
-			t.Clear()
 		default:
 			panic("CLEARITEMS: invalid type")
 		}
