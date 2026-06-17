@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/scripts/rpcutil"
-	"github.com/pmezard/go-difflib/difflib"
 	"github.com/urfave/cli/v2"
 )
 
@@ -114,26 +112,15 @@ func dumpApplogDiff(isBlock bool, container util.Uint256, a string, b string, ca
 	} else {
 		fmt.Printf("transaction %s:\n", container.StringLE())
 	}
-	la, err := ca.GetApplicationLog(container, nil)
+	da, err := rpcutil.GetApplicationLog(ca, container)
 	if err != nil {
 		return err
 	}
-	lb, err := cb.GetApplicationLog(container, nil)
+	db, err := rpcutil.GetApplicationLog(cb, container)
 	if err != nil {
 		return err
 	}
-	da := spew.Sdump(la)
-	db := spew.Sdump(lb)
-	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-		A:        difflib.SplitLines(da),
-		B:        difflib.SplitLines(db),
-		FromFile: a,
-		FromDate: "",
-		ToFile:   b,
-		ToDate:   "",
-		Context:  1,
-	})
-	fmt.Println(diff)
+	rpcutil.DumpApplicationLogDiff(a, b, da, db)
 	return nil
 }
 
