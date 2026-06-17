@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,11 @@ func TestInternalClientCancel(t *testing.T) {
 	})
 	icl, err := rpcclient.NewInternal(ctx, rpcSrv.RegisterLocal)
 	require.NoError(t, err)
+
+	// Check Network API.
+	require.NoError(t, icl.Init())
+	require.Equal(t, netmode.UnitTestNet, icl.Network())
+
 	cancel()
 	icl.Close()
 	require.NoError(t, icl.GetError())

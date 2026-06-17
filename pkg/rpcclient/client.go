@@ -250,3 +250,12 @@ func (c *Client) Context() context.Context {
 func (c *Client) Endpoint() string {
 	return c.endpoint.String()
 }
+
+// Network returns the network magic of the RPC node the Client is bound to. It
+// uses cache. Calling this method on an uninitialized Client will return 0.
+func (c *Client) Network() netmode.Magic {
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
+
+	return c.cache.network
+}
