@@ -590,7 +590,7 @@ where:
 
 ### Hardforks
 
-The latest stable hardfork as per 0.107.1 release is Domovoi. Echidna is still
+The latest stable hardfork as per 0.120.0 release is Faun. Gorgon is still
 in development and can change in an incompatible way.
 
 | Name            | Changes | References |
