@@ -140,7 +140,14 @@ func testFile(t *testing.T, filename string) {
 	}
 
 	ut := new(vmUT)
-	require.NoErrorf(t, json.Unmarshal(data, ut), "file: %s", filename)
+	err = json.Unmarshal(data, ut)
+	if err != nil {
+		if e, ok := err.(*json.SyntaxError); ok {
+			t.Fatalf("unexpected JSON parsing error: %s\nfile: %s\noffset: %d\ncontext:\n%s",
+				err, filename, e.Offset, data[max(0, e.Offset-30):min(len(data), int(e.Offset+30))])
+		}
+		t.Fatalf("unexpected JSON parsing error: %s\nfile: %s", err, filename)
+	}
 
 	t.Run(ut.Category+":"+ut.Name, func(t *testing.T) {
 		for i := range ut.Tests {
