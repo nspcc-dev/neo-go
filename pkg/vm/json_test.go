@@ -138,19 +138,20 @@ func testFile(t *testing.T, filename string) {
 	if len(data) > 2 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
 		data = data[3:]
 	}
-	if strings.HasSuffix(filename, "MEMCPY.json") {
-		return // FIXME not a valid JSON https://github.com/neo-project/neo-vm/issues/322
-	}
 
 	ut := new(vmUT)
-	require.NoErrorf(t, json.Unmarshal(data, ut), "file: %s", filename)
+	err = json.Unmarshal(data, ut)
+	if err != nil {
+		if e, ok := err.(*json.SyntaxError); ok {
+			t.Fatalf("unexpected JSON parsing error: %s\nfile: %s\noffset: %d\ncontext:\n%s",
+				err, filename, e.Offset, data[max(0, e.Offset-30):min(len(data), int(e.Offset+30))])
+		}
+		t.Fatalf("unexpected JSON parsing error: %s\nfile: %s", err, filename)
+	}
 
 	t.Run(ut.Category+":"+ut.Name, func(t *testing.T) {
 		for i := range ut.Tests {
 			test := ut.Tests[i]
-			if test.Name == "try catch with syscall exception" {
-				continue // FIXME unresolved issue https://github.com/neo-project/neo-vm/issues/343
-			}
 			t.Run(ut.Tests[i].Name, func(t *testing.T) {
 				prog := []byte(test.Script)
 				vm := load(prog)
