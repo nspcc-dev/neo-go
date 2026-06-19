@@ -316,6 +316,34 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, 0, len(mp.fees))
 }
 
+func TestMemPoolFeeConflict(t *testing.T) {
+	mp := New(10, 0, false, nil)
+	fs := &FeerStub{balance: 5}
+	sender0 := util.Uint160{1, 2, 3}
+
+	// Add tx with fee 1.
+	tx1 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx1.NetworkFee = 1
+	tx1.Signers = []transaction.Signer{{Account: sender0}}
+	require.NoError(t, mp.Add(tx1, fs))
+
+	// Add tx with fee 3. 1 GAS left on balance.
+	tx2 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx2.NetworkFee = 3
+	tx2.Signers = []transaction.Signer{{Account: sender0}}
+	require.NoError(t, mp.Add(tx2, fs))
+
+	// Add tx with fee 2. More prioritized than tx1, so should replace tx1.
+	// Balance is enough to cover tx2+tx3 fees, but this test fails due to the
+	// fact that checkTxConflicts checks balance wrt conflicting transactions, but
+	// without respect to less prioritized transactions:
+	// https://github.com/nspcc-dev/neo-go/blob/622a23a048ac2b3cb019b953be7b415eb255fe8f/pkg/core/mempool/mem_pool.go#L613
+	tx3 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx3.NetworkFee = 2
+	tx3.Signers = []transaction.Signer{{Account: sender0}}
+	require.NoError(t, mp.Add(tx3, fs))
+}
+
 func TestMempoolItemsOrder(t *testing.T) {
 	sender0 := util.Uint160{1, 2, 3}
 	balance := big.NewInt(10000000)
