@@ -142,7 +142,8 @@ func testFile(t *testing.T, filename string) {
 	ut := new(vmUT)
 	err = json.Unmarshal(data, ut)
 	if err != nil {
-		if e, ok := err.(*json.SyntaxError); ok {
+		var e *json.SyntaxError
+		if errors.As(err, &e) {
 			t.Fatalf("unexpected JSON parsing error: %s\nfile: %s\noffset: %d\ncontext:\n%s",
 				err, filename, e.Offset, data[max(0, e.Offset-30):min(len(data), int(e.Offset+30))])
 		}
