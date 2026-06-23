@@ -57,11 +57,10 @@ type utilityBalanceAndFees struct {
 
 // Pool stores the unconfirmed transactions.
 type Pool struct {
-	lock          sync.RWMutex
-	verifiedMap   map[util.Uint256]*transaction.Transaction
-	verifiedTxes  items
-	fees          map[util.Uint160]utilityBalanceAndFees
-	sponsoredFees map[util.Uint160]utilityBalanceAndFees
+	lock         sync.RWMutex
+	verifiedMap  map[util.Uint256]*transaction.Transaction
+	verifiedTxes items
+	fees         map[payer]utilityBalanceAndFees
 	// conflicts is a map of the hashes of the transactions which are conflicting with the mempooled ones.
 	conflicts map[util.Uint256][]util.Uint256
 	// oracleResp contains the ids of oracle responses for the tx in the pool.
@@ -84,6 +83,14 @@ type Pool struct {
 
 	// single-use subscriptions for TransactionAdded mempool events.
 	transactionAddedCh atomic.Value // stores single-use chan struct{}, which is closed when new transaction is arrived.
+}
+
+// payer represents a set of accounts that pay transaction fees. Primary account is
+// always set to a transaction sender. Secondary account replaces primary account for
+// cases when Notary native contract is a sender.
+type payer struct {
+	primary   util.Uint160
+	secondary util.Uint160
 }
 
 func (p items) Len() int           { return len(p) }
@@ -165,20 +172,20 @@ func (mp *Pool) HasConflicts(t *transaction.Transaction, fee Feer) bool {
 // contract is a sender, it returns the owner of the notary deposit. Boolean
 // return value denotes the latter. It also returns the proper map to track
 // the balance of the payer.
-func (mp *Pool) getPayer(tx *transaction.Transaction) (util.Uint160, map[util.Uint160]utilityBalanceAndFees, bool) {
+func (mp *Pool) getPayer(tx *transaction.Transaction) (payer, bool) {
 	if tx.Sender().Equals(nativehashes.Notary) {
-		return tx.Signers[1].Account, mp.sponsoredFees, true
+		return payer{primary: tx.Sender(), secondary: tx.Signers[1].Account}, true
 	}
-	return tx.Sender(), mp.fees, false
+	return payer{primary: tx.Sender()}, false
 }
 
 // getPayerFee returns utilityBalanceAndFees structure for the specified payer.
 // It uses getBalance function to retrieve the balance of the payer if it's not
 // yet present in the provided fees map.
-func getPayerFee(sender util.Uint160, payer util.Uint160, fees map[util.Uint160]utilityBalanceAndFees, feer Feer) (utilityBalanceAndFees, bool) {
+func getPayerFee(payer payer, fees map[payer]utilityBalanceAndFees, feer Feer) (utilityBalanceAndFees, bool) {
 	fee, ok := fees[payer]
 	if !ok {
-		_ = fee.balance.SetFromBig(feer.GetUtilityTokenBalance(sender, payer))
+		_ = fee.balance.SetFromBig(feer.GetUtilityTokenBalance(payer.primary, payer.secondary))
 	}
 	return fee, ok
 }
@@ -187,10 +194,10 @@ func getPayerFee(sender util.Uint160, payer util.Uint160, fees map[util.Uint160]
 // (either notary deposit or simple GAS fee) and returns false if both balance check is required and
 // the sender does not have enough GAS (or deposit) to pay.
 func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
-	payer, fees, _ := mp.getPayer(tx)
-	payerFee, ok := getPayerFee(tx.Sender(), payer, fees, feer)
+	p, _ := mp.getPayer(tx)
+	payerFee, ok := getPayerFee(p, mp.fees, feer)
 	if !ok {
-		fees[payer] = payerFee
+		mp.fees[p] = payerFee
 	}
 
 	if needCheck {
@@ -202,7 +209,7 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 	} else {
 		payerFee.feeSum.AddUint64(&payerFee.feeSum, uint64(tx.SystemFee+tx.NetworkFee))
 	}
-	fees[payer] = payerFee
+	mp.fees[p] = payerFee
 	return true
 }
 
@@ -400,10 +407,10 @@ func (mp *Pool) removeInternal(hash util.Uint256) {
 func (mp *Pool) removeFromMapWithFeesAndAttrs(itm item) {
 	delete(mp.verifiedMap, itm.txn.Hash())
 
-	payer, fees, _ := mp.getPayer(itm.txn)
-	payerFee := fees[payer]
+	p, _ := mp.getPayer(itm.txn)
+	payerFee := mp.fees[p]
 	payerFee.feeSum.SubUint64(&payerFee.feeSum, uint64(itm.txn.SystemFee+itm.txn.NetworkFee))
-	fees[payer] = payerFee
+	mp.fees[p] = payerFee
 	// remove all conflicting hashes from mp.conflicts list
 	mp.removeConflictsOf(itm.txn)
 	if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
@@ -428,7 +435,6 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	// because items are iterated one-by-one in increasing order.
 	newVerifiedTxes := mp.verifiedTxes[:0]
 	clear(mp.fees)
-	clear(mp.sponsoredFees)
 	clear(mp.conflicts)
 	height := feer.BlockHeight()
 	var (
@@ -495,8 +501,7 @@ func New(capacity int, enableSubscriptions bool, updateMetricsCb func(int)) *Poo
 		verifiedMap:          make(map[util.Uint256]*transaction.Transaction, capacity),
 		verifiedTxes:         make([]item, 0, capacity),
 		capacity:             capacity,
-		fees:                 make(map[util.Uint160]utilityBalanceAndFees),
-		sponsoredFees:        make(map[util.Uint160]utilityBalanceAndFees),
+		fees:                 make(map[payer]utilityBalanceAndFees),
 		conflicts:            make(map[util.Uint256][]util.Uint256),
 		oracleResp:           make(map[uint64]util.Uint256),
 		subscriptionsEnabled: enableSubscriptions,
@@ -577,8 +582,12 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 // checkTxConflicts is an internal unprotected version of Verify. It takes into
 // consideration conflicting transactions which are about to be removed from mempool.
 func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*transaction.Transaction, error) {
-	payer, fees, isSponsored := mp.getPayer(tx)
-	actualPayerFee, ok := getPayerFee(tx.Sender(), payer, fees, feer)
+	p, isSponsored := mp.getPayer(tx)
+	author := p.primary
+	if isSponsored {
+		author = p.secondary
+	}
+	actualPayerFee, ok := getPayerFee(p, mp.fees, feer)
 
 	// Check Conflicts attributes.
 	var (
@@ -590,7 +599,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*tra
 	if conflictingHashes, ok := mp.conflicts[tx.Hash()]; ok {
 		for _, hash := range conflictingHashes {
 			existingTx := mp.verifiedMap[hash]
-			if existingTx.HasSigner(payer) {
+			if existingTx.HasSigner(author) {
 				conflictingFee += existingTx.NetworkFee
 			}
 			conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
@@ -630,14 +639,14 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*tra
 	// Step 3: take into account payer's conflicting transactions before balance check.
 	expectedPayerFee = actualPayerFee
 	for _, conflictingTx := range conflictsToBeRemoved {
-		conflictingPayer, _, isConflictingSponsored := mp.getPayer(conflictingTx)
-		if conflictingPayer.Equals(payer) && isConflictingSponsored == isSponsored { // only pick conflicts, those removals will affect payer's fee sum (either standard GAS or notary deposit).
+		conflictingPayer, _ := mp.getPayer(conflictingTx)
+		if conflictingPayer.primary.Equals(p.primary) && conflictingPayer.secondary.Equals(conflictingPayer.secondary) { // only pick conflicts, those removals will affect payer's fee sum (either standard GAS or notary deposit).
 			expectedPayerFee.feeSum.SubUint64(&expectedPayerFee.feeSum, uint64(conflictingTx.SystemFee+conflictingTx.NetworkFee))
 		}
 	}
 	_, err := checkBalance(tx, expectedPayerFee)
 	if !ok && err == nil { // ok is for cache check at the beginning.
-		fees[payer] = actualPayerFee
+		mp.fees[p] = actualPayerFee
 	}
 	return conflictsToBeRemoved, err
 }
