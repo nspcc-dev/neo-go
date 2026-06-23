@@ -305,9 +305,9 @@ func TestNEO_Vote(t *testing.T) {
 		for i := range voters[:len(voters)-1] {
 			h := voters[i].ScriptHash()
 			refH := referenceAccounts[i].ScriptHash()
-			gasBalance[i] = e.Chain.GetUtilityTokenBalance(h)
+			gasBalance[i] = e.Chain.GetUtilityTokenBalance(h, util.Uint160{})
 			neoBalance[i], _ = e.Chain.GetGoverningTokenBalance(h)
-			referenceGASBalance[i] = e.Chain.GetUtilityTokenBalance(refH)
+			referenceGASBalance[i] = e.Chain.GetUtilityTokenBalance(refH, util.Uint160{})
 
 			tx := neoCommitteeInvoker.WithSigners(voters[i]).PrepareInvoke(t, "transfer", h.BytesBE(), h.BytesBE(), int64(1), nil)
 			txes = append(txes, tx)
@@ -322,7 +322,7 @@ func TestNEO_Vote(t *testing.T) {
 
 		// Define reference reward for NEO holding for each voter account.
 		for i := range referenceGASBalance {
-			newBalance := e.Chain.GetUtilityTokenBalance(referenceAccounts[i].ScriptHash())
+			newBalance := e.Chain.GetUtilityTokenBalance(referenceAccounts[i].ScriptHash(), util.Uint160{})
 			referenceGASBalance[i].Sub(newBalance, referenceGASBalance[i])
 			referenceGASBalance[i].Add(referenceGASBalance[i], big.NewInt(refTxFee))
 		}
@@ -330,7 +330,7 @@ func TestNEO_Vote(t *testing.T) {
 		// GAS increase consists of 2 parts: NEO holding + voting for committee nodes.
 		// Here we check that 2-nd part exists and is proportional to the amount of NEO given.
 		for i := range voters[:len(voters)-1] {
-			newGAS := e.Chain.GetUtilityTokenBalance(voters[i].ScriptHash())
+			newGAS := e.Chain.GetUtilityTokenBalance(voters[i].ScriptHash(), util.Uint160{})
 			newGAS.Sub(newGAS, gasBalance[i])
 			gasForHold := referenceGASBalance[i]
 			newGAS.Sub(newGAS, gasForHold)
@@ -576,7 +576,7 @@ func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 	bs := map[int]int64{0: singleBounty}
 	checkBalances := func() {
 		for i := range committeeSize {
-			require.EqualValues(t, bs[i], e.Chain.GetUtilityTokenBalance(hs[i].GetScriptHash()).Int64(), i)
+			require.EqualValues(t, bs[i], e.Chain.GetUtilityTokenBalance(hs[i].GetScriptHash(), util.Uint160{}).Int64(), i)
 		}
 	}
 	for i := range committeeSize * 2 {
@@ -768,7 +768,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	}
 
 	t.Run("Zero", func(t *testing.T) {
-		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH)
+		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH, util.Uint160{})
 		for range rewardDistance {
 			e.AddNewBlock(t)
 		}
@@ -785,7 +785,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 		newGASPerBlock := 1
 		neoHolderRewardRatio := 10
 
-		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH)
+		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH, util.Uint160{})
 
 		// Five blocks of NEO owning with default GasPerBlockValue.
 		neoValidatorsInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), accH, amount, nil)

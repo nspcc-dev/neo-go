@@ -47,7 +47,7 @@ func BenchmarkPool(b *testing.B) {
 	senders["many, incr fee"] = txesMultiInc
 	for name, txes := range senders {
 		b.Run(name, func(b *testing.B) {
-			p := New(poolSize, 0, false, nil)
+			p := New(poolSize, false, nil)
 			for b.Loop() {
 				for j := range txes {
 					if p.Add(txes[j], fe) != nil {

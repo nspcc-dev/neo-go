@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/holiman/uint256"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -18,10 +19,10 @@ import (
 )
 
 type FeerStub struct {
-	feePerByte  int64
-	p2pSigExt   bool
-	blockHeight uint32
-	balance     int64
+	feePerByte    int64
+	blockHeight   uint32
+	balance       int64
+	notaryBalance int64
 }
 
 func (fs *FeerStub) GetBaseExecFee() int64 {
@@ -36,12 +37,15 @@ func (fs *FeerStub) BlockHeight() uint32 {
 	return fs.blockHeight
 }
 
-func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
+func (fs *FeerStub) GetUtilityTokenBalance(primary, secondary util.Uint160) *big.Int {
+	if primary.Equals(nativehashes.Notary) {
+		return big.NewInt(fs.notaryBalance)
+	}
 	return big.NewInt(fs.balance)
 }
 
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
-	mp := New(10, 0, false, nil)
+	mp := New(10, false, nil)
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = 0
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -62,7 +66,7 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 }
 
 func TestMemPoolRemoveStale(t *testing.T) {
-	mp := New(5, 0, false, nil)
+	mp := New(5, false, nil)
 	txs := make([]*transaction.Transaction, 5)
 	for i := range txs {
 		txs[i] = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
@@ -114,7 +118,7 @@ func TestOverCapacity(t *testing.T) {
 	var fs = &FeerStub{balance: 10000000}
 	var acc = util.Uint160{1, 2, 3}
 	const mempoolSize = 10
-	mp := New(mempoolSize, 0, false, nil)
+	mp := New(mempoolSize, false, nil)
 
 	var checkPoolIsSorted = func() {
 		require.True(t, slices.IsSortedFunc(mp.verifiedTxes, func(a, b item) int { return -a.Compare(b) }))
@@ -129,7 +133,7 @@ func TestOverCapacity(t *testing.T) {
 	txcnt := uint32(mempoolSize)
 	require.Equal(t, mempoolSize, mp.Count())
 	checkPoolIsSorted()
-	require.Equal(t, *uint256.NewInt(0), mp.fees[acc].feeSum)
+	require.Equal(t, *uint256.NewInt(0), mp.fees[payer{primary: acc}].feeSum)
 
 	bigScript := make([]byte, 64)
 	bigScript[0] = byte(opcode.PUSH1)
@@ -146,7 +150,7 @@ func TestOverCapacity(t *testing.T) {
 		require.Equal(t, mempoolSize, mp.Count())
 		checkPoolIsSorted()
 	}
-	require.Equal(t, *uint256.NewInt(10 * 10000), mp.fees[acc].feeSum)
+	require.Equal(t, *uint256.NewInt(10 * 10000), mp.fees[payer{primary: acc}].feeSum)
 
 	// Less prioritized txes are not allowed anymore.
 	tx := transaction.New(bigScript, 0)
@@ -160,7 +164,7 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, mempoolSize, len(mp.verifiedTxes))
 	require.False(t, mp.containsKey(tx.Hash()))
 	checkPoolIsSorted()
-	require.Equal(t, *uint256.NewInt(100000), mp.fees[acc].feeSum)
+	require.Equal(t, *uint256.NewInt(100000), mp.fees[payer{primary: acc}].feeSum)
 
 	// Low net fee, but higher per-byte fee is still a better combination.
 	tx = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
@@ -173,7 +177,7 @@ func TestOverCapacity(t *testing.T) {
 	require.NoError(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	checkPoolIsSorted()
-	require.Equal(t, *uint256.NewInt(9*10000 + 7000), mp.fees[acc].feeSum)
+	require.Equal(t, *uint256.NewInt(9*10000 + 7000), mp.fees[payer{primary: acc}].feeSum)
 
 	// High priority always wins over low priority.
 	for range mempoolSize {
@@ -186,7 +190,7 @@ func TestOverCapacity(t *testing.T) {
 		require.Equal(t, mempoolSize, mp.Count())
 		checkPoolIsSorted()
 	}
-	require.Equal(t, *uint256.NewInt(10 * 8000), mp.fees[acc].feeSum)
+	require.Equal(t, *uint256.NewInt(10 * 8000), mp.fees[payer{primary: acc}].feeSum)
 	// Good luck with low priority now.
 	tx = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
@@ -200,7 +204,7 @@ func TestOverCapacity(t *testing.T) {
 func TestGetVerified(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := New(mempoolSize, 0, false, nil)
+	mp := New(mempoolSize, false, nil)
 
 	txes := make([]*transaction.Transaction, 0, mempoolSize)
 	for i := range mempoolSize {
@@ -224,7 +228,7 @@ func TestGetVerified(t *testing.T) {
 func TestRemoveStale(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := New(mempoolSize, 0, false, nil)
+	mp := New(mempoolSize, false, nil)
 
 	txes1 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	txes2 := make([]*transaction.Transaction, 0, mempoolSize/2)
@@ -252,7 +256,7 @@ func TestRemoveStale(t *testing.T) {
 }
 
 func TestMemPoolFees(t *testing.T) {
-	mp := New(10, 0, false, nil)
+	mp := New(10, false, nil)
 	fs := &FeerStub{balance: 10000000}
 	sender0 := util.Uint160{1, 2, 3}
 	tx0 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
@@ -273,7 +277,7 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, utilityBalanceAndFees{
 		balance: *uint256.NewInt(uint64(fs.balance)),
 		feeSum:  *uint256.NewInt(uint64(tx1.NetworkFee)),
-	}, mp.fees[sender0])
+	}, mp.fees[payer{primary: sender0}])
 
 	// balance shouldn't change after adding one more transaction
 	tx2 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
@@ -285,7 +289,7 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, utilityBalanceAndFees{
 		balance: *uint256.NewInt(uint64(fs.balance)),
 		feeSum:  *uint256.NewInt(uint64(fs.balance)),
-	}, mp.fees[sender0])
+	}, mp.fees[payer{primary: sender0}])
 
 	// can't add more transactions as we don't have enough GAS
 	tx3 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
@@ -297,7 +301,7 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, utilityBalanceAndFees{
 		balance: *uint256.NewInt(uint64(fs.balance)),
 		feeSum:  *uint256.NewInt(uint64(fs.balance)),
-	}, mp.fees[sender0])
+	}, mp.fees[payer{primary: sender0}])
 
 	// check whether sender's fee updates correctly
 	mp.RemoveStale(func(t *transaction.Transaction) bool {
@@ -307,9 +311,147 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, utilityBalanceAndFees{
 		balance: *uint256.NewInt(uint64(fs.balance)),
 		feeSum:  *uint256.NewInt(uint64(tx2.NetworkFee)),
-	}, mp.fees[sender0])
+	}, mp.fees[payer{primary: sender0}])
 
 	// there should be nothing left
+	mp.RemoveStale(func(t *transaction.Transaction) bool {
+		return t == tx3
+	}, fs)
+	require.Equal(t, 0, len(mp.fees))
+}
+
+func TestMemPoolNotaryFees(t *testing.T) {
+	mp := New(10, false, nil)
+	fs := &FeerStub{balance: 2, notaryBalance: 6}
+	depositer := util.Uint160{1, 2, 3}
+
+	// Insufficient funds to add notary transaction, and notary balance shouldn't be stored.
+	tx0 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx0.NetworkFee = fs.notaryBalance + 1
+	tx0.Signers = []transaction.Signer{
+		{Account: nativehashes.Notary},
+		{Account: depositer},
+	}
+	require.Equal(t, false, mp.Verify(tx0, fs))
+	require.Error(t, mp.Add(tx0, fs))
+	require.Equal(t, 0, len(mp.fees))
+
+	// No problems with adding another notary transaction with lower fee.
+	tx1 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx1.NetworkFee = 2
+	tx1.Signers = []transaction.Signer{
+		{Account: nativehashes.Notary},
+		{Account: depositer},
+	}
+	require.NoError(t, mp.Add(tx1, fs))
+	require.Equal(t, 1, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.notaryBalance)),
+		feeSum:  *uint256.NewInt(uint64(tx1.NetworkFee)),
+	}, mp.fees[payer{primary: nativehashes.Notary, secondary: depositer}])
+
+	// Balance shouldn't change after adding one more notary transaction.
+	tx2 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx2.NetworkFee = fs.notaryBalance - tx1.NetworkFee - 1
+	tx2.Signers = []transaction.Signer{
+		{Account: nativehashes.Notary},
+		{Account: depositer},
+	}
+	require.NoError(t, mp.Add(tx2, fs))
+	require.Equal(t, 2, len(mp.verifiedTxes))
+	require.Equal(t, 1, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.notaryBalance)),
+		feeSum:  *uint256.NewInt(uint64(fs.notaryBalance - 1)),
+	}, mp.fees[payer{primary: nativehashes.Notary, secondary: depositer}])
+
+	// Check notary deposit overdraw: can't add more notary transactions as we
+	// don't have enough GAS deposited to Notary contract.
+	tx3 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx3.NetworkFee = 2 // only 1 GAS left.
+	tx3.Signers = []transaction.Signer{
+		{Account: nativehashes.Notary},
+		{Account: depositer},
+	}
+	require.Equal(t, false, mp.Verify(tx3, fs))
+	require.Error(t, mp.Add(tx3, fs))
+	require.Equal(t, 2, len(mp.verifiedTxes))
+	require.Equal(t, 1, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.notaryBalance)),
+		feeSum:  *uint256.NewInt(uint64(fs.notaryBalance - 1)),
+	}, mp.fees[payer{primary: nativehashes.Notary, secondary: depositer}])
+
+	// Still can add simple transactions because depositer also has simple GAS on the account.
+	tx4 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx4.NetworkFee = 2
+	tx4.Signers = []transaction.Signer{{Account: depositer}}
+	require.Equal(t, true, mp.Verify(tx4, fs))
+	require.NoError(t, mp.Add(tx4, fs))
+	require.Equal(t, 3, len(mp.verifiedTxes))
+	require.Equal(t, 2, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.balance)),
+		feeSum:  *uint256.NewInt(uint64(tx4.NetworkFee)),
+	}, mp.fees[payer{primary: depositer}])
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.notaryBalance)),
+		feeSum:  *uint256.NewInt(uint64(fs.notaryBalance - 1)),
+	}, mp.fees[payer{primary: nativehashes.Notary, secondary: depositer}])
+
+	// Can't add more simple transactions as we don't have enough GAS on the account.
+	tx5 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx5.NetworkFee = 1
+	tx5.Signers = []transaction.Signer{{Account: depositer}}
+	require.Equal(t, false, mp.Verify(tx5, fs))
+	require.Error(t, mp.Add(tx5, fs))
+	require.Equal(t, 3, len(mp.verifiedTxes))
+	require.Equal(t, 2, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.balance)),
+		feeSum:  *uint256.NewInt(uint64(tx4.NetworkFee)),
+	}, mp.fees[payer{primary: depositer}])
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.notaryBalance)),
+		feeSum:  *uint256.NewInt(uint64(fs.notaryBalance - 1)),
+	}, mp.fees[payer{primary: nativehashes.Notary, secondary: depositer}])
+
+	// Add more prioritized notary transaction that conflicts with tx1: tx1 should be evicted with corresponding notary balanceAndFees update.
+	tx6 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx6.NetworkFee = 3
+	tx6.Signers = []transaction.Signer{
+		{Account: nativehashes.Notary},
+		{Account: depositer},
+	}
+	tx6.Attributes = []transaction.Attribute{{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: tx1.Hash()}}}
+	require.Equal(t, true, mp.Verify(tx6, fs))
+	require.NoError(t, mp.Add(tx6, fs))
+	require.Equal(t, 3, len(mp.verifiedTxes))
+	require.Equal(t, 2, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.balance)),
+		feeSum:  *uint256.NewInt(uint64(fs.balance)),
+	}, mp.fees[payer{primary: depositer}])
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.notaryBalance)),
+		feeSum:  *uint256.NewInt(uint64(fs.notaryBalance)),
+	}, mp.fees[payer{primary: nativehashes.Notary, secondary: depositer}])
+
+	// Check whether sender's fee updates correctly after RemoveStale.
+	mp.RemoveStale(func(t *transaction.Transaction) bool {
+		return t == tx2 || t == tx4
+	}, fs)
+	require.Equal(t, 2, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.balance)),
+		feeSum:  *uint256.NewInt(uint64(tx4.NetworkFee)),
+	}, mp.fees[payer{primary: depositer}])
+	require.Equal(t, utilityBalanceAndFees{
+		balance: *uint256.NewInt(uint64(fs.notaryBalance)),
+		feeSum:  *uint256.NewInt(uint64(tx2.NetworkFee)),
+	}, mp.fees[payer{primary: nativehashes.Notary, secondary: depositer}])
+
+	// There should be nothing left.
 	mp.RemoveStale(func(t *transaction.Transaction) bool {
 		return t == tx3
 	}, fs)
@@ -357,7 +499,7 @@ func TestMempoolItemsOrder(t *testing.T) {
 }
 
 func TestMempoolAddRemoveOracleResponse(t *testing.T) {
-	mp := New(3, 0, false, nil)
+	mp := New(3, false, nil)
 	nonce := uint32(0)
 	fs := &FeerStub{balance: 10000}
 	newTx := func(netFee int64, id uint64) *transaction.Transaction {
@@ -428,13 +570,13 @@ func TestMempoolAddRemoveOracleResponse(t *testing.T) {
 func TestMempoolAddRemoveConflicts(t *testing.T) {
 	var (
 		capacity        = 6
-		mp              = New(capacity, 0, false, nil)
+		mp              = New(capacity, false, nil)
 		sender          = transaction.Signer{Account: util.Uint160{1, 2, 3}}
 		maliciousSender = transaction.Signer{Account: util.Uint160{4, 5, 6}}
 	)
 
 	var (
-		fs           = &FeerStub{p2pSigExt: true, balance: 100000}
+		fs           = &FeerStub{balance: 100000, notaryBalance: 0}
 		nonce uint32 = 1
 	)
 	getTx := func(netFee int64, sender transaction.Signer, hashes ...util.Uint256) *transaction.Transaction {
@@ -633,12 +775,12 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 		nonce       uint32
 	)
 	fs := &FeerStub{
-		feePerByte:  0,
-		p2pSigExt:   true,
-		blockHeight: 5,
-		balance:     100,
+		feePerByte:    0,
+		blockHeight:   5,
+		balance:       100,
+		notaryBalance: 0,
 	}
-	mp := New(10, 1, false, nil)
+	mp := New(10, false, nil)
 
 	// bad, insufficient deposit
 	r1 := &payload.P2PNotaryRequest{
@@ -748,12 +890,12 @@ func TestMempoolIterateVerifiedTransactions(t *testing.T) {
 		r1, r2, r3, r4, r5 *payload.P2PNotaryRequest
 	)
 	fs := &FeerStub{
-		feePerByte:  0,
-		p2pSigExt:   true,
-		blockHeight: 5,
-		balance:     100,
+		feePerByte:    0,
+		blockHeight:   5,
+		balance:       100,
+		notaryBalance: 0,
 	}
-	mp := New(10, 1, false, nil)
+	mp := New(10, false, nil)
 
 	checkRequestsOrder := func(orderedRequests []*payload.P2PNotaryRequest) {
 		var pooledRequests []*payload.P2PNotaryRequest

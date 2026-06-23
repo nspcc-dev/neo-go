@@ -25,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
-	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -52,7 +51,7 @@ func getTestNotary(t *testing.T, bc *core.Blockchain, walletPath, pass string, o
 		Chain:   bc,
 		Log:     zaptest.NewLogger(t),
 	}
-	mp := mempool.New(10, 1, true, nil)
+	mp := mempool.New(10, true, nil)
 	ntr, err := notary.NewNotary(cfg, netmode.UnitTestNet, mp, onTx)
 	require.NoError(t, err)
 
@@ -812,9 +811,8 @@ func TestNotary(t *testing.T) {
 			typ:      notary.Signature,
 		},
 	})
-	feer := network.NewNotaryFeer(bc)
-	require.NoError(t, mp1.Add(requests[0].FallbackTransaction, feer, requests[0]))
-	require.NoError(t, mp1.Add(requests[1].FallbackTransaction, feer, requests[1]))
+	require.NoError(t, mp1.Add(requests[0].FallbackTransaction, bc, requests[0]))
+	require.NoError(t, mp1.Add(requests[1].FallbackTransaction, bc, requests[1]))
 	require.Eventually(t, func() bool {
 		mtx.RLock()
 		defer mtx.RUnlock()

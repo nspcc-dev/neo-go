@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/big"
 	mrand "math/rand/v2"
 	"net"
 	"runtime"
@@ -70,7 +69,6 @@ type (
 		GetMaxVerificationGAS() int64
 		GetMemPool() *mempool.Pool
 		GetMillisecondsPerBlock() uint32
-		GetNotaryBalance(acc util.Uint160) *big.Int
 		GetNotaryDepositExpiration(acc util.Uint160) uint32
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 		HasBlock(util.Uint256) bool
@@ -120,7 +118,6 @@ type (
 		mempool           *mempool.Pool
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
-		notaryFeer        NotaryFeer
 		syncStateFetcher  *statefetcher.Service
 		syncHeaderFetcher *blockfetcher.Service
 		syncBlockFetcher  *blockfetcher.Service
@@ -248,13 +245,12 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	})
 	s.txIn = newInMap[*transaction.Transaction](64, s.mempool.ContainsKey)
 	if chain.P2PSigExtensionsEnabled() {
-		s.notaryFeer = NewNotaryFeer(chain)
-		s.notaryRequestPool = mempool.New(s.config.P2PNotaryRequestPayloadPoolSize, 1, true, updateNotarypoolMetrics)
+		s.notaryRequestPool = mempool.New(s.config.P2PNotaryRequestPayloadPoolSize, true, updateNotarypoolMetrics)
 		s.notaryRequestIn = newInMap[notaryRequestInAdapter](64, s.notaryRequestPool.ContainsKey)
 		chain.RegisterPostBlock(func(isRelevant func(*transaction.Transaction, *mempool.Pool, bool) bool, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return isRelevant(t, txpool, true)
-			}, s.notaryFeer)
+			}, s.chain)
 		})
 	}
 	s.bQueue = bqueue.New[*block.Block](chainBlockQueueAdapter{chain}, log, func(b *block.Block) { s.tryStartServices() }, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
@@ -1429,7 +1425,7 @@ func (s *Server) RelayP2PNotaryRequest(r *payload.P2PNotaryRequest) error {
 
 // verifyAndPoolNotaryRequest verifies NotaryRequest payload and adds it to the payload mempool.
 func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) error {
-	err := s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, s.verifyNotaryRequest)
+	err := s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.chain, s.verifyNotaryRequest)
 	if err != nil {
 		return fmt.Errorf("failed to add fallback transaction to the notary pool: %w", err)
 	}

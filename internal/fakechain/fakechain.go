@@ -82,7 +82,7 @@ func NewFakeChainWithCustomCfg(protocolCfg func(c *config.Blockchain)) *FakeChai
 		protocolCfg(&cfg)
 	}
 	var fc = &FakeChain{
-		Pool:           mempool.New(10, 0, false, nil),
+		Pool:           mempool.New(10, false, nil),
 		poolTxWithData: func(*transaction.Transaction, any, *mempool.Pool) error { return nil },
 		blocks:         make(map[util.Uint256]*block.Block),
 		hdrHashes:      make(map[uint32]util.Uint256),
@@ -130,11 +130,6 @@ func (chain *FakeChain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
 	if chain.NotaryDepositExpiration != 0 {
 		return chain.NotaryDepositExpiration
 	}
-	panic("TODO")
-}
-
-// GetNotaryBalance implements the Blockchainer interface.
-func (chain *FakeChain) GetNotaryBalance(acc util.Uint160) *big.Int {
 	panic("TODO")
 }
 
@@ -357,7 +352,7 @@ func (chain *FakeChain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, ui
 }
 
 // GetUtilityTokenBalance implements Feer interface.
-func (chain *FakeChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
+func (chain *FakeChain) GetUtilityTokenBalance(primary, secondary util.Uint160) *big.Int {
 	if chain.UtilityTokenBalance != nil {
 		return chain.UtilityTokenBalance
 	}
