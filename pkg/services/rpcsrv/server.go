@@ -634,7 +634,7 @@ func (s *Server) handleInternal(req *neorpc.Request, sub *subscriber) (*neorpc.R
 		zap.Stringer("params", reqParams))
 
 	start := time.Now()
-	defer func() { addReqTimeMetric(req.Method, time.Since(start)) }()
+	defer func() { addReqMetric(req.Method, time.Since(start)) }()
 
 	rpcRes.Error = neorpc.NewMethodNotFoundError(fmt.Sprintf("method %q not supported", req.Method))
 	handler, ok := rpcHandlers[req.Method]
@@ -670,7 +670,7 @@ func (s *Server) handleIn(req *params.In, sub *subscriber) abstract {
 		zap.Stringer("params", reqParams))
 
 	start := time.Now()
-	defer func() { addReqTimeMetric(req.Method, time.Since(start)) }()
+	defer func() { addReqMetric(req.Method, time.Since(start)) }()
 
 	resErr = neorpc.NewMethodNotFoundError(fmt.Sprintf("method %q not supported", req.Method))
 	handler, ok := rpcHandlers[req.Method]
