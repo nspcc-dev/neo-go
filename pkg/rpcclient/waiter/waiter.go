@@ -334,7 +334,20 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 				wsWaitErr = ErrMissedEvent
 				break
 			}
-			waitErr = ErrTxNotAccepted
+			// The VUB-th block was added. Notifications are delivered in order:
+			// execution results before the block header. If the transaction was
+			// included in this block, its execution result is buffered in aerRcvr.
+			select {
+			case aer, ok := <-aerRcvr:
+				if !ok {
+					// We're toast, retry with non-ws client.
+					wsWaitErr = ErrMissedEvent
+					break
+				}
+				res = aer
+			default:
+				waitErr = ErrTxNotAccepted
+			}
 		case aer, ok := <-aerRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
