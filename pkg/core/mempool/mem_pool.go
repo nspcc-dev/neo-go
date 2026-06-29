@@ -172,7 +172,7 @@ func (mp *Pool) HasConflicts(t *transaction.Transaction, fee Feer) bool {
 // contract is a sender, it returns the owner of the notary deposit. Boolean
 // return value denotes the latter. It also returns the proper map to track
 // the balance of the payer.
-func (mp *Pool) getPayer(tx *transaction.Transaction) (payer, bool) {
+func getPayer(tx *transaction.Transaction) (payer, bool) {
 	if tx.Sender().Equals(nativehashes.Notary) {
 		return payer{primary: tx.Sender(), secondary: tx.Signers[1].Account}, true
 	}
@@ -194,7 +194,7 @@ func getPayerFee(payer payer, fees map[payer]utilityBalanceAndFees, feer Feer) (
 // (either notary deposit or simple GAS fee) and returns false if both balance check is required and
 // the sender does not have enough GAS (or deposit) to pay.
 func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
-	p, _ := mp.getPayer(tx)
+	p, _ := getPayer(tx)
 	payerFee, ok := getPayerFee(p, mp.fees, feer)
 	if !ok {
 		mp.fees[p] = payerFee
@@ -407,7 +407,7 @@ func (mp *Pool) removeInternal(hash util.Uint256) {
 func (mp *Pool) removeFromMapWithFeesAndAttrs(itm item) {
 	delete(mp.verifiedMap, itm.txn.Hash())
 
-	p, _ := mp.getPayer(itm.txn)
+	p, _ := getPayer(itm.txn)
 	payerFee := mp.fees[p]
 	payerFee.feeSum.SubUint64(&payerFee.feeSum, uint64(itm.txn.SystemFee+itm.txn.NetworkFee))
 	mp.fees[p] = payerFee
@@ -582,7 +582,7 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 // checkTxConflicts is an internal unprotected version of Verify. It takes into
 // consideration conflicting transactions which are about to be removed from mempool.
 func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*transaction.Transaction, error) {
-	p, isSponsored := mp.getPayer(tx)
+	p, isSponsored := getPayer(tx)
 	author := p.primary
 	if isSponsored {
 		author = p.secondary
@@ -639,7 +639,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*tra
 	// Step 3: take into account payer's conflicting transactions before balance check.
 	expectedPayerFee = actualPayerFee
 	for _, conflictingTx := range conflictsToBeRemoved {
-		conflictingPayer, _ := mp.getPayer(conflictingTx)
+		conflictingPayer, _ := getPayer(conflictingTx)
 		if conflictingPayer.primary.Equals(p.primary) && conflictingPayer.secondary.Equals(conflictingPayer.secondary) { // only pick conflicts, those removals will affect payer's fee sum (either standard GAS or notary deposit).
 			expectedPayerFee.feeSum.SubUint64(&expectedPayerFee.feeSum, uint64(conflictingTx.SystemFee+conflictingTx.NetworkFee))
 		}
