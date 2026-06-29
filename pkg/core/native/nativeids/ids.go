@@ -29,4 +29,6 @@ const (
 	Notary int32 = -10
 	// Treasury is an ID of native Treasury contract.
 	Treasury int32 = -11
+	// TemporaryStorage is an ID of native TemporaryStorage contract.
+	TemporaryStorage int32 = -12
 )
