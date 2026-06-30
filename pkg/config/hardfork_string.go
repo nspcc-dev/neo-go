@@ -11,45 +11,22 @@ func _() {
 	_ = x[HFDefault-0]
 	_ = x[HFAspidochelone-1]
 	_ = x[HFBasilisk-2]
-	_ = x[HFCockatrice-4]
-	_ = x[HFDomovoi-8]
-	_ = x[HFEchidna-16]
-	_ = x[HFFaun-32]
-	_ = x[HFGorgon-64]
-	_ = x[hfLast-128]
+	_ = x[HFCockatrice-3]
+	_ = x[HFDomovoi-4]
+	_ = x[HFEchidna-5]
+	_ = x[HFFaun-6]
+	_ = x[HFGorgon-7]
+	_ = x[hfLast-8]
 }
 
-const (
-	_Hardfork_name_0 = "DefaultAspidocheloneBasilisk"
-	_Hardfork_name_1 = "Cockatrice"
-	_Hardfork_name_2 = "Domovoi"
-	_Hardfork_name_3 = "Echidna"
-	_Hardfork_name_4 = "Faun"
-	_Hardfork_name_5 = "Gorgon"
-	_Hardfork_name_6 = "hfLast"
-)
+const _Hardfork_name = "DefaultAspidocheloneBasiliskCockatriceDomovoiEchidnaFaunGorgonhfLast"
 
-var (
-	_Hardfork_index_0 = [...]uint8{0, 7, 20, 28}
-)
+var _Hardfork_index = [...]uint8{0, 7, 20, 28, 38, 45, 52, 56, 62, 68}
 
 func (i Hardfork) String() string {
-	switch {
-	case i <= 2:
-		return _Hardfork_name_0[_Hardfork_index_0[i]:_Hardfork_index_0[i+1]]
-	case i == 4:
-		return _Hardfork_name_1
-	case i == 8:
-		return _Hardfork_name_2
-	case i == 16:
-		return _Hardfork_name_3
-	case i == 32:
-		return _Hardfork_name_4
-	case i == 64:
-		return _Hardfork_name_5
-	case i == 128:
-		return _Hardfork_name_6
-	default:
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Hardfork_index)-1 {
 		return "Hardfork(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
+	return _Hardfork_name[_Hardfork_index[idx]:_Hardfork_index[idx+1]]
 }

@@ -16,7 +16,7 @@ const (
 	// HFAspidochelone represents hard-fork introduced in #2469 (ported from
 	// https://github.com/neo-project/neo/pull/2712) and #2519 (ported from
 	// https://github.com/neo-project/neo/pull/2749).
-	HFAspidochelone Hardfork = 1 << iota // Aspidochelone
+	HFAspidochelone Hardfork = 1 + iota // Aspidochelone
 	// HFBasilisk represents hard-fork introduced in #3056 (ported from
 	// https://github.com/neo-project/neo/pull/2881), #3080 (ported from
 	// https://github.com/neo-project/neo/pull/2883) and #3085 (ported from
@@ -75,7 +75,7 @@ const (
 const HFLatestStable = HFFaun
 
 // HFLatestKnown is the latest known hardfork.
-const HFLatestKnown = hfLast >> 1
+const HFLatestKnown = hfLast - 1
 
 // StableHardforks is an ordered slice of all stable hardforks (before or
 // equal [HFLatestStable]).
@@ -90,7 +90,7 @@ var hardforks = make(map[string]Hardfork)
 func init() {
 	var stableIndex int
 
-	for i := HFAspidochelone; i < hfLast; i = i << 1 {
+	for i := HFAspidochelone; i < hfLast; i++ {
 		if i <= HFLatestStable {
 			stableIndex++
 		}
@@ -121,7 +121,7 @@ func (hf Hardfork) Prev() Hardfork {
 	if hf == HFDefault {
 		panic("unexpected call to Prev for the default hardfork")
 	}
-	return hf >> 1
+	return hf - 1
 }
 
 // IsHardforkValid denotes whether the provided string represents a valid
