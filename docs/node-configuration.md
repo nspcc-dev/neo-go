@@ -590,7 +590,7 @@ where:
 
 ### Hardforks
 
-The latest stable hardfork as per 0.120.0 release is Faun. Gorgon is still
+The latest stable hardfork as per 0.121.0 release is Gorgon. Huyao is still
 in development and can change in an incompatible way.
 
 | Name            | Changes | References |
