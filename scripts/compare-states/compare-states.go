@@ -1,35 +1,17 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/pmezard/go-difflib/difflib"
+	"github.com/nspcc-dev/neo-go/scripts/rpcutil"
 	"github.com/urfave/cli/v2"
 )
 
 var errStateMatches = errors.New("state matches")
-
-func initClient(addr string, name string) (*rpcclient.Client, uint32, error) {
-	c, err := rpcclient.New(context.Background(), addr, rpcclient.Options{})
-	if err != nil {
-		return nil, 0, fmt.Errorf("RPC %s: %w", name, err)
-	}
-	err = c.Init()
-	if err != nil {
-		return nil, 0, fmt.Errorf("RPC %s init: %w", name, err)
-	}
-	h, err := c.GetBlockCount()
-	if err != nil {
-		return nil, 0, fmt.Errorf("RPC %s block count: %w", name, err)
-	}
-	return c, h, nil
-}
 
 func getRoots(ca *rpcclient.Client, cb *rpcclient.Client, h uint32) (util.Uint256, util.Uint256, error) {
 	ra, err := ca.GetStateRootByHeight(h)
@@ -87,11 +69,11 @@ func cliMain(c *cli.Context) error {
 	if b == "" {
 		return errors.New("missing second argument")
 	}
-	ca, ha, err := initClient(a, "A")
+	ca, ha, err := rpcutil.InitClient(a, "A")
 	if err != nil {
 		return err
 	}
-	cb, hb, err := initClient(b, "B")
+	cb, hb, err := rpcutil.InitClient(b, "B")
 	if err != nil {
 		return err
 	}
@@ -102,7 +84,7 @@ func cliMain(c *cli.Context) error {
 			refHeight = hb
 			diff = ha - hb
 		}
-		if diff > 10 && !c.Bool("ignore-height") { // Allow some height drift.
+		if diff > 10 && !c.Bool(rpcutil.IgnoreHeightFlag.Name) { // Allow some height drift.
 			return fmt.Errorf("chains have different heights: %d vs %d", ha, hb)
 		}
 	}
@@ -137,26 +119,15 @@ func dumpApplogDiff(isBlock bool, container util.Uint256, a string, b string, ca
 	} else {
 		fmt.Printf("transaction %s:\n", container.StringLE())
 	}
-	la, err := ca.GetApplicationLog(container, nil)
+	da, err := rpcutil.GetApplicationLog(ca, container)
 	if err != nil {
 		return err
 	}
-	lb, err := cb.GetApplicationLog(container, nil)
+	db, err := rpcutil.GetApplicationLog(cb, container)
 	if err != nil {
 		return err
 	}
-	da := spew.Sdump(la)
-	db := spew.Sdump(lb)
-	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-		A:        difflib.SplitLines(da),
-		B:        difflib.SplitLines(db),
-		FromFile: a,
-		FromDate: "",
-		ToFile:   b,
-		ToDate:   "",
-		Context:  1,
-	})
-	fmt.Println(diff)
+	rpcutil.DumpApplicationLogDiff(a, b, da, db)
 	return nil
 }
 
@@ -164,15 +135,9 @@ func main() {
 	ctl := cli.NewApp()
 	ctl.Name = "compare-states"
 	ctl.Version = "1.0"
-	ctl.Usage = "compare-states RPC_A RPC_B"
+	ctl.Usage = "compare-states [--ignore-height] RPC_A RPC_B"
 	ctl.Action = cliMain
-	ctl.Flags = []cli.Flag{
-		&cli.BoolFlag{
-			Name:    "ignore-height",
-			Aliases: []string{"g"},
-			Usage:   "Ignore height difference",
-		},
-	}
+	ctl.Flags = []cli.Flag{rpcutil.IgnoreHeightFlag}
 
 	if err := ctl.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
