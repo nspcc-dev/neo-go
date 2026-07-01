@@ -523,7 +523,11 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 			key = make([]byte, 34)
 		)
 		for i := range cs {
-			if cs[i].Votes.Sign() > 0 {
+			votes := cs[i].Votes
+			if ic.IsHardforkEnabled(config.HFGorgon) && cache.votesChanged { // if voting happened in the last block of the epoch, cache state is not relevant.
+				votes = n.getCandidateVoteFromStorage(ic.DAO, append([]byte{prefixCandidate}, cs[i].Key...))
+			}
+			if votes.Sign() > 0 {
 				var tmp = new(big.Int)
 				if i < validatorsCount {
 					tmp.Set(intTwo)
@@ -531,7 +535,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 					tmp.Set(intOne)
 				}
 				tmp.Mul(tmp, voterReward)
-				tmp.Div(tmp, cs[i].Votes)
+				tmp.Div(tmp, votes)
 
 				key = makeVoterKey([]byte(cs[i].Key), key)
 				r := n.getLatestGASPerVote(ic.DAO, key)
@@ -1260,15 +1264,19 @@ func (n *NEO) getAllCandidatesCall(ic *interop.Context, _ []stackitem.Item) stac
 func (n *NEO) getCandidateVoteCall(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	pub := toPublicKey(args[0])
 	key := makeValidatorKey(pub)
-	si := ic.DAO.GetStorageItem(n.ID, key)
+	return stackitem.NewBigInteger(n.getCandidateVoteFromStorage(ic.DAO, key))
+}
+
+func (n *NEO) getCandidateVoteFromStorage(dao *dao.Simple, validatorKey []byte) *big.Int {
+	si := dao.GetStorageItem(n.ID, validatorKey)
 	if si == nil {
-		return stackitem.NewBigInteger(big.NewInt(-1))
+		return big.NewInt(-1)
 	}
 	c := new(candidate).FromBytes(si)
 	if !c.Registered {
-		return stackitem.NewBigInteger(big.NewInt(-1))
+		return big.NewInt(-1)
 	}
-	return stackitem.NewBigInteger(&c.Votes)
+	return &c.Votes
 }
 
 func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stackitem.Item {
