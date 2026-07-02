@@ -7,20 +7,25 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
 func TestExtensible_Serializable(t *testing.T) {
+	pk, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	sender := pk.PublicKey().GetScriptHash()
 	expected := &Extensible{
 		Category:        "test",
 		ValidBlockStart: 12,
 		ValidBlockEnd:   1234,
-		Sender:          random.Uint160(),
+		Sender:          sender,
 		Data:            random.Bytes(4),
 		Witness: transaction.Witness{
-			InvocationScript:   random.Bytes(3),
-			VerificationScript: random.Bytes(3),
+			InvocationScript:   []byte{1, 2, 3},
+			VerificationScript: pk.PublicKey().GetVerificationScript(),
 		},
 	}
 
@@ -40,12 +45,24 @@ func TestExtensible_Serializable(t *testing.T) {
 			require.ErrorIs(t, err, errInvalidPadding)
 		})
 		t.Run("too large data size", func(t *testing.T) {
+			oldData := expected.Data
 			expected.Data = make([]byte, MaxSize+1)
+			t.Cleanup(func() {
+				expected.Data = oldData
+			})
 			w := io.NewBufBinWriter()
 			expected.encodeBinaryUnsigned(w.BinWriter)
 			unsigned = w.Bytes()
 			err := testserdes.DecodeBinary(unsigned, new(Extensible))
-			require.NotNil(t, err)
+			require.ErrorContains(t, err, "byte-slice is too big")
+		})
+		t.Run("scripthash mismatch", func(t *testing.T) {
+			expected.Sender = util.Uint160{1, 2, 3}
+			w := io.NewBufBinWriter()
+			expected.EncodeBinary(w.BinWriter)
+			signed := w.Bytes()
+			err := testserdes.DecodeBinary(signed, new(Extensible))
+			require.ErrorContains(t, err, "witness script hash doesn't match sender")
 		})
 	})
 }

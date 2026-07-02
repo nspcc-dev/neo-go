@@ -2,6 +2,7 @@ package payload
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -74,6 +75,12 @@ func (e *Extensible) DecodeBinary(r *io.BinReader) {
 		return
 	}
 	e.Witness.DecodeBinary(r)
+	if r.Err != nil {
+		return
+	}
+	if !e.Witness.ScriptHash().Equals(e.Sender) {
+		r.Err = fmt.Errorf("witness script hash doesn't match sender: %s vs %s", e.Witness.ScriptHash().StringLE(), e.Sender.StringLE())
+	}
 }
 
 // Hash returns payload hash.

@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -144,6 +143,8 @@ func TestRecoveryMessage_Serializable(t *testing.T) {
 }
 
 func randomPayload(t *testing.T, mt messageType) *Payload {
+	pk, err := keys.NewPrivateKey()
+	require.NoError(t, err)
 	p := &Payload{
 		message: message{
 			Type:           mt,
@@ -153,9 +154,10 @@ func randomPayload(t *testing.T, mt messageType) *Payload {
 			payload:        randomMessage(t, mt),
 		},
 		Extensible: npayload.Extensible{
+			Sender: pk.PublicKey().GetScriptHash(),
 			Witness: transaction.Witness{
 				InvocationScript:   random.Bytes(3),
-				VerificationScript: []byte{byte(opcode.PUSH0)},
+				VerificationScript: pk.PublicKey().GetVerificationScript(),
 			},
 		},
 		network: netmode.UnitTestNet,
