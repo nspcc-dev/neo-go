@@ -7,15 +7,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	localClientLabel  string = "local"
+	remoteClientLabel string = "remote"
+)
+
 // Metrics used in monitoring service.
 var (
 	rpcTimes         = map[string]prometheus.Histogram{}
-	wsConnectionsCnt = prometheus.NewGauge(
+	wsConnectionsCnt = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Help:      "WS connections count (local and remote clients)",
+			Help:      "WS connections count (the number of local and remote WS clients)",
 			Name:      "wsconnections_count",
 			Namespace: "neogo",
 		},
+		[]string{"client_type"},
 	)
 )
 
@@ -47,6 +53,18 @@ func init() {
 	prometheus.MustRegister(wsConnectionsCnt)
 }
 
-func updateWSConnectionsCnt(cnt int) {
-	wsConnectionsCnt.Set(float64(cnt))
+func incWSConnectionsCnt(isLocal bool) {
+	var label = remoteClientLabel
+	if isLocal {
+		label = localClientLabel
+	}
+	wsConnectionsCnt.WithLabelValues(label).Inc()
+}
+
+func decWSConnectionsCnt(isLocal bool) {
+	var label = remoteClientLabel
+	if isLocal {
+		label = localClientLabel
+	}
+	wsConnectionsCnt.WithLabelValues(label).Dec()
 }
