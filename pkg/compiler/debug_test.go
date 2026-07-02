@@ -322,11 +322,20 @@ func TestSequencePoints(t *testing.T) {
 	require.Equal(t, 1, len(d.Documents))
 	require.True(t, strings.HasSuffix(d.Documents[0], "foo.go"))
 
-	// Main func has 2 return on 4-th and 6-th lines.
+	// Main func has 2 return on 4-th and 6-th lines,
+	// so we have 4 sequence points, 2 for return tokens
+	// and 2 for return results.
 	ps := d.Methods[0].SeqPoints
-	require.Equal(t, 2, len(ps))
-	require.Equal(t, 4, ps[0].StartLine)
-	require.Equal(t, 6, ps[1].StartLine)
+	expPoints := []DebugSeqPoint{
+		{Opcode: 12, StartLine: 4, StartCol: 11, EndLine: 4, EndCol: 15},
+		{Opcode: 13, StartLine: 4, StartCol: 4, EndLine: 4, EndCol: 10},
+		{Opcode: 14, StartLine: 6, StartCol: 10, EndLine: 6, EndCol: 15},
+		{Opcode: 15, StartLine: 6, StartCol: 3, EndLine: 6, EndCol: 9},
+	}
+	require.Equal(t, len(expPoints), len(ps))
+	for i := range expPoints {
+		require.Equal(t, expPoints[i], ps[i])
+	}
 }
 
 func TestDebugInfo_MarshalJSON(t *testing.T) {
@@ -411,4 +420,40 @@ func TestManifestOverload(t *testing.T) {
 		_, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"add4": "add5"}})
 		require.Error(t, err)
 	})
+}
+
+func TestCompile_SeqPoints_BlankIdentifier(t *testing.T) {
+	src := `package foo
+		func MyFunc() int {
+			return 42
+		}
+		func Main() {
+			var _ = MyFunc()
+		}
+	`
+	_, di, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
+	require.NoError(t, err)
+
+	expectedSeqPoints := map[string][]DebugSeqPoint{
+		"MyFunc": {
+			{StartLine: 3, StartCol: 11, EndLine: 3, EndCol: 13},
+			{StartLine: 3, StartCol: 4, EndLine: 3, EndCol: 10},
+		},
+		"Main": {
+			{StartLine: 6, StartCol: 12, EndLine: 6, EndCol: 20},
+			{StartLine: 6, StartCol: 8, EndLine: 6, EndCol: 12},
+		},
+	}
+
+	for _, m := range di.Methods {
+		expected, ok := expectedSeqPoints[m.ID]
+		require.True(t, ok)
+		require.Len(t, m.SeqPoints, len(expected))
+		for i := range m.SeqPoints {
+			require.Equal(t, expected[i].StartLine, m.SeqPoints[i].StartLine)
+			require.Equal(t, expected[i].StartCol, m.SeqPoints[i].StartCol)
+			require.Equal(t, expected[i].EndLine, m.SeqPoints[i].EndLine)
+			require.Equal(t, expected[i].EndCol, m.SeqPoints[i].EndCol)
+		}
+	}
 }
