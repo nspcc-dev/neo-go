@@ -44,14 +44,14 @@ jobs:
             arch: 'arm64'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.ref }}
           # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.26'
 
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'pull_request' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
@@ -127,14 +127,14 @@ jobs:
     runs-on: windows-latest
     if: ${{ github.event_name != 'pull_request' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
       # For proper `deps` make target execution.
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.26'
 
