@@ -2,7 +2,7 @@ package neorpc
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 )
 
 // EventID represents an event type happening on the chain.
@@ -26,9 +26,22 @@ const (
 	HeaderOfAddedBlockEventID
 	// MempoolEventID is used for the `mempool_event` event.
 	MempoolEventID
+	// lastEventID denotes the end of EventID enum. Consider adding new event
+	// IDs before lastEventID.
+	lastEventID
 	// MissedEventID notifies user of missed events.
 	MissedEventID EventID = 255
 )
+
+// EventIDs holds the list of all event IDs except the InvalidEventID and
+// MissedEventID.
+var EventIDs []EventID
+
+func init() {
+	for i := BlockEventID; i < lastEventID; i++ {
+		EventIDs = append(EventIDs, i)
+	}
+}
 
 // String is a good old Stringer implementation.
 func (e EventID) String() string {
@@ -74,7 +87,7 @@ func GetEventIDFromString(s string) (EventID, error) {
 	case "mempool_event":
 		return MempoolEventID, nil
 	default:
-		return 255, errors.New("invalid stream name")
+		return 255, fmt.Errorf("invalid stream name: %s", s)
 	}
 }
 

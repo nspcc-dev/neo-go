@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -22,6 +23,14 @@ var (
 			Namespace: "neogo",
 		},
 		[]string{"client_type"},
+	)
+	wsNtfSubscribersCnt = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Help:      "The number of WS RPC notification subsystem subscribers",
+			Name:      "rpc_notification_subscriber_cnt",
+			Namespace: "neogo",
+		},
+		[]string{"client_address", "event_id"},
 	)
 )
 
@@ -51,6 +60,7 @@ func init() {
 		regCounter(call)
 	}
 	prometheus.MustRegister(wsConnectionsCnt)
+	prometheus.MustRegister(wsNtfSubscribersCnt)
 }
 
 func incWSConnectionsCnt(isLocal bool) {
@@ -67,4 +77,18 @@ func decWSConnectionsCnt(isLocal bool) {
 		label = localClientLabel
 	}
 	wsConnectionsCnt.WithLabelValues(label).Dec()
+}
+
+func incWSNtfSubscribersCnt(clientAddr string, typ neorpc.EventID) {
+	wsNtfSubscribersCnt.WithLabelValues(clientAddr, typ.String()).Inc()
+}
+
+func decWSNtfSubscribersCnt(clientAddr string, typ neorpc.EventID) {
+	wsNtfSubscribersCnt.WithLabelValues(clientAddr, typ.String()).Dec()
+}
+
+func dropWSNtfSubscriber(clientAddr string) {
+	for _, id := range neorpc.EventIDs {
+		wsNtfSubscribersCnt.DeleteLabelValues(clientAddr, id.String())
+	}
 }
