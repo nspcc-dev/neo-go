@@ -30,7 +30,8 @@ type NodeObject struct {
 
 // Node represents a common interface of all MPT nodes.
 type Node interface {
-	io.Serializable
+	io.Encodable
+	decodeBinaryWithDepth(r *io.BinReader, depth int)
 	json.Marshaler
 	json.Unmarshaler
 	Size() int
@@ -45,7 +46,12 @@ func (n NodeObject) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable.
 func (n *NodeObject) DecodeBinary(r *io.BinReader) {
-	n.Node = DecodeNodeWithType(r)
+	n.decodeBinaryWithDepth(r, 0)
+}
+
+// DecodeBinaryWithDepth implements Node interface.
+func (n *NodeObject) decodeBinaryWithDepth(r *io.BinReader, depth int) {
+	n.Node = DecodeNodeWithType(r, depth)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler.

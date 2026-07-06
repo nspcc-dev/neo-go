@@ -670,7 +670,7 @@ func TestWalletClaimGas(t *testing.T) {
 	h, err := address.StringToUint160(testcli.TestWalletAccount)
 	require.NoError(t, err)
 
-	balanceBefore := e.Chain.GetUtilityTokenBalance(h)
+	balanceBefore := e.Chain.GetUtilityTokenBalance(h, util.Uint160{})
 	claimHeight := e.Chain.BlockHeight() + 1
 	cl, err := e.Chain.CalculateClaimable(h, claimHeight)
 	require.NoError(t, err)
@@ -686,7 +686,7 @@ func TestWalletClaimGas(t *testing.T) {
 	balanceBefore.Sub(balanceBefore, big.NewInt(tx.NetworkFee+tx.SystemFee))
 	balanceBefore.Add(balanceBefore, cl)
 
-	balanceAfter := e.Chain.GetUtilityTokenBalance(h)
+	balanceAfter := e.Chain.GetUtilityTokenBalance(h, util.Uint160{})
 	// height can be bigger than claimHeight especially when tests are executed with -race.
 	if height == claimHeight {
 		require.Equal(t, 0, balanceAfter.Cmp(balanceBefore))
@@ -710,7 +710,7 @@ func TestWalletClaimGas(t *testing.T) {
 		h, err := address.StringToUint160(testcli.TestWalletAccount)
 		require.NoError(t, err)
 
-		balanceBefore := e.Chain.GetUtilityTokenBalance(h)
+		balanceBefore := e.Chain.GetUtilityTokenBalance(h, util.Uint160{})
 		claimHeight := e.Chain.BlockHeight() + 1
 		cl, err := e.Chain.CalculateClaimable(h, claimHeight)
 		require.NoError(t, err)
@@ -726,7 +726,7 @@ func TestWalletClaimGas(t *testing.T) {
 		balanceBefore.Sub(balanceBefore, big.NewInt(tx.NetworkFee+tx.SystemFee))
 		balanceBefore.Add(balanceBefore, cl)
 
-		balanceAfter = e.Chain.GetUtilityTokenBalance(h)
+		balanceAfter = e.Chain.GetUtilityTokenBalance(h, util.Uint160{})
 		// height can be bigger than claimHeight especially when tests are executed with -race.
 		if height == claimHeight {
 			require.Equal(t, 0, balanceAfter.Cmp(balanceBefore))

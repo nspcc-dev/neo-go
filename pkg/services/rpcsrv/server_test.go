@@ -3263,12 +3263,13 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			checkErrGetResult(t, body, true, neorpc.ErrUnknownSessionCode)
 		})
 		t.Run("expired", func(t *testing.T) {
-			_, _ = prepareIteratorSession(t)
-			// Wait until session is terminated by timer.
+			sID, _ := prepareIteratorSession(t)
+			// Wait until the specific session is terminated by timer.
 			require.Eventually(t, func() bool {
 				rpcSrv.sessionsLock.Lock()
 				defer rpcSrv.sessionsLock.Unlock()
-				return len(rpcSrv.sessions) == 0
+				_, ok := rpcSrv.sessions[sID.String()]
+				return !ok
 			}, 2*rpcSrv.config.SessionLifetime, 10*time.Millisecond)
 		})
 	})
@@ -3791,6 +3792,7 @@ func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 
 func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	cl := http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
+		DisableKeepAlives:   true,
 		MaxIdleConns:        50,
 		MaxConnsPerHost:     50,
 		MaxIdleConnsPerHost: 50,

@@ -1,6 +1,7 @@
 package native
 
 import (
+	"math/big"
 	"strings"
 	"testing"
 
@@ -63,4 +64,13 @@ func TestStd_HexEncodeDecodeInteropAPI(t *testing.T) {
 
 	ctrInvoker.Invoke(t, stackitem.Make(expectedString), "encode", []any{expectedBytes})
 	ctrInvoker.Invoke(t, stackitem.Make(expectedBytes), "decode", []any{expectedString})
+}
+
+// Ref. https://github.com/neo-project/neo/pull/4563.
+func TestStd_Itoa_Culture(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	p := e.CommitteeInvoker(nativehashes.StdLib)
+
+	p.Invoke(t, stackitem.NewByteArray([]byte("-1")), "itoa", big.NewInt(-1))
 }

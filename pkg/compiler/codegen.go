@@ -395,6 +395,36 @@ func (c *codegen) emitDefault(t types.Type) {
 	}
 }
 
+// registerGlobals registers all global (package-level) variables and
+// initializes unassigned ones with default values.
+func (c *codegen) registerGlobals(f *ast.File) {
+	ast.Inspect(f, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.FuncDecl:
+			return false
+		case *ast.GenDecl:
+			for _, spec := range n.Specs {
+				if n.Tok != token.VAR {
+					continue
+				}
+				t := spec.(*ast.ValueSpec)
+				for _, id := range t.Names {
+					if id.Name == "_" {
+						continue
+					}
+					c.newGlobal("", id.Name)
+					if len(t.Values) != 0 {
+						continue
+					}
+					c.emitDefault(c.typeOf(t.Type))
+					c.emitStoreVar("", id.Name)
+				}
+			}
+		}
+		return true
+	})
+}
+
 // convertGlobals traverses the AST and only converts global declarations.
 // If we call this in convertFuncDecl, it will load all global variables
 // into the scope of the function.
@@ -662,18 +692,24 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					}
 				}
 				multiRet := n.Tok == token.VAR && len(t.Values) != 0 && len(t.Names) != len(t.Values)
+				defaultGlobal := len(t.Values) == 0 && c.scope == nil
 				for _, id := range t.Names {
 					if id.Name != "_" {
-						if c.scope == nil {
-							// it is a global declaration
-							c.newGlobal("", id.Name)
-						} else {
+						// Filter out globals: by this moment they are already registered in
+						// a separate AST traversal in registerGlobals, so handle only locals.
+						if c.scope != nil {
 							c.scope.newLocal(id.Name)
 						}
+
 						if !multiRet {
 							c.registerDebugVariable(id.Name, t.Type)
 						}
 					}
+				}
+				// Filter out unassigned global variables: default values for them are already
+				// emitted earlier in registerGlobals.
+				if defaultGlobal {
+					return nil
 				}
 				for i, id := range t.Names {
 					if id.Name != "_" {

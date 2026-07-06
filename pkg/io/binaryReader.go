@@ -137,7 +137,7 @@ func (r *BinReader) ReadArray(t any, maxSize ...int) {
 			elem = arr.Index(i).Addr()
 		}
 
-		el, ok := reflect.TypeAssert[decodable](elem)
+		el, ok := reflect.TypeAssert[Decodable](elem)
 		if !ok {
 			panic(elemType.String() + "is not decodable")
 		}

@@ -124,11 +124,11 @@ func wrapUnitTestChain(t testing.TB, chain *core.Blockchain, orc OracleHandler, 
 	errCh := make(chan error, 2)
 	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger, errCh)
 	rpcServer.Start()
-	t.Cleanup(rpcServer.Shutdown)
 
 	handler := http.HandlerFunc(rpcServer.handleHTTPRequest)
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
+	t.Cleanup(rpcServer.Shutdown)
 	return chain, rpcServer, srv
 }
 
@@ -169,7 +169,7 @@ func (fs *FeerStub) BlockHeight() uint32 {
 	return 0
 }
 
-func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
+func (fs *FeerStub) GetUtilityTokenBalance(primary, secondary util.Uint160) *big.Int {
 	return big.NewInt(1000000 * native.GASFactor)
 }
 

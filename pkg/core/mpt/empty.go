@@ -11,11 +11,11 @@ import (
 // EmptyNode represents an empty node.
 type EmptyNode struct{}
 
-// DecodeBinary implements the io.Serializable interface.
-func (e EmptyNode) DecodeBinary(*io.BinReader) {
+// DecodeBinaryWithDepth implements Node interface.
+func (e EmptyNode) decodeBinaryWithDepth(*io.BinReader, int) {
 }
 
-// EncodeBinary implements the io.Serializable interface.
+// EncodeBinary implements the io.Encodable interface.
 func (e EmptyNode) EncodeBinary(*io.BinWriter) {
 }
 

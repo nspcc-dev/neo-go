@@ -47,28 +47,38 @@ func (r *refCounter) Remove(item stackitem.Item) {
 	if r == nil {
 		return
 	}
-	*r--
 
 	switch t := item.(type) {
 	case *stackitem.Array:
-		if t.DecRC() == 0 {
-			for _, it := range t.Value().([]stackitem.Item) {
-				r.Remove(it)
+		if t.IsReferenced() {
+			*r--
+			if t.DecRC() == 0 {
+				for _, it := range t.Value().([]stackitem.Item) {
+					r.Remove(it)
+				}
 			}
 		}
 	case *stackitem.Struct:
-		if t.DecRC() == 0 {
-			for _, it := range t.Value().([]stackitem.Item) {
-				r.Remove(it)
+		if t.IsReferenced() {
+			*r--
+			if t.DecRC() == 0 {
+				for _, it := range t.Value().([]stackitem.Item) {
+					r.Remove(it)
+				}
 			}
 		}
 	case *stackitem.Map:
-		if t.DecRC() == 0 {
-			elems := t.Value().([]stackitem.MapElement)
-			for i := range elems {
-				r.Remove(elems[i].Key)
-				r.Remove(elems[i].Value)
+		if t.IsReferenced() {
+			*r--
+			if t.DecRC() == 0 {
+				elems := t.Value().([]stackitem.MapElement)
+				for i := range elems {
+					r.Remove(elems[i].Key)
+					r.Remove(elems[i].Value)
+				}
 			}
 		}
+	default:
+		*r--
 	}
 }

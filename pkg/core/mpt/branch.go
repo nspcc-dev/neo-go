@@ -56,18 +56,18 @@ func (b *BranchNode) Size() int {
 	return sz
 }
 
-// EncodeBinary implements io.Serializable.
+// EncodeBinary implements io.Encodable.
 func (b *BranchNode) EncodeBinary(w *io.BinWriter) {
 	for i := range childrenCount {
 		encodeBinaryAsChild(b.Children[i], w)
 	}
 }
 
-// DecodeBinary implements io.Serializable.
-func (b *BranchNode) DecodeBinary(r *io.BinReader) {
+// DecodeBinaryWithDepth implements Node interface.
+func (b *BranchNode) decodeBinaryWithDepth(r *io.BinReader, depth int) {
 	for i := range childrenCount {
 		no := new(NodeObject)
-		no.DecodeBinary(r)
+		no.decodeBinaryWithDepth(r, depth+1)
 		b.Children[i] = no.Node
 	}
 }

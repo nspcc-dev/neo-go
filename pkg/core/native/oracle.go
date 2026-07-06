@@ -381,6 +381,9 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	if err != nil {
 		panic(err)
 	}
+	if !gas.IsInt64() {
+		panic("gas argument must be an int64")
+	}
 	if err := ic.VM.AddDatoshi(o.getPriceInternal(ic.DAO)); err != nil {
 		panic(fmt.Errorf("%w executing %s/request", err, o.Hash.StringLE()))
 	}
@@ -390,19 +393,20 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	return stackitem.Null{}
 }
 
-// RequestInternal processes an oracle request.
+// RequestInternal processes an oracle request. It expects gas to be an int64 value.
 func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string, cb string, userData stackitem.Item, gas *big.Int) error {
-	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength || !gas.IsInt64() {
+	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength {
 		return ErrBigArgument
 	}
-	if gas.Int64() < MinimumResponseGas {
+	iGas := gas.Int64()
+	if iGas < MinimumResponseGas {
 		return ErrLowResponseGas
 	}
 	if strings.HasPrefix(cb, "_") {
 		return errors.New("disallowed callback method (starts with '_')")
 	}
 
-	if err := ic.VM.AddDatoshi(gas.Int64()); err != nil {
+	if err := ic.VM.AddDatoshi(iGas); err != nil {
 		return fmt.Errorf("%w minting reward for Oracle request", err)
 	}
 	callingHash := ic.VM.GetCallingScriptHash()

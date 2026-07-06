@@ -2303,3 +2303,21 @@ func newTestNEF(script []byte) nef.File {
 func getTestRequestID() uint64 {
 	return 1
 }
+
+func TestNetwork(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		r := params.NewRequest()
+		err := r.DecodeData(req.Body)
+		require.NoErrorf(t, err, "Cannot decode request body: %s", req.Body)
+		// request handler already have `getversion` response wrapper
+		requestHandler(t, r.In, w, "")
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(context.TODO(), srv.URL, Options{})
+	require.NoError(t, err)
+	c.getNextRequestID = getTestRequestID
+
+	require.NoError(t, c.Init())
+	require.Equal(t, netmode.UnitTestNet, c.Network())
+}

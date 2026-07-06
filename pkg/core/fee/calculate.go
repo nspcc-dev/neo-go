@@ -29,7 +29,7 @@ func Calculate(base int64, script []byte) (int64, int) {
 	} /*else {
 		// We can support more contract types in the future.
 	}*/
-	return vm.PicoGasToDatoshi(netFee), size
+	return vm.PicoGasToDatoshiInt64(netFee), size
 }
 
 func calculateMultisig(base int64, n int) int64 {

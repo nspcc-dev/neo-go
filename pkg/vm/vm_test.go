@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -101,13 +102,110 @@ func TestVM_SetPriceGetter(t *testing.T) {
 	})
 }
 
+// TestNegativeRC ensures that circular references can't lead to negative RC values
+// (which may be misused to break the MaxStackSize limit).
+// Ref. https://github.com/neo-project/neo-vm/issues/580.
+func TestNegativeRC(t *testing.T) {
+	t.Run("CLEARITEMS: circular array", func(t *testing.T) {
+		v := newTestVM()
+		prog := []byte{
+			byte(opcode.NEWARRAY0),
+			byte(opcode.DUP),
+			byte(opcode.DUP),
+			byte(opcode.APPEND),
+			byte(opcode.CLEARITEMS),
+		}
+		v.Load(prog)
+		runVM(t, v)
+		require.Equal(t, 0, int(v.refs))
+	})
+	t.Run("CLEARITEMS: circular array with other elements", func(t *testing.T) {
+		v := newTestVM()
+		prog := []byte{
+			byte(opcode.NEWARRAY0),
+			byte(opcode.DUP),
+			byte(opcode.PUSH1),
+			byte(opcode.APPEND),
+			byte(opcode.DUP),
+			byte(opcode.DUP),
+			byte(opcode.APPEND),
+			byte(opcode.CLEARITEMS),
+		}
+		v.Load(prog)
+		runVM(t, v)
+		require.Equal(t, 0, int(v.refs))
+	})
+	t.Run("SETITEM: circular array with other elements", func(t *testing.T) {
+		v := newTestVM()
+		prog := []byte{
+			byte(opcode.NEWARRAY0), // arr {1, arr}
+			byte(opcode.DUP),
+			byte(opcode.PUSH1),
+			byte(opcode.APPEND),
+			byte(opcode.DUP),
+			byte(opcode.DUP),
+			byte(opcode.APPEND),
+			byte(opcode.PUSH1), // arr[1] = 2
+			byte(opcode.PUSH2),
+			byte(opcode.SETITEM),
+		}
+		v.Load(prog)
+		runVM(t, v)
+		require.Equal(t, 0, v.estack.Len())
+		require.Equal(t, 1, int(v.refs))
+	})
+	t.Run("CLEARITEMS: circular map", func(t *testing.T) {
+		v := newTestVM()
+		prog := []byte{
+			byte(opcode.NEWMAP),
+			byte(opcode.DUP),
+			byte(opcode.DUP),
+			byte(opcode.PUSH1),
+			byte(opcode.SWAP),
+			byte(opcode.SETITEM),
+			byte(opcode.CLEARITEMS),
+		}
+		v.Load(prog)
+		runVM(t, v)
+		require.Equal(t, 0, int(v.refs))
+	})
+	t.Run("exceed MaxStackSize limit", func(t *testing.T) {
+		v := newTestVM()
+		prog := []byte{byte(opcode.INITSLOT), 0x01, 0x00,
+			byte(opcode.PUSH16), byte(opcode.INC), byte(opcode.STLOC0),
+			byte(opcode.NEWARRAY0), // first jump target.
+			byte(opcode.DUP),
+			byte(opcode.DUP),
+			byte(opcode.APPEND),
+			byte(opcode.CLEARITEMS),
+			byte(opcode.LDLOC0), byte(opcode.DEC), byte(opcode.DUP),
+			byte(opcode.STLOC0), byte(opcode.PUSH0),
+			byte(opcode.JMPGT), 0xf6,
+			byte(opcode.PUSH16), byte(opcode.PUSH7), byte(opcode.SHL), byte(opcode.PUSH14), byte(opcode.ADD), byte(opcode.STLOC0), // 2048+14
+			byte(opcode.PUSH0), // second jump target.
+			byte(opcode.LDLOC0), byte(opcode.DEC), byte(opcode.DUP),
+			byte(opcode.STLOC0), byte(opcode.PUSH0),
+			byte(opcode.JMPGT), 0xfa,
+		}
+		v.Load(prog)
+		checkVMFailedWithError(t, v, "at instruction 27 (DUP): stack is too big: 2049 vs 2048")
+	})
+}
+
 func TestAddGas(t *testing.T) {
 	t.Run("AddDatoshi", func(t *testing.T) {
-		v := newTestVM()
-		v.SetGasLimit(10)
-		require.NoError(t, v.AddDatoshi(5))
-		require.NoError(t, v.AddDatoshi(5))
-		require.Error(t, v.AddDatoshi(1))
+		t.Run("good", func(t *testing.T) {
+			v := newTestVM()
+			v.SetGasLimit(10)
+			require.NoError(t, v.AddDatoshi(5))
+			require.NoError(t, v.AddDatoshi(5))
+			require.Error(t, v.AddDatoshi(1))
+		})
+		t.Run("gasConsumed overflow", func(t *testing.T) {
+			v := newTestVM()
+			v.SetGasLimit(10)
+			require.ErrorIs(t, v.AddDatoshi(math.MaxInt64), ErrGASLimitExceeded)
+		})
 	})
 
 	t.Run("AddPicoGas", func(t *testing.T) {
@@ -116,6 +214,22 @@ func TestAddGas(t *testing.T) {
 		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
 		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
 		require.ErrorIs(t, v.AddPicoGas(1), ErrGASLimitExceeded)
+	})
+}
+
+func TestGasConsumed(t *testing.T) {
+	t.Run("datoshi overflow", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		require.ErrorIs(t, v.AddDatoshi(math.MaxInt64), ErrGASLimitExceeded)
+		require.Equal(t, int64(math.MaxInt64), v.GasConsumed())
+	})
+	t.Run("picoGAS overflow", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		require.NoError(t, v.AddPicoGas(1))
+		require.ErrorIs(t, v.AddPicoGas(math.MaxInt64), ErrGASLimitExceeded)
+		require.Equal(t, int64(((uint64(math.MaxInt64)+1)/ExecFeeFactorMultiplier) /*not divisible by factor, hence +1*/ +1), v.GasConsumed())
 	})
 }
 
@@ -2995,7 +3109,8 @@ func TestPicoGasToDatoshi(t *testing.T) {
 		10001: 2,
 	} {
 		t.Run(strconv.Itoa(int(in)), func(t *testing.T) {
-			require.Equal(t, out, PicoGasToDatoshi(in))
+			require.Equal(t, out, PicoGasToDatoshiInt64(in))
+			require.Equal(t, out, int64(PicoGasToDatoshi(uint256.NewInt(uint64(in))).Uint64()))
 		})
 	}
 }

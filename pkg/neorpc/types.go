@@ -160,6 +160,13 @@ func (s *SignerWithWitness) UnmarshalJSON(data []byte) error {
 		AllowedGroups:    aux.AllowedGroups,
 		Rules:            aux.Rules,
 	}
+
+	if len(aux.InvocationScript) > transaction.MaxInvocationScript {
+		return fmt.Errorf("invalid invocation script length: got %d, allowed %d at max", len(aux.InvocationScript), transaction.MaxInvocationScript)
+	}
+	if len(aux.VerificationScript) > transaction.MaxVerificationScript {
+		return fmt.Errorf("invalid verification script length: got %d, allowed %d at max", len(aux.VerificationScript), transaction.MaxVerificationScript)
+	}
 	s.Witness = transaction.Witness{
 		InvocationScript:   aux.InvocationScript,
 		VerificationScript: aux.VerificationScript,

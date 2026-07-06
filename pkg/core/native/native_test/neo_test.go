@@ -35,16 +35,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newNeoCommitteeClient(t *testing.T, expectedGASBalance int) *neotest.ContractInvoker {
-	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(cfg *config.Blockchain) {
+func newNeoCommitteeClient(t *testing.T, expectedGASBalance int, cfg ...func(*config.Blockchain)) *neotest.ContractInvoker {
+	cfgF := func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
 			config.HFAspidochelone.String(): 0,
 			config.HFBasilisk.String():      0,
 			config.HFCockatrice.String():    0,
 			config.HFDomovoi.String():       0,
 			config.HFEchidna.String():       0,
+			config.HFGorgon.String():        0,
 		}
-	})
+	}
+	if len(cfg) > 0 {
+		cfgF = cfg[0]
+	}
+	bc, validators, committee := chain.NewMultiWithCustomConfig(t, cfgF)
 	e := neotest.NewExecutor(t, bc, validators, committee)
 
 	if expectedGASBalance > 0 {
@@ -305,9 +310,9 @@ func TestNEO_Vote(t *testing.T) {
 		for i := range voters[:len(voters)-1] {
 			h := voters[i].ScriptHash()
 			refH := referenceAccounts[i].ScriptHash()
-			gasBalance[i] = e.Chain.GetUtilityTokenBalance(h)
+			gasBalance[i] = e.Chain.GetUtilityTokenBalance(h, util.Uint160{})
 			neoBalance[i], _ = e.Chain.GetGoverningTokenBalance(h)
-			referenceGASBalance[i] = e.Chain.GetUtilityTokenBalance(refH)
+			referenceGASBalance[i] = e.Chain.GetUtilityTokenBalance(refH, util.Uint160{})
 
 			tx := neoCommitteeInvoker.WithSigners(voters[i]).PrepareInvoke(t, "transfer", h.BytesBE(), h.BytesBE(), int64(1), nil)
 			txes = append(txes, tx)
@@ -322,7 +327,7 @@ func TestNEO_Vote(t *testing.T) {
 
 		// Define reference reward for NEO holding for each voter account.
 		for i := range referenceGASBalance {
-			newBalance := e.Chain.GetUtilityTokenBalance(referenceAccounts[i].ScriptHash())
+			newBalance := e.Chain.GetUtilityTokenBalance(referenceAccounts[i].ScriptHash(), util.Uint160{})
 			referenceGASBalance[i].Sub(newBalance, referenceGASBalance[i])
 			referenceGASBalance[i].Add(referenceGASBalance[i], big.NewInt(refTxFee))
 		}
@@ -330,7 +335,7 @@ func TestNEO_Vote(t *testing.T) {
 		// GAS increase consists of 2 parts: NEO holding + voting for committee nodes.
 		// Here we check that 2-nd part exists and is proportional to the amount of NEO given.
 		for i := range voters[:len(voters)-1] {
-			newGAS := e.Chain.GetUtilityTokenBalance(voters[i].ScriptHash())
+			newGAS := e.Chain.GetUtilityTokenBalance(voters[i].ScriptHash(), util.Uint160{})
 			newGAS.Sub(newGAS, gasBalance[i])
 			gasForHold := referenceGASBalance[i]
 			newGAS.Sub(newGAS, gasForHold)
@@ -576,7 +581,7 @@ func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 	bs := map[int]int64{0: singleBounty}
 	checkBalances := func() {
 		for i := range committeeSize {
-			require.EqualValues(t, bs[i], e.Chain.GetUtilityTokenBalance(hs[i].GetScriptHash()).Int64(), i)
+			require.EqualValues(t, bs[i], e.Chain.GetUtilityTokenBalance(hs[i].GetScriptHash(), util.Uint160{}).Int64(), i)
 		}
 	}
 	for i := range committeeSize * 2 {
@@ -768,7 +773,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	}
 
 	t.Run("Zero", func(t *testing.T) {
-		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH)
+		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH, util.Uint160{})
 		for range rewardDistance {
 			e.AddNewBlock(t)
 		}
@@ -785,7 +790,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 		newGASPerBlock := 1
 		neoHolderRewardRatio := 10
 
-		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH)
+		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH, util.Uint160{})
 
 		// Five blocks of NEO owning with default GasPerBlockValue.
 		neoValidatorsInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), accH, amount, nil)
@@ -1027,4 +1032,70 @@ func TestNeo_GasPerBlockUpdate(t *testing.T) {
 func TestNeo_TransferNegative(t *testing.T) {
 	c := newNeoCommitteeClient(t, 10_0000_0000)
 	c.InvokeFail(t, "negative amount", "transfer", c.Signers[0].ScriptHash(), c.Signers[0].ScriptHash(), -1, nil)
+}
+
+// Ref. https://github.com/neo-project/neo/pull/4569.
+func TestNEO_GasPerVote_LastEpochBlock(t *testing.T) {
+	check := func(t *testing.T, enableGorgon bool) {
+		var cfgF = func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFFaun.String(): 0,
+			}
+		}
+		if enableGorgon {
+			cfgF = func(cfg *config.Blockchain) {
+				cfg.Hardforks = map[string]uint32{
+					config.HFGorgon.String(): 0,
+				}
+			}
+		}
+		neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000, cfgF)
+		neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
+		e := neoCommitteeInvoker.Executor
+
+		cfg := e.Chain.GetConfig()
+		committeeSize := cfg.GetCommitteeSize(0)
+		candidatesCount := committeeSize
+
+		// Register a set of candidates and vote for themselves.
+		candidates := make([]neotest.Signer, candidatesCount)
+		for i := range candidatesCount {
+			candidates[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration.
+		}
+
+		txes := make([]*transaction.Transaction, 0, candidatesCount*3)
+		for i := range candidatesCount {
+			transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), candidates[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), 5_000_000+i, nil) // candidate order should be fixed, hence use +i.
+			txes = append(txes, transferTx)
+			registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
+			txes = append(txes, registerTx)
+			voteTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "vote", candidates[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
+			txes = append(txes, voteTx)
+		}
+		neoValidatorsInvoker.AddNewBlock(t, txes...)
+		for _, tx := range txes {
+			e.CheckHalt(t, tx.Hash(), stackitem.Make(true)) // luckily, both `transfer`, `registerCandidate` and `vote` return boolean values
+		}
+
+		// Add some blocks to reach last block of the epoch.
+		for int(e.Chain.BlockHeight())%committeeSize != committeeSize-1 {
+			e.AddNewBlock(t)
+		}
+
+		// Change the number of votes for a single candidate. Ensure an up-to-date (non-cached)
+		// number of votes is used to calculate gas per vote.
+		acc0 := candidates[0].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash()
+		neoValidatorsInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), acc0, 50_000_000, nil)
+
+		unclaimed, err := e.Chain.CalculateClaimable(acc0, e.Chain.BlockHeight()+1)
+		require.NoError(t, err)
+		if enableGorgon {
+			require.Equal(t, int64(267_499_999), unclaimed.Int64())
+		} else {
+			require.Equal(t, int64(2_667_500_000), unclaimed.Int64()) // outdated number of votes during GasPerVote update in the end of the epoch leads to wrong (larger) GasPerVote.
+		}
+	}
+
+	check(t, false)
+	check(t, true)
 }

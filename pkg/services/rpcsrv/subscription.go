@@ -17,8 +17,12 @@ type (
 	}
 	// subscriber is an event subscriber.
 	subscriber struct {
-		writer    chan<- intEvent
-		overflown atomic.Bool
+		// remoteAddr holds a network address that sent the request in the form
+		// of "ip:port" for remote RPC clients or a unique client ID in the form
+		// of local_X for internal RPC clients.
+		remoteAddr string
+		writer     chan<- intEvent
+		overflown  atomic.Bool
 		// These work like slots as there is not a lot of them (it's
 		// cheaper doing it this way rather than creating a map),
 		// pointing to an EventID is an obvious overkill at the moment, but

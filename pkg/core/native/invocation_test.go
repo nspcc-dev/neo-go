@@ -61,7 +61,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 
 	// Enough for Call and other opcodes, but not enough for "transfer" call.
 	tx = e.NewUnsignedTx(t, gasHash, "transfer", validator.ScriptHash(), validator.ScriptHash(), 1, nil)
-	e.SignTx(t, tx, vm.PicoGasToDatoshi(price)-1, validator)
+	e.SignTx(t, tx, vm.PicoGasToDatoshiInt64(price)-1, validator)
 	e.AddNewBlock(t, tx)
 	e.CheckFault(t, tx.Hash(), vm.ErrGASLimitExceeded.Error())
 }

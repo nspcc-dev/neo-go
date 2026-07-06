@@ -1823,7 +1823,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		handler := http.HandlerFunc(rpcSrv.handleHTTPRequest)
 		httpSrv := httptest.NewServer(handler)
 		t.Cleanup(httpSrv.Close)
-		defer rpcSrv.Shutdown()
+		t.Cleanup(rpcSrv.Shutdown)
 		for _, b := range getTestBlocks(t) {
 			require.NoError(t, chain.AddBlock(b))
 		}
@@ -2766,9 +2766,7 @@ func TestClient_SessionExpansionExtension(t *testing.T) {
 		return bytes.Compare(a, b)
 	})
 	setup := func(t *testing.T, cfgMod func(*config.Config)) *rpcclient.Client {
-		chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, cfgMod)
-		t.Cleanup(rpcSrv.Shutdown)
-		t.Cleanup(httpSrv.Close)
+		chain, _, httpSrv := initClearServerWithCustomConfig(t, cfgMod)
 
 		for _, b := range getTestBlocks(t) {
 			require.NoError(t, chain.AddBlock(b))

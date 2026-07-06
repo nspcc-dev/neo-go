@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +51,7 @@ func TestNEP17Balance(t *testing.T) {
 			line = e.GetNextLine(t)
 		}
 		e.CheckLine(t, line, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
-		balance := e.Chain.GetUtilityTokenBalance(testcli.TestWalletMultiAccount1Hash)
+		balance := e.Chain.GetUtilityTokenBalance(testcli.TestWalletMultiAccount1Hash, util.Uint160{})
 		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String()+"$")
 		e.CheckNextLine(t, "^\\s*Updated:")
 	}
@@ -149,7 +150,7 @@ func TestNEP17Balance(t *testing.T) {
 
 		e.CheckNextLine(t, "^Account "+testcli.TestWalletMultiAccount3)
 		e.CheckNextLine(t, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
-		balance := e.Chain.GetUtilityTokenBalance(testcli.TestWalletMultiAccount3Hash)
+		balance := e.Chain.GetUtilityTokenBalance(testcli.TestWalletMultiAccount3Hash, util.Uint160{})
 		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String()+"$")
 		e.CheckNextLine(t, "^\\s*Updated:")
 		e.CheckEOF(t)
@@ -326,7 +327,7 @@ func TestNEP17MultiTransfer(t *testing.T) {
 
 		b, _ := e.Chain.GetGoverningTokenBalance(privs[0].GetScriptHash())
 		require.Equal(t, big.NewInt(42), b)
-		b = e.Chain.GetUtilityTokenBalance(privs[1].GetScriptHash())
+		b = e.Chain.GetUtilityTokenBalance(privs[1].GetScriptHash(), util.Uint160{})
 		require.Equal(t, big.NewInt(int64(fixedn.Fixed8FromInt64(7))), b)
 		b, _ = e.Chain.GetGoverningTokenBalance(privs[2].GetScriptHash())
 		require.Equal(t, big.NewInt(13), b)

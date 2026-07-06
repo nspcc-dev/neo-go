@@ -40,14 +40,17 @@ func TestSignerWithWitnessMarshalUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected, string(actual))
 
+	checkErr := func(t *testing.T, bad any, errText string) {
+		data, err := json.Marshal(bad)
+		require.NoError(t, err)
+		err = json.Unmarshal(data, &SignerWithWitness{})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errText)
+	}
 	t.Run("subitems overflow", func(t *testing.T) {
 		checkSubitems := func(t *testing.T, bad any) {
-			data, err := json.Marshal(bad)
-			require.NoError(t, err)
-			err = json.Unmarshal(data, &SignerWithWitness{})
-
-			require.Error(t, err)
-			require.Contains(t, err.Error(), fmt.Sprintf("got %d, allowed %d at max", transaction.MaxAttributes+1, transaction.MaxAttributes))
+			checkErr(t, bad, fmt.Sprintf("got %d, allowed %d at max", transaction.MaxAttributes+1, transaction.MaxAttributes))
 		}
 
 		t.Run("groups", func(t *testing.T) {
@@ -87,6 +90,28 @@ func TestSignerWithWitnessMarshalUnmarshalJSON(t *testing.T) {
 			}
 
 			checkSubitems(t, bad)
+		})
+	})
+	t.Run("witnesses overflow", func(t *testing.T) {
+		t.Run("invocation", func(t *testing.T) {
+			bad := &SignerWithWitness{
+				Witness: transaction.Witness{
+					InvocationScript:   make([]byte, transaction.MaxInvocationScript+1),
+					VerificationScript: nil,
+				},
+			}
+
+			checkErr(t, bad, "invalid invocation script length")
+		})
+		t.Run("verification", func(t *testing.T) {
+			bad := &SignerWithWitness{
+				Witness: transaction.Witness{
+					InvocationScript:   nil,
+					VerificationScript: make([]byte, transaction.MaxVerificationScript+1),
+				},
+			}
+
+			checkErr(t, bad, "invalid verification script length")
 		})
 	})
 }

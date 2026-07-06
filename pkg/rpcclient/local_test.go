@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/stretchr/testify/require"
@@ -26,12 +27,17 @@ func TestInternalClientCancel(t *testing.T) {
 		c.ApplicationConfiguration.Consensus.UnlockWallet.Path = "../../cli/testdata/wallet1_solo.json"
 	}, true)
 	t.Cleanup(func() {
-		netSrv.Shutdown()
 		rpcSrv.Shutdown()
+		netSrv.Shutdown()
 		bc.Close()
 	})
 	icl, err := rpcclient.NewInternal(ctx, rpcSrv.RegisterLocal)
 	require.NoError(t, err)
+
+	// Check Network API.
+	require.NoError(t, icl.Init())
+	require.Equal(t, netmode.UnitTestNet, icl.Network())
+
 	cancel()
 	icl.Close()
 	require.NoError(t, icl.GetError())

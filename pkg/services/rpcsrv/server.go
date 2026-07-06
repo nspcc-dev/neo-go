@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/elliptic"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"strconv"
@@ -152,8 +154,9 @@ type (
 		sessionsLock sync.Mutex
 		sessions     map[string]*session
 
-		subsLock    sync.RWMutex
-		subscribers map[*subscriber]bool
+		subsLock              sync.RWMutex
+		subscribers           map[*subscriber]bool
+		lastLocalSubscriberID uint32
 
 		subsCounterLock   sync.RWMutex
 		blockSubs         int
@@ -163,6 +166,9 @@ type (
 		transactionSubs   int
 		notaryRequestSubs int
 		mempoolEventSubs  int
+
+		wsReaders sync.WaitGroup
+		wsWriters sync.WaitGroup
 
 		blockCh           chan *block.Block
 		blockHeaderCh     chan *block.Header
@@ -277,6 +283,9 @@ var rpcWsHandlers = map[string]func(*Server, params.Params, *subscriber) (any, *
 	"subscribe":   (*Server).subscribe,
 	"unsubscribe": (*Server).unsubscribe,
 }
+
+// maxBase64TransactionSize is the maximum size of base64-encoded raw transaction.
+var maxBase64TransactionSize = base64.StdEncoding.EncodedLen(transaction.MaxTransactionSize)
 
 // New creates a new Server struct. Pay attention that orc is expected to be either
 // untyped nil or non-nil structure implementing OracleHandler interface.
@@ -493,6 +502,11 @@ func (s *Server) Shutdown() {
 
 	// Wait for handleSubEvents to finish.
 	<-s.subEventsToExitCh
+
+	// Wait for WS reader/writer routines to finish.
+	s.wsReaders.Wait()
+	s.wsWriters.Wait()
+
 	_ = s.log.Sync()
 }
 
@@ -530,14 +544,14 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		}
 		resChan := make(chan abstractResult) // response.abstract or response.abstractBatch
 		subChan := make(chan intEvent, notificationBufSize)
-		subscr := &subscriber{writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
+		subscr := &subscriber{remoteAddr: remote, writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
 		s.subsLock.Lock()
 		s.subscribers[subscr] = true
 		numOfSubs = len(s.subscribers)
 		s.subsLock.Unlock()
-		updateWSConnectionsCnt(numOfSubs)
-		s.log.Info("websocket client connected", zap.String("remoteAddr", remote), zap.Int("numOfSubs", numOfSubs))
-		go s.handleWsWrites(ws, resChan, subChan)
+		incWSConnectionsCnt(false)
+		s.log.Info("remote websocket client connected", zap.String("remoteAddr", remote), zap.Int("numOfSubs", numOfSubs))
+		s.wsWriters.Go(func() { s.handleWsWrites(ws, resChan, subChan) })
 		s.handleWsReads(ws, resChan, subscr, remote)
 		return
 	}
@@ -574,12 +588,14 @@ func (s *Server) RegisterLocal(ctx context.Context, events chan<- neorpc.Notific
 	subChan := make(chan intEvent, notificationBufSize)
 	subscr := &subscriber{writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
 	s.subsLock.Lock()
+	subscr.remoteAddr = fmt.Sprintf("local_%d", s.lastLocalSubscriberID)
+	s.lastLocalSubscriberID++
 	s.subscribers[subscr] = true
 	numOfSubs := len(s.subscribers)
 	s.subsLock.Unlock()
-	updateWSConnectionsCnt(numOfSubs)
-	s.log.Info("local websocket client connected", zap.Int("numOfSubs", numOfSubs))
-	go s.handleLocalNotifications(ctx, events, subChan, subscr)
+	incWSConnectionsCnt(true)
+	s.log.Info("local websocket client connected", zap.String("id", subscr.remoteAddr), zap.Int("numOfSubs", numOfSubs))
+	s.wsWriters.Go(func() { s.handleLocalNotifications(ctx, events, subChan, subscr) })
 	return func(req *neorpc.Request) (*neorpc.Response, error) {
 		return s.handleInternal(req, subscr)
 	}
@@ -685,7 +701,7 @@ eventloop:
 		}
 	}
 	close(events)
-	numOfSubs := s.dropSubscriber(subscr)
+	numOfSubs := s.dropSubscriber(subscr, true)
 drainloop:
 	for {
 		select {
@@ -694,7 +710,7 @@ drainloop:
 			break drainloop
 		}
 	}
-	s.log.Info("local websocket client disconnected", zap.Int("numOfSubs", numOfSubs))
+	s.log.Info("local websocket client disconnected", zap.String("id", subscr.remoteAddr), zap.Int("numOfSubs", numOfSubs))
 }
 
 func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan abstractResult, subChan <-chan intEvent) {
@@ -750,6 +766,8 @@ drainloop:
 }
 
 func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- abstractResult, subscr *subscriber, remoteAddr string) {
+	s.wsReaders.Add(1)
+	defer s.wsReaders.Done()
 	ws.SetReadLimit(s.wsReadLimit)
 	err := ws.SetReadDeadline(time.Now().Add(wsPongLimit))
 	ws.SetPongHandler(func(string) error { return ws.SetReadDeadline(time.Now().Add(wsPongLimit)) })
@@ -770,18 +788,19 @@ requestloop:
 		case resChan <- res:
 		}
 	}
-	numOfSubs := s.dropSubscriber(subscr)
-	s.log.Info("websocket client disconnected", zap.String("remoteAddr", remoteAddr), zap.Int("numOfSubs", numOfSubs))
+	numOfSubs := s.dropSubscriber(subscr, false)
+	s.log.Info("remote websocket client disconnected", zap.String("remoteAddr", remoteAddr), zap.Int("numOfSubs", numOfSubs))
 	close(resChan)
 	ws.Close()
 }
 
-func (s *Server) dropSubscriber(subscr *subscriber) int {
+func (s *Server) dropSubscriber(subscr *subscriber, isLocal bool) int {
 	s.subsLock.Lock()
 	delete(s.subscribers, subscr)
 	numOfSubs := len(s.subscribers)
 	s.subsLock.Unlock()
-	updateWSConnectionsCnt(numOfSubs)
+	decWSConnectionsCnt(isLocal)
+
 	s.subsCounterLock.Lock()
 	for _, e := range subscr.feeds {
 		if e.event != neorpc.InvalidEventID {
@@ -789,6 +808,7 @@ func (s *Server) dropSubscriber(subscr *subscriber) int {
 		}
 	}
 	s.subsCounterLock.Unlock()
+	dropWSNtfSubscriber(subscr.remoteAddr)
 	return numOfSubs
 }
 
@@ -2188,14 +2208,14 @@ func (s *Server) invokeFunctionHistoric(reqParams params.Params) (any, *neorpc.E
 	if len(reqParams) < 2 {
 		return nil, neorpc.ErrInvalidParams
 	}
-	tx, verbose, respErr := s.getInvokeFunctionParams(reqParams[1:])
+	tx, verbose, respErr := s.getInvokeFunctionParams(reqParams[1:], nextH-1)
 	if respErr != nil {
 		return nil, respErr
 	}
 	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, &nextH, verbose)
 }
 
-func (s *Server) getInvokeFunctionParams(reqParams params.Params) (*transaction.Transaction, bool, *neorpc.Error) {
+func (s *Server) getInvokeFunctionParams(reqParams params.Params, currIndex ...uint32) (*transaction.Transaction, bool, *neorpc.Error) {
 	if len(reqParams) < 2 {
 		return nil, false, neorpc.ErrInvalidParams
 	}
@@ -2211,29 +2231,50 @@ func (s *Server) getInvokeFunctionParams(reqParams params.Params) (*transaction.
 	if len(reqParams) > 2 {
 		invparams = &reqParams[2]
 	}
-	tx := &transaction.Transaction{}
-	if len(reqParams) > 3 {
-		signers, _, err := reqParams[3].GetSignersWithWitnesses()
-		if err != nil {
-			return nil, false, neorpc.ErrInvalidParams
-		}
-		tx.Signers = signers
-	}
-	var verbose bool
-	if len(reqParams) > 4 {
-		verbose, err = reqParams[4].GetBoolean()
-		if err != nil {
-			return nil, false, neorpc.ErrInvalidParams
-		}
-	}
-	if len(tx.Signers) == 0 {
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
-	}
 	script, err := params.CreateFunctionInvocationScript(scriptHash, method, invparams)
 	if err != nil {
 		return nil, false, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("can't create invocation script: %s", err))
 	}
-	tx.Script = script
+
+	return s.mockTx(script, reqParams.Value(3), reqParams.Value(4), currIndex...)
+}
+
+func (s *Server) mockTx(script []byte, signersParam *params.Param, verboseParam *params.Param, currIndex ...uint32) (*transaction.Transaction, bool, *neorpc.Error) {
+	tx := &transaction.Transaction{
+		Nonce:      rand.Uint32(),
+		Script:     script,
+		Attributes: []transaction.Attribute{},
+		Scripts:    []transaction.Witness{},
+	}
+	if signersParam != nil {
+		signers, witnesses, err := signersParam.GetSignersWithWitnesses()
+		if err != nil {
+			return nil, false, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("failed to get signers or witnesses: %s", err))
+		}
+		tx.Signers = signers
+		tx.Scripts = witnesses
+	}
+	if len(tx.Signers) == 0 {
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
+	}
+	if len(currIndex) > 0 {
+		tx.ValidUntilBlock = currIndex[0]
+	} else {
+		tx.ValidUntilBlock = s.chain.BlockHeight()
+	}
+	tx.ValidUntilBlock += s.chain.GetMaxValidUntilBlockIncrement()
+
+	var (
+		verbose bool
+		err     error
+	)
+	if verboseParam != nil {
+		verbose, err = verboseParam.GetBoolean()
+		if err != nil {
+			return nil, false, neorpc.ErrInvalidParams
+		}
+	}
+
 	return tx, verbose, nil
 }
 
@@ -2255,40 +2296,20 @@ func (s *Server) invokescripthistoric(reqParams params.Params) (any, *neorpc.Err
 	if len(reqParams) < 2 {
 		return nil, neorpc.ErrInvalidParams
 	}
-	tx, verbose, respErr := s.getInvokeScriptParams(reqParams[1:])
+	tx, verbose, respErr := s.getInvokeScriptParams(reqParams[1:], nextH-1)
 	if respErr != nil {
 		return nil, respErr
 	}
 	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, &nextH, verbose)
 }
 
-func (s *Server) getInvokeScriptParams(reqParams params.Params) (*transaction.Transaction, bool, *neorpc.Error) {
+func (s *Server) getInvokeScriptParams(reqParams params.Params, currIndex ...uint32) (*transaction.Transaction, bool, *neorpc.Error) {
 	script, err := reqParams.Value(0).GetBytesBase64()
 	if err != nil {
 		return nil, false, neorpc.ErrInvalidParams
 	}
 
-	tx := &transaction.Transaction{}
-	if len(reqParams) > 1 {
-		signers, witnesses, err := reqParams[1].GetSignersWithWitnesses()
-		if err != nil {
-			return nil, false, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
-		}
-		tx.Signers = signers
-		tx.Scripts = witnesses
-	}
-	var verbose bool
-	if len(reqParams) > 2 {
-		verbose, err = reqParams[2].GetBoolean()
-		if err != nil {
-			return nil, false, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
-		}
-	}
-	if len(tx.Signers) == 0 {
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
-	}
-	tx.Script = script
-	return tx, verbose, nil
+	return s.mockTx(script, reqParams.Value(1), reqParams.Value(2), currIndex...)
 }
 
 func (s *Server) fakeTxFromParam(p *params.Param) (*transaction.Transaction, *neorpc.Error) {
@@ -2431,15 +2452,12 @@ func (s *Server) getInvokeContractVerifyParams(reqParams params.Params) (util.Ui
 	}
 	invocationScript := bw.Bytes()
 
-	tx := &transaction.Transaction{Script: []byte{byte(opcode.RET)}} // need something in script
-	if len(reqParams) > 2 {
-		signers, witnesses, err := reqParams[2].GetSignersWithWitnesses()
-		if err != nil {
-			return util.Uint160{}, nil, nil, neorpc.ErrInvalidParams
-		}
-		tx.Signers = signers
-		tx.Scripts = witnesses
-	} else { // fill the only known signer - the contract with `verify` method
+	signersParam := reqParams.Value(2)
+	tx, _, respErr := s.mockTx([]byte{byte(opcode.RET) /*need something in script*/}, signersParam, nil)
+	if respErr != nil {
+		return util.Uint160{}, nil, nil, respErr
+	}
+	if signersParam == nil { // fill the only known signer - the contract with `verify` method
 		tx.Signers = []transaction.Signer{{Account: scriptHash}}
 		tx.Scripts = []transaction.Witness{{InvocationScript: invocationScript, VerificationScript: []byte{}}}
 	}
@@ -2752,9 +2770,17 @@ func (s *Server) terminateSession(reqParams params.Params) (any, *neorpc.Error) 
 
 // submitBlock broadcasts a raw block over the Neo network.
 func (s *Server) submitBlock(reqParams params.Params) (any, *neorpc.Error) {
-	blockBytes, err := reqParams.Value(0).GetBytesBase64()
+	base64Bytes, err := reqParams.Value(0).GetString()
 	if err != nil {
-		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("missing parameter or not a base64: %s", err))
+		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("not a string: %s", err))
+	}
+	maxBytes := base64.StdEncoding.EncodedLen(int(s.chain.GetConfig().MaxBlockSize))
+	if len(base64Bytes) > maxBytes {
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSize, fmt.Sprintf("base64-encoded block size exceeds maximum allowed: %d vs %d", len(base64Bytes), maxBytes))
+	}
+	blockBytes, err := base64.StdEncoding.DecodeString(base64Bytes)
+	if err != nil {
+		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("not a base64: %s", err))
 	}
 	b := block.New(s.stateRootEnabled)
 	r := io.NewBinReaderFromBuf(blockBytes)
@@ -2789,7 +2815,7 @@ func getRelayResult(err error, hash util.Uint256) (any, *neorpc.Error) {
 		return result.RelayResult{
 			Hash: hash,
 		}, nil
-	case errors.Is(err, core.ErrTxExpired):
+	case errors.Is(err, core.ErrTxExpired) || errors.Is(err, core.ErrTxNotYetValid):
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrExpiredTransaction, err.Error())
 	case errors.Is(err, core.ErrAlreadyExists):
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrAlreadyExists, err.Error())
@@ -2854,7 +2880,14 @@ func (s *Server) sendrawtransaction(reqParams params.Params) (any, *neorpc.Error
 	if len(reqParams) < 1 {
 		return nil, neorpc.NewInvalidParamsError("not enough parameters")
 	}
-	byteTx, err := reqParams[0].GetBytesBase64()
+	base64Bytes, err := reqParams[0].GetString()
+	if err != nil {
+		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("not a string: %s", err))
+	}
+	if len(base64Bytes) > maxBase64TransactionSize {
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSize, fmt.Sprintf("base64-encoded transaction size exceeds maximum allowed: %d vs %d", len(base64Bytes), maxBase64TransactionSize))
+	}
+	byteTx, err := base64.StdEncoding.DecodeString(base64Bytes)
 	if err != nil {
 		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("not a base64: %s", err))
 	}
@@ -2953,6 +2986,7 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (any, *neor
 	}
 	s.subscribeToChannel(event)
 	s.subsCounterLock.Unlock()
+	incWSNtfSubscribersCnt(sub.remoteAddr, event)
 	return strconv.FormatInt(int64(id), 10), nil
 }
 
@@ -3019,6 +3053,7 @@ func (s *Server) unsubscribe(reqParams params.Params, sub *subscriber) (any, *ne
 	s.subsCounterLock.Lock()
 	s.unsubscribeFromChannel(event)
 	s.subsCounterLock.Unlock()
+	decWSNtfSubscribersCnt(sub.remoteAddr, event)
 	return true, nil
 }
 

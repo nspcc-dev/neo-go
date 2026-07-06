@@ -15,6 +15,7 @@ import (
 	"text/tabwriter"
 	"unicode/utf8"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -97,7 +98,7 @@ type VM struct {
 
 	// gasConsumed is the amount of gas consumed by the current execution in
 	// picoGAS units.
-	gasConsumed int64
+	gasConsumed *uint256.Int
 	// gasLimit is the maximum amount of gas that can be consumed by the
 	// execution in picoGAS units.
 	gasLimit int64
@@ -132,6 +133,7 @@ func New() *VM {
 // NewWithTrigger returns a new VM for executions triggered by t.
 func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
+		gasConsumed:       uint256.NewInt(0),
 		state:             vmstate.None,
 		trigger:           t,
 		isHardforkEnabled: func(config.Hardfork) bool { return true }, // use the latest behaviour by default.
@@ -191,7 +193,7 @@ func (v *VM) Reset(t trigger.Type) {
 	v.estack.elems = v.estack.elems[:0]
 	v.uncaughtException = nil
 	v.refs = 0
-	v.gasConsumed = 0
+	v.gasConsumed = uint256.NewInt(0)
 	v.gasLimit = 0
 	v.SyscallHandler = nil
 	v.LoadToken = nil
@@ -204,10 +206,19 @@ func (v *VM) Reset(t trigger.Type) {
 // functionality.
 const ExecFeeFactorMultiplier = 10000
 
+var uint256ExecFeeFactorMultiplier = uint256.NewInt(ExecFeeFactorMultiplier)
+
 // GasConsumed returns the amount of GAS consumed during execution in Datoshi
 // units rounded from picoGAS to the upper integer.
 func (v *VM) GasConsumed() int64 {
-	return PicoGasToDatoshi(v.gasConsumed)
+	consumed := PicoGasToDatoshi(v.gasConsumed)
+	if consumed.IsUint64() {
+		u64 := consumed.Uint64()
+		if u64 <= math.MaxInt64 {
+			return int64(u64)
+		}
+	}
+	return v.gasLimit / ExecFeeFactorMultiplier // known to be divisible without remnant.
 }
 
 // GasLeft returns the amount of GAS left in Datoshi units rounded from picoGAS
@@ -216,12 +227,27 @@ func (v *VM) GasLeft() *big.Int {
 	if v.gasLimit == -1 {
 		return big.NewInt(v.gasLimit)
 	}
-	return big.NewInt((v.gasLimit - v.gasConsumed) / ExecFeeFactorMultiplier)
+	if !v.gasConsumed.LtUint64(uint64(v.gasLimit)) {
+		return big.NewInt(0)
+	}
+	// (gasLimit - gasConsumed) / ExecFeeFactorMultiplier
+	return new(uint256.Int).Div(new(uint256.Int).Sub(uint256.NewInt(uint64(v.gasLimit)), v.gasConsumed), uint256ExecFeeFactorMultiplier).ToBig()
 }
 
 // PicoGasToDatoshi divides x by ExecFeeFactorMultiplier and rounds the result
 // up to the upper integer in case of non-zero remnant.
-func PicoGasToDatoshi(x int64) int64 {
+func PicoGasToDatoshi(x *uint256.Int) *uint256.Int {
+	// (x + ExecFeeFactorMultiplier - 1) / ExecFeeFactorMultiplier
+	return new(uint256.Int).Div(new(uint256.Int).SubUint64(new(uint256.Int).AddUint64(x, ExecFeeFactorMultiplier), 1), uint256ExecFeeFactorMultiplier)
+}
+
+// PicoGasToDatoshiInt64 is an int64 version of PicoGasToDatoshi that accepts int64
+// as an argument. Maximum allowed x is math.MaxInt64 - ExecFeeFactorMultiplier +1,
+// violation of this constraint results in panic. Use it carefully.
+func PicoGasToDatoshiInt64(x int64) int64 {
+	if x > math.MaxInt64-ExecFeeFactorMultiplier+1 {
+		panic(fmt.Sprintf("picoGas overflows conversion bounds: got %d, max %d", x, math.MaxInt64-ExecFeeFactorMultiplier+1))
+	}
 	return (x + ExecFeeFactorMultiplier - 1) / ExecFeeFactorMultiplier
 }
 
@@ -229,10 +255,15 @@ func PicoGasToDatoshi(x int64) int64 {
 // executing method is not whitelisted. It returns [ErrGASLimitExceeded] if the
 // gas limit was exceeded.
 func (v *VM) AddPicoGas(gas int64) error {
+	return v.addPicoGasInternal(uint256.NewInt(uint64(gas)))
+}
+
+// addPicoGasInternal is an internal AddPicoGas representation accepting uint256.Int.
+func (v *VM) addPicoGasInternal(gas *uint256.Int) error {
 	if ctx := v.Context(); ctx == nil || !ctx.sc.whitelisted {
-		v.gasConsumed += gas
+		v.gasConsumed.Add(v.gasConsumed, gas)
 	}
-	if v.gasLimit < 0 || v.gasConsumed <= v.gasLimit {
+	if v.gasLimit < 0 || !v.gasConsumed.GtUint64(uint64(v.gasLimit)) {
 		return nil
 	}
 	return ErrGASLimitExceeded
@@ -241,7 +272,8 @@ func (v *VM) AddPicoGas(gas int64) error {
 // AddDatoshi consumes the specified amount of gas in Datoshi units. It returns
 // [ErrGASLimitExceeded] if the gas limit was exceeded.
 func (v *VM) AddDatoshi(gas int64) error {
-	return v.AddPicoGas(gas * ExecFeeFactorMultiplier)
+	picoGas := new(uint256.Int).Mul(uint256.NewInt(uint64(gas)), uint256ExecFeeFactorMultiplier)
+	return v.addPicoGasInternal(picoGas)
 }
 
 // Estack returns the evaluation stack, so interop hooks can utilize this.
@@ -395,7 +427,7 @@ func (v *VM) LoadWithFlags(prog []byte, f callflag.CallFlag) {
 	v.istack = v.istack[:0]
 	v.estack.Clear()
 	v.state = vmstate.None
-	v.gasConsumed = 0
+	v.gasConsumed = uint256.NewInt(0)
 	v.invTree = nil
 	v.LoadScriptWithFlags(prog, f)
 }
@@ -707,8 +739,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	if v.getPrice != nil && ctx.IP() < len(ctx.sc.prog) && !ctx.sc.whitelisted {
 		p := v.getPrice(op, parameter)
-		v.gasConsumed += p
-		if v.gasLimit >= 0 && v.gasConsumed > v.gasLimit {
+		v.gasConsumed.AddUint64(v.gasConsumed, uint64(p))
+		if v.gasLimit >= 0 && v.gasConsumed.GtUint64(uint64(v.gasLimit)) {
 			panic(ErrGASLimitExceeded)
 		}
 	}
@@ -1536,34 +1568,36 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
+			elems := t.Value().([]stackitem.Item)
+			t.Clear()
 			if t.IsReferenced() {
-				for _, item := range t.Value().([]stackitem.Item) {
+				for _, item := range elems {
 					v.refs.Remove(item)
 				}
 			}
-			t.Clear()
 		case *stackitem.Struct:
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
+			elems := t.Value().([]stackitem.Item)
+			t.Clear()
 			if t.IsReferenced() {
-				for _, item := range t.Value().([]stackitem.Item) {
+				for _, item := range elems {
 					v.refs.Remove(item)
 				}
 			}
-			t.Clear()
 		case *stackitem.Map:
 			if t.IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
+			elems := t.Value().([]stackitem.MapElement)
+			t.Clear()
 			if t.IsReferenced() {
-				elems := t.Value().([]stackitem.MapElement)
 				for i := range elems {
 					v.refs.Remove(elems[i].Key)
 					v.refs.Remove(elems[i].Value)
 				}
 			}
-			t.Clear()
 		default:
 			panic("CLEARITEMS: invalid type")
 		}

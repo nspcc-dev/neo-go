@@ -2,6 +2,40 @@
 
 This document outlines major changes between releases.
 
+## 0.120.0 "Amortization" (15 Jun 2026)
+
+This is an urgent release fixing a set of vulnerabilities that may affect the
+process of node functioning. It also contains a set of VM opcodes optimizations
+and other minor bug fixes.
+
+No resync is required on upgrade, this release is fully compatible with v3.10.0
+of the C# node. Default `MaxRequestBodyBytes` RPC server setting was decreased,
+consider updating the node configuration file if custom limit is needed.
+
+Behaviour changes:
+ * decrease default `MaxRequestBodyBytes` RPC server setting (#4308)
+ * extend the list of forbidden IPs for Oracle service (#4310)
+
+Improvements:
+ * `DUP` VM opcode optimisation (#4264)
+ * `NEWSTRUCT` and `NEWARRAYT` VM opcodes optimisation (#4252)
+ * global documentation format update (#4268)
+ * distinguish `NotYetValid` transaction verification result from `Expired`
+   (#4304)
+ * check witness deserialization limits on the RPC server side (#4305)
+ * check block/transaction deserialization limits on the RPC server side (#4308)
+ * restrict the maximum MPT node depth on deserialization (#4309) 
+
+Bugs fixed:
+ * web-socket readers and writers are not awaited on RPC server shutdown (#4272)
+ * flaky unit-tests (#4266, #4275, #4278)
+ * execution state difference in a failed candidate registration process (#4273)
+ * invalid output hash endianness in `util canceltx` CLI command (#4277)
+ * duplicates of `Conflicts` attribute are not prohibited (#4292)
+ * prohibit an overflow of consumed gas on the VM side (#4306)
+ * invalid return type of `storage.LocalGet` interop wrapper (#4307)
+ * difference in transaction mocking behaviour for `invoke*` RPC calls (#4311)
+
 ## 0.119.0 "Yawl" (14 May 2026)
 
 This version brings a set of Gorgon-related protocol changes along with

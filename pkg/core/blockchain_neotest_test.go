@@ -1506,6 +1506,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 	}
 	txs = append(txs, neoValidatorsInvoker.PrepareInvoke(t, "transfer", neoOwner, committee.ScriptHash(), neoAmount, nil))
 	txs = append(txs, gasValidatorsInvoker.PrepareInvoke(t, "transfer", neoOwner, committee.ScriptHash(), gasAmount, nil))
+	txs = append(txs, gasValidatorsInvoker.PrepareInvoke(t, "transfer", neoOwner, notaryHash, gasAmount, stackitem.Make([]stackitem.Item{stackitem.Make(validator.ScriptHash()), stackitem.Make(100500)}))) // make Notary deposit.
 	e.AddNewBlock(t, txs...)
 	for _, tx := range txs {
 		e.CheckHalt(t, tx.Hash(), stackitem.NewBool(true))
@@ -1538,13 +1539,24 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		checkErr(t, core.ErrTxExpired, tx)
 	})
+	t.Run("NotYetValid", func(t *testing.T) {
+		tx := newTestTx(t, h, testScript)
+		currH := bc.BlockHeight()
+		maxVUBInc := bc.GetMaxValidUntilBlockIncrement()
+		tx.ValidUntilBlock = currH + maxVUBInc + 1
+		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
+		err := bc.VerifyTx(tx)
+		require.ErrorIs(t, err, core.ErrTxNotYetValid)
+		require.Equal(t, fmt.Sprintf("transaction is not yet valid: ValidUntilBlock = %d, current height = %d, max allowed ValidUntilBlock = %d",
+			tx.ValidUntilBlock, currH, currH+maxVUBInc), err.Error())
+	})
 	t.Run("BlockedAccount", func(t *testing.T) {
 		tx := newTestTx(t, accs[1].PrivateKey().GetScriptHash(), testScript)
 		require.NoError(t, accs[1].SignTx(netmode.UnitTestNet, tx))
 		checkErr(t, core.ErrPolicy, tx)
 	})
 	t.Run("InsufficientGas", func(t *testing.T) {
-		balance := bc.GetUtilityTokenBalance(h)
+		balance := bc.GetUtilityTokenBalance(h, util.Uint160{})
 		tx := newTestTx(t, h, testScript)
 		tx.SystemFee = balance.Int64() + 1
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
@@ -1660,7 +1672,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		checkErr(t, core.ErrInvalidInvocationScript, tx)
 	})
 	t.Run("Conflict", func(t *testing.T) {
-		balance := bc.GetUtilityTokenBalance(h).Int64()
+		balance := bc.GetUtilityTokenBalance(h, util.Uint160{}).Int64()
 		tx := newTestTx(t, h, testScript)
 		tx.NetworkFee = balance / 2
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
@@ -1710,7 +1722,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		require.ErrorIs(t, err, core.ErrAlreadyInPool)
 	})
 	t.Run("MemPoolOOM", func(t *testing.T) {
-		mp := mempool.New(1, 0, false, nil)
+		mp := mempool.New(1, false, nil)
 		tx1 := newTestTx(t, h, testScript)
 		tx1.NetworkFee += 10000 // Give it more priority.
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx1))
@@ -1977,6 +1989,14 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				require.NoError(t, err)
 			})
 			t.Run("enabled", func(t *testing.T) {
+				t.Run("duplicate", func(t *testing.T) {
+					conflict := random.Uint256()
+					tx := getConflictsTx(e, conflict, conflict)
+
+					err := bc.VerifyTx(tx)
+					require.ErrorIs(t, err, core.ErrInvalidAttribute)
+					require.ErrorContains(t, err, fmt.Sprintf("duplicate Conflicts attribute %s", conflict.StringLE()))
+				})
 				t.Run("dummy on-chain conflict", func(t *testing.T) {
 					t.Run("on-chain conflict signed by malicious party", func(t *testing.T) {
 						tx := newTestTx(t, h, testScript)
@@ -2495,10 +2515,10 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				66*bc.FeePerByte() + // fee for Notary signature size (66 bytes for Invocation script and 0 bytes for Verification script)
 				2*bc.FeePerByte() + // fee for the length of each script in Notary witness (they are nil, so we did not take them into account during `size` calculation)
 				notaryServiceFeePerKey + // fee for Notary attribute
-				vm.PicoGasToDatoshi(fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
+				vm.PicoGasToDatoshiInt64(fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
 					opcode.PUSH0, opcode.SYSCALL, opcode.RET)) + // Neo.Native.Call
-				vm.PicoGasToDatoshi(nativeprices.NotaryVerificationPrice*bc.GetBaseExecFee()) // Notary witness verification price
+				vm.PicoGasToDatoshiInt64(nativeprices.NotaryVerificationPrice*bc.GetBaseExecFee()) // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{
 					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...),
@@ -2512,7 +2532,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			return tx
 		}
 
-		mp := mempool.New(10, 1, false, nil)
+		mp := mempool.New(10, false, nil)
 		verificationF := func(tx *transaction.Transaction, data any) error {
 			if data.(int) > 5 {
 				return errors.New("bad data")
