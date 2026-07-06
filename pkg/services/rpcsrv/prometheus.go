@@ -4,18 +4,33 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/prometheus/client_golang/prometheus"
+)
+
+const (
+	localClientLabel  string = "local"
+	remoteClientLabel string = "remote"
 )
 
 // Metrics used in monitoring service.
 var (
 	rpcTimes         = map[string]prometheus.Histogram{}
-	wsConnectionsCnt = prometheus.NewGauge(
+	wsConnectionsCnt = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Help:      "WS connections count (local and remote clients)",
+			Help:      "WS connections count (the number of local and remote WS clients)",
 			Name:      "wsconnections_count",
 			Namespace: "neogo",
 		},
+		[]string{"client_type"},
+	)
+	wsNtfSubscribersCnt = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Help:      "The number of WS RPC notification subsystem subscribers",
+			Name:      "rpc_notification_subscriber_cnt",
+			Namespace: "neogo",
+		},
+		[]string{"client_address", "event_id"},
 	)
 )
 
@@ -45,8 +60,35 @@ func init() {
 		regCounter(call)
 	}
 	prometheus.MustRegister(wsConnectionsCnt)
+	prometheus.MustRegister(wsNtfSubscribersCnt)
 }
 
-func updateWSConnectionsCnt(cnt int) {
-	wsConnectionsCnt.Set(float64(cnt))
+func incWSConnectionsCnt(isLocal bool) {
+	var label = remoteClientLabel
+	if isLocal {
+		label = localClientLabel
+	}
+	wsConnectionsCnt.WithLabelValues(label).Inc()
+}
+
+func decWSConnectionsCnt(isLocal bool) {
+	var label = remoteClientLabel
+	if isLocal {
+		label = localClientLabel
+	}
+	wsConnectionsCnt.WithLabelValues(label).Dec()
+}
+
+func incWSNtfSubscribersCnt(clientAddr string, typ neorpc.EventID) {
+	wsNtfSubscribersCnt.WithLabelValues(clientAddr, typ.String()).Inc()
+}
+
+func decWSNtfSubscribersCnt(clientAddr string, typ neorpc.EventID) {
+	wsNtfSubscribersCnt.WithLabelValues(clientAddr, typ.String()).Dec()
+}
+
+func dropWSNtfSubscriber(clientAddr string) {
+	for _, id := range neorpc.EventIDs {
+		wsNtfSubscribersCnt.DeleteLabelValues(clientAddr, id.String())
+	}
 }

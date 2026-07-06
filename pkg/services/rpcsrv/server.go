@@ -154,8 +154,9 @@ type (
 		sessionsLock sync.Mutex
 		sessions     map[string]*session
 
-		subsLock    sync.RWMutex
-		subscribers map[*subscriber]bool
+		subsLock              sync.RWMutex
+		subscribers           map[*subscriber]bool
+		lastLocalSubscriberID uint32
 
 		subsCounterLock   sync.RWMutex
 		blockSubs         int
@@ -543,13 +544,13 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		}
 		resChan := make(chan abstractResult) // response.abstract or response.abstractBatch
 		subChan := make(chan intEvent, notificationBufSize)
-		subscr := &subscriber{writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
+		subscr := &subscriber{remoteAddr: remote, writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
 		s.subsLock.Lock()
 		s.subscribers[subscr] = true
 		numOfSubs = len(s.subscribers)
 		s.subsLock.Unlock()
-		updateWSConnectionsCnt(numOfSubs)
-		s.log.Info("websocket client connected", zap.String("remoteAddr", remote), zap.Int("numOfSubs", numOfSubs))
+		incWSConnectionsCnt(false)
+		s.log.Info("remote websocket client connected", zap.String("remoteAddr", remote), zap.Int("numOfSubs", numOfSubs))
 		s.wsWriters.Go(func() { s.handleWsWrites(ws, resChan, subChan) })
 		s.handleWsReads(ws, resChan, subscr, remote)
 		return
@@ -587,11 +588,13 @@ func (s *Server) RegisterLocal(ctx context.Context, events chan<- neorpc.Notific
 	subChan := make(chan intEvent, notificationBufSize)
 	subscr := &subscriber{writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
 	s.subsLock.Lock()
+	subscr.remoteAddr = fmt.Sprintf("local_%d", s.lastLocalSubscriberID)
+	s.lastLocalSubscriberID++
 	s.subscribers[subscr] = true
 	numOfSubs := len(s.subscribers)
 	s.subsLock.Unlock()
-	updateWSConnectionsCnt(numOfSubs)
-	s.log.Info("local websocket client connected", zap.Int("numOfSubs", numOfSubs))
+	incWSConnectionsCnt(true)
+	s.log.Info("local websocket client connected", zap.String("id", subscr.remoteAddr), zap.Int("numOfSubs", numOfSubs))
 	s.wsWriters.Go(func() { s.handleLocalNotifications(ctx, events, subChan, subscr) })
 	return func(req *neorpc.Request) (*neorpc.Response, error) {
 		return s.handleInternal(req, subscr)
@@ -698,7 +701,7 @@ eventloop:
 		}
 	}
 	close(events)
-	numOfSubs := s.dropSubscriber(subscr)
+	numOfSubs := s.dropSubscriber(subscr, true)
 drainloop:
 	for {
 		select {
@@ -707,7 +710,7 @@ drainloop:
 			break drainloop
 		}
 	}
-	s.log.Info("local websocket client disconnected", zap.Int("numOfSubs", numOfSubs))
+	s.log.Info("local websocket client disconnected", zap.String("id", subscr.remoteAddr), zap.Int("numOfSubs", numOfSubs))
 }
 
 func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan abstractResult, subChan <-chan intEvent) {
@@ -785,18 +788,19 @@ requestloop:
 		case resChan <- res:
 		}
 	}
-	numOfSubs := s.dropSubscriber(subscr)
-	s.log.Info("websocket client disconnected", zap.String("remoteAddr", remoteAddr), zap.Int("numOfSubs", numOfSubs))
+	numOfSubs := s.dropSubscriber(subscr, false)
+	s.log.Info("remote websocket client disconnected", zap.String("remoteAddr", remoteAddr), zap.Int("numOfSubs", numOfSubs))
 	close(resChan)
 	ws.Close()
 }
 
-func (s *Server) dropSubscriber(subscr *subscriber) int {
+func (s *Server) dropSubscriber(subscr *subscriber, isLocal bool) int {
 	s.subsLock.Lock()
 	delete(s.subscribers, subscr)
 	numOfSubs := len(s.subscribers)
 	s.subsLock.Unlock()
-	updateWSConnectionsCnt(numOfSubs)
+	decWSConnectionsCnt(isLocal)
+
 	s.subsCounterLock.Lock()
 	for _, e := range subscr.feeds {
 		if e.event != neorpc.InvalidEventID {
@@ -804,6 +808,7 @@ func (s *Server) dropSubscriber(subscr *subscriber) int {
 		}
 	}
 	s.subsCounterLock.Unlock()
+	dropWSNtfSubscriber(subscr.remoteAddr)
 	return numOfSubs
 }
 
@@ -2981,6 +2986,7 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (any, *neor
 	}
 	s.subscribeToChannel(event)
 	s.subsCounterLock.Unlock()
+	incWSNtfSubscribersCnt(sub.remoteAddr, event)
 	return strconv.FormatInt(int64(id), 10), nil
 }
 
@@ -3047,6 +3053,7 @@ func (s *Server) unsubscribe(reqParams params.Params, sub *subscriber) (any, *ne
 	s.subsCounterLock.Lock()
 	s.unsubscribeFromChannel(event)
 	s.subsCounterLock.Unlock()
+	decWSNtfSubscribersCnt(sub.remoteAddr, event)
 	return true, nil
 }
 
