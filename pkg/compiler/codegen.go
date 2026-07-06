@@ -44,7 +44,7 @@ type codegen struct {
 	funcs map[string]*funcScope
 
 	// A mapping of lambda functions into their scope.
-	lambda map[string]*funcScope
+	lambda map[string]*lambdaScope
 
 	// reverseOffsetMap maps function offsets to a local variable count.
 	reverseOffsetMap map[int]nameWithLocals
@@ -536,7 +536,13 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 				return f
 			}
 			c.setLabel(f.label)
-		} else if f, ok = c.lambda[c.getIdentName("", decl.Name.Name)]; ok {
+		} else if l, ok := c.lambda[c.getIdentName("", decl.Name.Name)]; ok {
+			// Deferred lambda compilation marks lambda as compiled before
+			// recursively calling convertFuncDecl. Thus compiled must always be true here.
+			if !l.compiled {
+				panic("ICE: lambda must already be marked as compiled")
+			}
+			f = l.funcScope
 			isLambda = ok
 			c.setLabel(f.label)
 		} else {
@@ -622,12 +628,15 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 
 	if !isLambda {
 		for _, f := range c.lambda {
+			if f.compiled {
+				continue
+			}
 			if _, ok := c.lambda[c.getIdentName("", f.decl.Name.Name)]; !ok {
 				panic("ICE: lambda name doesn't match map key")
 			}
+			f.compiled = true
 			c.convertFuncDecl(file, f.decl, pkg)
 		}
-		c.lambda = make(map[string]*funcScope)
 	}
 
 	if !isInit && !isDeploy {
@@ -2487,7 +2496,7 @@ func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 		Type: lit.Type,
 		Body: lit.Body,
 	}, u)
-	c.lambda[c.getFuncNameFromDecl("", f.decl)] = f
+	c.lambda[c.getFuncNameFromDecl("", f.decl)] = &lambdaScope{funcScope: f}
 }
 
 func (c *codegen) compile(info *buildInfo, pkg *packages.Package) error {
@@ -2555,7 +2564,7 @@ func newCodegen(info *buildInfo, pkg *packages.Package) *codegen {
 		prog:             io.NewBufBinWriter(),
 		l:                []int{},
 		funcs:            map[string]*funcScope{},
-		lambda:           map[string]*funcScope{},
+		lambda:           map[string]*lambdaScope{},
 		reverseOffsetMap: map[int]nameWithLocals{},
 		globals:          map[string]int{},
 		labels:           map[labelWithType]uint16{},
@@ -2682,10 +2691,13 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 		c.initEndOffset = int(end)
 	}
 
-	// Correct function ip range.
+	// Correct function and lambda ip range.
 	// Note: indices are sorted in increasing order.
 	for _, f := range c.funcs {
 		f.rng.Start, f.rng.End = correctRange(f.rng.Start, f.rng.End, nopOffsets)
+	}
+	for _, l := range c.lambda {
+		l.rng.Start, l.rng.End = correctRange(l.rng.Start, l.rng.End, nopOffsets)
 	}
 	return removeNOPs(b, nopOffsets, c.sequencePoints), nil
 }
