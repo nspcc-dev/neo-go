@@ -15,7 +15,14 @@ const (
 
 // Metrics used in monitoring service.
 var (
-	rpcTimes         = map[string]prometheus.Histogram{}
+	rpcRequests = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Help:      "RPC request handling time",
+			Name:      "rpc_requests_time",
+			Namespace: "neogo",
+		},
+		[]string{"api"},
+	)
 	wsConnectionsCnt = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Help:      "WS connections count (the number of local and remote WS clients)",
@@ -34,31 +41,12 @@ var (
 	)
 )
 
-func addReqTimeMetric(name string, t time.Duration) {
-	hist, ok := rpcTimes[name]
-	if ok {
-		hist.Observe(t.Seconds())
-	}
-}
-
-func regCounter(call string) {
-	rpcTimes[call] = prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Help:      "RPC " + call + " call handling time",
-			Name:      "rpc_" + strings.ToLower(call) + "_time",
-			Namespace: "neogo",
-		},
-	)
-	prometheus.MustRegister(rpcTimes[call])
+func addReqMetric(name string, t time.Duration) {
+	rpcRequests.WithLabelValues(strings.ToLower(name)).Observe(t.Seconds())
 }
 
 func init() {
-	for call := range rpcHandlers {
-		regCounter(call)
-	}
-	for call := range rpcWsHandlers {
-		regCounter(call)
-	}
+	prometheus.MustRegister(rpcRequests)
 	prometheus.MustRegister(wsConnectionsCnt)
 	prometheus.MustRegister(wsNtfSubscribersCnt)
 }
