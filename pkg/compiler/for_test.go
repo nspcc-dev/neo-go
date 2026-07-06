@@ -797,6 +797,128 @@ var forLoopTestCases = []testCase{
 		`,
 		big.NewInt(10),
 	},
+	{
+		"range, key to index expr",
+		`func F%d() int {
+			ints := []int{5, 4, 3, 2, 1}
+			for ints[0] = range ints {
+					break
+			}
+			return ints[0]
+		}
+		`,
+		big.NewInt(0),
+	},
+	{
+		"range, value to index expr",
+		`func F%d() int {
+			ints := []int{5, 4, 3}
+			dst := []int{0}
+			for _, dst[0] = range ints {
+				break
+			}
+			return dst[0]
+		}
+    	`,
+		big.NewInt(5),
+	},
+	{
+		"range, key and value to index expr",
+		`func F%d() int {
+			ints := []int{5, 4, 3}
+			dst := []int{100, 100}
+			for dst[0], dst[1] = range ints {
+				break
+			}
+			return dst[0] + dst[1]
+		}
+		`,
+		big.NewInt(5),
+	},
+	{
+		"range, key to selector",
+		`type S struct {
+			x int
+		}
+	
+		func F%d() int {
+			ints := []int{5, 4, 3}
+			s := S{x: 42}
+			for s.x = range ints {
+				break
+			}
+			return s.x
+		}
+		`,
+		big.NewInt(0),
+	},
+	{
+		"range, value to selector",
+		`func F%d() int {
+			ints := []int{5, 4, 3}
+			s := S{}
+			for _, s.x = range ints {
+				break
+			}
+			return s.x
+		}
+		`,
+		big.NewInt(5),
+	},
+	{
+		"range, key and value to selector",
+		`type KV struct {
+			k int
+			v int
+		}
+	
+		func F%d() int {
+			ints := []int{5, 4, 3}
+			kv := KV{}
+			for kv.k, kv.v = range ints {
+				break
+			}
+			return kv.k + kv.v
+		}
+		`,
+		big.NewInt(5),
+	},
+	{
+		"range, value index expr after full iteration",
+		`func F%d() int {
+			ints := []int{5, 4, 3}
+			dst := []int{0}
+			for _, dst[0] = range ints {
+			}
+			return dst[0]
+		}
+		`,
+		big.NewInt(3),
+	},
+	{
+		"range, key index expr after full iteration",
+		`func F%d() int {
+			ints := []int{5, 4, 3}
+			dst := []int{0}
+			for dst[0] = range ints {
+			}
+			return dst[0]
+		}
+		`,
+		big.NewInt(2),
+	},
+	{
+		"range, map key/value to index expr",
+		`func F%d() int {
+ 			m := map[int]int{7: 9}
+ 			dst := []int{0, 0}
+ 			for dst[0], dst[1] = range m {
+ 			}
+ 			return dst[0]*100 + dst[1]
+ 		}
+ 		`,
+		big.NewInt(709),
+	},
 }
 
 func TestForLoop(t *testing.T) {

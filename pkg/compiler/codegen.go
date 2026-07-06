@@ -806,26 +806,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			} else {
 				c.saveSequencePoint(n.Lhs[i].Pos(), n.Lhs[i].End())
 			}
-			switch t := n.Lhs[i].(type) {
-			case *ast.Ident:
-				if n.Tok == token.DEFINE {
-					if !multiRet {
-						c.registerDebugVariable(t.Name, n.Rhs[i])
-					}
-					if t.Name != "_" {
-						c.scope.newLocal(t.Name)
-					}
-				}
-				c.emitStoreVar("", t.Name)
-
-			case *ast.SelectorExpr:
-				c.emitStoreSelectorExpr(t) // store the field
-
-			// Assignments to index expressions.
-			// slice[0] = 10
-			case *ast.IndexExpr:
-				c.emitStoreIndexExpr(t)
+			if t, ok := n.Lhs[i].(*ast.Ident); ok && n.Tok == token.DEFINE && !multiRet {
+				c.registerDebugVariable(t.Name, n.Rhs[i])
 			}
+			c.emitStoreExpr(n.Lhs[i], n.Tok)
 		}
 		return nil
 
@@ -1500,25 +1484,21 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		var (
 			haveKey   bool
 			haveVal   bool
-			keyIdent  *ast.Ident
+			keyExpr   = n.Key
 			keyLoaded bool
-			valIdent  *ast.Ident
+			valExpr   = n.Value
 		)
-		if n.Key != nil {
-			keyIdent, haveKey = n.Key.(*ast.Ident)
-			if !haveKey {
-				c.prog.Err = errors.New("only simple identifiers can be used for range loop keys (see #2870)")
+		if keyExpr != nil {
+			haveKey = c.validateRangeTarget(keyExpr)
+			if c.prog.Err != nil {
 				return nil
 			}
-			haveKey = (keyIdent.Name != "_")
 		}
-		if n.Value != nil {
-			valIdent, haveVal = n.Value.(*ast.Ident)
-			if !haveVal {
-				c.prog.Err = errors.New("only simple identifiers can be used for range loop values (see #2870)")
+		if valExpr != nil {
+			haveVal = c.validateRangeTarget(valExpr)
+			if c.prog.Err != nil {
 				return nil
 			}
-			haveVal = (valIdent.Name != "_")
 		}
 		if haveKey {
 			if isMap {
@@ -1530,10 +1510,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			} else {
 				emit.Opcodes(c.prog.BinWriter, opcode.DUP)
 			}
-			if n.Tok == token.DEFINE {
-				c.scope.newLocal(keyIdent.Name)
-			}
-			c.emitStoreVar("", keyIdent.Name)
+			c.emitStoreExpr(keyExpr, n.Tok)
 		}
 		if haveVal {
 			if !isMap || !keyLoaded {
@@ -1547,10 +1524,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					opcode.SWAP, // key should be on top
 					opcode.PICKITEM)
 			}
-			if n.Tok == token.DEFINE {
-				c.scope.newLocal(valIdent.Name)
-			}
-			c.emitStoreVar("", valIdent.Name)
+			c.emitStoreExpr(valExpr, n.Tok)
 		}
 
 		ast.Walk(c, n.Body)
@@ -2628,6 +2602,43 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 			fs := c.newFunc(n)
 			fs.file = f
 		}
+	}
+}
+
+// validateRangeTarget checks that expr can be used as a range assignment target.
+// It returns false for the blank identifier.
+func (c *codegen) validateRangeTarget(expr ast.Expr) bool {
+	switch t := expr.(type) {
+	case *ast.Ident:
+		if t.Name == "_" {
+			return false
+		}
+		return true
+	case *ast.IndexExpr, *ast.SelectorExpr:
+		return true
+	default:
+		c.prog.Err = fmt.Errorf("unsupported range target %T, expected identifier, selector or index expression", expr)
+		return false
+	}
+}
+
+// emitStoreExpr stores the value on top of the stack into expr.
+func (c *codegen) emitStoreExpr(expr ast.Expr, tok token.Token) {
+	switch t := expr.(type) {
+	case *ast.Ident:
+		if tok == token.DEFINE && t.Name != "_" {
+			c.scope.newLocal(t.Name)
+		}
+		c.emitStoreVar("", t.Name)
+
+	case *ast.SelectorExpr:
+		c.emitStoreSelectorExpr(t)
+
+	case *ast.IndexExpr:
+		c.emitStoreIndexExpr(t)
+
+	default:
+		c.prog.Err = fmt.Errorf("unsupported assignment target %T", expr)
 	}
 }
 
