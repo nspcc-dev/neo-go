@@ -325,8 +325,10 @@ func TestSequencePoint_NoFunctionBody(t *testing.T) {
 			`,
 			expPoints: map[string][]DebugSeqPoint{
 				"main": {
-					{Opcode: 3, StartLine: 4, StartCol: 7, EndLine: 4, EndCol: 13},
-					{Opcode: 8, StartLine: 6, StartCol: 7, EndLine: 6, EndCol: 13},
+					{Opcode: 3, StartLine: 4, StartCol: 11, EndLine: 4, EndCol: 13},
+					{Opcode: 5, StartLine: 4, StartCol: 7, EndLine: 4, EndCol: 11},
+					{Opcode: 8, StartLine: 6, StartCol: 11, EndLine: 6, EndCol: 13},
+					{Opcode: 10, StartLine: 6, StartCol: 7, EndLine: 6, EndCol: 11},
 				},
 			},
 		},
@@ -344,8 +346,10 @@ func TestSequencePoint_NoFunctionBody(t *testing.T) {
 			`,
 			expPoints: map[string][]DebugSeqPoint{
 				"main": {
-					{Opcode: 6, StartLine: 5, StartCol: 7, EndLine: 5, EndCol: 13},
-					{Opcode: 16, StartLine: 7, StartCol: 7, EndLine: 7, EndCol: 13},
+					{Opcode: 6, StartLine: 5, StartCol: 11, EndLine: 5, EndCol: 13},
+					{Opcode: 8, StartLine: 5, StartCol: 7, EndLine: 5, EndCol: 11},
+					{Opcode: 16, StartLine: 7, StartCol: 11, EndLine: 7, EndCol: 13},
+					{Opcode: 18, StartLine: 7, StartCol: 7, EndLine: 7, EndCol: 11},
 				},
 			},
 		},
@@ -363,8 +367,10 @@ func TestSequencePoint_NoFunctionBody(t *testing.T) {
 			`,
 			expPoints: map[string][]DebugSeqPoint{
 				"main": {
-					{Opcode: 8, StartLine: 4, StartCol: 7, EndLine: 4, EndCol: 13},
-					{Opcode: 13, StartLine: 6, StartCol: 7, EndLine: 6, EndCol: 13},
+					{Opcode: 8, StartLine: 4, StartCol: 11, EndLine: 4, EndCol: 13},
+					{Opcode: 10, StartLine: 4, StartCol: 7, EndLine: 4, EndCol: 11},
+					{Opcode: 13, StartLine: 6, StartCol: 11, EndLine: 6, EndCol: 13},
+					{Opcode: 15, StartLine: 6, StartCol: 7, EndLine: 6, EndCol: 11},
 					{Opcode: 17, StartLine: 8, StartCol: 6, EndLine: 8, EndCol: 12},
 				},
 			},
@@ -497,4 +503,34 @@ func TestManifestOverload(t *testing.T) {
 		_, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"add4": "add5"}})
 		require.Error(t, err)
 	})
+}
+
+func TestCompile_SeqPoints_BlankIdentifier(t *testing.T) {
+	src := `package foo
+		func MyFunc() int {
+			return 42
+		}
+		func Main() {
+			var _ = MyFunc()
+		}
+	`
+	_, di, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
+	require.NoError(t, err)
+
+	expectedSeqPoints := map[string][]DebugSeqPoint{
+		"MyFunc": {
+			{Opcode: 0, StartLine: 3, StartCol: 11, EndLine: 3, EndCol: 13},
+			{Opcode: 2, StartLine: 3, StartCol: 4, EndLine: 3, EndCol: 10},
+		},
+		"Main": {
+			{Opcode: 3, StartLine: 6, StartCol: 12, EndLine: 6, EndCol: 20},
+			{Opcode: 5, StartLine: 6, StartCol: 8, EndLine: 6, EndCol: 12},
+		},
+	}
+
+	for _, m := range di.Methods {
+		expected, ok := expectedSeqPoints[m.ID]
+		require.True(t, ok)
+		require.Equal(t, expected, m.SeqPoints)
+	}
 }

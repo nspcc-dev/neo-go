@@ -656,10 +656,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil // Program is invalid.
 		}
 
-		if n.Tok == token.VAR || n.Tok == token.CONST {
-			c.saveSequencePoint(n.Pos(), n.End())
-		}
 		if n.Tok == token.CONST {
+			c.saveSequencePoint(n.Pos(), n.End())
 			for _, spec := range n.Specs {
 				vs := spec.(*ast.ValueSpec)
 				for i := range vs.Names {
@@ -687,6 +685,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						return nil
 					}
 					if isMapKeyCheck = c.checkGetMapValueWithOKFlag(t.Values[0]); isMapKeyCheck {
+						c.saveExprSequencePoint(t.Values[0])
 						c.emitGetMapValueWithOKFlag(t.Values[0])
 					}
 				}
@@ -716,7 +715,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 							if len(t.Values) == 0 {
 								c.emitDefault(c.typeOf(t.Type))
 							} else if i == 0 || !multiRet {
+								c.saveExprSequencePoint(t.Values[i])
 								ast.Walk(c, t.Values[i])
+							}
+							if i == len(t.Names)-1 && len(t.Values) != 0 {
+								// The sequence point includes sign "=".
+								c.saveSequencePoint(t.Names[i].Pos(), t.Values[0].Pos())
+							} else {
+								c.saveSequencePoint(t.Names[i].Pos(), t.Names[i].End())
 							}
 						}
 						c.emitStoreVar("", t.Names[i].Name)
@@ -731,9 +737,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						hasCall = containsCall(t.Values[i])
 					}
 					if hasCall {
+						c.saveExprSequencePoint(t.Values[i])
 						ast.Walk(c, t.Values[i])
 					}
 					if hasCall || isMapKeyCheck || i != 0 && multiRet {
+						if i == len(t.Names)-1 {
+							// The sequence point includes sign "=".
+							c.saveSequencePoint(t.Names[i].Pos(), t.Values[0].Pos())
+						} else {
+							c.saveSequencePoint(t.Names[i].Pos(), t.Names[i].End())
+						}
 						c.emitStoreVar("", "_") // drop unused after walk
 					}
 				}
@@ -754,20 +767,22 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isMapKeyCheck = c.checkGetMapValueWithOKFlag(n.Rhs[0])
 		}
 		multiRet := len(n.Rhs) != len(n.Lhs)
-		c.saveSequencePoint(n.Pos(), n.End())
 		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
 		isAssignOp := token.ADD_ASSIGN <= n.Tok && n.Tok <= token.AND_NOT_ASSIGN
 		if isAssignOp {
+			c.saveExprSequencePoint(n.Rhs[0])
 			// RHS can contain exactly one expression, thus there is no need to iterate.
 			ast.Walk(c, n.Lhs[0])
 			ast.Walk(c, n.Rhs[0])
 			c.emitToken(n.Tok, c.typeOf(n.Rhs[0]))
 		}
 		if isMapKeyCheck {
+			c.saveExprSequencePoint(n.Rhs[0])
 			c.emitGetMapValueWithOKFlag(n.Rhs[0])
 		}
 		if !isAssignOp && !isMapKeyCheck {
 			for i := range n.Rhs {
+				c.saveExprSequencePoint(n.Rhs[i])
 				ast.Walk(c, n.Rhs[i])
 			}
 		}
@@ -776,6 +791,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			emit.Opcodes(c.prog.BinWriter, opcode.REVERSEN)
 		}
 		for i := range slices.Backward(n.Lhs) {
+			if i == len(n.Lhs)-1 {
+				// The sequence point includes a sign ":=" or "=".
+				c.saveSequencePoint(n.Lhs[i].Pos(), n.Rhs[0].Pos())
+			} else {
+				c.saveSequencePoint(n.Lhs[i].Pos(), n.Lhs[i].End())
+			}
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
 				if n.Tok == token.DEFINE {
@@ -1075,6 +1096,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isLiteral bool
 		)
 
+		switch expr := n.Fun.(type) {
+		case *ast.CallExpr:
+		case *ast.FuncLit:
+			c.saveSequencePoint(expr.Type.Pos(), expr.Type.End())
+		default:
+			c.saveSequencePoint(n.Pos(), n.End())
+		}
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
 			f, ok = c.getFuncFromIdent(fun)
@@ -1133,8 +1161,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case *ast.FuncLit:
 			isLiteral = true
 		}
-
-		c.saveSequencePoint(n.Pos(), n.End())
 
 		args := transformArgs(f, n.Fun, isBuiltin, n.Args)
 
