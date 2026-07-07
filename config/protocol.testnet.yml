@@ -47,6 +47,7 @@ ProtocolConfiguration:
     Domovoi: 4144000
     Echidna: 5870000
     Faun: 12960000
+    Gorgon: 17960000
 
 ApplicationConfiguration:
   SkipBlockVerification: false
