@@ -657,7 +657,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		if n.Tok == token.VAR || n.Tok == token.CONST {
-			c.saveSequencePoint(n)
+			c.saveSequencePoint(n.Pos(), n.End())
 		}
 		if n.Tok == token.CONST {
 			for _, spec := range n.Specs {
@@ -754,7 +754,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isMapKeyCheck = c.checkGetMapValueWithOKFlag(n.Rhs[0])
 		}
 		multiRet := len(n.Rhs) != len(n.Lhs)
-		c.saveSequencePoint(n)
+		c.saveSequencePoint(n.Pos(), n.End())
 		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
 		isAssignOp := token.ADD_ASSIGN <= n.Tok && n.Tok <= token.AND_NOT_ASSIGN
 		if isAssignOp {
@@ -858,13 +858,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		} else {
 			// first result should be on top of the stack
 			for i := range slices.Backward(n.Results) {
+				c.saveExprSequencePoint(n.Results[i])
 				ast.Walk(c, n.Results[i])
 			}
 		}
 
 		c.processDefers()
 
-		c.saveSequencePoint(n)
+		// Save sequence point only for return token.
+		returnTokenEnd := n.Return + token.Pos(len(token.RETURN.String()))
+		c.saveSequencePoint(n.Return, returnTokenEnd)
 		if len(c.pkgInfoInline) == 0 {
 			emit.Opcodes(c.prog.BinWriter, opcode.RET)
 		} else {
@@ -1131,7 +1134,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isLiteral = true
 		}
 
-		c.saveSequencePoint(n)
+		c.saveSequencePoint(n.Pos(), n.End())
 
 		args := transformArgs(f, n.Fun, isBuiltin, n.Args)
 

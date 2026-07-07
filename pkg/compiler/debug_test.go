@@ -402,11 +402,17 @@ func TestSequencePoints(t *testing.T) {
 	require.Equal(t, 1, len(d.Documents))
 	require.True(t, strings.HasSuffix(d.Documents[0], "foo.go"))
 
-	// Main func has 2 return on 4-th and 6-th lines.
+	// Main func has 2 return on 4-th and 6-th lines,
+	// so we have 4 sequence points, 2 for return tokens
+	// and 2 for return results.
 	ps := d.Methods[0].SeqPoints
-	require.Equal(t, 2, len(ps))
-	require.Equal(t, 4, ps[0].StartLine)
-	require.Equal(t, 6, ps[1].StartLine)
+	expPoints := []DebugSeqPoint{
+		{Opcode: 12, StartLine: 4, StartCol: 11, EndLine: 4, EndCol: 15},
+		{Opcode: 13, StartLine: 4, StartCol: 4, EndLine: 4, EndCol: 10},
+		{Opcode: 14, StartLine: 6, StartCol: 10, EndLine: 6, EndCol: 15},
+		{Opcode: 15, StartLine: 6, StartCol: 3, EndLine: 6, EndCol: 9},
+	}
+	require.Equal(t, expPoints, ps)
 }
 
 func TestDebugInfo_MarshalJSON(t *testing.T) {

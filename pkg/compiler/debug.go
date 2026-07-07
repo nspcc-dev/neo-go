@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"slices"
 	"strconv"
@@ -125,15 +126,25 @@ type EmittedEventInfo struct {
 	Params   []DebugParam
 }
 
-func (c *codegen) saveSequencePoint(n ast.Node) {
+func (c *codegen) saveExprSequencePoint(expr ast.Expr) {
+	switch expr := expr.(type) {
+	case *ast.CallExpr:
+	case *ast.FuncLit:
+		c.saveSequencePoint(expr.Type.Pos(), expr.Type.End())
+	default:
+		c.saveSequencePoint(expr.Pos(), expr.End())
+	}
+}
+
+func (c *codegen) saveSequencePoint(startPos, endPos token.Pos) {
 	name := "init"
 	if c.scope != nil {
 		name = c.scope.name
 	}
 
 	fset := c.buildInfo.config.Fset
-	start := fset.Position(n.Pos())
-	end := fset.Position(n.End())
+	start := fset.Position(startPos)
+	end := fset.Position(endPos)
 	c.sequencePoints[name] = append(c.sequencePoints[name], DebugSeqPoint{
 		Opcode:    c.prog.Len(),
 		Document:  c.docIndex[start.Filename],
