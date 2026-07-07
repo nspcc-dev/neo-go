@@ -221,25 +221,19 @@ func NewCommands() []*cli.Command {
 			{
 				Name:      "export",
 				Usage:     "Export keys for address",
-				UsageText: "export -w wallet [--wallet-config path] [--decrypt] [--format nep2|wif|pem] [<address>]",
+				UsageText: "export -w wallet [--wallet-config path] [--format nep2|wif|pem] [<address>]",
 				Description: `Prints the key for the given account to the standard output. It uses NEP-2
-   encrypted format by default (the way NEP-6 wallets store it) or WIF format if
-   -d option is given (-d option is deprecated, use a prioritized --format option
-   instead). If --format option is given, one of 'nep2' (default), 'wif'
-   (unencrypted WIF format) or 'pem' (Privacy-Enhanced Mail format specified by
-   RFC 7468) can be specified. In two latter cases the key can be displayed in
-   clear text on the console, so be extremely careful with this option and don't
-   use unless you really need it and know what you're doing.
+   encrypted format by default (the way NEP-6 wallets store it). If --format
+   option is given, one of 'nep2' (default), 'wif' (unencrypted WIF format) or
+   'pem' (Privacy-Enhanced Mail format specified by RFC 7468) can be specified.
+   In two latter cases the key can be displayed in clear text on the console, so
+   be extremely careful with this option and don't use unless you really need it
+   and know what you're doing.
 `,
 				Action: exportKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					&cli.BoolFlag{
-						Name:    "decrypt",
-						Aliases: []string{"d"},
-						Usage:   "Decrypt encrypted key. Deprecated; use '--format wif' instead.",
-					},
 					&cli.StringFlag{
 						Name:    "format",
 						Aliases: []string{"f"},
@@ -516,9 +510,6 @@ func exportKeys(ctx *cli.Context) error {
 		format = exportNEP2
 	)
 
-	if ctx.Bool("decrypt") {
-		format = exportWIF
-	}
 	if ctx.IsSet("format") {
 		format, err = exportFormatFromString(ctx.String("format"))
 		if err != nil {
