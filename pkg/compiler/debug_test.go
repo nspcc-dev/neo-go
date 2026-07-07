@@ -306,6 +306,92 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 	})
 }
 
+func TestSequencePoint_NoFunctionBody(t *testing.T) {
+	testCases := []struct {
+		name      string
+		src       string
+		expPoints map[string][]DebugSeqPoint
+	}{
+		{
+			name: "if at end of void function",
+			src: `package foo
+				func Main() {
+					if false {
+						_ = 42
+					} else {
+						_ = 42
+					}
+				}
+			`,
+			expPoints: map[string][]DebugSeqPoint{
+				"main": {
+					{Opcode: 3, StartLine: 4, StartCol: 11, EndLine: 4, EndCol: 13},
+					{Opcode: 5, StartLine: 4, StartCol: 7, EndLine: 4, EndCol: 11},
+					{Opcode: 8, StartLine: 6, StartCol: 11, EndLine: 6, EndCol: 13},
+					{Opcode: 10, StartLine: 6, StartCol: 7, EndLine: 6, EndCol: 11},
+				},
+			},
+		},
+		{
+			name: "switch at end of void function",
+			src: `package foo
+				func Main() {
+					switch {
+					case true:
+						_ = 42
+					case false:
+						_ = 42
+					}
+				}
+			`,
+			expPoints: map[string][]DebugSeqPoint{
+				"main": {
+					{Opcode: 6, StartLine: 5, StartCol: 11, EndLine: 5, EndCol: 13},
+					{Opcode: 8, StartLine: 5, StartCol: 7, EndLine: 5, EndCol: 11},
+					{Opcode: 16, StartLine: 7, StartCol: 11, EndLine: 7, EndCol: 13},
+					{Opcode: 18, StartLine: 7, StartCol: 7, EndLine: 7, EndCol: 11},
+				},
+			},
+		},
+		{
+			name: "named return function",
+			src: `package foo
+				func Main() (n int) {
+					if true {
+						n = 42
+					} else {
+						n = -1
+					}
+					return
+				}
+			`,
+			expPoints: map[string][]DebugSeqPoint{
+				"main": {
+					{Opcode: 8, StartLine: 4, StartCol: 11, EndLine: 4, EndCol: 13},
+					{Opcode: 10, StartLine: 4, StartCol: 7, EndLine: 4, EndCol: 11},
+					{Opcode: 13, StartLine: 6, StartCol: 11, EndLine: 6, EndCol: 13},
+					{Opcode: 15, StartLine: 6, StartCol: 7, EndLine: 6, EndCol: 11},
+					{Opcode: 17, StartLine: 8, StartCol: 6, EndLine: 8, EndCol: 12},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, d, err := CompileWithOptions("foo.go", strings.NewReader(tc.src), nil)
+			require.NoError(t, err)
+			require.NotNil(t, d)
+			require.Len(t, d.Methods, len(tc.expPoints))
+
+			for _, m := range d.Methods {
+				expected, ok := tc.expPoints[m.Name.Name]
+				require.True(t, ok)
+				require.Equal(t, expected, m.SeqPoints)
+			}
+		})
+	}
+}
+
 func TestSequencePoints(t *testing.T) {
 	src := `package foo
 	func Main(op string) bool {
@@ -322,11 +408,17 @@ func TestSequencePoints(t *testing.T) {
 	require.Equal(t, 1, len(d.Documents))
 	require.True(t, strings.HasSuffix(d.Documents[0], "foo.go"))
 
-	// Main func has 2 return on 4-th and 6-th lines.
+	// Main func has 2 return on 4-th and 6-th lines,
+	// so we have 4 sequence points, 2 for return tokens
+	// and 2 for return results.
 	ps := d.Methods[0].SeqPoints
-	require.Equal(t, 2, len(ps))
-	require.Equal(t, 4, ps[0].StartLine)
-	require.Equal(t, 6, ps[1].StartLine)
+	expPoints := []DebugSeqPoint{
+		{Opcode: 12, StartLine: 4, StartCol: 11, EndLine: 4, EndCol: 15},
+		{Opcode: 13, StartLine: 4, StartCol: 4, EndLine: 4, EndCol: 10},
+		{Opcode: 14, StartLine: 6, StartCol: 10, EndLine: 6, EndCol: 15},
+		{Opcode: 15, StartLine: 6, StartCol: 3, EndLine: 6, EndCol: 9},
+	}
+	require.Equal(t, expPoints, ps)
 }
 
 func TestDebugInfo_MarshalJSON(t *testing.T) {
@@ -411,4 +503,34 @@ func TestManifestOverload(t *testing.T) {
 		_, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"add4": "add5"}})
 		require.Error(t, err)
 	})
+}
+
+func TestCompile_SeqPoints_BlankIdentifier(t *testing.T) {
+	src := `package foo
+		func MyFunc() int {
+			return 42
+		}
+		func Main() {
+			var _ = MyFunc()
+		}
+	`
+	_, di, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
+	require.NoError(t, err)
+
+	expectedSeqPoints := map[string][]DebugSeqPoint{
+		"MyFunc": {
+			{Opcode: 0, StartLine: 3, StartCol: 11, EndLine: 3, EndCol: 13},
+			{Opcode: 2, StartLine: 3, StartCol: 4, EndLine: 3, EndCol: 10},
+		},
+		"Main": {
+			{Opcode: 3, StartLine: 6, StartCol: 12, EndLine: 6, EndCol: 20},
+			{Opcode: 5, StartLine: 6, StartCol: 8, EndLine: 6, EndCol: 12},
+		},
+	}
+
+	for _, m := range di.Methods {
+		expected, ok := expectedSeqPoints[m.ID]
+		require.True(t, ok)
+		require.Equal(t, expected, m.SeqPoints)
+	}
 }

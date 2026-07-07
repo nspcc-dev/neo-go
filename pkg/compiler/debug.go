@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
+	"iter"
 	"slices"
 	"strconv"
 	"strings"
@@ -125,15 +127,25 @@ type EmittedEventInfo struct {
 	Params   []DebugParam
 }
 
-func (c *codegen) saveSequencePoint(n ast.Node) {
+func (c *codegen) saveExprSequencePoint(expr ast.Expr) {
+	switch expr := expr.(type) {
+	case *ast.CallExpr:
+	case *ast.FuncLit:
+		c.saveSequencePoint(expr.Type.Pos(), expr.Type.End())
+	default:
+		c.saveSequencePoint(expr.Pos(), expr.End())
+	}
+}
+
+func (c *codegen) saveSequencePoint(startPos, endPos token.Pos) {
 	name := "init"
 	if c.scope != nil {
 		name = c.scope.name
 	}
 
 	fset := c.buildInfo.config.Fset
-	start := fset.Position(n.Pos())
-	end := fset.Position(n.End())
+	start := fset.Position(startPos)
+	end := fset.Position(endPos)
 	c.sequencePoints[name] = append(c.sequencePoints[name], DebugSeqPoint{
 		Opcode:    c.prog.Len(),
 		Document:  c.docIndex[start.Filename],
@@ -203,8 +215,26 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 		})
 	}
 
-	var fnames = make([]string, 0, len(c.funcs))
-	for name, scope := range c.funcs {
+	c.addMethodsToDebugInfo(d, func(yield func(string, *funcScope) bool) {
+		for name, f := range c.funcs {
+			if !yield(name, f) {
+				return
+			}
+		}
+		for name, l := range c.lambda {
+			if !yield(name, l.funcScope) {
+				return
+			}
+		}
+	})
+	d.EmittedEvents = c.emittedEvents
+	d.InvokedContracts = c.invokedContracts
+	return d
+}
+
+func (c *codegen) addMethodsToDebugInfo(d *DebugInfo, fScopes iter.Seq2[string, *funcScope]) {
+	var fnames []string
+	for name, scope := range fScopes {
 		if scope.rng.Start == scope.rng.End {
 			continue
 		}
@@ -213,12 +243,13 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	slices.Sort(fnames)
 	d.NamedTypes = make(map[string]binding.ExtendedType)
 	for _, name := range fnames {
-		m := c.methodInfoFromScope(name, c.funcs[name], d.NamedTypes)
+		scope, ok := c.funcs[name]
+		if !ok {
+			scope = c.lambda[name].funcScope
+		}
+		m := c.methodInfoFromScope(name, scope, d.NamedTypes)
 		d.Methods = append(d.Methods, *m)
 	}
-	d.EmittedEvents = c.emittedEvents
-	d.InvokedContracts = c.invokedContracts
-	return d
 }
 
 func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {

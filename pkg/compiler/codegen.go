@@ -44,7 +44,7 @@ type codegen struct {
 	funcs map[string]*funcScope
 
 	// A mapping of lambda functions into their scope.
-	lambda map[string]*funcScope
+	lambda map[string]*lambdaScope
 
 	// reverseOffsetMap maps function offsets to a local variable count.
 	reverseOffsetMap map[int]nameWithLocals
@@ -536,7 +536,13 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 				return f
 			}
 			c.setLabel(f.label)
-		} else if f, ok = c.lambda[c.getIdentName("", decl.Name.Name)]; ok {
+		} else if l, ok := c.lambda[c.getIdentName("", decl.Name.Name)]; ok {
+			// Deferred lambda compilation marks lambda as compiled before
+			// recursively calling convertFuncDecl. Thus compiled must always be true here.
+			if !l.compiled {
+				panic("ICE: lambda must already be marked as compiled")
+			}
+			f = l.funcScope
 			isLambda = ok
 			c.setLabel(f.label)
 		} else {
@@ -609,7 +615,6 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// This can be the case with void and named-return functions.
 	if !isInit && !isDeploy && !lastStmtIsReturn(decl.Body) {
 		c.processDefers()
-		c.saveSequencePoint(decl.Body)
 		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 	}
 
@@ -623,12 +628,15 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 
 	if !isLambda {
 		for _, f := range c.lambda {
+			if f.compiled {
+				continue
+			}
 			if _, ok := c.lambda[c.getIdentName("", f.decl.Name.Name)]; !ok {
 				panic("ICE: lambda name doesn't match map key")
 			}
+			f.compiled = true
 			c.convertFuncDecl(file, f.decl, pkg)
 		}
-		c.lambda = make(map[string]*funcScope)
 	}
 
 	if !isInit && !isDeploy {
@@ -657,10 +665,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil // Program is invalid.
 		}
 
-		if n.Tok == token.VAR || n.Tok == token.CONST {
-			c.saveSequencePoint(n)
-		}
 		if n.Tok == token.CONST {
+			c.saveSequencePoint(n.Pos(), n.End())
 			for _, spec := range n.Specs {
 				vs := spec.(*ast.ValueSpec)
 				for i := range vs.Names {
@@ -688,6 +694,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						return nil
 					}
 					if isMapKeyCheck = c.checkGetMapValueWithOKFlag(t.Values[0]); isMapKeyCheck {
+						c.saveExprSequencePoint(t.Values[0])
 						c.emitGetMapValueWithOKFlag(t.Values[0])
 					}
 				}
@@ -717,7 +724,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 							if len(t.Values) == 0 {
 								c.emitDefault(c.typeOf(t.Type))
 							} else if i == 0 || !multiRet {
+								c.saveExprSequencePoint(t.Values[i])
 								ast.Walk(c, t.Values[i])
+							}
+							if i == len(t.Names)-1 && len(t.Values) != 0 {
+								// The sequence point includes sign "=".
+								c.saveSequencePoint(t.Names[i].Pos(), t.Values[0].Pos())
+							} else {
+								c.saveSequencePoint(t.Names[i].Pos(), t.Names[i].End())
 							}
 						}
 						c.emitStoreVar("", t.Names[i].Name)
@@ -732,9 +746,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						hasCall = containsCall(t.Values[i])
 					}
 					if hasCall {
+						c.saveExprSequencePoint(t.Values[i])
 						ast.Walk(c, t.Values[i])
 					}
 					if hasCall || isMapKeyCheck || i != 0 && multiRet {
+						if i == len(t.Names)-1 {
+							// The sequence point includes sign "=".
+							c.saveSequencePoint(t.Names[i].Pos(), t.Values[0].Pos())
+						} else {
+							c.saveSequencePoint(t.Names[i].Pos(), t.Names[i].End())
+						}
 						c.emitStoreVar("", "_") // drop unused after walk
 					}
 				}
@@ -755,20 +776,22 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isMapKeyCheck = c.checkGetMapValueWithOKFlag(n.Rhs[0])
 		}
 		multiRet := len(n.Rhs) != len(n.Lhs)
-		c.saveSequencePoint(n)
 		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
 		isAssignOp := token.ADD_ASSIGN <= n.Tok && n.Tok <= token.AND_NOT_ASSIGN
 		if isAssignOp {
+			c.saveExprSequencePoint(n.Rhs[0])
 			// RHS can contain exactly one expression, thus there is no need to iterate.
 			ast.Walk(c, n.Lhs[0])
 			ast.Walk(c, n.Rhs[0])
 			c.emitToken(n.Tok, c.typeOf(n.Rhs[0]))
 		}
 		if isMapKeyCheck {
+			c.saveExprSequencePoint(n.Rhs[0])
 			c.emitGetMapValueWithOKFlag(n.Rhs[0])
 		}
 		if !isAssignOp && !isMapKeyCheck {
 			for i := range n.Rhs {
+				c.saveExprSequencePoint(n.Rhs[i])
 				ast.Walk(c, n.Rhs[i])
 			}
 		}
@@ -777,6 +800,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			emit.Opcodes(c.prog.BinWriter, opcode.REVERSEN)
 		}
 		for i := range slices.Backward(n.Lhs) {
+			if i == len(n.Lhs)-1 {
+				// The sequence point includes a sign ":=" or "=".
+				c.saveSequencePoint(n.Lhs[i].Pos(), n.Rhs[0].Pos())
+			} else {
+				c.saveSequencePoint(n.Lhs[i].Pos(), n.Lhs[i].End())
+			}
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
 				if n.Tok == token.DEFINE {
@@ -859,13 +888,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		} else {
 			// first result should be on top of the stack
 			for i := range slices.Backward(n.Results) {
+				c.saveExprSequencePoint(n.Results[i])
 				ast.Walk(c, n.Results[i])
 			}
 		}
 
 		c.processDefers()
 
-		c.saveSequencePoint(n)
+		// Save sequence point only for return token.
+		returnTokenEnd := n.Return + token.Pos(len(token.RETURN.String()))
+		c.saveSequencePoint(n.Return, returnTokenEnd)
 		if len(c.pkgInfoInline) == 0 {
 			emit.Opcodes(c.prog.BinWriter, opcode.RET)
 		} else {
@@ -1073,6 +1105,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isLiteral bool
 		)
 
+		switch expr := n.Fun.(type) {
+		case *ast.CallExpr:
+		case *ast.FuncLit:
+			c.saveSequencePoint(expr.Type.Pos(), expr.Type.End())
+		default:
+			c.saveSequencePoint(n.Pos(), n.End())
+		}
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
 			f, ok = c.getFuncFromIdent(fun)
@@ -1131,8 +1170,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case *ast.FuncLit:
 			isLiteral = true
 		}
-
-		c.saveSequencePoint(n)
 
 		args := transformArgs(f, n.Fun, isBuiltin, n.Args)
 
@@ -2459,7 +2496,7 @@ func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 		Type: lit.Type,
 		Body: lit.Body,
 	}, u)
-	c.lambda[c.getFuncNameFromDecl("", f.decl)] = f
+	c.lambda[c.getFuncNameFromDecl("", f.decl)] = &lambdaScope{funcScope: f}
 }
 
 func (c *codegen) compile(info *buildInfo, pkg *packages.Package) error {
@@ -2527,7 +2564,7 @@ func newCodegen(info *buildInfo, pkg *packages.Package) *codegen {
 		prog:             io.NewBufBinWriter(),
 		l:                []int{},
 		funcs:            map[string]*funcScope{},
-		lambda:           map[string]*funcScope{},
+		lambda:           map[string]*lambdaScope{},
 		reverseOffsetMap: map[int]nameWithLocals{},
 		globals:          map[string]int{},
 		labels:           map[labelWithType]uint16{},
@@ -2654,10 +2691,13 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 		c.initEndOffset = int(end)
 	}
 
-	// Correct function ip range.
+	// Correct function and lambda ip range.
 	// Note: indices are sorted in increasing order.
 	for _, f := range c.funcs {
 		f.rng.Start, f.rng.End = correctRange(f.rng.Start, f.rng.End, nopOffsets)
+	}
+	for _, l := range c.lambda {
+		l.rng.Start, l.rng.End = correctRange(l.rng.Start, l.rng.End, nopOffsets)
 	}
 	return removeNOPs(b, nopOffsets, c.sequencePoints), nil
 }
