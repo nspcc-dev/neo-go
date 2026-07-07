@@ -306,6 +306,86 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 	})
 }
 
+func TestSequencePoint_NoFunctionBody(t *testing.T) {
+	testCases := []struct {
+		name      string
+		src       string
+		expPoints map[string][]DebugSeqPoint
+	}{
+		{
+			name: "if at end of void function",
+			src: `package foo
+				func Main() {
+					if false {
+						_ = 42
+					} else {
+						_ = 42
+					}
+				}
+			`,
+			expPoints: map[string][]DebugSeqPoint{
+				"main": {
+					{Opcode: 3, StartLine: 4, StartCol: 7, EndLine: 4, EndCol: 13},
+					{Opcode: 8, StartLine: 6, StartCol: 7, EndLine: 6, EndCol: 13},
+				},
+			},
+		},
+		{
+			name: "switch at end of void function",
+			src: `package foo
+				func Main() {
+					switch {
+					case true:
+						_ = 42
+					case false:
+						_ = 42
+					}
+				}
+			`,
+			expPoints: map[string][]DebugSeqPoint{
+				"main": {
+					{Opcode: 6, StartLine: 5, StartCol: 7, EndLine: 5, EndCol: 13},
+					{Opcode: 16, StartLine: 7, StartCol: 7, EndLine: 7, EndCol: 13},
+				},
+			},
+		},
+		{
+			name: "named return function",
+			src: `package foo
+				func Main() (n int) {
+					if true {
+						n = 42
+					} else {
+						n = -1
+					}
+					return
+				}
+			`,
+			expPoints: map[string][]DebugSeqPoint{
+				"main": {
+					{Opcode: 8, StartLine: 4, StartCol: 7, EndLine: 4, EndCol: 13},
+					{Opcode: 13, StartLine: 6, StartCol: 7, EndLine: 6, EndCol: 13},
+					{Opcode: 17, StartLine: 8, StartCol: 6, EndLine: 8, EndCol: 12},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, d, err := CompileWithOptions("foo.go", strings.NewReader(tc.src), nil)
+			require.NoError(t, err)
+			require.NotNil(t, d)
+			require.Len(t, d.Methods, len(tc.expPoints))
+
+			for _, m := range d.Methods {
+				expected, ok := tc.expPoints[m.Name.Name]
+				require.True(t, ok)
+				require.Equal(t, expected, m.SeqPoints)
+			}
+		})
+	}
+}
+
 func TestSequencePoints(t *testing.T) {
 	src := `package foo
 	func Main(op string) bool {

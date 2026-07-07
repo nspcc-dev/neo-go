@@ -609,7 +609,6 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// This can be the case with void and named-return functions.
 	if !isInit && !isDeploy && !lastStmtIsReturn(decl.Body) {
 		c.processDefers()
-		c.saveSequencePoint(decl.Body)
 		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 	}
 
