@@ -7,8 +7,8 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.121.0 (~Jul 2026)
- * Gorgon hardfork enabling for N3 networks
+## Version 0.122.0 (~Aug 2026)
+ * dynamic VM opcode prices support
  * protocol updates
  * bug fixes
 
@@ -43,4 +43,4 @@ error. Use a set of predefined `neorpc.FaultException` errors with errors.Is to
 detect specific FAULT exceptions or create a custom `neorpc.FaultException`
 error if no suitable standard one is available.
 
-`actor.ErrExecFailed` will be removed in ~v0.122.0 release (~July 2026).
+`actor.ErrExecFailed` will be removed in ~v0.122.0 release (~Aug 2026).
