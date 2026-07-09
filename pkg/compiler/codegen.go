@@ -519,8 +519,8 @@ func (c *codegen) convertDeployFuncs() int {
 
 func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.Package) *funcScope {
 	var (
-		f            *funcScope
-		ok, isLambda bool
+		f  *funcScope
+		ok bool
 	)
 	isInit := isInitFunc(decl)
 	isDeploy := isDeployFunc(decl)
@@ -543,7 +543,6 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 				panic("ICE: lambda must already be marked as compiled")
 			}
 			f = l.funcScope
-			isLambda = ok
 			c.setLabel(f.label)
 		} else {
 			f = c.newFunc(decl)
@@ -626,17 +625,15 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 
 	f.rng.End = uint16(c.prog.Len() - 1)
 
-	if !isLambda {
-		for _, f := range c.lambda {
-			if f.compiled {
-				continue
-			}
-			if _, ok := c.lambda[c.getIdentName("", f.decl.Name.Name)]; !ok {
-				panic("ICE: lambda name doesn't match map key")
-			}
-			f.compiled = true
-			c.convertFuncDecl(file, f.decl, pkg)
+	for _, f := range c.lambda {
+		if f.compiled {
+			continue
 		}
+		if _, ok := c.lambda[c.getIdentName("", f.decl.Name.Name)]; !ok {
+			panic("ICE: lambda name doesn't match map key")
+		}
+		f.compiled = true
+		c.convertFuncDecl(file, f.decl, pkg)
 	}
 
 	if !isInit && !isDeploy {
