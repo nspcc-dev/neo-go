@@ -23,7 +23,15 @@ func cliMain(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	err = rpcutil.PrintRPCInfo(ca, "A")
+	if err != nil {
+		return err
+	}
 	cb, hb, err := rpcutil.InitClient(b, "B")
+	if err != nil {
+		return err
+	}
+	err = rpcutil.PrintRPCInfo(cb, "B")
 	if err != nil {
 		return err
 	}
