@@ -160,6 +160,86 @@ func TestLambdaInDebugInfo(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "three-level nested lambdas",
+			src: `package main
+				import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+				func PublicContractMethod() {
+					f := func() {
+						g := func() {
+							h := func() {
+								runtime.Log("deep")
+							}
+							h()
+						}
+						g()
+					}
+					f()
+				}
+			`,
+			seqPoints: map[string][]compiler.DebugSeqPoint{
+				"PublicContractMethod": {
+					{StartLine: 4, StartCol: 11, EndLine: 4, EndCol: 17},
+					{StartLine: 4, StartCol: 6, EndLine: 4, EndCol: 11},
+					{StartLine: 13, StartCol: 6, EndLine: 13, EndCol: 9},
+				},
+				"lambda@56": {
+					{StartLine: 5, StartCol: 12, EndLine: 5, EndCol: 18},
+					{StartLine: 5, StartCol: 7, EndLine: 5, EndCol: 12},
+					{StartLine: 11, StartCol: 7, EndLine: 11, EndCol: 10},
+				},
+				"lambda@57": {
+					{StartLine: 6, StartCol: 13, EndLine: 6, EndCol: 19},
+					{StartLine: 6, StartCol: 8, EndLine: 6, EndCol: 13},
+					{StartLine: 9, StartCol: 8, EndLine: 9, EndCol: 11},
+				},
+				"lambda@58": {
+					{StartLine: 7, StartCol: 9, EndLine: 7, EndCol: 28},
+					{StartLine: 60, StartCol: 2, EndLine: 60, EndCol: 63},
+				},
+			},
+		},
+		{
+			name: "lambda returns lambda returns lambda",
+			src: `package main
+				import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+				func PublicContractMethod() {
+					f := func() func() func() {
+						return func() func() {
+							return func() {
+								runtime.Log("deep")
+							}
+						}
+					}
+					g := f()
+					h := g()
+					h()
+				}
+			`,
+			seqPoints: map[string][]compiler.DebugSeqPoint{
+				"PublicContractMethod": {
+					{StartLine: 4, StartCol: 11, EndLine: 4, EndCol: 31},
+					{StartLine: 4, StartCol: 6, EndLine: 4, EndCol: 11},
+					{StartLine: 11, StartCol: 11, EndLine: 11, EndCol: 14},
+					{StartLine: 11, StartCol: 6, EndLine: 11, EndCol: 11},
+					{StartLine: 12, StartCol: 11, EndLine: 12, EndCol: 14},
+					{StartLine: 12, StartCol: 6, EndLine: 12, EndCol: 11},
+					{StartLine: 13, StartCol: 6, EndLine: 13, EndCol: 9},
+				},
+				"lambda@56": {
+					{StartLine: 5, StartCol: 14, EndLine: 5, EndCol: 27},
+					{StartLine: 5, StartCol: 7, EndLine: 5, EndCol: 13},
+				},
+				"lambda@58": {
+					{StartLine: 6, StartCol: 15, EndLine: 6, EndCol: 21},
+					{StartLine: 6, StartCol: 8, EndLine: 6, EndCol: 14},
+				},
+				"lambda@60": {
+					{StartLine: 7, StartCol: 9, EndLine: 7, EndCol: 28},
+					{StartLine: 60, StartCol: 2, EndLine: 60, EndCol: 63},
+				},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
