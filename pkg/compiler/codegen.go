@@ -1310,21 +1310,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		ast.Walk(c, n.X)
 		c.emitToken(n.Tok, c.typeOf(n.X))
 
-		switch t := n.X.(type) {
-		case *ast.Ident:
-			// Identifiers are supported for (post) for stmts.
-			// for i := 0; i < 10; i++ {}
-			// Where the post stmt is ( i++ )
-			c.emitStoreVar("", t.Name)
-
-		case *ast.SelectorExpr:
-			// Struct field selectors are supported, e.g. myStruct.t++ or p.field++.
-			c.emitStoreSelectorExpr(t)
-
-		case *ast.IndexExpr:
-			// Index expressions are supported for arrays/slices/maps, e.g. s[0]++, m["k"]++.
-			c.emitStoreIndexExpr(t)
-		}
+		c.emitStoreExpr(n.X, n.Tok)
 		return nil
 
 	case *ast.IndexExpr:
@@ -2622,19 +2608,35 @@ func (c *codegen) validateRangeTarget(expr ast.Expr) bool {
 	}
 }
 
-// emitStoreExpr stores the value on top of the stack into expr.
+// emitStoreExpr stores the top value from the evaluation stack into expr. It
+// allocates a new local variable in case if the token corresponding to the
+// expression is := and the expression is an identifier.
 func (c *codegen) emitStoreExpr(expr ast.Expr, tok token.Token) {
 	switch t := expr.(type) {
 	case *ast.Ident:
+		// Identifiers are supported:
+		//  - for (post) for stmts, e.g.:
+		//        for i := 0; i < 10; i++ {}
+		//    where the post stmt is increment/decrement ( i++ ).
+		//  - for assignment statements
+		//  - for range statements, e.g.:
+		//        ints := []int{5, 4, 3, 2, 1}
+		//        for ints[0] = range ints
 		if tok == token.DEFINE && t.Name != "_" {
 			c.scope.newLocal(t.Name)
 		}
 		c.emitStoreVar("", t.Name)
 
 	case *ast.SelectorExpr:
+		// Struct field selectors are supported, e.g.:
+		//  - for case of increment/decrement: myStruct.t++ or p.field++
+		//  - for case of assignment: myStruct.t = 10
 		c.emitStoreSelectorExpr(t)
 
 	case *ast.IndexExpr:
+		// Index expressions are supported for arrays/slices/maps, e.g.
+		//  - for case of increment/decrement: s[0]++, m["k"]++.
+		//  - for case of assignment: slice[0] = 10
 		c.emitStoreIndexExpr(t)
 
 	default:
