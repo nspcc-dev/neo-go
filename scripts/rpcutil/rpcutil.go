@@ -34,6 +34,16 @@ func InitClient(addr string, name string) (*rpcclient.Client, uint32, error) {
 	return c, h, nil
 }
 
+// PrintRPCInfo prints RPC server user-agent and nonce.
+func PrintRPCInfo(c *rpcclient.Client, name string) error {
+	v, err := c.GetVersion()
+	if err != nil {
+		return fmt.Errorf("RPC %s version: %w", name, err)
+	}
+	fmt.Printf("RPC %s:\n\tuser-agent: %s\n\tnonce: %d\n", name, v.UserAgent, v.Nonce)
+	return nil
+}
+
 // CompareNetwork verifies that both RPC nodes belong to the same network.
 func CompareNetwork(ca, cb *rpcclient.Client) error {
 	na := ca.Network()
