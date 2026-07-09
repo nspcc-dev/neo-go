@@ -2,6 +2,56 @@
 
 This document outlines major changes between releases.
 
+## 0.121.0 "Benediction" (09 Jul 2026)
+
+This version is fully compatible with the C# node 3.10.1. It extends and enables
+Gorgon hardfork, introduces metrics updates and fixes a set of security
+vulnerabilities.
+
+Node operators should review and update node configuration. For N3 chains Gorgon
+hardfork is enabled at block `12020000` of Mainnet and `17960000` block of
+Testnet; for NeoFS networks Gorgon height is `20700000` for Mainnet and
+`20200000` for Testnet. Please consider upgrading your nodes before Gorgon
+height; otherwise you'll need to resynchronize the DB. DevOps and developers
+should pay attention to P2P and RPC Prometheus metrics renaming. Also,
+deprecated `--decrypt` flag of `wallet export` CLI command is removed.
+
+New features:
+ * script for RPC-based application logs comparison (#4287)
+ * `rpc_notification_subscriber_cnt` Prometheus metric (#4335)
+ * Gorgon hardfork is enabled in public networks (#4346)
+ * new unstable Huyao hardfork (#4331)
+
+Behaviour changes:
+ * Prometheus metrics for P2P command and RPC request processing duration are
+   migrated to labeled `p2p_commands_time` and `rpc_requests_time`
+   correspondingly  without transition period (#4271)
+ * `ChangeView` dBFT message format change (#4206)
+ * deprecated `--decrypt` flag of `wallet export` CLI command is removed (#4346)
+
+Improvements:
+ * `wsconnections_count` Prometheus metric is extended with labels (#4335)
+ * `(*Client).Network` API is exposed (#4316)
+ * documentation updates (#4317)
+ * VM unit-tests upgrade (#4318)
+ * log rejected hashes on dBFT view change (#4260)
+ * include lambda expressions in debug info during compilation (#4207)
+ * support for index expressions and selectors in range loops in compiler
+   (#4345, #4350)
+ * log RPC server version in states/applogs comparator utilities (#4352)
+
+Bugs fixed:
+ * initialized global variables overwrite in compiler (#4213)
+ * non-informative application log diff output of `compare-states.go` (#4216)
+ * possible negative VM reference counter value (#4312)
+ * primitive types double-counting in CLEARITEMS VM instruction (#4313)
+ * race between header and execution result awaiting in RPC client waiter
+   (#4320)
+ * notary deposit overdraw (#4321)
+ * improper reward calculation for voting committee member (#4332)
+ * some debug info sequence points cover the whole function body (#4207)
+ * "invalid label target" error on lambda compilation (#4353)
+
 ## 0.120.0 "Amortization" (15 Jun 2026)
 
 This is an urgent release fixing a set of vulnerabilities that may affect the

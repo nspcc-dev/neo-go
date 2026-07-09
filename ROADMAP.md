@@ -7,8 +7,8 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.121.0 (~Jul 2026)
- * Gorgon hardfork enabling for N3 networks
+## Version 0.122.0 (~Aug 2026)
+ * dynamic VM opcode prices support
  * protocol updates
  * bug fixes
 
@@ -36,14 +36,6 @@ Removal of `registerCandidate`–based support of candidate registration will be
 done once `registerCandidate` method is officially deprecated and removed from
 the NeoToken manifest with the subsequent hardfork.
 
-## `--decrypt` flag of `wallet export` command
-
-The `--decrypt` (`-d`) flag of the `wallet export` CLI command is deprecated
-and has been superseded by the `--format wif` option. Use `--format wif`
-instead of `--decrypt`.
-
-Removal is planned for v0.121.0 release (~July 2026).
-
 ## actor.ErrExecFailed RPC client error
 
 `actor.ErrExecFailed` RPC client error is replaced by `neorpc.FaultException`
@@ -51,4 +43,4 @@ error. Use a set of predefined `neorpc.FaultException` errors with errors.Is to
 detect specific FAULT exceptions or create a custom `neorpc.FaultException`
 error if no suitable standard one is available.
 
-`actor.ErrExecFailed` will be removed in ~v0.122.0 release (~July 2026).
+`actor.ErrExecFailed` will be removed in ~v0.122.0 release (~Aug 2026).
