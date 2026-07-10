@@ -1,6 +1,7 @@
 package native
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -55,6 +56,14 @@ func toUint160(s stackitem.Item) util.Uint160 {
 	return u
 }
 
+func toUint64(s stackitem.Item) uint64 {
+	i, err := stackitem.ToUint64(s)
+	if err != nil {
+		panic(err)
+	}
+	return i
+}
+
 func toUint32(s stackitem.Item) uint32 {
 	i, err := stackitem.ToUint32(s)
 	if err != nil {
@@ -80,9 +89,13 @@ func toInt64(s stackitem.Item) int64 {
 }
 
 func toLimitedBytes(item stackitem.Item) []byte {
+	return toLimitedBytesGeneric(item, stdMaxInputLength)
+}
+
+func toLimitedBytesGeneric(item stackitem.Item, maxLen int) []byte {
 	src := toBytes(item)
-	if len(src) > stdMaxInputLength {
-		panic(ErrTooBigInput)
+	if len(src) > maxLen {
+		panic(fmt.Errorf("%w: %d vs %d", ErrTooBigInput, len(src), maxLen))
 	}
 	return src
 }
@@ -98,7 +111,7 @@ func toBytes(item stackitem.Item) []byte {
 func toLimitedString(item stackitem.Item) string {
 	src := toString(item)
 	if len(src) > stdMaxInputLength {
-		panic(ErrTooBigInput)
+		panic(fmt.Errorf("%w: %d vs %d", ErrTooBigInput, len(src), stdMaxInputLength))
 	}
 	return src
 }
