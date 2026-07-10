@@ -24,6 +24,11 @@ type Genesis struct {
 	// starting from HFEchidna to initialize MaxValidUntilBlockIncrement value
 	// of native Policy contract.
 	MaxValidUntilBlockIncrement uint32
+	// TemporaryStorageMaxTTL is the maximum allowed TTL value for storage items
+	// stored by native TemporaryStorage contract. It is used starting from
+	// HFHuyao for the corresponding storage item initialisation of native
+	// Policy contract. Sub-milliseconds precision is not supported.
+	TemporaryStorageMaxTTL time.Duration // TODO: properly handle everywhere, set default if not specified
 	// Roles contains the set of roles that should be designated during native
 	// Designation contract initialization. It is NeoGo extension and must be
 	// disabled on the public Neo N3 networks.
@@ -54,6 +59,7 @@ type (
 	genesisAux struct {
 		MaxTraceableBlocks          uint32                     `yaml:"MaxTraceableBlocks"`
 		MaxValidUntilBlockIncrement uint32                     `yaml:"MaxValidUntilBlockIncrement"`
+		TemporaryStorageMaxTTL      time.Duration              `yaml:"TemporaryStorageMaxTTL"`
 		Roles                       map[string]keys.PublicKeys `yaml:"Roles"`
 		TimePerBlock                time.Duration              `yaml:"TimePerBlock"`
 		Transaction                 *genesisTransactionAux     `yaml:"Transaction"`
@@ -81,6 +87,7 @@ func (e Genesis) MarshalYAML() (any, error) {
 	}
 	aux.MaxValidUntilBlockIncrement = e.MaxValidUntilBlockIncrement
 	aux.TimePerBlock = e.TimePerBlock
+	aux.TemporaryStorageMaxTTL = e.TemporaryStorageMaxTTL
 	aux.MaxTraceableBlocks = e.MaxTraceableBlocks
 	return aux, nil
 }
