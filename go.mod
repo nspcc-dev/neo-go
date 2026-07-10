@@ -27,7 +27,7 @@ require (
 	github.com/twmb/murmur3 v1.1.8
 	github.com/urfave/cli/v2 v2.27.7
 	go.uber.org/zap v1.27.1
-	golang.org/x/crypto v0.51.0
+	golang.org/x/crypto v0.52.0
 	golang.org/x/term v0.43.0
 	golang.org/x/text v0.37.0
 	golang.org/x/tools v0.44.0
