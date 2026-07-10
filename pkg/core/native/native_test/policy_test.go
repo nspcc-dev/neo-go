@@ -59,6 +59,15 @@ func TestPolicy_StoragePriceCache(t *testing.T) {
 	testGetSetCache(t, newPolicyClient(t), "StoragePrice", native.DefaultStoragePrice)
 }
 
+func TestPolicy_TemporaryStorageMaxTTL(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFHuyao.String(): 0,
+		}
+	})
+	testGetSetCache(t, c, "TemporaryStorageMaxTTL", int64(7*24*time.Hour/time.Millisecond))
+}
+
 func TestPolicy_MaxVUBIncrement(t *testing.T) {
 	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{

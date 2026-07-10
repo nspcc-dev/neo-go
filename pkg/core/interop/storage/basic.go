@@ -117,7 +117,17 @@ func putWithContext(ic *interop.Context, stc *Context, key []byte, value []byte)
 	if stc.ReadOnly {
 		return errors.New("storage.Context is read only")
 	}
-	si := ic.DAO.GetStorageItem(stc.ID, key)
+	if err := ic.VM.AddPicoGas(CalculatePrice(ic, stc.ID, key, value)); err != nil {
+		return err
+	}
+	ic.DAO.PutStorageItem(stc.ID, key, value)
+	return nil
+}
+
+// CalculatePrice calculates the price (in picoGas) for storing the specified
+// key-value pair in the specified contract storage permanently.
+func CalculatePrice(ic *interop.Context, id int32, key, value []byte) int64 {
+	si := ic.DAO.GetStorageItem(id, key)
 	sizeInc := len(value)
 	if si == nil {
 		sizeInc = len(key) + len(value)
@@ -128,11 +138,7 @@ func putWithContext(ic *interop.Context, stc *Context, key []byte, value []byte)
 			sizeInc = (len(si)-1)/4 + 1 + len(value) - len(si)
 		}
 	}
-	if err := ic.VM.AddPicoGas(int64(sizeInc) * ic.BaseStorageFee()); err != nil {
-		return err
-	}
-	ic.DAO.PutStorageItem(stc.ID, key, value)
-	return nil
+	return int64(sizeInc) * ic.BaseStorageFee()
 }
 
 // Put puts key-value pair into the storage.

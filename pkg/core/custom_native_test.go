@@ -217,6 +217,7 @@ func (p *policy) GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uin
 func (p *policy) getTimePerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewBigInteger(big.NewInt(1000))
 }
+func (p *policy) GetTemporaryStorageMaxTTLInternal(d *dao.Simple) uint32 { return 10000 }
 
 func newCustomNatives(cfg config.ProtocolConfiguration) []interop.Contract {
 	// Use default ContractManagement and Ledger implementations:

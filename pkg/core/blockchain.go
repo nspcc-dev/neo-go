@@ -63,6 +63,7 @@ const (
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
 	defaultTimePerBlock                    = 15 * time.Second
+	defaultTemporaryStorageMaxTTL          = 7 * 24 * time.Hour
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
 	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
 
@@ -338,6 +339,13 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		cfg.Genesis.MaxValidUntilBlockIncrement = cfg.MaxValidUntilBlockIncrement
 		log.Info("Genesis MaxValidUntilBlockIncrement is not set or wrong, using default value",
 			zap.Uint32("Genesis MaxValidUntilBlockIncrement", cfg.Genesis.MaxValidUntilBlockIncrement))
+	}
+	if cfg.Genesis.TemporaryStorageMaxTTL <= 0 {
+		cfg.Genesis.TemporaryStorageMaxTTL = defaultTemporaryStorageMaxTTL
+		log.Info("Genesis TemporaryStorageMaxTTL is not set or wrong, using default value",
+			zap.Duration("Genesis TemporaryStorageMaxTTL", cfg.Genesis.TemporaryStorageMaxTTL))
+	} else if cfg.Genesis.TemporaryStorageMaxTTL%time.Millisecond != 0 {
+		return nil, errors.New("Genesis.TemporaryStorageMaxTTL must be an integer number of milliseconds")
 	}
 	if cfg.P2PStateExchangeExtensions && cfg.NeoFSStateSyncExtensions {
 		return nil, errors.New("P2PStateExchangeExtensions and NeoFSStateSyncExtensions cannot be enabled simultaneously")
