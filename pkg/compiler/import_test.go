@@ -89,3 +89,13 @@ func TestImportCycleIndirect(t *testing.T) {
 	_, _, err := compiler.CompileWithOptions("some.go", strings.NewReader(src), nil)
 	require.Error(t, err)
 }
+
+func TestImportPackageError(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/importerr"
+		func Main() []importerr.Ballot {
+			return importerr.GetBallots()
+		}`
+	_, err := compiler.Compile("foo.go", strings.NewReader(src))
+	require.ErrorContains(t, err, "data (variable of type []byte) is not an interface")
+}
