@@ -216,10 +216,23 @@ func getBuildInfo(name string, src any) (*buildInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, p := range prog {
-		if len(p.Errors) != 0 {
-			return nil, p.Errors[0]
+	// packages.Load never returns per-package errors via err: they sit in each
+	// Package's own Errors field, including transitive imports, so the whole
+	// graph must be walked to find them. Check in pre, not post, to stop
+	// descending as soon as an erroneous package is found.
+	var firstErr error
+	packages.Visit(prog, func(p *packages.Package) bool {
+		if firstErr != nil {
+			return false
 		}
+		if len(p.Errors) != 0 {
+			firstErr = p.Errors[0]
+			return false
+		}
+		return true
+	}, nil)
+	if firstErr != nil {
+		return nil, firstErr
 	}
 	return &buildInfo{
 		config:  conf,
