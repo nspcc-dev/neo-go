@@ -27,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/tempstorage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -48,6 +49,7 @@ func TestContractHashes(t *testing.T) {
 	require.Equalf(t, []byte(notary.Hash), cs.Notary().Metadata().Hash.BytesBE(), "%q", string(cs.Notary().Metadata().Hash.BytesBE()))
 	require.Equalf(t, []byte(crypto.Hash), cs.ByName(nativenames.CryptoLib).Metadata().Hash.BytesBE(), "%q", string(cs.ByName(nativenames.CryptoLib).Metadata().Hash.BytesBE()))
 	require.Equalf(t, []byte(std.Hash), cs.ByName(nativenames.StdLib).Metadata().Hash.BytesBE(), "%q", string(cs.ByName(nativenames.StdLib).Metadata().Hash.BytesBE()))
+	require.Equalf(t, []byte(tempstorage.Hash), cs.ByName(nativenames.TemporaryStorage).Metadata().Hash.BytesBE(), "%q", string(cs.ByName(nativenames.TemporaryStorage).Metadata().Hash.BytesBE()))
 }
 
 func TestContractParameterTypes(t *testing.T) {
@@ -280,6 +282,17 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"hexEncode", []string{"[]byte{0, 1, 2, 3}"}},
 		{"hexDecode", []string{`"00010203"`}},
 	})
+	runNativeTestCases(t, *cs.ByName(nativenames.TemporaryStorage).Metadata(), "tempstorage", []nativeTestCase{
+		{"put", []string{"[]byte{1}", "[]byte{1}", "1"}},
+		{"get", []string{"[]byte{1}"}},
+		{"getByHash", []string{u160, "[]byte{1}"}},
+		{"getExpiration", []string{"[]byte{1}"}},
+		{"getExpirationByHash", []string{u160, "[]byte{1}"}},
+		{"delete", []string{"[]byte{1}"}},
+		{"find", []string{"[]byte{1}", "1"}},
+		{"findByHash", []string{u160, "[]byte{1}", "1"}},
+		{"renew", []string{"[]byte{1}", "1"}},
+	})
 }
 
 func runNativeTestCases(t *testing.T, ctr interop.ContractMD, name string, nativeTestCases []nativeTestCase) {
@@ -320,6 +333,8 @@ func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []strin
 			paramLen++ // true should be appended inside of an interop
 		}
 		name = "stringSplit"
+	case strings.HasSuffix(name, "ByHash"):
+		name, _ = strings.CutSuffix(name, "ByHash") // TemporaryStorage overloads.
 	default:
 		name = strings.TrimSuffix(name, "WithData")
 	}

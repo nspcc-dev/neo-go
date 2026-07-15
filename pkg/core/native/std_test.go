@@ -112,7 +112,6 @@ func TestStdLibItoaAtoi(t *testing.T) {
 			{"1 ", big.NewInt(10), ErrInvalidFormat},
 			{"FE", big.NewInt(10), ErrInvalidFormat},
 			{"XD", big.NewInt(16), ErrInvalidFormat},
-			{strings.Repeat("0", stdMaxInputLength+1), big.NewInt(10), ErrTooBigInput},
 		}
 
 		for _, tc := range testCases {
@@ -120,6 +119,9 @@ func TestStdLibItoaAtoi(t *testing.T) {
 				_ = s.atoi(ic, []stackitem.Item{stackitem.Make(tc.num), stackitem.Make(tc.base)})
 			})
 		}
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024", func() {
+			_ = s.atoi(ic, []stackitem.Item{stackitem.Make(strings.Repeat("0", stdMaxInputLength+1)), stackitem.Make(big.NewInt(10))})
+		})
 	})
 }
 
@@ -188,7 +190,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Equal(t, stackitem.Make(encoded64), actual)
 	})
 	t.Run("Encode64/error", func(t *testing.T) {
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.base64Encode(ic, bigInputArgs) })
 	})
 	t.Run("Encode64Url", func(t *testing.T) {
@@ -198,7 +200,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Equal(t, stackitem.Make(encoded64Url), actual)
 	})
 	t.Run("Encode64Url/error", func(t *testing.T) {
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.base64UrlEncode(ic, bigInputArgs) })
 	})
 	t.Run("Encode58", func(t *testing.T) {
@@ -208,7 +210,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Equal(t, stackitem.Make(encoded58), actual)
 	})
 	t.Run("Encode58/error", func(t *testing.T) {
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.base58Encode(ic, bigInputArgs) })
 	})
 	t.Run("CheckEncode58", func(t *testing.T) {
@@ -218,7 +220,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Equal(t, stackitem.Make(encoded58Check), actual)
 	})
 	t.Run("CheckEncode58/error", func(t *testing.T) {
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.base58CheckEncode(ic, bigInputArgs) })
 	})
 	t.Run("Decode64/positive", func(t *testing.T) {
@@ -255,7 +257,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Panics(t, func() {
 			_ = s.base64Decode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.base64Decode(ic, bigInputArgs) })
 	})
 	t.Run("Decode64Url/positive", func(t *testing.T) {
@@ -280,7 +282,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Panics(t, func() {
 			_ = s.base64UrlDecode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.base64UrlDecode(ic, bigInputArgs) })
 	})
 	t.Run("Decode58/positive", func(t *testing.T) {
@@ -296,7 +298,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Panics(t, func() {
 			_ = s.base58Decode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.base58Decode(ic, bigInputArgs) })
 	})
 	t.Run("CheckDecode58/positive", func(t *testing.T) {
@@ -312,7 +314,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Panics(t, func() {
 			_ = s.base58CheckDecode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.base58CheckDecode(ic, bigInputArgs) })
 	})
 }
@@ -474,10 +476,10 @@ func TestMemoryCompare(t *testing.T) {
 		s1 := stackitem.Make(strings.Repeat("x", stdMaxInputLength+1))
 		s2 := stackitem.Make("xxx")
 
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.memoryCompare(ic, []stackitem.Item{s1, s2}) })
 
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.memoryCompare(ic, []stackitem.Item{s2, s1}) })
 	})
 }
@@ -554,22 +556,22 @@ func TestMemorySearch(t *testing.T) {
 		start := stackitem.Make(1)
 		b := stackitem.Make(true)
 
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.memorySearch2(ic, []stackitem.Item{s1, s2}) })
 
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.memorySearch2(ic, []stackitem.Item{s2, s1}) })
 
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.memorySearch3(ic, []stackitem.Item{s1, s2, start}) })
 
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.memorySearch3(ic, []stackitem.Item{s2, s1, start}) })
 
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.memorySearch4(ic, []stackitem.Item{s1, s2, start, b}) })
 
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.memorySearch4(ic, []stackitem.Item{s2, s1, start, b}) })
 	})
 }
@@ -613,7 +615,7 @@ func TestStringSplit(t *testing.T) {
 		s1 := stackitem.Make(strings.Repeat("x", stdMaxInputLength+1))
 		s2 := stackitem.Make("xxx")
 
-		require.PanicsWithError(t, ErrTooBigInput.Error(),
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024",
 			func() { s.stringSplit2(ic, []stackitem.Item{s1, s2}) })
 	})
 }
@@ -656,7 +658,7 @@ func TestStd_HexEncodeDecode(t *testing.T) {
 
 	t.Run("hexEncode error big input", func(t *testing.T) {
 		bigBytes := make([]byte, stdMaxInputLength+1)
-		require.PanicsWithError(t, ErrTooBigInput.Error(), func() {
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024", func() {
 			_ = s.hexEncode(nil, []stackitem.Item{stackitem.Make(bigBytes)})
 		})
 	})
@@ -682,7 +684,7 @@ func TestStd_HexEncodeDecode(t *testing.T) {
 
 	t.Run("hexDecode error big input", func(t *testing.T) {
 		bigBytes := []stackitem.Item{stackitem.NewByteArray(make([]byte, stdMaxInputLength+1))}
-		require.PanicsWithError(t, ErrTooBigInput.Error(), func() {
+		require.PanicsWithError(t, "input is too big: 1025 vs 1024", func() {
 			_ = s.hexDecode(nil, bigBytes)
 		})
 	})

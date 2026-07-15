@@ -64,7 +64,7 @@ const (
 	// https://github.com/neo-project/neo/pull/4449).
 	HFGorgon // Gorgon
 	// HFHuyao represents hard-fork introduced in #4330 (ported from
-	// https://github.com/neo-project/neo/pull/4571).
+	// https://github.com/neo-project/neo/pull/4571), #4327.
 	HFHuyao // Huyao
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
