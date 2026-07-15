@@ -52,11 +52,14 @@ func CompileSource(t testing.TB, sender util.Uint160, src io.Reader, opts *compi
 }
 
 // CompileFile compiles a contract from the file and returns its NEF, manifest and hash.
-// It uses contracts cashes.
+// It uses contracts cache (keyed by source and config path) for NEF/manifest/debug
+// info (hash is sender-dependent, so always recalculated according to parameter).
 func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath string) *Contract {
 	cacheKey := srcPath + "|" + configPath
 	if c, ok := contracts[cacheKey]; ok {
-		return c
+		var cc = *c
+		cc.Hash = state.CreateContractHash(sender, c.NEF.Checksum, c.Manifest.Name)
+		return &cc
 	}
 
 	// nef.NewFile() cares about version a lot.
