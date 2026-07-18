@@ -844,8 +844,8 @@ func PutUserKey(idKey []byte, addr interop.Hash160, data []byte, role int) {
 	require.NoError(t, err)
 	c.Invoke(t, nil, "putUserKey", []byte("user-key"), h.BytesBE(), []byte("user-data"), 42)
 	c.Invoke(t, stackitem.NewStruct([]stackitem.Item{
-		stackitem.Make(h),
-		stackitem.Make([]byte("user-data")),
+		stackitem.NewBuffer(h.BytesBE()),
+		stackitem.NewBuffer([]byte("user-data")),
 		stackitem.Make(42),
 	}), "getUserKey", []byte("user-key"))
 	c.Invoke(t, nil, "getUserKey", []byte("unknown-key"))
