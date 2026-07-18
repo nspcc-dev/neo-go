@@ -1094,6 +1094,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.saveSequencePoint(n.Pos(), n.End())
 		}
 		switch fun := n.Fun.(type) {
+		case *ast.CallExpr:
+			// The function being called is the result of another call
+			// (e.g. an immediately-invoked function literal like f()()).
+			// Evaluate it and invoke the returned function value.
+			isLiteral = true
 		case *ast.Ident:
 			f, ok = c.getFuncFromIdent(fun)
 			isBuiltin = isGoBuiltin(fun.Name)

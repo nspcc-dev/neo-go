@@ -31,6 +31,17 @@ func TestCallInPlace(t *testing.T) {
 	eval(t, src, big.NewInt(111))
 }
 
+func TestImmediatelyInvokedFuncLitReturningFunc(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		f := func() func() int {
+			return func() int { return 42 }
+		}
+		return f()()
+	}`
+	eval(t, src, big.NewInt(42))
+}
+
 func TestLambdaInDebugInfo(t *testing.T) {
 	testCases := []struct {
 		name      string
