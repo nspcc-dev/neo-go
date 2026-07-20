@@ -1040,6 +1040,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.convertStruct(n, false)
 		case *types.Map:
 			c.convertMap(n)
+		case *types.Pointer:
+			if _, ok := typ.Elem().Underlying().(*types.Struct); !ok {
+				c.prog.Err = fmt.Errorf("'&' can be used only with struct literals")
+				return nil
+			}
+			c.convertStruct(n, true)
 		default:
 			if tn, ok := t.(*types.Named); ok && isInteropPath(tn.String()) {
 				st, _, _, _ := scAndVMInteropTypeFromExpr(tn, false)
@@ -2293,7 +2299,11 @@ func getStruct(typ types.Type) (*types.Struct, bool) {
 func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 	// Create a new structScope to initialize and store
 	// the positions of its variables.
-	strct, ok := c.typeOf(lit).Underlying().(*types.Struct)
+	t := c.typeOf(lit)
+	if pt, ok := t.Underlying().(*types.Pointer); ok {
+		t = pt.Elem()
+	}
+	strct, ok := t.Underlying().(*types.Struct)
 	if !ok {
 		c.prog.Err = fmt.Errorf("the given literal is not of type struct: %v", lit)
 		return

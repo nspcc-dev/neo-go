@@ -66,3 +66,13 @@ func TestStructArgCopy(t *testing.T) {
 		eval(t, src, big.NewInt(3))
 	})
 }
+
+func TestElidedLiterals(t *testing.T) {
+	src := `package foo
+		type S struct { n int }
+		func Main() int {
+			arr := []*S{{n: 42}}
+			return arr[0].n
+		}`
+	eval(t, src, big.NewInt(42))
+}
