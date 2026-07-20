@@ -2448,7 +2448,7 @@ func (c *codegen) convertByteSliceOrArray(elems map[int64]ast.Expr, size int64) 
 	c.emitConvert(stackitem.BufferT)
 	for _, i := range varIndices {
 		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-		emit.Int(c.prog.BinWriter, int64(i))
+		emit.Int(c.prog.BinWriter, i)
 		ast.Walk(c, elems[i])
 		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
 	}
