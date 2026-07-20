@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -71,8 +72,9 @@ func TestOracle_Request(t *testing.T) {
 
 	// Designate single Oracle node.
 	oracleNode := e.NewAccount(t)
-	designationCommitteeInvoker.Invoke(t, stackitem.Null{}, "designateAsRole", int(noderoles.Oracle), []any{oracleNode.(neotest.SingleSigner).Account().PublicKey().Bytes()})
-	err = oracleNode.(neotest.SingleSigner).Account().ConvertMultisig(1, []*keys.PublicKey{oracleNode.(neotest.SingleSigner).Account().PublicKey()})
+	oracleNodeKey := oracleNode.(neotest.SingleSigner).Account().PublicKey()
+	designationCommitteeInvoker.Invoke(t, stackitem.Null{}, "designateAsRole", int(noderoles.Oracle), []any{oracleNodeKey.Bytes()})
+	err = oracleNode.(neotest.SingleSigner).Account().ConvertMultisig(1, []*keys.PublicKey{oracleNodeKey})
 	require.NoError(t, err)
 	oracleNodeMulti := neotest.NewMultiSigner(oracleNode.(neotest.SingleSigner).Account())
 	gasCommitteeInvoker.Invoke(t, true, "transfer", gasCommitteeInvoker.CommitteeHash, oracleNodeMulti.ScriptHash(), 100_0000_0000, nil)
@@ -175,5 +177,22 @@ func TestOracle_Request(t *testing.T) {
 		t.Run("disallowed callback", func(t *testing.T) {
 			putOracleRequest(t, helperValidatorInvoker, "url", nil, "_deploy", nil, 1000_0000, "disallowed callback method (starts with '_')")
 		})
+	})
+	// It ruins the oracle key designation, so should be the last one.
+	t.Run("PostPersist Fees", func(t *testing.T) {
+		putOracleRequest(t, helperValidatorInvoker, "url", nil, "handle", []byte{0}, gasForResponse)
+
+		balanceBefore := e.Chain.GetUtilityTokenBalance(oracleNodeKey.GetScriptHash(), util.Uint160{})
+		balanceAfter := new(big.Int).Add(balanceBefore, big.NewInt(native.DefaultOracleRequestPrice))
+
+		newOracle, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		tx1 := prepareResponseTx(t, 3)
+		tx2 := designationCommitteeInvoker.PrepareInvoke(t, "designateAsRole", int(noderoles.Oracle), []any{newOracle.PublicKey().Bytes()})
+		e.AddNewBlock(t, tx1, tx2)
+
+		e.CheckHalt(t, tx2.Hash())
+		e.CheckGASBalance(t, newOracle.PublicKey().GetScriptHash(), big.NewInt(0))
+		e.CheckGASBalance(t, oracleNodeKey.GetScriptHash(), balanceAfter)
 	})
 }

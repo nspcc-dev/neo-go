@@ -223,7 +223,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 
 		if nodes == nil {
-			nodes, err = o.GetOracleNodes(ic.DAO)
+			nodes, _, err = o.Desig.GetDesignatedByRole(ic.DAO, noderoles.Oracle, ic.Block.Index)
 			if err != nil {
 				return err
 			}
