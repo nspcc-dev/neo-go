@@ -472,6 +472,10 @@ func (s *Std) stringSplit3(_ *interop.Context, args []stackitem.Item) stackitem.
 func (s *Std) stringSplitAux(str, sep string, removeEmpty bool) []stackitem.Item {
 	var result []stackitem.Item
 
+	if len(sep) == 0 { // C# compat, Go library splits by characters in this case.
+		return append(result, stackitem.Make(str))
+	}
+
 	for s := range strings.SplitSeq(str, sep) {
 		if !removeEmpty || len(s) != 0 {
 			result = append(result, stackitem.Make(s))

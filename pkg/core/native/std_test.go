@@ -607,8 +607,8 @@ func TestStringSplit(t *testing.T) {
 		}
 	}
 
-	check(t, []string{"a", "b", "c"}, "abc", "", nil)
-	check(t, []string{"a", "b", "c"}, "abc", "", true)
+	check(t, []string{"abc"}, "abc", "", nil)
+	check(t, []string{"abc"}, "abc", "", true)
 	check(t, []string{"a", "c", "", "", "d"}, "abcbbbd", "b", nil)
 	check(t, []string{"a", "c", "", "", "d"}, "abcbbbd", "b", false)
 	check(t, []string{"a", "c", "d"}, "abcbbbd", "b", true)
