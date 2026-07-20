@@ -277,6 +277,9 @@ func (s *Std) atoi10(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 }
 
 func atoi10Aux(num string) *big.Int {
+	if len(num) == 0 {
+		panic(ErrInvalidFormat)
+	}
 	bi, ok := new(big.Int).SetString(num, 10)
 	if !ok {
 		panic(ErrInvalidFormat)
@@ -295,6 +298,9 @@ func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	case 10:
 		bi = atoi10Aux(num)
 	case 16:
+		if len(num) == 0 {
+			panic(ErrInvalidFormat)
+		}
 		changed := len(num)%2 != 0
 		if changed {
 			num = "0" + num

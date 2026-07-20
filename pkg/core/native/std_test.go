@@ -105,6 +105,8 @@ func TestStdLibItoaAtoi(t *testing.T) {
 			base *big.Int
 			err  error
 		}{
+			{"", big.NewInt(10), ErrInvalidFormat},
+			{"", big.NewInt(16), ErrInvalidFormat},
 			{"1", big.NewInt(13), ErrInvalidBase},
 			{"1", new(big.Int).Add(big.NewInt(math.MaxInt64), big.NewInt(16)), ErrInvalidBase},
 			{"1_000", big.NewInt(10), ErrInvalidFormat},
