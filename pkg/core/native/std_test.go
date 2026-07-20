@@ -165,6 +165,9 @@ func TestStdLibJSON(t *testing.T) {
 			require.Panics(t, func() {
 				_ = s.jsonDeserialize(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 			})
+			require.Panics(t, func() {
+				_ = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("{\"z\":100500,\"z\":42}")})
+			})
 		})
 	})
 }

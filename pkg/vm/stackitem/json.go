@@ -306,6 +306,10 @@ func (d *decoder) decodeMap() (*Map, error) {
 			return m, nil
 		}
 
+		var keyItem = NewByteArray([]byte(k))
+		if m.Has(keyItem) {
+			return nil, errors.New("duplicate object property")
+		}
 		d.count--
 		if d.count < 0 {
 			return nil, errTooBigElements
@@ -314,7 +318,7 @@ func (d *decoder) decodeMap() (*Map, error) {
 		if err != nil {
 			return nil, err
 		}
-		m.Add(NewByteArray([]byte(k)), val)
+		m.Add(keyItem, val)
 	}
 }
 

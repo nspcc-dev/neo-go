@@ -94,6 +94,7 @@ func TestFromToJSON(t *testing.T) {
 		t.Run("InvalidArray", getTestDecodeFunc(`[}`, nil))
 		t.Run("InvalidMap", getTestDecodeFunc(`{]`, nil))
 		t.Run("InvalidMapValue", getTestDecodeFunc(`{"a":{]}`, nil))
+		t.Run("DuplicateMapKeys", getTestDecodeFunc(`{"a":1,"a":2}`, nil))
 		t.Run("AfterArray", getTestDecodeFunc(`[]XX`, nil))
 		t.Run("EncodeBigInteger", func(t *testing.T) {
 			item := NewBigInteger(big.NewInt(MaxAllowedInteger + 1))
