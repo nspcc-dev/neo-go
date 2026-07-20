@@ -779,7 +779,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.ISTYPE:
 		res := v.estack.Pop().Item()
-		v.estack.PushItem(stackitem.Bool(res.Type() == stackitem.Type(parameter[0])))
+		typ := stackitem.Type(parameter[0])
+		if typ == stackitem.AnyT || !typ.IsValid() {
+			panic(fmt.Sprintf("invalid type: %d", parameter[0]))
+		}
+		v.estack.PushItem(stackitem.Bool(res.Type() == typ))
 
 	case opcode.CONVERT:
 		typ := stackitem.Type(parameter[0])
