@@ -48,6 +48,17 @@ func TestFromToJSON(t *testing.T) {
 		t.Run("Scientific", getTestDecodeEncodeFunc(`1e3`, false, 1000))
 		t.Run("Scientific 2", getTestDecodeEncodeFunc(`10e3`, false, 10000))
 		t.Run("Scientific 3", getTestDecodeEncodeFunc(`1000e-3`, false, 1))
+		t.Run("Precision 53", func(t *testing.T) {
+			js := `9007199254740993`
+
+			itm, err := FromJSON([]byte(js), 1, true)
+			require.NoError(t, err)
+			require.Equal(t, Make(9007199254740993), itm)
+
+			itm, err = FromJSON([]byte(js), 1, false)
+			require.NoError(t, err)
+			require.Equal(t, Make(9007199254740992), itm)
+		})
 	})
 	t.Run("Bool", func(t *testing.T) {
 		t.Run("True", getTestDecodeFunc(`true`, true))
