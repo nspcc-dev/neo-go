@@ -272,11 +272,11 @@ func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 
 func (s *Std) atoi10(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	num := toLimitedString(args[0])
-	res := s.atoi10Aux(num)
+	res := atoi10Aux(num)
 	return stackitem.NewBigInteger(res)
 }
 
-func (s *Std) atoi10Aux(num string) *big.Int {
+func atoi10Aux(num string) *big.Int {
 	bi, ok := new(big.Int).SetString(num, 10)
 	if !ok {
 		panic(ErrInvalidFormat)
@@ -293,7 +293,7 @@ func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	var bi *big.Int
 	switch b := base.Int64(); b {
 	case 10:
-		bi = s.atoi10Aux(num)
+		bi = atoi10Aux(num)
 	case 16:
 		changed := len(num)%2 != 0
 		if changed {
