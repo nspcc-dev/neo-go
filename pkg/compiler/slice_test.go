@@ -36,6 +36,27 @@ var sliceTestCases = []testCase{
 		big.NewInt(42),
 	},
 	{
+		"keyed literal with gaps",
+		`func F%d() int {
+			a := []int{0: 36, 3: 2}
+			return a[0] + a[1] + a[2] + a[3] + len(a)
+		}
+		`,
+		big.NewInt(42),
+	},
+	{
+		"slice of structs, keyed literal with gaps",
+		`type S struct {
+			n int
+		}
+		func F%d() int {
+			a := []S{0: {36}, 3: {2}}
+			return a[0].n + a[1].n + a[2].n + a[3].n + len(a)
+		}
+		`,
+		big.NewInt(42),
+	},
+	{
 		"increase slice element with +=",
 		`func F%d() int {
 			a := []int{1, 2, 3}
@@ -451,6 +472,18 @@ var sliceTestCases = []testCase{
 		`,
 		big.NewInt(42),
 	},
+	{
+		"conversion to []int with modification",
+		`type MyInts []int
+		func F%d() int {
+			myInts := MyInts{-1}
+			ints := []int(myInts)
+			ints[0] = 42
+			return myInts[0]
+		}
+		`,
+		big.NewInt(42),
+	},
 }
 
 func TestSliceOperations(t *testing.T) {
@@ -549,6 +582,17 @@ func TestSubsliceCompound(t *testing.T) {
 	}`
 	_, err := compiler.Compile("foo.go", strings.NewReader(src))
 	require.ErrorContains(t, err, "subslices are supported only for []byte and string")
+}
+
+func TestRuneSliceConversionIsNotSupported(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		s := "abc"
+		r := []rune(s)
+		return len(r)
+	}`
+	_, err := compiler.Compile("foo.go", strings.NewReader(src))
+	require.ErrorContains(t, err, "conversion from string to []rune is not supported")
 }
 
 func TestSubsliceFromStructField(t *testing.T) {

@@ -78,9 +78,17 @@ func isCompoundSlice(typ types.Type) bool {
 	return ok && !isByte(t.Elem())
 }
 
-func isByteSlice(typ types.Type) bool {
-	t, ok := typ.Underlying().(*types.Slice)
-	return ok && isByte(t.Elem())
+// isByteSliceOrArray reports whether typ is []byte or [N]byte, both of which
+// are represented as a Buffer.
+func isByteSliceOrArray(typ types.Type) bool {
+	switch t := typ.Underlying().(type) {
+	case *types.Slice:
+		return isByte(t.Elem())
+	case *types.Array:
+		return isByte(t.Elem())
+	default:
+		return false
+	}
 }
 
 func toNeoType(typ types.Type) stackitem.Type {
@@ -109,6 +117,11 @@ func toNeoType(typ types.Type) stackitem.Type {
 			return stackitem.BufferT
 		}
 		return stackitem.ArrayT
+	case *types.Array:
+		if isByte(t.Elem()) {
+			return stackitem.BufferT
+		}
+		return stackitem.StructT
 	case *types.Pointer:
 		if _, ok := t.Elem().Underlying().(*types.Struct); ok {
 			return stackitem.StructT

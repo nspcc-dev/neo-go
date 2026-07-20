@@ -36,7 +36,7 @@ a dialect of Go rather than a complete port of the language:
  * generics are not supported, but eventually will be (at least, partially), ref. https://github.com/nspcc-dev/neo-go/issues/2376.
  * `~` token is not supported
  * `comparable` is not supported
- * arrays (`[4]byte`) are not supported (https://github.com/nspcc-dev/neo-go/issues/3524)
+ * `[]rune(s)` conversion is not supported
  * `min()` and `max()` are supported for integer types only.
  * `for` loop variables are treated in pre-Go 1.22 way: a single instance is created for the whole loop
 
