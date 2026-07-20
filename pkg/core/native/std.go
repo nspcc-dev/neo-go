@@ -230,7 +230,7 @@ func (s *Std) jsonDeserialize(ic *interop.Context, args []stackitem.Item) stacki
 		panic(err)
 	}
 
-	item, err := stackitem.FromJSON(data, stackitem.MaxDeserialized, ic.IsHardforkEnabled(config.HFBasilisk))
+	item, err := stackitem.FromJSON(data, stackitem.MaxDeserialized, false)
 	if err != nil {
 		panic(err)
 	}
