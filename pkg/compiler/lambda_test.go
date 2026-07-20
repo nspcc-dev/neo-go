@@ -42,6 +42,30 @@ func TestImmediatelyInvokedFuncLitReturningFunc(t *testing.T) {
 	eval(t, src, big.NewInt(42))
 }
 
+func TestImmediatelyInvokedFuncLitReturningFuncWithConversion(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		f := func() func() int {
+			return func() int { return 42 }
+		}
+		return (func() int)(f())()
+	}`
+	eval(t, src, big.NewInt(42))
+}
+
+func TestCallFuncFromSliceIndex(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		arr := []func() int {
+			func() int {
+				return 42
+			},
+		}
+		return arr[0]()
+	}`
+	eval(t, src, big.NewInt(42))
+}
+
 func TestLambdaInDebugInfo(t *testing.T) {
 	testCases := []struct {
 		name      string

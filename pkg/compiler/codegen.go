@@ -1099,6 +1099,23 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// (e.g. an immediately-invoked function literal like f()()).
 			// Evaluate it and invoke the returned function value.
 			isLiteral = true
+		case *ast.IndexExpr, *ast.IndexListExpr:
+			// The function being called is produced by an index expression,
+			// e.g. a func stored in a slice/map/array (arr[0]()) or a
+			// generic function instantiation. Evaluate it and invoke the
+			// returned function value.
+			isLiteral = true
+		case *ast.ParenExpr:
+			if c.typeAndValueOf(fun).IsType() {
+				// Parenthesized type conversion, e.g. (func() int)(x).
+				// Conversions between func types are no-ops in NeoVM, so
+				// just evaluate the argument being converted.
+				ast.Walk(c, n.Args[0])
+				return nil
+			}
+			// Parenthesized value of func type that is immediately invoked,
+			// e.g. (f)(). Evaluate it and invoke the returned function value.
+			isLiteral = true
 		case *ast.Ident:
 			f, ok = c.getFuncFromIdent(fun)
 			isBuiltin = isGoBuiltin(fun.Name)
