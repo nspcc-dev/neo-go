@@ -390,6 +390,19 @@ func (c *codegen) emitDefault(t types.Type) {
 		}
 		emit.Int(c.prog.BinWriter, int64(num))
 		emit.Opcodes(c.prog.BinWriter, opcode.PACKSTRUCT)
+	case *types.Array:
+		// [N]byte is zero-filled by allocating a Buffer of the right size directly.
+		if isByte(t.Elem()) {
+			emit.Int(c.prog.BinWriter, t.Len())
+			emit.Opcodes(c.prog.BinWriter, opcode.NEWBUFFER)
+			return
+		}
+		// Non-byte arrays are represented as Struct, not Array.
+		for range t.Len() {
+			c.emitDefault(t.Elem())
+		}
+		emit.Int(c.prog.BinWriter, t.Len())
+		emit.Opcodes(c.prog.BinWriter, opcode.PACKSTRUCT)
 	default:
 		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
 	}
@@ -681,7 +694,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
-				var isMapKeyCheck bool
+				var (
+					isMapKeyCheck bool
+					mapType       *types.Map
+				)
 				// Filter out type assertion with two return values: var i, ok = v.(int)
 				// and map's index expression: var v, ok = myMap["key"]
 				if len(t.Names) == 2 && len(t.Values) == 1 && n.Tok == token.VAR {
@@ -690,9 +706,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						c.prog.Err = err
 						return nil
 					}
-					if isMapKeyCheck = c.checkGetMapValueWithOKFlag(t.Values[0]); isMapKeyCheck {
+					if mapType, isMapKeyCheck = c.getMapTypeWithOKFlag(t.Values[0]); isMapKeyCheck {
 						c.saveExprSequencePoint(t.Values[0])
 						c.emitGetMapValueWithOKFlag(t.Values[0])
+						c.emitCloneIfArray(mapType.Elem())
 					}
 				}
 				multiRet := n.Tok == token.VAR && len(t.Values) != 0 && len(t.Names) != len(t.Values)
@@ -722,7 +739,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 								c.emitDefault(c.typeOf(t.Type))
 							} else if i == 0 || !multiRet {
 								c.saveExprSequencePoint(t.Values[i])
-								ast.Walk(c, t.Values[i])
+								c.walkValue(t.Values[i])
 							}
 							if i == len(t.Names)-1 && len(t.Values) != 0 {
 								// The sequence point includes sign "=".
@@ -761,7 +778,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.AssignStmt:
-		var isMapKeyCheck bool
+		var (
+			isMapKeyCheck bool
+			mapType       *types.Map
+		)
 		// Filter out type assertion with two return values: i, ok = v.(int)
 		// and map's index expression: v, ok = myMap["key"]
 		if len(n.Lhs) == 2 && len(n.Rhs) == 1 && (n.Tok == token.DEFINE || n.Tok == token.ASSIGN) {
@@ -770,7 +790,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.prog.Err = err
 				return nil
 			}
-			isMapKeyCheck = c.checkGetMapValueWithOKFlag(n.Rhs[0])
+			mapType, isMapKeyCheck = c.getMapTypeWithOKFlag(n.Rhs[0])
 		}
 		multiRet := len(n.Rhs) != len(n.Lhs)
 		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
@@ -785,11 +805,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		if isMapKeyCheck {
 			c.saveExprSequencePoint(n.Rhs[0])
 			c.emitGetMapValueWithOKFlag(n.Rhs[0])
+			c.emitCloneIfArray(mapType.Elem())
 		}
 		if !isAssignOp && !isMapKeyCheck {
 			for i := range n.Rhs {
 				c.saveExprSequencePoint(n.Rhs[i])
-				ast.Walk(c, n.Rhs[i])
+				c.walkValue(n.Rhs[i])
 			}
 		}
 		if multiRet {
@@ -870,7 +891,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// first result should be on top of the stack
 			for i := range slices.Backward(n.Results) {
 				c.saveExprSequencePoint(n.Results[i])
-				ast.Walk(c, n.Results[i])
+				c.walkValue(n.Results[i])
 			}
 		}
 
@@ -1040,6 +1061,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.convertStruct(n, false)
 		case *types.Map:
 			c.convertMap(n)
+		case *types.Pointer:
+			if _, ok := typ.Elem().Underlying().(*types.Struct); !ok {
+				c.prog.Err = fmt.Errorf("'&' can be used only with struct literals")
+				return nil
+			}
+			c.convertStruct(n, true)
 		default:
 			if tn, ok := t.(*types.Named); ok && isInteropPath(tn.String()) {
 				st, _, _, _ := scAndVMInteropTypeFromExpr(tn, false)
@@ -1056,17 +1083,29 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					return nil
 				}
 			}
-			ln := len(n.Elts)
+			var (
+				size          int64
+				elemType      types.Type
+				isArray       bool
+				elems, maxIdx = c.collectCompositeLitElements(n)
+			)
+			switch at := typ.(type) {
+			case *types.Array:
+				// Size comes from the type, not the literal.
+				size = at.Len()
+				elemType = at.Elem()
+				isArray = true
+			case *types.Slice:
+				// Size is the highest index used, plus one.
+				size = maxIdx + 1
+				elemType = at.Elem()
+			}
 			// ByteArrays needs a different approach than normal arrays.
-			if isByteSlice(typ) {
-				c.convertByteArray(n.Elts)
+			if isByteSliceOrArray(typ) {
+				c.convertByteSliceOrArray(elems, size)
 				return nil
 			}
-			for i := ln - 1; i >= 0; i-- {
-				ast.Walk(c, n.Elts[i])
-			}
-			emit.Int(c.prog.BinWriter, int64(ln))
-			emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+			c.emitArrayOrSlice(elems, elemType, size, isArray)
 		}
 
 		return nil
@@ -1133,15 +1172,34 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				// If this is a method call we need to walk the AST to load the struct locally.
 				// Otherwise, this is a function call from an imported package and we can call it
 				// directly.
-				ast.Walk(c, fun.X)
+				if _, isPtr := f.decl.Recv.List[0].Type.(*ast.StarExpr); isPtr {
+					// A pointer receiver aliases the caller's variable on purpose.
+					ast.Walk(c, fun.X)
+				} else {
+					c.walkValue(fun.X)
+				}
 				// Don't forget to add 1 extra argument when it's a method.
 				numArgs++
 			}
 		case *ast.ArrayType:
-			// For now we will assume that there are only byte slice conversions.
-			// E.g. []byte("foobar") or []byte(scriptHash).
+			typ := c.typeOf(n).Underlying()
 			ast.Walk(c, n.Args[0])
-			c.emitConvert(stackitem.BufferT)
+
+			if fun.Len == nil {
+				// A slice conversion, e.g. []byte("foobar") or []int(myInts)
+				// where type MyInts []int (a no-op, same underlying Array).
+				elemType := typ.(*types.Slice).Elem()
+				if isByte(elemType) {
+					c.emitConvert(stackitem.BufferT)
+				} else if isString(c.typeOf(n.Args[0])) {
+					c.prog.Err = fmt.Errorf("conversion from string to %s is not supported", typ)
+				}
+				return nil
+			}
+
+			// A conversion to a fixed-size array, e.g. [4]byte(hash) or
+			// [4]int(someSlice), including slice-to-array (Go 1.20).
+			c.emitArrayConversion(typ.(*types.Array))
 			return nil
 		case *ast.InterfaceType:
 			// It's a type conversion into some interface. Programmer is responsible
@@ -1160,12 +1218,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			typ := c.typeOf(arg)
 			_, ok := typ.Underlying().(*types.Struct)
 			if ok && !isInteropPath(typ.String()) {
-				// To clone struct fields we create a new array and append struct to it.
-				// This way even non-pointer struct fields will be copied.
-				emit.Opcodes(c.prog.BinWriter, opcode.NEWARRAY0,
-					opcode.DUP, opcode.ROT, opcode.APPEND,
-					opcode.POPITEM)
+				// Structs are passed by value in Go.
+				c.emitCloneContainer()
 			}
+			c.emitCloneIfArray(typ)
 		}
 		// Do not swap for builtin functions.
 		if !isBuiltin && (f != nil && !isSyscall(f)) {
@@ -1186,7 +1242,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.convertBuiltin(n)
 		case name != "":
 			// Function was not found, thus it can only be an invocation of a func-typed variable or type conversion.
-			// We care only about string conversions because all others are effectively no-op in NeoVM.
+			// We care only about string and fixed-size array conversions because all others are effectively no-op in NeoVM.
 			// E.g. one cannot write `bool(int(a))`, only `int32(int(a))`.
 			var typ = c.typeOf(n.Fun)
 			if typ == nil {
@@ -1195,6 +1251,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			if isString(typ) {
 				c.emitConvert(stackitem.ByteArrayT)
+			} else if arrType, ok := typ.Underlying().(*types.Array); ok {
+				// A conversion via a named array type, e.g. type Arr4 [4]int; Arr4(x).
+				c.emitArrayConversion(arrType)
 			} else if isFunc {
 				c.emitLoadVar("", name)
 				emit.Opcodes(c.prog.BinWriter, opcode.CALLA)
@@ -1507,6 +1566,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					opcode.SWAP, // key should be on top
 					opcode.PICKITEM)
 			}
+			c.emitCloneIfArray(c.typeOf(valExpr))
 			c.emitStoreExpr(valExpr, n.Tok)
 		}
 
@@ -1646,10 +1706,10 @@ func (c *codegen) processDefers() {
 //     be enforced by go parser.
 func (c *codegen) emitExplicitConvert(from, to types.Type) {
 	if isInteropPath(to.String()) {
-		if isByteSlice(from) && !isString(from) {
+		if isByteSliceOrArray(from) && !isString(from) {
 			c.emitConvert(stackitem.ByteArrayT)
 		}
-	} else if isByteSlice(to) && !isByteSlice(from) {
+	} else if isByteSliceOrArray(to) && !isByteSliceOrArray(from) {
 		c.emitConvert(stackitem.BufferT)
 	} else if isString(to) && !isString(from) {
 		c.emitConvert(stackitem.ByteArrayT)
@@ -1876,6 +1936,125 @@ func (c *codegen) getCallToken(hash util.Uint160, method string, pcount int, has
 	return uint16(len(c.callTokens) - 1), nil
 }
 
+// collectCompositeLitElements resolves the elements of an array or slice
+// composite literal to their target indices, honoring keyed elements
+// (e.g. [4]int{2: 40}), and returns the highest index seen (-1 if empty).
+func (c *codegen) collectCompositeLitElements(lit *ast.CompositeLit) (map[int64]ast.Expr, int64) {
+	var (
+		elems             = make(map[int64]ast.Expr, len(lit.Elts))
+		cur, maxIdx int64 = 0, -1
+	)
+	for _, el := range lit.Elts {
+		if kv, ok := el.(*ast.KeyValueExpr); ok {
+			cur, _ = constant.Int64Val(c.typeAndValueOf(kv.Key).Value)
+			el = kv.Value
+		}
+		elems[cur] = el
+		if cur > maxIdx {
+			maxIdx = cur
+		}
+		cur++
+	}
+	return elems, maxIdx
+}
+
+// emitArrayOrSlice packs elems into a container of the given size, filling
+// missing indices with the element type's zero value.
+func (c *codegen) emitArrayOrSlice(elems map[int64]ast.Expr, elemType types.Type, size int64, isArray bool) {
+	for i := size - 1; i >= 0; i-- {
+		if expr, ok := elems[i]; ok {
+			ast.Walk(c, expr)
+		} else {
+			c.emitDefault(elemType)
+		}
+	}
+	emit.Int(c.prog.BinWriter, size)
+	if isArray {
+		emit.Opcodes(c.prog.BinWriter, opcode.PACKSTRUCT)
+	} else {
+		emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+	}
+}
+
+// emitArrayConversion converts the array or slice on top of the stack to
+// arrType, keeping only its first arrType.Len() elements; used both for the
+// literal [N]T(x) syntax and for conversions via a named array type.
+func (c *codegen) emitArrayConversion(arrType *types.Array) {
+	size := arrType.Len()
+
+	if isByte(arrType.Elem()) {
+		// SUBSTR itself panics if the source has fewer than size bytes.
+		emit.Opcodes(c.prog.BinWriter, opcode.PUSH0)
+		emit.Int(c.prog.BinWriter, size)
+		emit.Opcodes(c.prog.BinWriter, opcode.SUBSTR)
+		c.emitConvert(stackitem.BufferT)
+		return
+	}
+
+	// No opcode truncates an array, so the length has to be checked
+	// explicitly before copying the first size elements.
+	emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.SIZE)
+	emit.Int(c.prog.BinWriter, size)
+	emit.Opcodes(c.prog.BinWriter, opcode.GE)
+	emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 1})
+	emit.Opcodes(c.prog.BinWriter, opcode.ABORT)
+	c.emitSubArray(0, size)
+}
+
+// emitSubArray replaces an array or slice on top of the stack with a new
+// Struct holding its size elements starting at idx, copied one by one via
+// PICKITEM/APPEND.
+func (c *codegen) emitSubArray(idx, size int64) {
+	emit.Opcodes(c.prog.BinWriter, opcode.NEWSTRUCT0)
+	emit.Int(c.prog.BinWriter, size)
+	emit.Int(c.prog.BinWriter, idx)
+	beforeIteration := c.newLabel()
+	c.setLabel(beforeIteration)
+	emit.Opcodes(c.prog.BinWriter, opcode.OVER, opcode.OVER)
+	afterIteration := c.newLabel()
+	emit.Jmp(c.prog.BinWriter, opcode.JMPLEL, afterIteration)
+	emit.Opcodes(c.prog.BinWriter,
+		opcode.PUSH2, opcode.PICK, opcode.OVER, opcode.PUSH5, opcode.PICK,
+		opcode.SWAP, opcode.PICKITEM, opcode.APPEND, opcode.INC,
+	)
+	emit.Jmp(c.prog.BinWriter, opcode.JMPL, beforeIteration)
+	c.setLabel(afterIteration)
+	emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.DROP, opcode.NIP)
+}
+
+// emitCloneContainer clones the Struct value on top of the stack: APPEND
+// clones any Struct item it's given, so stash it in a throwaway array and
+// pull it back out with POPITEM.
+func (c *codegen) emitCloneContainer() {
+	emit.Opcodes(c.prog.BinWriter, opcode.NEWARRAY0,
+		opcode.DUP, opcode.ROT, opcode.APPEND,
+		opcode.POPITEM)
+}
+
+// emitCloneIfArray clones the value on top of the stack if typ is a
+// fixed-size array.
+func (c *codegen) emitCloneIfArray(typ types.Type) {
+	if typ == nil {
+		return
+	}
+	arrType, ok := typ.Underlying().(*types.Array)
+	if !ok {
+		return
+	}
+	if isByte(arrType.Elem()) {
+		emit.Int(c.prog.BinWriter, arrType.Len())
+		emit.Opcodes(c.prog.BinWriter, opcode.LEFT)
+		return
+	}
+	c.emitCloneContainer()
+}
+
+// walkValue walks e and clones the result if it's an array.
+func (c *codegen) walkValue(e ast.Expr) {
+	ast.Walk(c, e)
+	c.emitCloneIfArray(c.typeOf(e))
+}
+
 func (c *codegen) convertSyscall(f *funcScope, expr *ast.CallExpr) {
 	var callArgs = expr.Args[1:]
 
@@ -1946,7 +2125,7 @@ func (c *codegen) convertSyscall(f *funcScope, expr *ast.CallExpr) {
 
 // emitSliceHelper emits 3 items on stack: slice, its first index, and its size.
 func (c *codegen) emitSliceHelper(e ast.Expr) {
-	if !isByteSlice(c.typeOf(e)) {
+	if !isByteSliceOrArray(c.typeOf(e)) {
 		c.prog.Err = fmt.Errorf("copy is supported only for byte-slices")
 		return
 	}
@@ -2013,7 +2192,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 				return
 			}
 			ast.Walk(c, expr.Args[1])
-			if isByteSlice(typ) {
+			if isByteSliceOrArray(typ) {
 				emit.Opcodes(c.prog.BinWriter, opcode.NEWBUFFER)
 			} else {
 				emit.Opcodes(c.prog.BinWriter, opcode.DUP)
@@ -2041,13 +2220,17 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		typ := c.typeOf(arg)
 		ast.Walk(c, arg)
 		emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.ISNULL)
-		if isByteSlice(typ) {
+		if isByteSliceOrArray(typ) {
 			emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 3})
 			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.PUSHDATA1, 0)
 			if expr.Ellipsis.IsValid() {
 				ast.Walk(c, expr.Args[1])
 			} else {
-				c.convertByteArray(expr.Args[1:])
+				elems := make(map[int64]ast.Expr)
+				for i := range expr.Args[1:] {
+					elems[int64(i)] = expr.Args[i+1]
+				}
+				c.convertByteSliceOrArray(elems, int64(len(expr.Args)-1))
 			}
 			emit.Opcodes(c.prog.BinWriter, opcode.CAT)
 		} else {
@@ -2212,13 +2395,15 @@ func (c *codegen) emitConvert(typ stackitem.Type) {
 	}
 }
 
-func (c *codegen) checkGetMapValueWithOKFlag(expr ast.Expr) bool {
+// mapTypeWithOKFlag reports whether expr is a map index expression used in
+// a comma-ok context, returning the map's type if so.
+func (c *codegen) getMapTypeWithOKFlag(expr ast.Expr) (*types.Map, bool) {
 	idxExpr, ok := expr.(*ast.IndexExpr)
 	if !ok {
-		return false
+		return nil, false
 	}
-	_, ok = c.typeOf(idxExpr.X).Underlying().(*types.Map)
-	return ok
+	typ, ok := c.typeOf(idxExpr.X).Underlying().(*types.Map)
+	return typ, ok
 }
 
 func (c *codegen) emitGetMapValueWithOKFlag(expr ast.Expr) {
@@ -2245,11 +2430,13 @@ func (c *codegen) emitGetMapValueWithOKFlag(expr ast.Expr) {
 	)
 }
 
-func (c *codegen) convertByteArray(elems []ast.Expr) {
-	buf := make([]byte, len(elems))
-	varIndices := []int{}
-	for i := range elems {
-		t := c.typeAndValueOf(elems[i])
+// convertByteSliceOrArray emits a Buffer of the given size, filling constant
+// elements in place and patching variable ones in with SETITEM afterwards.
+func (c *codegen) convertByteSliceOrArray(elems map[int64]ast.Expr, size int64) {
+	buf := make([]byte, size)
+	var varIndices []int64
+	for i, expr := range elems {
+		t := c.typeAndValueOf(expr)
 		if t.Value != nil {
 			val, _ := constant.Int64Val(t.Value)
 			buf[i] = byte(val)
@@ -2261,7 +2448,7 @@ func (c *codegen) convertByteArray(elems []ast.Expr) {
 	c.emitConvert(stackitem.BufferT)
 	for _, i := range varIndices {
 		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-		emit.Int(c.prog.BinWriter, int64(i))
+		emit.Int(c.prog.BinWriter, i)
 		ast.Walk(c, elems[i])
 		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
 	}
@@ -2293,7 +2480,11 @@ func getStruct(typ types.Type) (*types.Struct, bool) {
 func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 	// Create a new structScope to initialize and store
 	// the positions of its variables.
-	strct, ok := c.typeOf(lit).Underlying().(*types.Struct)
+	t := c.typeOf(lit)
+	if pt, ok := t.Underlying().(*types.Pointer); ok {
+		t = pt.Elem()
+	}
+	strct, ok := t.Underlying().(*types.Struct)
 	if !ok {
 		c.prog.Err = fmt.Errorf("the given literal is not of type struct: %v", lit)
 		return

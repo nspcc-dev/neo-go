@@ -19,6 +19,19 @@ func SumSquared(a, b int) int {
 	return sum(a, b) * (a + b)
 }
 
+func MutateArray(a [2]int) {
+	a[0] = -1
+	if a[0] != -1 {
+		panic("unreachable")
+	}
+}
+
+func MutateArrays(arrs ...[2]int) {
+	for i := range arrs {
+		arrs[i][0] = -1
+	}
+}
+
 var A = 1
 
 func GetSumSameName() int {

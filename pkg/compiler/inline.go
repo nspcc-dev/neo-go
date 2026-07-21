@@ -78,7 +78,8 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 			break
 		}
 		name := sig.Params().At(i).Name()
-		if !c.hasCalls(n.Args[i]) {
+		_, isArr := c.typeOf(n.Args[i]).Underlying().(*types.Array)
+		if !isArr && !c.hasCalls(n.Args[i]) {
 			// If argument contains no calls, we save context and traverse the expression
 			// when argument is emitted.
 			c.scope.vars.locals = newScope
@@ -90,7 +91,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 			continue
 		}
 
-		ast.Walk(c, n.Args[i])
+		c.walkValue(n.Args[i])
 		c.scope.vars.locals = newScope
 		c.scope.newLocal(name)
 		c.emitStoreVar("", name)
@@ -101,7 +102,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 		// if they are provided directly i.e. without `...`
 		c.scope.vars.locals = oldScope
 		for i := sig.Params().Len() - 1; i < len(n.Args); i++ {
-			ast.Walk(c, n.Args[i])
+			c.walkValue(n.Args[i])
 			// In case of runtime.Notify, its arguments need to be converted to proper type.
 			// i's initial value is 1 (variadic args start).
 			if eventParams != nil && eventParams[i-1] != nil {
