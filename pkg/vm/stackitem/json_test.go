@@ -45,6 +45,9 @@ func TestFromToJSON(t *testing.T) {
 		t.Run("ExpFloat", getTestDecodeEncodeFunc(`1.2345e+3`, false, nil)) // float value, parsing should fail for it.
 		t.Run("Negative", getTestDecodeFunc(`-4`, -4))
 		t.Run("Positive", getTestDecodeFunc(`123`, 123))
+		t.Run("Scientific", getTestDecodeEncodeFunc(`1e3`, false, 1000))
+		t.Run("Scientific 2", getTestDecodeEncodeFunc(`10e3`, false, 10000))
+		t.Run("Scientific 3", getTestDecodeEncodeFunc(`1000e-3`, false, 1))
 	})
 	t.Run("Bool", func(t *testing.T) {
 		t.Run("True", getTestDecodeFunc(`true`, true))

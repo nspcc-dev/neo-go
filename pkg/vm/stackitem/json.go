@@ -239,7 +239,7 @@ func (d *decoder) decode() (Item, error) {
 			num *big.Int
 			ok  bool
 		)
-		isScientific := strings.Contains(ts, "e+") || strings.Contains(ts, "E+")
+		isScientific := strings.ContainsAny(ts, "eE")
 		if isScientific {
 			// As a special case numbers like 2.8e+22 are allowed (SetString rejects them).
 			// That's the way how C# code works.
