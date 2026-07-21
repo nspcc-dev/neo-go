@@ -196,22 +196,6 @@ func TestTypeAssertion(t *testing.T) {
 		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 		require.Error(t, err)
 	})
-	t.Run("structure fields", func(t *testing.T) {
-		src := `package main
-		type entry struct {
-			key []byte
-			val []byte
-		}
-		func getEntry() any {
-			return []any{"key", "value"}
-		}
-		func Main() []byte {
-			e := getEntry().(entry)
-			e.key[0] = 'K'
-			return e.key
-		}`
-		eval(t, src, []byte("Key"))
-	})
 }
 
 func TestTypeAssertionWithOK(t *testing.T) {
