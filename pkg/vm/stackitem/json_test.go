@@ -45,6 +45,20 @@ func TestFromToJSON(t *testing.T) {
 		t.Run("ExpFloat", getTestDecodeEncodeFunc(`1.2345e+3`, false, nil)) // float value, parsing should fail for it.
 		t.Run("Negative", getTestDecodeFunc(`-4`, -4))
 		t.Run("Positive", getTestDecodeFunc(`123`, 123))
+		t.Run("Scientific", getTestDecodeEncodeFunc(`1e3`, false, 1000))
+		t.Run("Scientific 2", getTestDecodeEncodeFunc(`10e3`, false, 10000))
+		t.Run("Scientific 3", getTestDecodeEncodeFunc(`1000e-3`, false, 1))
+		t.Run("Precision 53", func(t *testing.T) {
+			js := `9007199254740993`
+
+			itm, err := FromJSON([]byte(js), 1, true)
+			require.NoError(t, err)
+			require.Equal(t, Make(9007199254740993), itm)
+
+			itm, err = FromJSON([]byte(js), 1, false)
+			require.NoError(t, err)
+			require.Equal(t, Make(9007199254740992), itm)
+		})
 	})
 	t.Run("Bool", func(t *testing.T) {
 		t.Run("True", getTestDecodeFunc(`true`, true))
@@ -94,6 +108,7 @@ func TestFromToJSON(t *testing.T) {
 		t.Run("InvalidArray", getTestDecodeFunc(`[}`, nil))
 		t.Run("InvalidMap", getTestDecodeFunc(`{]`, nil))
 		t.Run("InvalidMapValue", getTestDecodeFunc(`{"a":{]}`, nil))
+		t.Run("DuplicateMapKeys", getTestDecodeFunc(`{"a":1,"a":2}`, nil))
 		t.Run("AfterArray", getTestDecodeFunc(`[]XX`, nil))
 		t.Run("EncodeBigInteger", func(t *testing.T) {
 			item := NewBigInteger(big.NewInt(MaxAllowedInteger + 1))

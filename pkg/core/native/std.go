@@ -230,7 +230,7 @@ func (s *Std) jsonDeserialize(ic *interop.Context, args []stackitem.Item) stacki
 		panic(err)
 	}
 
-	item, err := stackitem.FromJSON(data, stackitem.MaxDeserialized, ic.IsHardforkEnabled(config.HFBasilisk))
+	item, err := stackitem.FromJSON(data, stackitem.MaxDeserialized, false)
 	if err != nil {
 		panic(err)
 	}
@@ -272,11 +272,14 @@ func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 
 func (s *Std) atoi10(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	num := toLimitedString(args[0])
-	res := s.atoi10Aux(num)
+	res := atoi10Aux(num)
 	return stackitem.NewBigInteger(res)
 }
 
-func (s *Std) atoi10Aux(num string) *big.Int {
+func atoi10Aux(num string) *big.Int {
+	if len(num) == 0 {
+		panic(ErrInvalidFormat)
+	}
 	bi, ok := new(big.Int).SetString(num, 10)
 	if !ok {
 		panic(ErrInvalidFormat)
@@ -293,8 +296,11 @@ func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	var bi *big.Int
 	switch b := base.Int64(); b {
 	case 10:
-		bi = s.atoi10Aux(num)
+		bi = atoi10Aux(num)
 	case 16:
+		if len(num) == 0 {
+			panic(ErrInvalidFormat)
+		}
 		changed := len(num)%2 != 0
 		if changed {
 			num = "0" + num
@@ -465,6 +471,10 @@ func (s *Std) stringSplit3(_ *interop.Context, args []stackitem.Item) stackitem.
 
 func (s *Std) stringSplitAux(str, sep string, removeEmpty bool) []stackitem.Item {
 	var result []stackitem.Item
+
+	if len(sep) == 0 { // C# compat, Go library splits by characters in this case.
+		return append(result, stackitem.Make(str))
+	}
 
 	for s := range strings.SplitSeq(str, sep) {
 		if !removeEmpty || len(s) != 0 {

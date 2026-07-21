@@ -105,6 +105,8 @@ func TestStdLibItoaAtoi(t *testing.T) {
 			base *big.Int
 			err  error
 		}{
+			{"", big.NewInt(10), ErrInvalidFormat},
+			{"", big.NewInt(16), ErrInvalidFormat},
 			{"1", big.NewInt(13), ErrInvalidBase},
 			{"1", new(big.Int).Add(big.NewInt(math.MaxInt64), big.NewInt(16)), ErrInvalidBase},
 			{"1_000", big.NewInt(10), ErrInvalidFormat},
@@ -150,11 +152,17 @@ func TestStdLibJSON(t *testing.T) {
 
 	t.Run("JSONDeserialize", func(t *testing.T) {
 		t.Run("Good", func(t *testing.T) {
-			require.NotPanics(t, func() {
-				actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("42")})
-			})
-
+			actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("42")})
 			require.Equal(t, stackitem.Make(42), actual)
+
+			actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("1e3")})
+			require.Equal(t, stackitem.Make(1000), actual)
+
+			actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("1e+3")})
+			require.Equal(t, stackitem.Make(1000), actual)
+
+			actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("9007199254740993")})
+			require.Equal(t, stackitem.Make(9007199254740992), actual)
 		})
 		t.Run("Bad", func(t *testing.T) {
 			require.Panics(t, func() {
@@ -162,6 +170,9 @@ func TestStdLibJSON(t *testing.T) {
 			})
 			require.Panics(t, func() {
 				_ = s.jsonDeserialize(ic, []stackitem.Item{stackitem.NewInterop(nil)})
+			})
+			require.Panics(t, func() {
+				_ = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("{\"z\":100500,\"z\":42}")})
 			})
 		})
 	})
@@ -596,8 +607,8 @@ func TestStringSplit(t *testing.T) {
 		}
 	}
 
-	check(t, []string{"a", "b", "c"}, "abc", "", nil)
-	check(t, []string{"a", "b", "c"}, "abc", "", true)
+	check(t, []string{"abc"}, "abc", "", nil)
+	check(t, []string{"abc"}, "abc", "", true)
 	check(t, []string{"a", "c", "", "", "d"}, "abcbbbd", "b", nil)
 	check(t, []string{"a", "c", "", "", "d"}, "abcbbbd", "b", false)
 	check(t, []string{"a", "c", "d"}, "abcbbbd", "b", true)

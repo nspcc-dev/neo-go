@@ -9,7 +9,6 @@ import (
 	gio "io"
 	"math/big"
 	"strconv"
-	"strings"
 )
 
 // decoder is a wrapper around json.Decoder helping to mimic C# json decoder behavior.
@@ -236,39 +235,25 @@ func (d *decoder) decode() (Item, error) {
 	case json.Number:
 		ts := t.String()
 		var (
-			num *big.Int
-			ok  bool
+			num  *big.Int
+			prec uint = CompatIntegerPrec
 		)
-		isScientific := strings.Contains(ts, "e+") || strings.Contains(ts, "E+")
-		if isScientific {
-			// As a special case numbers like 2.8e+22 are allowed (SetString rejects them).
-			// That's the way how C# code works.
-			var prec uint = CompatIntegerPrec
-			if d.bestIntPrecision {
-				prec = MaxIntegerPrec
-			}
-			f, _, err := big.ParseFloat(ts, 10, prec, big.ToNearestEven)
-			if err != nil {
-				return nil, fmt.Errorf("%w (malformed exp value for int)", ErrInvalidValue)
-			}
-			num = new(big.Int)
-			_, acc := f.Int(num)
-			ok = acc == big.Exact
-		} else {
-			dot := strings.IndexByte(ts, '.')
-			if dot != -1 {
-				// As a special case numbers like 123.000 are allowed (SetString rejects them).
-				// And yes, that's the way C# code works also.
-				for _, r := range ts[dot+1:] {
-					if r != '0' {
-						return nil, fmt.Errorf("%w (real value for int)", ErrInvalidValue)
-					}
-				}
-				ts = ts[:dot]
-			}
-			num, ok = new(big.Int).SetString(ts, 10)
+		// Int.SetString() is more efficient, but there are special
+		// cases requiring additional care for C# compatibility, that's
+		// why we're going through float first:
+		//  * scientific notation, like 2.8e+22
+		//  * integers with fp notation, like 123.000
+		//  * numbers requiring more than 53 bits of mantissa
+		if d.bestIntPrecision {
+			prec = MaxIntegerPrec
 		}
-		if !ok {
+		f, _, err := big.ParseFloat(ts, 10, prec, big.ToNearestEven)
+		if err != nil {
+			return nil, fmt.Errorf("%w (malformed exp value for int)", ErrInvalidValue)
+		}
+		num = new(big.Int)
+		_, acc := f.Int(num)
+		if acc != big.Exact {
 			return nil, fmt.Errorf("%w (integer)", ErrInvalidValue)
 		}
 		return NewBigInteger(num), nil
@@ -306,6 +291,10 @@ func (d *decoder) decodeMap() (*Map, error) {
 			return m, nil
 		}
 
+		var keyItem = NewByteArray([]byte(k))
+		if m.Has(keyItem) {
+			return nil, errors.New("duplicate object property")
+		}
 		d.count--
 		if d.count < 0 {
 			return nil, errTooBigElements
@@ -314,7 +303,7 @@ func (d *decoder) decodeMap() (*Map, error) {
 		if err != nil {
 			return nil, err
 		}
-		m.Add(NewByteArray([]byte(k)), val)
+		m.Add(keyItem, val)
 	}
 }
 
