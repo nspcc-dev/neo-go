@@ -180,14 +180,14 @@ func (o *Oracle) OnPersist(ic *interop.Context) error {
 
 // PostPersist represents `postPersist` method.
 func (o *Oracle) PostPersist(ic *interop.Context) error {
-	p := o.getPriceInternal(ic.DAO)
+	var (
+		nodes      keys.PublicKeys
+		orc, _     = o.Module.Load().(*OracleService)
+		removedIDs []uint64
+		reward     []big.Int
+		single     *big.Int
+	)
 
-	var nodes keys.PublicKeys
-	var reward []big.Int
-	single := big.NewInt(p)
-	var removedIDs []uint64
-
-	orc, _ := o.Module.Load().(*OracleService)
 	for _, tx := range ic.Block.Transactions {
 		resp := getResponse(tx)
 		if resp == nil {
@@ -223,11 +223,12 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 
 		if nodes == nil {
-			nodes, err = o.GetOracleNodes(ic.DAO)
+			nodes, _, err = o.Desig.GetDesignatedByRole(ic.DAO, noderoles.Oracle, ic.Block.Index)
 			if err != nil {
 				return err
 			}
 			reward = make([]big.Int, len(nodes))
+			single = big.NewInt(o.getPriceInternal(ic.DAO))
 		}
 
 		if len(reward) > 0 {
