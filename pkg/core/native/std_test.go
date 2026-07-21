@@ -152,10 +152,7 @@ func TestStdLibJSON(t *testing.T) {
 
 	t.Run("JSONDeserialize", func(t *testing.T) {
 		t.Run("Good", func(t *testing.T) {
-			require.NotPanics(t, func() {
-				actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("42")})
-			})
-
+			actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("42")})
 			require.Equal(t, stackitem.Make(42), actual)
 		})
 		t.Run("Bad", func(t *testing.T) {
