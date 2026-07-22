@@ -31,6 +31,35 @@ func TestCallInPlace(t *testing.T) {
 	eval(t, src, big.NewInt(111))
 }
 
+func TestCallImmediatelyInvokedFunc(t *testing.T) {
+	testCases := []struct {
+		name string
+		body string
+	}{
+		{"call result", `
+			f := func() func() int {
+				return func() int { return 42 }
+			}
+			return f()()`},
+		{"call result with conversion", `
+			f := func() func() int {
+				return func() int { return 42 }
+			}
+			return (func() int)(f())()`},
+		{"slice index", `
+			arr := []func() int {
+				func() int { return 42 },
+			}
+			return arr[0]()`},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := "package foo\nfunc Main() int {\n" + tc.body + "\n}"
+			eval(t, src, big.NewInt(42))
+		})
+	}
+}
+
 func TestLambdaInDebugInfo(t *testing.T) {
 	testCases := []struct {
 		name      string

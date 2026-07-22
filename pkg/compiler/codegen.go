@@ -1133,6 +1133,25 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.saveSequencePoint(n.Pos(), n.End())
 		}
 		switch fun := n.Fun.(type) {
+		case *ast.ParenExpr:
+			if c.typeAndValueOf(fun).IsType() {
+				// Parenthesized type conversion, e.g. (func() int)(x).
+				// Conversions between func types are no-ops in NeoVM, so
+				// just evaluate the argument being converted.
+				ast.Walk(c, n.Args[0])
+				return nil
+			}
+			// Parenthesized value of func type that is immediately invoked,
+			// e.g. (f)(). Same as a function literal: evaluate n.Fun and
+			// invoke the returned function value.
+			isLiteral = true
+		case *ast.FuncLit, *ast.CallExpr, *ast.IndexExpr:
+			// The function being called is itself an expression that leaves
+			// a function value on the stack: a literal (func(){}()), the
+			// result of another call (f()()), or an index into a
+			// collection of funcs (arr[0]()). Same as a function literal:
+			// evaluate n.Fun and invoke the returned value.
+			isLiteral = true
 		case *ast.Ident:
 			f, ok = c.getFuncFromIdent(fun)
 			isBuiltin = isGoBuiltin(fun.Name)
@@ -1206,8 +1225,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// for the conversion to be appropriate, just load the arg.
 			ast.Walk(c, n.Args[0])
 			return nil
-		case *ast.FuncLit:
-			isLiteral = true
 		}
 
 		args := transformArgs(f, n.Fun, isBuiltin, n.Args)
