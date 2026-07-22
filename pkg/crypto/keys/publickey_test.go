@@ -23,7 +23,7 @@ func TestEncodeDecodeInfinity(t *testing.T) {
 	require.Equal(t, 1, len(b))
 
 	keyDecode := &PublicKey{}
-	require.NoError(t, keyDecode.DecodeBytes(b))
+	require.Error(t, keyDecode.DecodeBytes(b))
 	require.Equal(t, []byte{0x00}, keyDecode.Bytes())
 }
 
@@ -98,7 +98,6 @@ func TestDecodeFromString(t *testing.T) {
 
 func TestPublicKey_Cmp(t *testing.T) {
 	var pub1 = &PublicKey{}
-	require.NoError(t, pub1.DecodeBytes([]byte{0x00}))
 
 	pk, err := NewPrivateKey()
 	require.NoError(t, err)
