@@ -553,6 +553,16 @@ func TestCryptoLib_RecoverSecp256K1_Compat(t *testing.T) {
 			msgH: "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
 			sig:  "4e0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c65061140e45aea5034af973410e65cf97651b3f2b976e3fc79c6a93065ed7cb69a2ab5a20",
 		},
+		{
+			// Wrong recId (01->02).
+			msgH: "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
+			sig:  "4e0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c65061140e45aea5034af973410e65cf97651b3f2b976e3fc79c6a93065ed7cb69a2ab5a02",
+		},
+		{
+			// Wrong signature (byte 0 changed).
+			msgH: "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
+			sig:  "ff0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c65061140e45aea5034af973410e65cf97651b3f2b976e3fc79c6a93065ed7cb69a2ab5a01",
+		},
 	} {
 		msgH, err := hex.DecodeString(tc.msgH)
 		require.NoError(t, err)
