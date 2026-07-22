@@ -66,6 +66,14 @@ func TestCryptolib_TestG1_Compat(t *testing.T) {
 		hex.EncodeToString(arr[:]))
 }
 
+func TestCryptolib_BLSDeserializationOfIncorrect(t *testing.T) {
+	c := newCryptolibClient(t)
+	cryptoInvoker := c.WithSigners(c.Committee)
+
+	_, err := cryptoInvoker.TestInvoke(t, "bls12381Deserialize", make([]byte, 42))
+	require.ErrorContains(t, err, "invalid bls12381 point length")
+}
+
 func TestCryptolib_TestG2_Compat(t *testing.T) {
 	c := newCryptolibClient(t)
 	cryptoInvoker := c.WithSigners(c.Committee)
