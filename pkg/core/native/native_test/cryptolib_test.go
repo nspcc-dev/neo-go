@@ -537,6 +537,19 @@ func TestCryptoLib_RecoverSecp256K1_Compat(t *testing.T) {
 		require.NoError(t, err)
 		committeeInvoker.Invoke(t, expected, "recoverSecp256K1", msgH, sig)
 	}
+	for _, tc := range []testCase{
+		{
+			// Wrong recId (01 + 31 "compressed" offset).
+			msgH: "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
+			sig:  "4e0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c65061140e45aea5034af973410e65cf97651b3f2b976e3fc79c6a93065ed7cb69a2ab5a20",
+		},
+	} {
+		msgH, err := hex.DecodeString(tc.msgH)
+		require.NoError(t, err)
+		sig, err := hex.DecodeString(tc.sig)
+		require.NoError(t, err)
+		committeeInvoker.Invoke(t, stackitem.Null{}, "recoverSecp256K1", msgH, sig)
+	}
 }
 
 // TestCryptoLib_RecoverSecp256K1_EIP2098Compat is EIP-2098 compatibility test, ref.
