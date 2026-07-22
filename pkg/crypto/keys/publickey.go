@@ -294,7 +294,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 	// Infinity
 	switch prefix {
 	case 0x00:
-		// noop, initialized to nil
+		r.Err = errors.New("point at infinity is not a valid key")
 		return
 	case 0x02, 0x03:
 		// Compressed public keys
@@ -402,7 +402,7 @@ func (p *PublicKey) VerifyHashable(signature []byte, net uint32, hh hash.Hashabl
 	return p.Verify(signature, digest[:])
 }
 
-// IsInfinity checks if the key is infinite (null, basically).
+// IsInfinity checks if the key is infinite (null or uninitialized, basically).
 func (p *PublicKey) IsInfinity() bool {
 	return p.X == nil && p.Y == nil
 }

@@ -66,6 +66,14 @@ func TestCryptolib_TestG1_Compat(t *testing.T) {
 		hex.EncodeToString(arr[:]))
 }
 
+func TestCryptolib_BLSDeserializationOfIncorrect(t *testing.T) {
+	c := newCryptolibClient(t)
+	cryptoInvoker := c.WithSigners(c.Committee)
+
+	_, err := cryptoInvoker.TestInvoke(t, "bls12381Deserialize", make([]byte, 42))
+	require.ErrorContains(t, err, "invalid bls12381 point length")
+}
+
 func TestCryptolib_TestG2_Compat(t *testing.T) {
 	c := newCryptolibClient(t)
 	cryptoInvoker := c.WithSigners(c.Committee)
@@ -516,8 +524,18 @@ func TestCryptoLib_RecoverSecp256K1_Compat(t *testing.T) {
 			expected: "02dbf1f4092deb3cfd4246b2011f7b24840bc5dbedae02f28471ce5b3bfbf06e71",
 		},
 		{
+			msgH:     "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
+			sig:      "4e0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c65061140e45aea5034af973410e65cf97651b3f2b976e3fc79c6a93065ed7cb69a2ab5a1c",
+			expected: "02dbf1f4092deb3cfd4246b2011f7b24840bc5dbedae02f28471ce5b3bfbf06e71",
+		},
+		{
 			msgH:     "c36d0ecf4bfd178835c97aae7585f6a87de7dfa23cc927944f99a8d60feff68b",
 			sig:      "f25b86e1d8a11d72475b3ed273b0781c7d7f6f9e1dae0dd5d3ee9b84f3fab89163d9c4e1391de077244583e9a6e3d8e8e1f236a3bf5963735353b93b1a3ba93500",
+			expected: "03414549fd05bfb7803ae507ff86b99becd36f8d66037a7f5ba612792841d42eb9",
+		},
+		{
+			msgH:     "c36d0ecf4bfd178835c97aae7585f6a87de7dfa23cc927944f99a8d60feff68b",
+			sig:      "f25b86e1d8a11d72475b3ed273b0781c7d7f6f9e1dae0dd5d3ee9b84f3fab89163d9c4e1391de077244583e9a6e3d8e8e1f236a3bf5963735353b93b1a3ba9351b",
 			expected: "03414549fd05bfb7803ae507ff86b99becd36f8d66037a7f5ba612792841d42eb9",
 		},
 	} {
@@ -528,6 +546,34 @@ func TestCryptoLib_RecoverSecp256K1_Compat(t *testing.T) {
 		expected, err := hex.DecodeString(tc.expected)
 		require.NoError(t, err)
 		committeeInvoker.Invoke(t, expected, "recoverSecp256K1", msgH, sig)
+	}
+	for _, tc := range []testCase{
+		{
+			// Wrong recId (01 + 31 "compressed" offset).
+			msgH: "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
+			sig:  "4e0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c65061140e45aea5034af973410e65cf97651b3f2b976e3fc79c6a93065ed7cb69a2ab5a20",
+		},
+		{
+			// Wrong recId (01->02).
+			msgH: "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
+			sig:  "4e0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c65061140e45aea5034af973410e65cf97651b3f2b976e3fc79c6a93065ed7cb69a2ab5a02",
+		},
+		{
+			// Wrong signature (byte 0 changed).
+			msgH: "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
+			sig:  "ff0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c65061140e45aea5034af973410e65cf97651b3f2b976e3fc79c6a93065ed7cb69a2ab5a01",
+		},
+		{
+			// Wrong signature (zero S).
+			msgH: "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
+			sig:  "4e0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c6506114000000000000000000000000000000000000000000000000000000000000000001",
+		},
+	} {
+		msgH, err := hex.DecodeString(tc.msgH)
+		require.NoError(t, err)
+		sig, err := hex.DecodeString(tc.sig)
+		require.NoError(t, err)
+		committeeInvoker.Invoke(t, stackitem.Null{}, "recoverSecp256K1", msgH, sig)
 	}
 }
 

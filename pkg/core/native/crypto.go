@@ -307,6 +307,10 @@ func (c *Crypto) recoverSecp256K1(_ *interop.Context, args []stackitem.Item) sta
 	// https://eips.ethereum.org/EIPS/eip-2098#specification). Also, ecdsa expects
 	// leading signature byte to be a key recovery ID.
 	canonical := koblitzSigToCanonical(signature)
+	// C# recovery code doesn't support "compressed" prefixes.
+	if canonical[0] > 30 {
+		return stackitem.Null{}
+	}
 	pub, _, err := ecdsa.RecoverCompact(canonical, msgH)
 	if err != nil {
 		return stackitem.Null{}

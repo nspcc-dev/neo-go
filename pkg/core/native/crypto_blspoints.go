@@ -128,6 +128,8 @@ func (p *blsPoint) FromBytes(buf []byte) error {
 			return fmt.Errorf("failed to decode GT point: %w", err)
 		}
 		p.point = gt
+	default:
+		return errors.New("invalid bls12381 point length")
 	}
 
 	return nil
