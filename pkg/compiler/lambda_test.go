@@ -31,39 +31,33 @@ func TestCallInPlace(t *testing.T) {
 	eval(t, src, big.NewInt(111))
 }
 
-func TestImmediatelyInvokedFuncLitReturningFunc(t *testing.T) {
-	src := `package foo
-	func Main() int {
-		f := func() func() int {
-			return func() int { return 42 }
-		}
-		return f()()
-	}`
-	eval(t, src, big.NewInt(42))
-}
-
-func TestImmediatelyInvokedFuncLitReturningFuncWithConversion(t *testing.T) {
-	src := `package foo
-	func Main() int {
-		f := func() func() int {
-			return func() int { return 42 }
-		}
-		return (func() int)(f())()
-	}`
-	eval(t, src, big.NewInt(42))
-}
-
-func TestCallFuncFromSliceIndex(t *testing.T) {
-	src := `package foo
-	func Main() int {
-		arr := []func() int {
-			func() int {
-				return 42
-			},
-		}
-		return arr[0]()
-	}`
-	eval(t, src, big.NewInt(42))
+func TestCallImmediatelyInvokedFunc(t *testing.T) {
+	testCases := []struct {
+		name string
+		body string
+	}{
+		{"call result", `
+			f := func() func() int {
+				return func() int { return 42 }
+			}
+			return f()()`},
+		{"call result with conversion", `
+			f := func() func() int {
+				return func() int { return 42 }
+			}
+			return (func() int)(f())()`},
+		{"slice index", `
+			arr := []func() int {
+				func() int { return 42 },
+			}
+			return arr[0]()`},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := "package foo\nfunc Main() int {\n" + tc.body + "\n}"
+			eval(t, src, big.NewInt(42))
+		})
+	}
 }
 
 func TestLambdaInDebugInfo(t *testing.T) {
