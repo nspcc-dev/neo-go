@@ -280,6 +280,8 @@ func TestSwapElemValues(t *testing.T) {
 func TestRoll(t *testing.T) {
 	s := NewStack("test")
 
+	assert.ErrorContains(t, s.Roll(0), "too big index")
+
 	s.PushVal(1)
 	s.PushVal(2)
 	s.PushVal(3)

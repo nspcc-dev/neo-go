@@ -327,6 +327,16 @@ func testISTYPE(t *testing.T, result bool, typ stackitem.Type, item stackitem.It
 }
 
 func TestISTYPE(t *testing.T) {
+	t.Run("Any", func(t *testing.T) {
+		v := load([]byte{byte(opcode.ISTYPE), 0})
+		v.estack.PushVal(1)
+		checkVMFailed(t, v)
+	})
+	t.Run("Invalid", func(t *testing.T) {
+		v := load([]byte{byte(opcode.ISTYPE), 0xff})
+		v.estack.PushVal(1)
+		checkVMFailed(t, v)
+	})
 	t.Run("Integer", func(t *testing.T) {
 		testISTYPE(t, true, stackitem.IntegerT, stackitem.NewBigInteger(big.NewInt(42)))
 		testISTYPE(t, false, stackitem.IntegerT, stackitem.NewByteArray([]byte{}))
