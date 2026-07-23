@@ -622,66 +622,67 @@ func TestCallWithVersion(t *testing.T) {
 	})
 }
 
-func TestForcedNotifyArgumentsConversion(t *testing.T) {
+func TestNotifyArgumentsConversion(t *testing.T) {
 	const methodWithEllipsis = "withEllipsis"
 	const methodWithoutEllipsis = "withoutEllipsis"
-	check := func(t *testing.T, method string, targetSCParamTypes []smartcontract.ParamType, expectedVMParamTypes []stackitem.Type, noEventsCheck bool) {
+	const count = 7
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+	const arg4 = 4			// Const value.
+	func WithoutEllipsis() {
+		var arg0 int		// Default value.
+		var arg1 int = 1	// Initialized value.
+		arg2 := 2			// Short decl.
+		var arg3 int
+		arg3 = 3			// Declare first, change value afterwards.
+		runtime.Notify("withoutEllipsis", arg0, arg1, arg2, arg3, arg4, 5, f(6))	// The fifth argument is basic literal.
+	}
+	func WithEllipsis() {
+		arg := []any{0, 1, f(2), 3, 4, 5, 6}
+		runtime.Notify("withEllipsis", arg...)
+	}
+	func f(i int) int {
+		return i
+	}`
+	paramsOf := func(typ smartcontract.ParamType) []compiler.HybridParameter {
+		scParams := make([]compiler.HybridParameter, count)
+		for i := range scParams {
+			scParams[i] = compiler.HybridParameter{Parameter: manifest.NewParameter(strconv.Itoa(i), typ)}
+		}
+		return scParams
+	}
+	compile := func(t *testing.T, woType, weType smartcontract.ParamType, noEventsCheck bool) error {
+		_, _, err := compiler.CompileWithOptions("contract.go", strings.NewReader(src), &compiler.Options{
+			Name: "Helper",
+			ContractEvents: []compiler.HybridEvent{
+				{Name: methodWithoutEllipsis, Parameters: paramsOf(woType)},
+				{Name: methodWithEllipsis, Parameters: paramsOf(weType)},
+			},
+			NoEventsCheck: noEventsCheck,
+		})
+		return err
+	}
+	deployAndCheck := func(t *testing.T, method string, targetType smartcontract.ParamType, expectedVMType stackitem.Type, noEventsCheck bool) {
 		bc, acc := chain.NewSingleWithCustomConfig(t, func(blockchain *config.Blockchain) {
 			blockchain.Hardforks = map[string]uint32{config.HFBasilisk.String(): 100500} // Disable runtime notifications check to reuse the same contract for different event parameter types.
 		})
 		e := neotest.NewExecutor(t, bc, acc, acc)
-		src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
-		const arg4 = 4			// Const value.
-		func WithoutEllipsis() {
-			var arg0 int		// Default value.
-			var arg1 int = 1	// Initialized value.
-			arg2 := 2			// Short decl.
-			var arg3 int
-			arg3 = 3			// Declare first, change value afterwards.
-			runtime.Notify("withoutEllipsis", arg0, arg1, arg2, arg3, arg4, 5, f(6))	// The fifth argument is basic literal.
-		}
-		func WithEllipsis() {
-			arg := []any{0, 1, f(2), 3, 4, 5, 6}
-			runtime.Notify("withEllipsis", arg...)
-		}
-		func f(i int) int {
-			return i
-		}`
-		count := len(targetSCParamTypes)
-		if count != len(expectedVMParamTypes) {
-			t.Fatalf("parameters count mismatch: %d vs %d", count, len(expectedVMParamTypes))
-		}
-		scParams := make([]compiler.HybridParameter, len(targetSCParamTypes))
-		vmParams := make([]stackitem.Item, len(expectedVMParamTypes))
-		for i := range scParams {
-			scParams[i] = compiler.HybridParameter{Parameter: manifest.Parameter{
-				Name: strconv.Itoa(i),
-				Type: targetSCParamTypes[i],
-			}}
-			defaultValue := stackitem.NewBigInteger(big.NewInt(int64(i)))
-			var (
-				val stackitem.Item
-				err error
-			)
-			if expectedVMParamTypes[i] == stackitem.IntegerT {
-				val = defaultValue
-			} else {
-				val, err = defaultValue.Convert(expectedVMParamTypes[i]) // exactly the same conversion should be emitted by compiler and performed by the contract code.
-				require.NoError(t, err)
-			}
-			vmParams[i] = val
+		woType, weType := smartcontract.IntegerType, smartcontract.IntegerType
+		if method == methodWithoutEllipsis {
+			woType = targetType
+		} else {
+			weType = targetType
 		}
 		ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{
 			Name: "Helper",
 			ContractEvents: []compiler.HybridEvent{
 				{
 					Name:       methodWithoutEllipsis,
-					Parameters: scParams,
+					Parameters: paramsOf(woType),
 				},
 				{
 					Name:       methodWithEllipsis,
-					Parameters: scParams,
+					Parameters: paramsOf(weType),
 				},
 			},
 			NoEventsCheck: noEventsCheck,
@@ -689,80 +690,100 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 		e.DeployContract(t, ctr, nil)
 		c := e.CommitteeInvoker(ctr.Hash)
 
-		t.Run(method, func(t *testing.T) {
-			h := c.Invoke(t, stackitem.Null{}, method)
-			aer := c.GetTxExecResult(t, h)
-			require.Equal(t, 1, len(aer.Events))
-			require.Equal(t, stackitem.NewArray(vmParams), aer.Events[0].Item)
-		})
-	}
-	checkSingleType := func(t *testing.T, method string, targetSCEventType smartcontract.ParamType, expectedVMType stackitem.Type, noEventsCheck ...bool) {
-		count := 7
-		scParams := make([]smartcontract.ParamType, count)
-		vmParams := make([]stackitem.Type, count)
-		for i := range scParams {
-			scParams[i] = targetSCEventType
-			vmParams[i] = expectedVMType
+		vmParams := make([]stackitem.Item, count)
+		for i := range vmParams {
+			var err error
+			vmParams[i] = stackitem.NewBigInteger(big.NewInt(int64(i)))
+			if expectedVMType != stackitem.IntegerT {
+				vmParams[i], err = vmParams[i].Convert(expectedVMType) // Same conversion the compiler is expected to emit.
+				require.NoError(t, err)
+			}
 		}
-		var noEvents bool
-		if len(noEventsCheck) > 0 {
-			noEvents = noEventsCheck[0]
-		}
-		check(t, method, scParams, vmParams, noEvents)
+		h := c.Invoke(t, stackitem.Null{}, method)
+		aer := c.GetTxExecResult(t, h)
+		require.Equal(t, 1, len(aer.Events))
+		require.Equal(t, stackitem.NewArray(vmParams), aer.Events[0].Item)
 	}
 
-	t.Run("good, single type, default values", func(t *testing.T) {
-		checkSingleType(t, methodWithoutEllipsis, smartcontract.IntegerType, stackitem.IntegerT)
+	t.Run("good, exact type match", func(t *testing.T) {
+		deployAndCheck(t, methodWithoutEllipsis, smartcontract.IntegerType, stackitem.IntegerT, false)
 	})
-	t.Run("good, single type, conversion to BooleanT", func(t *testing.T) {
-		checkSingleType(t, methodWithoutEllipsis, smartcontract.BoolType, stackitem.BooleanT)
+	t.Run("good, Any leaves the actual type untouched", func(t *testing.T) {
+		deployAndCheck(t, methodWithoutEllipsis, smartcontract.AnyType, stackitem.IntegerT, false)
 	})
-	t.Run("good, single type, Hash160Type->ByteArray", func(t *testing.T) {
-		checkSingleType(t, methodWithoutEllipsis, smartcontract.Hash160Type, stackitem.ByteArrayT)
+	t.Run("good, ellipsis-passed arguments are not type-checked", func(t *testing.T) {
+		deployAndCheck(t, methodWithEllipsis, smartcontract.BoolType, stackitem.IntegerT, false)
 	})
-	t.Run("good, single type, Hash256Type->ByteArray", func(t *testing.T) {
-		checkSingleType(t, methodWithoutEllipsis, smartcontract.Hash256Type, stackitem.ByteArrayT)
+	t.Run("good, no events check disables the type check", func(t *testing.T) {
+		err := compile(t, smartcontract.PublicKeyType, smartcontract.PublicKeyType, true)
+		require.NoError(t, err)
 	})
-	t.Run("good, single type, Signature->ByteArray", func(t *testing.T) {
-		checkSingleType(t, methodWithoutEllipsis, smartcontract.SignatureType, stackitem.ByteArrayT)
+	t.Run("good, SC type matches even though the VM representation doesn't", func(t *testing.T) {
+		bc, acc := chain.NewSingle(t)
+		e := neotest.NewExecutor(t, bc, acc, acc)
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		type Pair struct {
+			A int
+			B int
+		}
+		func Main() {
+			runtime.Notify("Event", Pair{A: 1, B: 2})
+		}`
+		ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{
+			Name: "Helper",
+			ContractEvents: []compiler.HybridEvent{{
+				Name:       "Event",
+				Parameters: []compiler.HybridParameter{{Parameter: manifest.NewParameter("pair", smartcontract.ArrayType)}},
+			}},
+		})
+		e.DeployContract(t, ctr, nil)
+		c := e.CommitteeInvoker(ctr.Hash)
+
+		h := c.Invoke(t, stackitem.Null{}, "main")
+		aer := c.GetTxExecResult(t, h)
+		require.Equal(t, 1, len(aer.Events))
+		pair := stackitem.NewArray([]stackitem.Item{
+			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewBigInteger(big.NewInt(2)),
+		})
+		require.Equal(t, stackitem.NewArray([]stackitem.Item{pair}), aer.Events[0].Item)
 	})
-	t.Run("good, single type, String->ByteArray", func(t *testing.T) {
-		checkSingleType(t, methodWithoutEllipsis, smartcontract.StringType, stackitem.ByteArrayT) // Special case, runtime.Notify will convert any Buffer to ByteArray.
-	})
-	t.Run("good, single type, PublicKeyType->ByteArray", func(t *testing.T) {
-		checkSingleType(t, methodWithoutEllipsis, smartcontract.PublicKeyType, stackitem.ByteArrayT)
-	})
-	t.Run("good, single type, AnyType->do not change initial type", func(t *testing.T) {
-		checkSingleType(t, methodWithoutEllipsis, smartcontract.AnyType, stackitem.IntegerT) // Special case, compiler should leave the type "as is" and do not emit conversion code.
-	})
-	// Test for InteropInterface->... is missing, because we don't enforce conversion to stackitem.InteropInterface,
-	// but compiler still checks these notifications against expected manifest.
-	t.Run("good, multiple types, check the conversion order", func(t *testing.T) {
-		check(t, methodWithoutEllipsis, []smartcontract.ParamType{
-			smartcontract.IntegerType,
+	t.Run("bad, actual type doesn't match the declared one", func(t *testing.T) {
+		for _, typ := range []smartcontract.ParamType{
 			smartcontract.BoolType,
 			smartcontract.ByteArrayType,
-			smartcontract.PublicKeyType,
-			smartcontract.Hash160Type,
-			smartcontract.AnyType, // leave initial type
 			smartcontract.StringType,
-		}, []stackitem.Type{
-			stackitem.IntegerT,
-			stackitem.BooleanT,
-			stackitem.ByteArrayT,
-			stackitem.ByteArrayT,
-			stackitem.ByteArrayT,
-			stackitem.IntegerT, // leave initial type
-			stackitem.ByteArrayT,
-		}, false)
+			smartcontract.Hash160Type,
+			smartcontract.Hash256Type,
+			smartcontract.SignatureType,
+			smartcontract.PublicKeyType,
+		} {
+			t.Run(typ.String(), func(t *testing.T) {
+				err := compile(t, typ, typ, false)
+				require.ErrorContains(t, err, fmt.Sprintf("should have '%s' as type of 1 parameter, got: Integer", typ))
+			})
+		}
 	})
-	t.Run("with ellipsis, do not emit conversion code", func(t *testing.T) {
-		checkSingleType(t, methodWithEllipsis, smartcontract.IntegerType, stackitem.IntegerT)
-		checkSingleType(t, methodWithEllipsis, smartcontract.BoolType, stackitem.IntegerT)
-		checkSingleType(t, methodWithEllipsis, smartcontract.ByteArrayType, stackitem.IntegerT)
-	})
-	t.Run("no events check => no conversion code", func(t *testing.T) {
-		checkSingleType(t, methodWithoutEllipsis, smartcontract.PublicKeyType, stackitem.IntegerT, true)
+	t.Run("bad, the first mismatching parameter is reported", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		func Main() {
+			runtime.Notify("Event", 1, 2, 3, 4)
+		}`
+		_, _, err := compiler.CompileWithOptions("contract.go", strings.NewReader(src), &compiler.Options{
+			Name: "Helper",
+			ContractEvents: []compiler.HybridEvent{{
+				Name: "Event",
+				Parameters: []compiler.HybridParameter{
+					{Parameter: manifest.NewParameter("0", smartcontract.IntegerType)}, // Matches, passes.
+					{Parameter: manifest.NewParameter("1", smartcontract.AnyType)},     // Exempt, passes.
+					{Parameter: manifest.NewParameter("2", smartcontract.BoolType)},    // First real mismatch.
+					{Parameter: manifest.NewParameter("3", smartcontract.Hash160Type)}, // Never reached.
+				},
+			}},
+		})
+		require.ErrorContains(t, err, "should have 'Boolean' as type of 3 parameter, got: Integer")
 	})
 }
 

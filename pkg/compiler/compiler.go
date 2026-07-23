@@ -495,7 +495,9 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 						name, len(expected.Parameters), len(emitted.Params))
 				}
 				for j := range expected.Parameters {
-					if expected.Parameters[j].Type == smartcontract.AnyType {
+					// Any on either side means the type is unknown, so skip the check.
+					if expected.Parameters[j].Type == smartcontract.AnyType ||
+						emitted.Params[j].TypeSC == smartcontract.AnyType {
 						continue
 					}
 					expectedT := expected.Parameters[j].Type

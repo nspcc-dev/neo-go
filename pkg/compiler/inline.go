@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -215,12 +216,16 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool)
 							// then runtime.Notify will convert it to ByteArray automatically, thus no need to emit conversion code.
 							(*vParams[i] == stackitem.BufferT && expectedType == stackitem.ByteArrayT) {
 							vParams[i] = nil
-						} else {
-							// For other cases the conversion code will be emitted using vParams...
+						} else if params[i].TypeSC == scParam.Type || params[i].TypeSC == smartcontract.AnyType {
+							// Either the declared ABI type already matches and only the VM-level
+							// representation differs or the actual type is only known at runtime.
 							vParams[i] = &expectedType
-							// ...thus, update emitted notification info in advance.
-							params[i].Type = scParam.Type.String()
-							params[i].TypeSC = scParam.Type
+						} else {
+							// The declared ABI type itself doesn't match the actual one,
+							// so fail the build instead of silently emitting a misleading conversion.
+							c.prog.Err = fmt.Errorf("event '%s' should have '%s' as type of %d parameter, got: %s",
+								name, scParam.Type, i+1, params[i].TypeSC)
+							return nil
 						}
 					}
 				}
