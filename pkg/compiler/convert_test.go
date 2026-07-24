@@ -198,6 +198,42 @@ func TestTypeAssertion(t *testing.T) {
 	})
 }
 
+func TestTypeAssertionConvertsMutableStructFields(t *testing.T) {
+	const src = `package foo
+		type value struct {
+			data []byte
+		}
+		func Main(data []byte) []byte {
+			var item any = value{data: data}
+			return item.(value).data
+		}`
+
+	v := vmAndCompile(t, src)
+	v.Estack().PushItem(stackitem.NewByteArray([]byte{42}))
+
+	require.NoError(t, v.Run())
+	require.Equal(t, stackitem.BufferT, v.Estack().Peek(0).Item().Type())
+	require.Equal(t, []byte{42}, v.PopResult())
+	require.Nil(t, v.Context())
+}
+
+func TestTypeAssertionAllowsMutableStructFieldAssignment(t *testing.T) {
+	const src = `package foo
+		type value struct {
+			data []byte
+		}
+		func Main(data []byte) int {
+			var item any = value{data: data}
+			v := item.(value)
+			v.data[0]++
+			return int(v.data[0])
+		}`
+
+	v := vmAndCompile(t, src)
+	v.Estack().PushItem(stackitem.NewByteArray([]byte{42}))
+	runAndCheck(t, v, big.NewInt(43))
+}
+
 func TestTypeAssertionWithOK(t *testing.T) {
 	t.Run("inside general declaration", func(t *testing.T) {
 		src := `package foo
