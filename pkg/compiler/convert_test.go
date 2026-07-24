@@ -203,16 +203,13 @@ func TestTypeAssertionConvertsMutableStructFields(t *testing.T) {
 		type value struct {
 			data []byte
 		}
-		func Main(args []any) []byte {
-			return args[0].(value).data
+		func Main(data []byte) []byte {
+			var item any = value{data: data}
+			return item.(value).data
 		}`
 
 	v := vmAndCompile(t, src)
-	v.Estack().PushVal([]stackitem.Item{
-		stackitem.NewStruct([]stackitem.Item{
-			stackitem.NewByteArray([]byte{42}),
-		}),
-	})
+	v.Estack().PushItem(stackitem.NewByteArray([]byte{42}))
 
 	require.NoError(t, v.Run())
 	require.Equal(t, stackitem.BufferT, v.Estack().Peek(0).Item().Type())
@@ -225,17 +222,16 @@ func TestTypeAssertionAllowsMutableStructFieldAssignment(t *testing.T) {
 		type value struct {
 			data []byte
 		}
-		func Main(args []any) int {
-			v := args[0].(value)
+		func Main(data []byte) int {
+			var item any = value{data: data}
+			v := item.(value)
 			v.data[0]++
 			return int(v.data[0])
 		}`
 
-	evalWithArgs(t, src, nil, []stackitem.Item{
-		stackitem.NewStruct([]stackitem.Item{
-			stackitem.NewByteArray([]byte{42}),
-		}),
-	}, big.NewInt(43))
+	v := vmAndCompile(t, src)
+	v.Estack().PushItem(stackitem.NewByteArray([]byte{42}))
+	runAndCheck(t, v, big.NewInt(43))
 }
 
 func TestTypeAssertionWithOK(t *testing.T) {

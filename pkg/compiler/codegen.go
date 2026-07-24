@@ -282,7 +282,8 @@ func (c *codegen) emitConvertStructFields(typ types.Type) {
 	}
 	for i := range strct.NumFields() {
 		fieldTyp := strct.Field(i).Type()
-		if isByteSlice(fieldTyp) {
+		slice, ok := fieldTyp.Underlying().(*types.Slice)
+		if ok && isByte(slice.Elem()) {
 			emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.DUP)
 			emit.Int(c.prog.BinWriter, int64(i))
 			emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
