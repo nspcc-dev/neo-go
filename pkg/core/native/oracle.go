@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"strings"
 	"sync/atomic"
@@ -487,12 +486,6 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d *dao.
 // GetScriptHash returns script hash of oracle nodes.
 func (o *Oracle) GetScriptHash(d *dao.Simple) (util.Uint160, error) {
 	return o.Desig.GetLastDesignatedHash(d, noderoles.Oracle)
-}
-
-// GetOracleNodes returns public keys of oracle nodes.
-func (o *Oracle) GetOracleNodes(d *dao.Simple) (keys.PublicKeys, error) {
-	nodes, _, err := o.Desig.GetDesignatedByRole(d, noderoles.Oracle, math.MaxUint32)
-	return nodes, err
 }
 
 // GetRequestInternal returns the request by ID and key under which it is stored.
