@@ -389,13 +389,13 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 						}
 						for i, actual := range usage.Params {
 							mParam := manifestEvent.Parameters[i]
-							// TODO: see the TestCompile_GuessEventTypes, "SC parameter type mismatch" section,
-							// do we want to compare with actual.RealType? The conversion code is emitted by the
-							// compiler for it, so we expect the parameter to be of the proper type.
 							if mParam.Type != smartcontract.AnyType && actual.TypeSC != mParam.Type {
 								return nil, fmt.Errorf("inconsistent usages of event `%s` against config: SC type of param #%d mismatch: %s vs %s", eventName, i, actual.TypeSC, mParam.Type)
 							}
 							expected := exampleUsage.Params[i]
+							if actual.RealType != expected.RealType {
+								return nil, fmt.Errorf("inconsistent usages of event `%s`: Go type of param #%d mismatch: %s vs %s", eventName, i, actual.RealType.TypeName, expected.RealType.TypeName)
+							}
 							actualExt, expectedExt := actual.ExtendedType, expected.ExtendedType
 							if actualExt != nil {
 								if realExt, ok := usage.ExtTypes[actualExt.Name]; ok {

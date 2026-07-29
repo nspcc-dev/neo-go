@@ -1,0 +1,6 @@
+name: Test real type mismatch
+events:
+  - name: SomeEvent
+    parameters:
+      - name: p1
+        type: Array

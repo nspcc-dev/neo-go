@@ -214,12 +214,15 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool)
 							// then runtime.Notify will convert it to ByteArray automatically, thus no need to emit conversion code.
 							(*vParams[i] == stackitem.BufferT && expectedType == stackitem.ByteArrayT) {
 							vParams[i] = nil
-						} else {
-							// For other cases the conversion code will be emitted using vParams...
+						} else if params[i].TypeSC == scParam.Type {
+							// The declared ABI type already matches, only the VM-level
+							// representation differs.
 							vParams[i] = &expectedType
-							// ...thus, update emitted notification info in advance.
-							params[i].Type = scParam.Type.String()
-							params[i].TypeSC = scParam.Type
+						} else {
+							// The declared ABI type itself doesn't match the actual one,
+							// so fail the build instead of silently emitting a misleading conversion.
+							c.prog.Err = fmt.Errorf("event '%s', parameter #%d: expected type %s, got %s", name, i+1, scParam.Type, params[i].TypeSC)
+							return nil
 						}
 					}
 				}
