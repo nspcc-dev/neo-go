@@ -87,6 +87,10 @@ const HFLatestStable = HFGorgon
 // HFLatestKnown is the latest known hardfork.
 const HFLatestKnown = hfLast - 1
 
+// HFLastConfigManaged is the latest hardfork that is managed by the node's
+// config.
+const HFLastConfigManaged = HFHuyao
+
 // StableHardforks is an ordered slice of all stable hardforks (before or
 // equal [HFLatestStable]).
 var StableHardforks []Hardfork
@@ -134,9 +138,14 @@ func (hf Hardfork) Prev() Hardfork {
 	return hf - 1
 }
 
-// IsHardforkValid denotes whether the provided string represents a valid
-// Hardfork name.
-func IsHardforkValid(s string) bool {
-	_, ok := hardforks[s]
-	return ok
+// ParseHardfork checks whether the provided string represents a valid Hardfork
+// name and returns the corresponding Hardfork.
+func ParseHardfork(s string) (Hardfork, bool) {
+	hf, ok := hardforks[s]
+	return hf, ok
+}
+
+// IsHardforkStable returns true if the provided hardfork is stable.
+func IsHardforkStable(hf Hardfork) bool {
+	return hf <= HFLatestStable
 }

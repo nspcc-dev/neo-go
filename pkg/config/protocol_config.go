@@ -102,7 +102,7 @@ func (p *ProtocolConfiguration) Validate() error {
 		return errors.New("MaxTimePerBlock is not larger than TimePerBlock")
 	}
 	for name := range p.Hardforks {
-		if !IsHardforkValid(name) {
+		if _, ok := ParseHardfork(name); !ok {
 			return fmt.Errorf("'Hardforks' configuration section contains unexpected hardfork: %s", name)
 		}
 	}

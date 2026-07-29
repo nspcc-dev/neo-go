@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -20,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -192,15 +195,17 @@ func TestService_NextConsensus(t *testing.T) {
 
 func TestService_GetVerified(t *testing.T) {
 	bc := newTestChainWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
-		c.Hardforks[config.HFIara.String()] = 0
+		c.Hardforks[config.HFHuyao.String()] = 0
+	}, map[config.Hardfork]uint32{
+		config.HFIara: 1, // will push 1 block with Iara-enabling transaction.
 	})
 	srv := newTestServiceWithChain(t, bc)
-	srv.dbft.Start(0)
+	srv.dbft.Reset(0) // don't use Start(0) to avoid vals[2] immediately sending an empty PrepareRequest since he's a primary at the 2-nd block.
 	var txs []*transaction.Transaction
 	for i := range 4 {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 100000)
 		tx.Nonce = 123 + uint32(i)
-		tx.ValidUntilBlock = 1
+		tx.ValidUntilBlock = bc.BlockHeight() + 1
 		txs = append(txs, tx)
 	}
 	addSender(t, txs...)
@@ -210,17 +215,17 @@ func TestService_GetVerified(t *testing.T) {
 	reqTxs := []*transaction.Transaction{txs[0], txs[1], txs[2]}
 
 	// Everyone sends a message.
-	for i := range 4 {
+	for _, i := range []int{2, 0, 1, 3} { // PrepareRequest goes first to avoid notAcceptingPayloadsDueToViewChanging.
 		p := new(Payload)
 		// One PrepareRequest and three ChangeViews.
-		if i == 1 {
+		if i == 2 {
 			p.message.Type = messageType(dbft.PrepareRequestType)
 			p.payload = &prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), extended: true, transactions: reqTxs}
 		} else {
 			p.message.Type = messageType(dbft.ChangeViewType)
 			p.payload = &changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)}
 		}
-		p.BlockIndex = 1
+		p.BlockIndex = 2
 		p.message.ValidatorIndex = byte(i)
 
 		priv, _ := getTestValidator(i)
@@ -567,7 +572,7 @@ func newSingleTestChain(t *testing.T) *core.Blockchain {
 	return chain
 }
 
-func newTestChainWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) *core.Blockchain {
+func newTestChainWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration), policyManaged ...map[config.Hardfork]uint32) *core.Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", netmode.UnitTestNet)
 	require.NoError(t, err)
 	if f != nil {
@@ -579,6 +584,27 @@ func newTestChainWithCustomConfig(t *testing.T, f func(*config.ProtocolConfigura
 
 	go chain.Run()
 	t.Cleanup(chain.Close)
+
+	if policyManaged != nil {
+		require.True(t, chain.IsHardforkEnabled(new(config.HFHuyao), 0), "Policy-managed hardforks are enabled starting from Huyao; rewrite the test to enable Huyao")
+
+		var txs []*transaction.Transaction
+		for hf, h := range policyManaged[0] {
+			require.Positive(t, hf.Cmp(config.HFLastConfigManaged), fmt.Sprintf("hardfork %s is not managed by policy; rewrite the test", hf))
+			require.Greater(t, h, chain.BlockHeight(), fmt.Sprintf("hardfork %s activation height %d is lower than chain's height %d", hf, h, chain.BlockHeight()))
+
+			sb := io.NewBufBinWriter()
+			emit.AppCall(sb.BinWriter, nativehashes.PolicyContract, "activateHardfork", callflag.All, hf.String(), h-chain.BlockHeight())
+			tx := transaction.New(sb.Bytes(), 100000)
+			tx.Nonce = 123
+			tx.ValidUntilBlock = 1
+			txs = append(txs, tx)
+		}
+
+		addSender(t, txs...)
+		signTx(t, chain, txs...)
+		addBlock(t, chain, txs...)
+	}
 	return chain
 }
 
@@ -628,4 +654,27 @@ func signTx(t *testing.T, bc Ledger, txs ...*transaction.Transaction) {
 			VerificationScript: rawScript,
 		}}
 	}
+}
+
+func addBlock(t *testing.T, bc Ledger, txs ...*transaction.Transaction) {
+	nbVals, err := bc.GetNextBlockValidators()
+	require.NoError(t, err)
+	valScript, err := smartcontract.CreateDefaultMultiSigRedeemScript(nbVals)
+	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(bc.BlockHeight()))
+	require.NoError(t, err)
+
+	witness := transaction.Witness{VerificationScript: valScript}
+	b := &coreb.Block{
+		Header: coreb.Header{
+			PrevHash:      lastBlock.Hash(),
+			Timestamp:     uint64(time.Now().UTC().Unix())*1000 + uint64(lastBlock.Index),
+			Index:         lastBlock.Index + 1,
+			NextConsensus: witness.ScriptHash(),
+			Script:        witness,
+		},
+		Transactions: txs,
+	}
+	b.RebuildMerkleRoot()
+	b.Script.InvocationScript = testchain.Sign(b)
+	require.NoError(t, bc.(*core.Blockchain).AddBlock(b))
 }

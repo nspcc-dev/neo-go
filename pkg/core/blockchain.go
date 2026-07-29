@@ -375,12 +375,24 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 		}
 	}
 	if cfg.Hardforks == nil {
+		var latest config.Hardfork
 		cfg.Hardforks = map[string]uint32{}
 		for _, hf := range config.StableHardforks {
-			cfg.Hardforks[hf.String()] = 0
+			if hf.Cmp(config.HFLastConfigManaged) <= 0 {
+				cfg.Hardforks[hf.String()] = 0
+				latest = hf
+			}
 		}
-		log.Info("Hardforks are not set, enabling all stable ones", zap.Stringer("latest", config.HFLatestStable))
+		log.Info("Hardforks are not set, enabling all stable and config-managed ones", zap.Stringer("latest config-managed", latest))
 	} else if len(cfg.Hardforks) != 0 {
+		// Sanitize Policy-managed hardforks.
+		for _, hf := range config.Hardforks {
+			if hf.Cmp(config.HFLastConfigManaged) > 0 {
+				if _, ok := cfg.Hardforks[hf.String()]; ok {
+					return nil, fmt.Errorf("hardfork %s is Policy-managed but found in the node's config", hf)
+				}
+			}
+		}
 		// Explicitly set the height of all old omitted hardforks to 0 for proper
 		// IsHardforkEnabled behaviour.
 		for _, hf := range config.Hardforks {
@@ -703,7 +715,7 @@ func (bc *Blockchain) init() error {
 		md := c.Metadata()
 		storedCS := bc.GetContractState(md.Hash)
 		// Check that contract was deployed.
-		if !bc.IsHardforkEnabled(c.ActiveIn(), bHeight) {
+		if !bc.IsHardforkEnabled(c.ActiveIn(), bHeight) { // can rely on natives cache since it's initialized by this moment.
 			if storedCS != nil {
 				return fmt.Errorf("native contract %s is already stored, but marked as inactive for height %d in config", md.Name, bHeight)
 			}
@@ -803,7 +815,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 			mtb = int64(bc.config.MaxTraceableBlocks)
 			err error
 		)
-		if bc.IsHardforkEnabled(new(config.HFEchidna), p) {
+		if bc.isHardforkEnabled(new(config.HFEchidna), p, nil, false) {
 			// Native cache is not yet initialized, retrieve MaxTraceableBlocks from DAO directly using
 			// new storage prefix since we already have up-to-date storage.
 			mtb, err = bc.dao.GetInt(bc.policy.Metadata().ID, native.MaxTraceableBlocksKey)
@@ -955,7 +967,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		var (
 			mtb = int64(bc.config.MaxTraceableBlocks)
 		)
-		if bc.IsHardforkEnabled(new(config.HFEchidna), currHeight) {
+		if bc.isHardforkEnabled(new(config.HFEchidna), currHeight, nil, false) {
 			// Cache isn't yet initialized, so retrieve MaxTraceableBlocks directly from DAO.
 			mtb, err = bc.dao.GetInt(bc.policy.Metadata().ID, native.MaxTraceableBlocksKey)
 			if err != nil {
@@ -1302,12 +1314,15 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 }
 
 func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) error {
+	isHardforkEnabled := func(hf *config.Hardfork, blockHeight uint32) bool {
+		return bc.isHardforkEnabled(hf, blockHeight, d, false)
+	}
 	for _, c := range bc.contracts.List {
 		// Check that contract was deployed.
-		if !bc.IsHardforkEnabled(c.ActiveIn(), blockHeight) {
+		if !isHardforkEnabled(c.ActiveIn(), blockHeight) {
 			continue
 		}
-		err := c.InitializeCache(bc.IsHardforkEnabled, blockHeight, d)
+		err := c.InitializeCache(isHardforkEnabled, blockHeight, d)
 		if err != nil {
 			return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
 		}
@@ -1316,17 +1331,34 @@ func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) e
 }
 
 // IsHardforkEnabled returns true if the specified hardfork is enabled at the
-// given height. nil hardfork is treated as always enabled. This method relies on fact that
-// heights of all omitted hardforks are sanitized by Blockchain constructor.
+// given height. nil hardfork is treated as always enabled. This method relies
+// on fact that heights of all omitted hardforks are sanitized by Blockchain
+// constructor.
 func (bc *Blockchain) IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool {
-	hfs := bc.config.Hardforks
-	if hf != nil {
-		start, ok := hfs[hf.String()]
-		if !ok || start > blockHeight {
-			return false
-		}
+	return bc.isHardforkEnabled(hf, blockHeight, bc.dao, true)
+}
+
+// isHardforkEnabled is an internal extended representation of IsHardforkEnabled.
+// It always checks for the node's configuration firstly, so may safely be used
+// with uninitialized Blockchain's DAO for config-managed hardforks. If dao
+// provided, native Policy will be queried for post-Huyao committee-enabled
+// hardforks (it's the caller's duty to allow Policy cache access).
+func (bc *Blockchain) isHardforkEnabled(hf *config.Hardfork, blockHeight uint32, dao *dao.Simple, useCache bool) bool {
+	if hf == nil {
+		return true
 	}
-	return true
+	hfs := bc.config.Hardforks
+	start, ok := hfs[hf.String()]
+	if !ok && hf.Cmp(config.HFHuyao) > 0 && dao != nil { // check Policy iff the caller asks explicitly.
+		start, ok = bc.policy.GetHardforkActivationHeight(*hf, dao, useCache)
+	}
+	return ok && start <= blockHeight
+}
+
+// GetHardforkActivationHeight returns the hardfork enabling height and boolean value
+// denoting whether hardfork is scheduled. Do not use this method on uninitialized Blockchain.
+func (bc *Blockchain) GetHardforkActivationHeight(hf config.Hardfork) (uint32, bool) {
+	return bc.policy.GetHardforkActivationHeight(hf, bc.dao, true)
 }
 
 // Run runs chain loop, it needs to be run as goroutine and executing it is
@@ -2058,6 +2090,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				zap.Uint32("block", block.Index),
 				zap.Error(err))
 			faultException = err.Error()
+			if errors.Is(err, native.ErrUnknownHardfork) {
+				// Release goroutines, don't care about errors, we already have one.
+				close(aerchan)
+				<-aerdone
+				return fmt.Errorf("failed to activate harfork via committee-signed transaction: %w; please, upgrade your node to the latest version", err)
+			}
 		}
 		aer := &state.AppExecResult{
 			Container: tx.Hash(),
@@ -3296,7 +3334,7 @@ func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 // validation. This method performs access to native Policy storage hence Policy is
 // expected to be initialized by this moment.
 func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
-	if bc.IsHardforkEnabled(new(config.HFEchidna), bc.BlockHeight()) {
+	if bc.isHardforkEnabled(new(config.HFEchidna), bc.BlockHeight(), nil, false) {
 		return bc.policy.GetMaxValidUntilBlockIncrementFromCache(bc.dao)
 	}
 	return bc.GetConfig().MaxValidUntilBlockIncrement
@@ -3306,7 +3344,7 @@ func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 // nodes work with (in milliseconds). This method performs access to native Policy
 // cache hence Policy is expected to be initialized by this moment.
 func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
-	if bc.IsHardforkEnabled(new(config.HFEchidna), bc.BlockHeight()) {
+	if bc.isHardforkEnabled(new(config.HFEchidna), bc.BlockHeight(), nil, false) {
 		return bc.policy.GetMillisecondsPerBlockInternal(bc.dao)
 	}
 	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
@@ -3317,7 +3355,7 @@ func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
 // initialized by this moment.
 func (bc *Blockchain) GetMaxTraceableBlocks() uint32 {
 	var h = bc.BlockHeight()
-	if bc.IsHardforkEnabled(new(config.HFEchidna), h) {
+	if bc.isHardforkEnabled(new(config.HFEchidna), h, nil, false) {
 		// A special case for Genesis block since Policy storage might not yet be initialized.
 		if h == 0 {
 			return bc.GetConfig().Genesis.MaxTraceableBlocks
