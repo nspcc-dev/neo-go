@@ -87,7 +87,7 @@ const (
 type Ledger interface {
 	AddHeaders(...*block.Header) error
 	BlockHeight() uint32
-	IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
+	IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32, dao *dao.Simple, useCache bool) bool
 	GetConfig() config.Blockchain
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	GetHeaderHash(uint32) util.Uint256
@@ -419,7 +419,7 @@ func (s *Module) getLatestSavedBlock(p uint32) uint32 {
 		mtb    = s.bc.GetConfig().MaxTraceableBlocks
 		hf     = config.HFEchidna
 	)
-	if s.bc.IsHardforkEnabled(&hf, p) {
+	if s.bc.IsHardforkEnabled(&hf, p, nil, false) { // can use IsHardforkEnabled here since Echidna is configured via node config, not via Policy storage.
 		// Retrieve MaxTraceableBlocks from DAO directly using temporary storage prefix.
 		key := make([]byte, 1+4+1)
 		key[0] = byte(TemporaryPrefix(s.dao.Version.StoragePrefix))

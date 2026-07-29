@@ -52,6 +52,11 @@ type Ledger interface {
 
 // PolicyChecker is an interface required for checking native Policy constraints.
 type PolicyChecker interface {
+	// GetHardforkActivationHeight returns the enabling height for the specified
+	// hardfork and boolean value denoting whether the hardfork is ever configured
+	// via native Policy. Don't use this method for hardforks range from
+	// Aspidochelone to Huyao (use Ledger configuration instead).
+	GetHardforkActivationHeight(hf config.Hardfork, d *dao.Simple, useCache bool) (uint32, bool)
 	// IsBlocked returns whether the provided account is blocked by network policy.
 	IsBlocked(d *dao.Simple, hash util.Uint160) bool
 	// WhitelistedFee returns whether the specified contract method is whitelisted.
@@ -636,9 +641,13 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 // IsHardforkEnabled tells whether specified hard-fork enabled at the current context height.
 func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 	height, ok := ic.Hardforks[hf.String()]
+	if !ok && hf.Cmp(config.HFHuyao) > 0 && ic.PolicyChecker != nil {
+		height, ok = ic.PolicyChecker.GetHardforkActivationHeight(hf, ic.DAO, true)
+	}
 	if ok {
 		return ic.persistingBlockHeight() >= height // persisting block should be taken into account.
 	}
+
 	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
 	return false
 }

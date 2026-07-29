@@ -879,3 +879,42 @@ func TestPolicy_RecoverFundsInteropAPI(t *testing.T) {
 
 	ctrInvoker.Invoke(t, stackitem.NewBool(true), "recoverFunds", unlucky.ScriptHash(), nativehashes.GasToken)
 }
+
+func TestPolicy_ActivateHardfork(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFHuyao.String(): 3,
+		}
+	})
+	committeeInvoker := c.WithSigners(c.Committee)
+
+	t.Run("activateHardfork, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: activateHardfork/1", "activateHardfork", "I")
+	})
+	t.Run("getHardforkActivationHeight, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: getHardforkActivationHeight/1", "getHardforkActivationHeight", "I")
+	})
+
+	c.AddNewBlock(t) // enable Huyao.
+
+	// Not signed by committee.
+	c.NewInvoker(nativehashes.PolicyContract, c.NewAccount(t)).InvokeFail(t, "invalid committee signature", "activateHardfork", "I")
+
+	// Unknown hardfork.
+	committeeInvoker.InvokeFail(t, "unknown hardfork: I", "activateHardfork", "I")
+
+	// Non-active.
+	committeeInvoker.Invoke(t, stackitem.Null{}, "getHardforkActivationHeight", "Iara")
+
+	h := c.TopBlock(t).Index + 2
+	tx := committeeInvoker.Invoke(t, stackitem.Null{}, "activateHardfork", "Iara")
+	committeeInvoker.CheckTxNotificationEvent(t, tx, 0, state.NotificationEvent{
+		ScriptHash: nativehashes.PolicyContract,
+		Name:       "HardforkActivationScheduled",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make("Iara"),
+			stackitem.Make(h),
+		}),
+	})
+	committeeInvoker.Invoke(t, stackitem.Make(h), "getHardforkActivationHeight", "Iara")
+}

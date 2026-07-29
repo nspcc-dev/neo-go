@@ -135,3 +135,15 @@ func GetWhitelistFeeContracts() iterator.Iterator {
 func RecoverFund(account interop.Hash160, token interop.Hash160) bool {
 	return neogointernal.CallWithToken(Hash, "recoverFund", int(contract.States|contract.AllowCall|contract.AllowNotify), account, token).(bool)
 }
+
+// ActivateHardfork represents the `activateHardfork` method of Policy native contract.
+// Note that this method is available starting from [config.HFHuyao] hardfork.
+func ActivateHardfork(hf Hardfork) {
+	neogointernal.CallWithTokenNoRet(Hash, "activateHardfork", int(contract.States|contract.AllowNotify), hf)
+}
+
+// GetHardforkActivationHeight represents the `getHardforkActivationHeight` method of Policy native contract.
+// Note that this method is available starting from [config.HFHuyao] hardfork.
+func GetHardforkActivationHeight(hf Hardfork) *int {
+	return neogointernal.CallWithToken(Hash, "getHardforkActivationHeight", int(contract.ReadStates), hf).(*int)
+}
