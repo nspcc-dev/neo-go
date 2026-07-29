@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -418,6 +421,34 @@ func (e *Executor) AddBlockCheckHalt(t testing.TB, txs ...*transaction.Transacti
 		e.CheckHalt(t, tx.Hash())
 	}
 	return b
+}
+
+type forkHeight struct {
+	hf config.Hardfork
+	h  uint32
+}
+
+// ScheduleHardforks adds a transaction with `activateHardfork` method calls for the specified
+// Policy-managed hardforks.
+func (e *Executor) ScheduleHardforks(t testing.TB, forks map[config.Hardfork]uint32) {
+	p := e.CommitteeInvoker(nativehashes.PolicyContract)
+	s := make([]forkHeight, 0, len(forks))
+	for hf, h := range forks {
+		require.Positive(t, hf.Cmp(config.HFLastConfigManaged), fmt.Errorf("hardfork %s is not managed by Policy", hf))
+		s = append(s, forkHeight{hf: hf, h: h})
+	}
+	slices.SortFunc(s, func(a, b forkHeight) int { return a.hf.Cmp(b.hf) })
+
+	txs := make([]*transaction.Transaction, 0, len(s))
+	for _, fh := range s {
+		tx := p.PrepareInvokeNoSign(t, "activateHardfork", fh.hf.String(), fh.h)
+		e.SignTx(t, tx, 1_0000_0000, p.Signers...)
+		txs = append(txs, tx)
+	}
+	p.AddNewBlock(t, txs...)
+	for _, tx := range txs {
+		p.CheckHalt(t, tx.Hash(), stackitem.Null{})
+	}
 }
 
 // TestInvoke creates a test VM with a dummy block and executes a transaction in it.

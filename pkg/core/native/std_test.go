@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mr-tron/base58"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	base58neogo "github.com/nspcc-dev/neo-go/pkg/encoding/base58"
@@ -129,7 +130,7 @@ func TestStdLibItoaAtoi(t *testing.T) {
 
 func TestStdLibJSON(t *testing.T) {
 	s := newStd()
-	ic := &interop.Context{VM: vm.New()}
+	ic := &interop.Context{VM: vm.New(), Block: &block.Block{Header: block.Header{Index: 0}}}
 	var actual stackitem.Item
 
 	t.Run("JSONSerialize", func(t *testing.T) {

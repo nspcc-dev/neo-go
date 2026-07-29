@@ -52,6 +52,11 @@ type Ledger interface {
 
 // PolicyChecker is an interface required for checking native Policy constraints.
 type PolicyChecker interface {
+	// GetHardforkActivationHeight returns the enabling height for the specified
+	// hardfork and boolean value denoting whether the hardfork is ever configured
+	// via native Policy. Don't use this method for hardforks range from
+	// Aspidochelone to Huyao (use Ledger configuration instead).
+	GetHardforkActivationHeight(hf config.Hardfork, d *dao.Simple, useCache bool) (uint32, bool)
 	// IsBlocked returns whether the provided account is blocked by network policy.
 	IsBlocked(d *dao.Simple, hash util.Uint160) bool
 	// WhitelistedFee returns whether the specified contract method is whitelisted.
@@ -639,11 +644,18 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 }
 
 // IsHardforkEnabled tells whether specified hard-fork enabled at the current context height.
+// If possible, it relies on the native Policy data instead of the node's config.
 func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
+	persistingH := ic.PersistingBlockHeight() // persisting block should be taken into account.
 	height, ok := ic.Hardforks[hf.String()]
-	if ok {
-		return ic.PersistingBlockHeight() >= height // persisting block should be taken into account.
+	if IsPolicyHardforksInitializationCompleted(ic.Hardforks, persistingH) &&
+		ic.PolicyChecker != nil {
+		height, ok = ic.PolicyChecker.GetHardforkActivationHeight(hf, ic.DAO, true)
 	}
+	if ok {
+		return persistingH >= height // persisting block should be taken into account.
+	}
+
 	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
 	return false
 }
@@ -651,9 +663,28 @@ func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 // IsHardforkActivation denotes whether current block height is the height of
 // specified hardfork activation.
 func (ic *Context) IsHardforkActivation(hf config.Hardfork) bool {
-	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
-	height, ok := ic.Hardforks[hf.String()]
+	var (
+		persistingIndex = ic.PersistingBlockHeight()
+		height          uint32
+		ok              bool
+	)
+	if IsPolicyHardforksInitializationCompleted(ic.Hardforks, persistingIndex) &&
+		ic.PolicyChecker != nil {
+		height, ok = ic.PolicyChecker.GetHardforkActivationHeight(hf, ic.DAO, true)
+	} else {
+		// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
+		height, ok = ic.Hardforks[hf.String()]
+	}
 	return ok && ic.Block.Index == height
+}
+
+// IsPolicyHardforksInitializationCompleted denotes whether Policy native contract can be used to
+// retrieve hardfork activation height. If not, then use the node's configuration instead.
+func IsPolicyHardforksInitializationCompleted(hfs map[string]uint32, persistingHeight uint32) bool {
+	lastConfigManagedH, lastConfigManagedOK := hfs[config.HFLastConfigManaged.String()]
+	return lastConfigManagedOK && // completely rely on proper hardforks map initialisation made by core.NewBlockchain: if HFLastConfigManaged is not in the map then it's disabled.
+		persistingHeight > 0 && // at genezis Policy state may not yet be initialized (even if HFLastConfigManaged is enabled at genesis): Policy's OnPersist is executed at the 7-th place.
+		persistingHeight-1 >= lastConfigManagedH // require at least previous block to avoid current height definition ambiguity introduced by Ledger's PostPersist.
 }
 
 // AddNotification creates notification event and appends it to the notification list.

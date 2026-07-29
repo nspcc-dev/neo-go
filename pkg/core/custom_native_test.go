@@ -214,6 +214,9 @@ func (p *policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool             
 func (p *policy) WhitelistedFee(d *dao.Simple, hash util.Uint160, offset int) int64 { return -1 }
 func (p *policy) CleanWhitelist(ic *interop.Context, h util.Uint160) error          { return nil }
 func (p *policy) GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uint32 { return 2 }
+func (p *policy) GetHardforkActivationHeight(hf config.Hardfork, dao *dao.Simple, useCache bool) (uint32, bool) {
+	return 0, true
+}
 func (p *policy) getTimePerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewBigInteger(big.NewInt(1000))
 }
