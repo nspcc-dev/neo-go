@@ -396,7 +396,18 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 								return nil, fmt.Errorf("inconsistent usages of event `%s` against config: SC type of param #%d mismatch: %s vs %s", eventName, i, actual.TypeSC, mParam.Type)
 							}
 							expected := exampleUsage.Params[i]
-							if !actual.ExtendedType.Equals(expected.ExtendedType) {
+							actualExt, expectedExt := actual.ExtendedType, expected.ExtendedType
+							if actualExt != nil {
+								if realExt, ok := usage.ExtTypes[actualExt.Name]; ok {
+									actualExt = &realExt
+								}
+							}
+							if expectedExt != nil {
+								if realExt, ok := exampleUsage.ExtTypes[expectedExt.Name]; ok {
+									expectedExt = &realExt
+								}
+							}
+							if !actualExt.Equals(expectedExt) {
 								return nil, fmt.Errorf("inconsistent usages of event `%s`: extended type of param #%d mismatch", eventName, i)
 							}
 						}
