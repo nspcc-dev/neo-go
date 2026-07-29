@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -179,7 +180,7 @@ func TestCheckSig(t *testing.T) {
 
 	verifyFunc := ECDSASecp256r1CheckSig
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
-	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: d}
+	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: d, Block: &block.Block{Header: block.Header{Index: 0}}}
 	runCase := func(t *testing.T, isErr bool, result any, args ...any) {
 		ic.SpawnVM()
 		for i := range args {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -52,7 +53,7 @@ func TestDeployGetUpdateContract(t *testing.T) {
 	mgmt.Policy = p
 
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
-	ic := &interop.Context{DAO: d}
+	ic := &interop.Context{DAO: d, Block: &block.Block{Header: block.Header{Index: 0}}}
 	err := mgmt.Initialize(ic, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}, nil, nil))
@@ -131,7 +132,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 
 	require.Empty(t, mgmt.GetNEP17Contracts(d))
 	private := d.GetPrivate()
-	ic := &interop.Context{DAO: private}
+	ic := &interop.Context{DAO: private, Block: &block.Block{Header: block.Header{Index: 0}}}
 
 	// Deploy NEP-17 contract
 	script := []byte{byte(opcode.RET)}
@@ -166,7 +167,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 		ReturnType: smartcontract.VoidType,
 		Parameters: []manifest.Parameter{},
 	})
-	c1Updated, err := mgmt.Update(&interop.Context{DAO: private}, c1.Hash, ne, manif)
+	c1Updated, err := mgmt.Update(&interop.Context{DAO: private, Block: &block.Block{Header: block.Header{Index: 0}}}, c1.Hash, ne, manif)
 	require.NoError(t, err)
 	require.Equal(t, c1.Hash, c1Updated.Hash)
 
