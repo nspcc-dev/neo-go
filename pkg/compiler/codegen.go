@@ -273,6 +273,27 @@ func (c *codegen) emitStoreIndexExpr(n *ast.IndexExpr) {
 	emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.SETITEM)
 }
 
+// emitConvertStructFields converts mutable fields after a structure type assertion.
+// It leaves the asserted structure on the stack.
+func (c *codegen) emitConvertStructFields(typ types.Type) {
+	strct, ok := getStruct(typ)
+	if !ok {
+		return
+	}
+	for i := range strct.NumFields() {
+		fieldTyp := strct.Field(i).Type()
+		slice, ok := fieldTyp.Underlying().(*types.Slice)
+		if ok && isByte(slice.Elem()) {
+			emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.DUP)
+			emit.Int(c.prog.BinWriter, int64(i))
+			emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
+			c.emitConvert(stackitem.BufferT)
+			emit.Opcodes(c.prog.BinWriter, opcode.SWAP)
+			c.emitStoreStructField(i)
+		}
+	}
+}
+
 // getVarIndex returns variable type and position in the corresponding slot,
 // according to the current scope.
 func (c *codegen) getVarIndex(pkg string, name string) *varInfo {
@@ -1600,6 +1621,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		if canConvert(goTyp.String()) {
 			typ := toNeoType(goTyp)
 			c.emitConvert(typ)
+			if typ == stackitem.StructT {
+				c.emitConvertStructFields(goTyp)
+			}
 		}
 		return nil
 	}

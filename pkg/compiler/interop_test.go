@@ -800,6 +800,39 @@ func Main() int {
 	c.Invoke(t, big.NewInt(3), "main")
 }
 
+// TestStorageIterator_ValueMutableFields checks that byte-slice fields of a
+// type-asserted storage key-value pair can be mutated.
+func TestStorageIterator_ValueMutableFields(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package foo
+
+import (
+	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+)
+
+func Main() int {
+	ctx := storage.GetContext()
+	storage.Put(ctx, []byte{1}, []byte{1})
+
+	it := storage.Find(ctx, []byte{}, storage.None)
+	if !iterator.Next(it) {
+		return -1
+	}
+	kv := iterator.Value(it).(storage.KeyValue)
+	kv.Value[0]++
+	return int(kv.Value[0])
+}
+`
+	ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{Name: "MutableKVIter"})
+	e.DeployContract(t, ctr, nil)
+	c := e.CommitteeInvoker(ctr.Hash)
+
+	c.Invoke(t, big.NewInt(2), "main")
+}
+
 func TestStdLib_DeserializeToPtrToStructure(t *testing.T) {
 	a := "NQRLhCpAru9BjGsMwk67vdMwmzKMRgsnnN"
 	bc, acc := chain.NewSingle(t)
@@ -844,8 +877,8 @@ func PutUserKey(idKey []byte, addr interop.Hash160, data []byte, role int) {
 	require.NoError(t, err)
 	c.Invoke(t, nil, "putUserKey", []byte("user-key"), h.BytesBE(), []byte("user-data"), 42)
 	c.Invoke(t, stackitem.NewStruct([]stackitem.Item{
-		stackitem.Make(h),
-		stackitem.Make([]byte("user-data")),
+		stackitem.NewBuffer(h.BytesBE()),
+		stackitem.NewBuffer([]byte("user-data")),
 		stackitem.Make(42),
 	}), "getUserKey", []byte("user-key"))
 	c.Invoke(t, nil, "getUserKey", []byte("unknown-key"))
