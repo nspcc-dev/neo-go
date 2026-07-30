@@ -2,6 +2,38 @@
 
 This document outlines major changes between releases.
 
+## 0.122.0 "Vitalization" (03 Aug 2026)
+
+This version mostly focuses on potential state difference problems. Also, it
+delivers a set of compiler improvements: arrays support, enhanced type
+checks for notification event arguments and more. It's fully compatible with the
+C# node v3.10+.
+
+No configuration update or resynchronisation is required on upgrade. Automatic
+`runtime.Notify` arguments type casting is not supported by the compiler
+any more. Smart contract developers should explicitly convert `runtime.Notify`
+arguments to the desired types manually. DApp developers should migrate to
+`neorpc.FaultException` since `actor.ErrExecFailed` is removed according to the
+schedule.
+
+New features:
+ * arrays support in compiler (#4358)
+
+Behaviour changes:
+ * fail compilation if `runtime.Notify` parameter types don't match the
+   configured values (#4369)
+ * deprecated `actor.ErrExecFailed` is removed (#4378)
+
+Bugs fixed:
+ * missing errors handling in imported packages in compiler (#4361)
+ * error on an attempt to re-deploy the contract via neotest (#4362)
+ * incompatibility in ISTYPE and ROLL VM instructions handling (#4365)
+ * potential native Oracle contract state difference (#4366)
+ * potential native StdLib contract state difference (#4367)
+ * potential native CryptoLib contract state difference (#4368)
+ * VM types are used instead of SC types in debug info file (#4379)
+ * divergence in scientific numbers parsing from JSON (#4384)
+
 ## 0.121.0 "Benediction" (09 Jul 2026)
 
 This version is fully compatible with the C# node 3.10.1. It extends and enables
