@@ -19,16 +19,55 @@ func TestFuncLiteral(t *testing.T) {
 }
 
 func TestCallInPlace(t *testing.T) {
-	src := `package foo
-	var a int = 1
-	func Main() int {
-		func() {
-			a += 10
-		}()
-		a += 100
-		return a
-	}`
-	eval(t, src, big.NewInt(111))
+	testCases := []testCase{
+		{
+			"side effect",
+			`package foo
+			var a int = 1
+			func Main() int {
+				func() {
+					a += 10
+				}()
+				a += 100
+				return a
+			}`,
+			big.NewInt(111),
+		},
+		{
+			"call result",
+			`package foo
+			func Main() int {
+				f := func() func() int {
+					return func() int { return 42 }
+				}
+				return f()()
+			}`,
+			big.NewInt(42),
+		},
+		{
+			"call result with conversion",
+			`package foo
+			func Main() int {
+				f := func() func() int {
+					return func() int { return 42 }
+				}
+				return (func() int)(f())()
+			}`,
+			big.NewInt(42),
+		},
+		{
+			"slice index",
+			`package foo
+			func Main() int {
+				arr := []func() int {
+					func() int { return 42 },
+				}
+				return arr[0]()
+			}`,
+			big.NewInt(42),
+		},
+	}
+	runTestCases(t, testCases)
 }
 
 func TestLambdaInDebugInfo(t *testing.T) {
