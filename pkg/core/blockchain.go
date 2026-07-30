@@ -2949,7 +2949,6 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	}
 	// Policying.
 	if err := bc.policy.CheckPolicy(bc.dao, t); err != nil {
-		// Only one %w can be used.
 		return fmt.Errorf("%w: %w", ErrPolicy, err)
 	}
 	size := t.Size()
