@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -25,12 +23,7 @@ const (
 	// URIScheme is the name of neofs URI scheme.
 	URIScheme = "neofs"
 
-	// rangeSep is a separator between offset and length.
-	rangeSep = "|"
-
-	rangeCmd  = "range"
 	headerCmd = "header"
-	hashCmd   = "hash"
 )
 
 // Various validation errors.
@@ -47,9 +40,7 @@ var (
 type Client interface {
 	SearchObjects(ctx context.Context, cnr cid.ID, filters object.SearchFilters, attrs []string, cursor string, signer neofscrypto.Signer, opts client.SearchObjectsOptions) ([]client.SearchResultItem, string, error)
 	ObjectGetInit(ctx context.Context, container cid.ID, id oid.ID, s user.Signer, get client.PrmObjectGet) (object.Object, *client.PayloadReader, error)
-	ObjectRangeInit(ctx context.Context, container cid.ID, id oid.ID, offset uint64, length uint64, s user.Signer, objectRange client.PrmObjectRange) (*client.ObjectRangeReader, error)
 	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*object.Object, error)
-	ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHash) ([][]byte, error)
 	Close() error
 }
 
@@ -69,11 +60,10 @@ func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) (i
 // If Command is not provided, full object is requested. If wrapClientCloser is true,
 // the client will be closed when the returned ReadCloser is closed.
 func GetWithClient(ctx context.Context, c Client, priv *keys.PrivateKey, u *url.URL, wrapClientCloser bool) (io.ReadCloser, error) {
-	objectAddr, rest, err := parseNeoFSURL(u)
+	objectAddr, cmdPart, err := parseNeoFSURL(u)
 	if err != nil {
 		return nil, err
 	}
-	cmdPart, rest, _ := strings.Cut(rest, "/")
 	var (
 		res io.ReadCloser
 		s   = user.NewAutoIDSignerRFC6979(priv.PrivateKey)
@@ -81,12 +71,8 @@ func GetWithClient(ctx context.Context, c Client, priv *keys.PrivateKey, u *url.
 	switch cmdPart {
 	case "":
 		res, err = getPayload(ctx, s, c, objectAddr)
-	case rangeCmd:
-		res, err = getRange(ctx, s, c, objectAddr, rest)
 	case headerCmd:
 		res, err = getHeader(ctx, s, c, objectAddr)
-	case hashCmd:
-		res, err = getHash(ctx, s, c, objectAddr, rest)
 	default:
 		return nil, ErrInvalidCommand
 	}
@@ -155,20 +141,6 @@ func getPayload(ctx context.Context, s user.Signer, c Client, addr *oid.Address)
 	return iorc, err
 }
 
-func getRange(ctx context.Context, s user.Signer, c Client, addr *oid.Address, rangePart string) (io.ReadCloser, error) {
-	var iorc io.ReadCloser
-	r, err := parseRange(rangePart)
-	if err != nil {
-		return nil, err
-	}
-
-	rc, err := c.ObjectRangeInit(ctx, addr.Container(), addr.Object(), r.GetOffset(), r.GetLength(), s, client.PrmObjectRange{})
-	if rc != nil {
-		iorc = rc
-	}
-	return iorc, err
-}
-
 func getObjHeader(ctx context.Context, s user.Signer, c Client, addr *oid.Address) (*object.Object, error) {
 	return c.ObjectHead(ctx, addr.Container(), addr.Object(), s, client.PrmObjectHead{})
 }
@@ -183,63 +155,6 @@ func getHeader(ctx context.Context, s user.Signer, c Client, addr *oid.Address) 
 		return nil, err
 	}
 	return io.NopCloser(bytes.NewReader(res)), nil
-}
-
-func getHash(ctx context.Context, s user.Signer, c Client, addr *oid.Address, hashPart string) (io.ReadCloser, error) {
-	if hashPart == "" { // hash of the full payload
-		obj, err := getObjHeader(ctx, s, c, addr)
-		if err != nil {
-			return nil, err
-		}
-		sum, flag := obj.PayloadChecksum()
-		if !flag {
-			return nil, errors.New("missing checksum in the reply")
-		}
-		return io.NopCloser(bytes.NewReader(sum.Value())), nil
-	}
-	r, err := parseRange(hashPart)
-	if err != nil {
-		return nil, err
-	}
-	var hashPrm client.PrmObjectHash
-	hashPrm.SetRangeList(r.GetOffset(), r.GetLength())
-
-	hashes, err := c.ObjectHash(ctx, addr.Container(), addr.Object(), s, hashPrm)
-	if err != nil {
-		return nil, err
-	}
-	if len(hashes) == 0 {
-		return nil, fmt.Errorf("%w: empty response", ErrInvalidRange)
-	}
-	u256, err := util.Uint256DecodeBytesBE(hashes[0])
-	if err != nil {
-		return nil, fmt.Errorf("decode Uint256: %w", err)
-	}
-	res, err := u256.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-	return io.NopCloser(bytes.NewReader(res)), nil
-}
-
-func parseRange(s string) (*object.Range, error) {
-	offsetPart, lengthPart, ok := strings.Cut(s, rangeSep)
-	if !ok {
-		return nil, ErrInvalidRange
-	}
-	offset, err := strconv.ParseUint(offsetPart, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("%w: invalid offset", ErrInvalidRange)
-	}
-	length, err := strconv.ParseUint(lengthPart, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("%w: invalid length", ErrInvalidRange)
-	}
-
-	r := object.NewRange()
-	r.SetOffset(offset)
-	r.SetLength(length)
-	return r, nil
 }
 
 // ObjectSearch returns a channel of object search results from the provided container.

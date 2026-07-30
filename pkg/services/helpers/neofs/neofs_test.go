@@ -8,31 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseRange(t *testing.T) {
-	t.Run("valid", func(t *testing.T) {
-		r, err := parseRange("13|87")
-		require.NoError(t, err)
-		require.Equal(t, uint64(13), r.GetOffset())
-		require.Equal(t, uint64(87), r.GetLength())
-	})
-	t.Run("missing offset", func(t *testing.T) {
-		_, err := parseRange("|87")
-		require.Error(t, err)
-	})
-	t.Run("missing length", func(t *testing.T) {
-		_, err := parseRange("13|")
-		require.Error(t, err)
-	})
-	t.Run("missing separator", func(t *testing.T) {
-		_, err := parseRange("1387")
-		require.Error(t, err)
-	})
-	t.Run("invalid number", func(t *testing.T) {
-		_, err := parseRange("ab|87")
-		require.Error(t, err)
-	})
-}
-
 func TestParseNeoFSURL(t *testing.T) {
 	cStr := "C3swfg8MiMJ9bXbeFG6dWJTCoHp9hAEZkHezvbSwK1Cc"
 	oStr := "3nQH1L8u3eM9jt2mZCs6MyjzdjerdSzBkXCYYj4M4Znk"
