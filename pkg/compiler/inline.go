@@ -182,7 +182,7 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool)
 		st, vt, over, extT := c.scAndVMTypeFromExpr(p, extMap)
 		params = append(params, DebugParam{
 			Name:         "", // Parameter name will be filled in several lines below if the corresponding event exists in the buildinfo.options.
-			Type:         vt.String(),
+			Type:         st.String(),
 			RealType:     over,
 			ExtendedType: extT,
 			TypeSC:       st,
