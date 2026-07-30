@@ -639,21 +639,20 @@ func TestCompile_GuessEventTypes(t *testing.T) {
 	t.Run("invalid number of params", func(t *testing.T) {
 		check(t, filepath.Join("testdata", "rpcbindings", "invalid2"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
 	})
-	/*
-		// TODO: this on is a controversial one. If event information is provided in the config file, then conversion code
-		// will be emitted by the compiler according to the parameter type provided via config. Thus, we can be sure that
-		// either event parameter has the type specified in the config file or the execution of the contract will fail.
-		// Thus, this testcase is always failing (no compilation error occurs).
-		// Question: do we want to compare `RealType` of the emitted parameter with the one expected in the manifest?
-		t.Run("SC parameter type mismatch", func(t *testing.T) {
-			check(t, filepath.Join("testdata", "rpcbindings", "invalid3"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
-		})
-	*/
+	t.Run("SC parameter type mismatch", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "rpcbindings", "invalid3"), "event 'SomeEvent', parameter #2: expected type String, got Integer")
+	})
 	t.Run("extended types mismatch", func(t *testing.T) {
 		check(t, filepath.Join("testdata", "rpcbindings", "invalid4"), "inconsistent usages of event `SomeEvent`: extended type of param #0 mismatch")
 	})
 	t.Run("named types redeclare", func(t *testing.T) {
 		check(t, filepath.Join("testdata", "rpcbindings", "invalid5"), "configured declared named type intersects with the contract's one: `invalid5.NamedStruct`")
+	})
+	t.Run("SC type matches, real type doesn't", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "rpcbindings", "invalid9"), "inconsistent usages of event `SomeEvent`: Go type of param #0 mismatch")
+	})
+	t.Run("real type matches, SC type doesn't", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "rpcbindings", "invalid10"), "inconsistent usages of event `SomeEvent` against config: SC type of param #0 mismatch: Any vs InteropInterface")
 	})
 }
 
