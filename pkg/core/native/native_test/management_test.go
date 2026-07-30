@@ -83,7 +83,10 @@ var (
 		nativenames.Management: `{"id":-1,"hash":"0xfffdc93764dbaddd97c48f252a53ea4643faa3fd","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":3581846399},"manifest":{"name":"ContractManagement","abi":{"methods":[{"name":"deploy","offset":0,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"}],"returntype":"Array","safe":false},{"name":"deploy","offset":7,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"},{"name":"data","type":"Any"}],"returntype":"Array","safe":false},{"name":"destroy","offset":14,"parameters":[],"returntype":"Void","safe":false},{"name":"getContract","offset":21,"parameters":[{"name":"hash","type":"Hash160"}],"returntype":"Array","safe":true},{"name":"getContractById","offset":28,"parameters":[{"name":"id","type":"Integer"}],"returntype":"Array","safe":true},{"name":"getContractHashes","offset":35,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"getMinimumDeploymentFee","offset":42,"parameters":[],"returntype":"Integer","safe":true},{"name":"hasMethod","offset":49,"parameters":[{"name":"hash","type":"Hash160"},{"name":"method","type":"String"},{"name":"pcount","type":"Integer"}],"returntype":"Boolean","safe":true},{"name":"isContract","offset":56,"parameters":[{"name":"hash","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"setMinimumDeploymentFee","offset":63,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"update","offset":70,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"}],"returntype":"Void","safe":false},{"name":"update","offset":77,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"},{"name":"data","type":"Any"}],"returntype":"Void","safe":false}],"events":[{"name":"Deploy","parameters":[{"name":"Hash","type":"Hash160"}]},{"name":"Update","parameters":[{"name":"Hash","type":"Hash160"}]},{"name":"Destroy","parameters":[{"name":"Hash","type":"Hash160"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.CryptoLib:  `{"id":-3,"hash":"0x726cb6e0cd8628a1350a611384688911ab75f51b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":174904780},"manifest":{"name":"CryptoLib","abi":{"methods":[{"name":"bls12381Add","offset":0,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Deserialize","offset":7,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Equal","offset":14,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"Boolean","safe":true},{"name":"bls12381Mul","offset":21,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"mul","type":"ByteArray"},{"name":"neg","type":"Boolean"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Pairing","offset":28,"parameters":[{"name":"g1","type":"InteropInterface"},{"name":"g2","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Serialize","offset":35,"parameters":[{"name":"g","type":"InteropInterface"}],"returntype":"ByteArray","safe":true},{"name":"keccak256","offset":42,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"murmur32","offset":49,"parameters":[{"name":"data","type":"ByteArray"},{"name":"seed","type":"Integer"}],"returntype":"ByteArray","safe":true},{"name":"recoverSecp256K1","offset":56,"parameters":[{"name":"messageHash","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"ripemd160","offset":63,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"sha256","offset":70,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"verifyWithECDsa","offset":77,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"},{"name":"curveHash","type":"Integer"}],"returntype":"Boolean","safe":true},{"name":"verifyWithEd25519","offset":84,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"Boolean","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
-	huyaoCSS = map[string]string{}
+	huyaoCSS = map[string]string{
+		nativenames.Policy:           `{"id":-7,"hash":"0xcc5e4edd9f5f8dba8bb65734541df7a1c081c67b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":2426471238},"manifest":{"name":"PolicyContract","abi":{"methods":[{"name":"blockAccount","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false},{"name":"getAttributeFee","offset":7,"parameters":[{"name":"attributeType","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"getBlockedAccounts","offset":14,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"getExecFeeFactor","offset":21,"parameters":[],"returntype":"Integer","safe":true},{"name":"getExecPicoFeeFactor","offset":28,"parameters":[],"returntype":"Integer","safe":true},{"name":"getFeePerByte","offset":35,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxTraceableBlocks","offset":42,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxValidUntilBlockIncrement","offset":49,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMillisecondsPerBlock","offset":56,"parameters":[],"returntype":"Integer","safe":true},{"name":"getStoragePrice","offset":63,"parameters":[],"returntype":"Integer","safe":true},{"name":"getTemporaryStorageMaxTTL","offset":70,"parameters":[],"returntype":"Integer","safe":true},{"name":"getWhitelistFeeContracts","offset":77,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"isBlocked","offset":84,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"recoverFund","offset":91,"parameters":[{"name":"account","type":"Hash160"},{"name":"token","type":"Hash160"}],"returntype":"Boolean","safe":false},{"name":"removeWhitelistFeeContract","offset":98,"parameters":[{"name":"contractHash","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setAttributeFee","offset":105,"parameters":[{"name":"attributeType","type":"Integer"},{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setExecFeeFactor","offset":112,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setFeePerByte","offset":119,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxTraceableBlocks","offset":126,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxValidUntilBlockIncrement","offset":133,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMillisecondsPerBlock","offset":140,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setStoragePrice","offset":147,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setTemporaryStorageMaxTTL","offset":154,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setWhitelistFeeContract","offset":161,"parameters":[{"name":"contractHash","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"},{"name":"fixedFee","type":"Integer"}],"returntype":"Void","safe":false},{"name":"unblockAccount","offset":168,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[{"name":"MillisecondsPerBlockChanged","parameters":[{"name":"old","type":"Integer"},{"name":"new","type":"Integer"}]},{"name":"WhitelistFeeChanged","parameters":[{"name":"contract","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"},{"name":"fee","type":"Any"}]},{"name":"RecoveredFund","parameters":[{"name":"account","type":"Hash160"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+		nativenames.TemporaryStorage: `{"id":-12,"hash":"0x93463501fc72d6a55ba38ead9c8b1ae91b15c2bb","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":3443651689},"manifest":{"name":"TemporaryStorage","abi":{"methods":[{"name":"delete","offset":0,"parameters":[{"name":"key","type":"ByteArray"}],"returntype":"Void","safe":false},{"name":"find","offset":7,"parameters":[{"name":"prefix","type":"ByteArray"},{"name":"opts","type":"Integer"}],"returntype":"InteropInterface","safe":true},{"name":"find","offset":14,"parameters":[{"name":"hash","type":"Hash160"},{"name":"prefix","type":"ByteArray"},{"name":"opts","type":"Integer"}],"returntype":"InteropInterface","safe":true},{"name":"get","offset":21,"parameters":[{"name":"key","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"get","offset":28,"parameters":[{"name":"hash","type":"Hash160"},{"name":"key","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"getExpiration","offset":35,"parameters":[{"name":"key","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"getExpiration","offset":42,"parameters":[{"name":"hash","type":"Hash160"},{"name":"key","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"put","offset":49,"parameters":[{"name":"key","type":"ByteArray"},{"name":"value","type":"ByteArray"},{"name":"validTill","type":"Integer"}],"returntype":"Void","safe":false},{"name":"renew","offset":56,"parameters":[{"name":"key","type":"ByteArray"},{"name":"validTill","type":"Integer"}],"returntype":"Void","safe":false}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+	}
 )
 
 func init() {
@@ -300,7 +303,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	var expected []state.NotificationEvent
 	for _, name := range nativenames.All {
 		switch name {
-		case nativenames.Notary, nativenames.Treasury:
+		case nativenames.Notary, nativenames.Treasury, nativenames.TemporaryStorage:
 			continue
 		case nativenames.Gas:
 			expected = append(expected, state.NotificationEvent{
@@ -423,6 +426,22 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
 	expected = expected[:0]
+	for _, h := range []util.Uint160{nativehashes.PolicyContract} {
+		expected = append(expected, state.NotificationEvent{
+			ScriptHash: nativehashes.ContractManagement,
+			Name:       "Update",
+			Item: stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(h),
+			}),
+		})
+	}
+	expected = append(expected, state.NotificationEvent{
+		ScriptHash: nativehashes.ContractManagement,
+		Name:       "Deploy",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(nativehashes.TemporaryStorage),
+		}),
+	})
 	require.Equal(t, expected, aer[0].Events)
 }
 
@@ -431,6 +450,8 @@ func TestManagement_NativeUpdate(t *testing.T) {
 		cockatriceHeight = 3
 		echidnaHeight    = 6
 		faunHeight       = 7
+		gorgonHeight     = 8
+		huyaoHeight      = 9
 	)
 
 	c := newCustomManagementClient(t, func(cfg *config.Blockchain) {
@@ -440,6 +461,8 @@ func TestManagement_NativeUpdate(t *testing.T) {
 			config.HFCockatrice.String():    cockatriceHeight,
 			config.HFEchidna.String():       echidnaHeight,
 			config.HFFaun.String():          faunHeight,
+			config.HFGorgon.String():        gorgonHeight,
+			config.HFHuyao.String():         huyaoHeight,
 		}
 	})
 
@@ -449,7 +472,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 		for _, name := range nativenames.All {
 			h := state.CreateNativeContractHash(name)
 			cs := c.Chain.GetContractState(h)
-			if name == nativenames.Notary || name == nativenames.Treasury {
+			if name == nativenames.Notary || name == nativenames.Treasury || name == nativenames.TemporaryStorage {
 				require.Nil(t, cs, name)
 				continue
 			} else {
@@ -466,7 +489,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 	for _, name := range nativenames.All {
 		h := state.CreateNativeContractHash(name)
 		cs := c.Chain.GetContractState(h)
-		if name == nativenames.Notary || name == nativenames.Treasury {
+		if name == nativenames.Notary || name == nativenames.Treasury || name == nativenames.TemporaryStorage {
 			require.Nil(t, cs, name)
 			continue
 		} else {
@@ -492,7 +515,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 	for _, name := range nativenames.All {
 		h := state.CreateNativeContractHash(name)
 		cs := c.Chain.GetContractState(h)
-		if name == nativenames.Treasury {
+		if name == nativenames.Treasury || name == nativenames.TemporaryStorage {
 			require.Nil(t, cs, name)
 			continue
 		} else {
@@ -514,7 +537,12 @@ func TestManagement_NativeUpdate(t *testing.T) {
 	for _, name := range nativenames.All {
 		h := state.CreateNativeContractHash(name)
 		cs := c.Chain.GetContractState(h)
-		require.NotNil(t, cs, name)
+		if name == nativenames.TemporaryStorage {
+			require.Nil(t, cs, name)
+			continue
+		} else {
+			require.NotNil(t, cs, name)
+		}
 		// A tiny hack to reuse faunCSS map in the check below.
 		cp := *cs
 		actual := &cp // avoid Management cache corruption.
@@ -522,6 +550,45 @@ func TestManagement_NativeUpdate(t *testing.T) {
 		jBytes, err := ojson.Marshal(actual)
 		require.NoError(t, err, name)
 		require.Equal(t, faunCSS[name], string(jBytes), fmt.Errorf("contract %s state mismatch", name))
+	}
+
+	// Add some blocks up to the Gorgon enabling height and check the natives state.
+	for i := c.Chain.BlockHeight(); i < gorgonHeight; i++ {
+		c.AddNewBlock(t)
+	}
+	for _, name := range nativenames.All {
+		h := state.CreateNativeContractHash(name)
+		cs := c.Chain.GetContractState(h)
+		if name == nativenames.TemporaryStorage {
+			require.Nil(t, cs, name)
+			continue
+		} else {
+			require.NotNil(t, cs, name)
+		}
+		// A tiny hack to reuse gorgonCSS map in the check below.
+		cp := *cs
+		actual := &cp // avoid Management cache corruption.
+		actual.UpdateCounter = 0
+		jBytes, err := ojson.Marshal(actual)
+		require.NoError(t, err, name)
+		require.Equal(t, gorgonCSS[name], string(jBytes), fmt.Errorf("contract %s state mismatch", name))
+	}
+
+	// Add some blocks up to the Huyao enabling height and check the natives state.
+	for i := c.Chain.BlockHeight(); i < huyaoHeight; i++ {
+		c.AddNewBlock(t)
+	}
+	for _, name := range nativenames.All {
+		h := state.CreateNativeContractHash(name)
+		cs := c.Chain.GetContractState(h)
+		require.NotNil(t, cs, name)
+		// A tiny hack to reuse gorgonCSS map in the check below.
+		cp := *cs
+		actual := &cp // avoid Management cache corruption.
+		actual.UpdateCounter = 0
+		jBytes, err := ojson.Marshal(actual)
+		require.NoError(t, err, name)
+		require.Equal(t, huyaoCSS[name], string(jBytes), fmt.Errorf("contract %s state mismatch", name))
 	}
 }
 
@@ -562,6 +629,8 @@ func TestBlockchain_GetNatives(t *testing.T) {
 		domovoiHeight    = 5
 		echidnaHeight    = 6
 		faunHeight       = 7
+		gorgonHeight     = 8
+		huyaoHeight      = 9
 	)
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
@@ -571,13 +640,15 @@ func TestBlockchain_GetNatives(t *testing.T) {
 			config.HFDomovoi.String():       domovoiHeight,
 			config.HFEchidna.String():       echidnaHeight,
 			config.HFFaun.String():          faunHeight,
+			config.HFGorgon.String():        gorgonHeight,
+			config.HFHuyao.String():         huyaoHeight,
 		}
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
 
 	// Check genesis-based native contract states.
 	natives := bc.GetNatives()
-	require.Equal(t, len(nativenames.All)-2, len(natives)) // Notary is deployed starting from D hardfork, Treasury - starting from Faun.
+	require.Equal(t, 9, len(natives)) // Notary is deployed starting from D hardfork, Treasury - starting from Faun.
 	for _, cs := range natives {
 		csFull := state.Contract{
 			ContractBase:  cs.ContractBase,
@@ -591,7 +662,7 @@ func TestBlockchain_GetNatives(t *testing.T) {
 	// Check native state after Cockatrice.
 	e.GenerateNewBlocks(t, cockatriceHeight)
 	natives = bc.GetNatives()
-	require.Equal(t, len(nativenames.All)-2, len(natives)) // Notary is deployed starting from D hardfork.
+	require.Equal(t, 9, len(natives)) // Notary is deployed starting from D hardfork.
 	for _, cs := range natives {
 		csFull := state.Contract{
 			ContractBase:  cs.ContractBase,
@@ -605,7 +676,7 @@ func TestBlockchain_GetNatives(t *testing.T) {
 	// Check native state after Echidna.
 	e.GenerateNewBlocks(t, echidnaHeight-cockatriceHeight)
 	natives = bc.GetNatives()
-	require.Equal(t, len(nativenames.All)-1, len(natives))
+	require.Equal(t, 10, len(natives))
 	for _, cs := range natives {
 		csFull := state.Contract{
 			ContractBase:  cs.ContractBase,
@@ -619,7 +690,7 @@ func TestBlockchain_GetNatives(t *testing.T) {
 	// Check native state after Faun.
 	e.GenerateNewBlocks(t, faunHeight-echidnaHeight)
 	natives = bc.GetNatives()
-	require.Equal(t, len(nativenames.All), len(natives))
+	require.Equal(t, 11, len(natives))
 	for _, cs := range natives {
 		csFull := state.Contract{
 			ContractBase:  cs.ContractBase,
@@ -628,6 +699,34 @@ func TestBlockchain_GetNatives(t *testing.T) {
 		jBytes, err := ojson.Marshal(csFull)
 		require.NoError(t, err, cs.Manifest.Name)
 		require.Equal(t, faunCSS[cs.Manifest.Name], string(jBytes), fmt.Errorf("contract %s state mismatch", cs.Manifest.Name))
+	}
+
+	// Check native state after Gorgon.
+	e.GenerateNewBlocks(t, gorgonHeight-faunHeight)
+	natives = bc.GetNatives()
+	require.Equal(t, 11, len(natives))
+	for _, cs := range natives {
+		csFull := state.Contract{
+			ContractBase:  cs.ContractBase,
+			UpdateCounter: 0, // Since we're comparing only state.NativeContract part, set the update counter to 0 to match the echidnaCSS.
+		}
+		jBytes, err := ojson.Marshal(csFull)
+		require.NoError(t, err, cs.Manifest.Name)
+		require.Equal(t, gorgonCSS[cs.Manifest.Name], string(jBytes), fmt.Errorf("contract %s state mismatch", cs.Manifest.Name))
+	}
+
+	// Check native state after Huyao.
+	e.GenerateNewBlocks(t, huyaoHeight-gorgonHeight)
+	natives = bc.GetNatives()
+	require.Equal(t, 12, len(natives))
+	for _, cs := range natives {
+		csFull := state.Contract{
+			ContractBase:  cs.ContractBase,
+			UpdateCounter: 0, // Since we're comparing only state.NativeContract part, set the update counter to 0 to match the echidnaCSS.
+		}
+		jBytes, err := ojson.Marshal(csFull)
+		require.NoError(t, err, cs.Manifest.Name)
+		require.Equal(t, huyaoCSS[cs.Manifest.Name], string(jBytes), fmt.Errorf("contract %s state mismatch", cs.Manifest.Name))
 	}
 }
 

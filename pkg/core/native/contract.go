@@ -73,6 +73,7 @@ type (
 		GetAttributeFeeInternal(d *dao.Simple, attrType transaction.AttrType) int64
 		CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error
 		GetFeePerByteInternal(d *dao.Simple) int64
+		GetTemporaryStorageMaxTTLInternal(d *dao.Simple) uint32
 
 		// Methods required for proper cross-native communication.
 		BlockAccountInternalDeferrable(ic *interop.Context, hash util.Uint160, handleRes func(res bool))
@@ -262,6 +263,9 @@ func NewDefaultContracts(cfg config.ProtocolConfiguration) []interop.Contract {
 	treasury := newTreasury()
 	treasury.NEO = neo
 
+	tempStorage := newTempStorage()
+	tempStorage.Policy = policy
+
 	return []interop.Contract{
 		mgmt,
 		s,
@@ -274,5 +278,6 @@ func NewDefaultContracts(cfg config.ProtocolConfiguration) []interop.Contract {
 		oracle,
 		notary,
 		treasury,
+		tempStorage,
 	}
 }

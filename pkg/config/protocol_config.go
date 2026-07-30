@@ -101,6 +101,9 @@ func (p *ProtocolConfiguration) Validate() error {
 	if p.MaxTimePerBlock > 0 && (p.MaxTimePerBlock <= p.TimePerBlock || p.MaxTimePerBlock <= p.Genesis.TimePerBlock) {
 		return errors.New("MaxTimePerBlock is not larger than TimePerBlock")
 	}
+	if p.Genesis.TemporaryStorageMaxTTL%time.Millisecond != 0 {
+		return errors.New("Genesis TemporaryStorageMaxTTL must be an integer number of milliseconds")
+	}
 	for name := range p.Hardforks {
 		if !IsHardforkValid(name) {
 			return fmt.Errorf("'Hardforks' configuration section contains unexpected hardfork: %s", name)
@@ -248,6 +251,7 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		p.TimePerBlock != o.TimePerBlock ||
 		p.Genesis.MaxValidUntilBlockIncrement != o.Genesis.MaxValidUntilBlockIncrement ||
 		p.Genesis.TimePerBlock != o.Genesis.TimePerBlock ||
+		p.Genesis.TemporaryStorageMaxTTL != o.Genesis.TemporaryStorageMaxTTL ||
 		p.ValidatorsCount != o.ValidatorsCount ||
 		p.VerifyTransactions != o.VerifyTransactions ||
 		!maps.Equal(p.CommitteeHistory, o.CommitteeHistory) ||

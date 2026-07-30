@@ -100,24 +100,10 @@ func findWithContext(ic *interop.Context, stc *Context, getID ...func(ic *intero
 			return err
 		}
 	}
-	if opts&^FindAll != 0 {
-		return fmt.Errorf("%w: unknown flag", errFindInvalidOptions)
+	bkwrds, err := ValidateFindOptions(opts)
+	if err != nil {
+		return err
 	}
-	if opts&FindKeysOnly != 0 &&
-		opts&(FindDeserialize|FindPick0|FindPick1) != 0 {
-		return fmt.Errorf("%w KeysOnly conflicts with other options", errFindInvalidOptions)
-	}
-	if opts&FindValuesOnly != 0 &&
-		opts&(FindKeysOnly|FindRemovePrefix) != 0 {
-		return fmt.Errorf("%w: KeysOnly conflicts with ValuesOnly", errFindInvalidOptions)
-	}
-	if opts&FindPick0 != 0 && opts&FindPick1 != 0 {
-		return fmt.Errorf("%w: Pick0 conflicts with Pick1", errFindInvalidOptions)
-	}
-	if opts&FindDeserialize == 0 && (opts&FindPick0 != 0 || opts&FindPick1 != 0) {
-		return fmt.Errorf("%w: PickN is specified without Deserialize", errFindInvalidOptions)
-	}
-	bkwrds := opts&FindBackwards != 0
 	ctx, cancel := context.WithCancel(context.Background())
 	seekres := ic.DAO.SeekAsync(ctx, stc.ID, storage.SeekRange{Prefix: prefix, Backwards: bkwrds})
 	item := NewIterator(seekres, prefix, opts)
@@ -132,6 +118,29 @@ func findWithContext(ic *interop.Context, stc *Context, getID ...func(ic *intero
 	})
 
 	return nil
+}
+
+// ValidateFindOptions validates the provided find options flags. Returns true
+// if FindBackwards is set, otherwise false.
+func ValidateFindOptions(opts int64) (bool, error) {
+	if opts&^FindAll != 0 {
+		return false, fmt.Errorf("%w: unknown flag", errFindInvalidOptions)
+	}
+	if opts&FindKeysOnly != 0 &&
+		opts&(FindDeserialize|FindPick0|FindPick1) != 0 {
+		return false, fmt.Errorf("%w KeysOnly conflicts with other options", errFindInvalidOptions)
+	}
+	if opts&FindValuesOnly != 0 &&
+		opts&(FindKeysOnly|FindRemovePrefix) != 0 {
+		return false, fmt.Errorf("%w: KeysOnly conflicts with ValuesOnly", errFindInvalidOptions)
+	}
+	if opts&FindPick0 != 0 && opts&FindPick1 != 0 {
+		return false, fmt.Errorf("%w: Pick0 conflicts with Pick1", errFindInvalidOptions)
+	}
+	if opts&FindDeserialize == 0 && (opts&FindPick0 != 0 || opts&FindPick1 != 0) {
+		return false, fmt.Errorf("%w: PickN is specified without Deserialize", errFindInvalidOptions)
+	}
+	return opts&FindBackwards != 0, nil
 }
 
 // Find finds stored key-value pair.
