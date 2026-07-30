@@ -26,18 +26,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
-var (
-	// ErrExecFailed is returned from [Actor.WaitSuccess] when transaction
-	// is accepted into a block, but its execution ended up in non-HALT VM
-	// state.
-	//
-	// Deprecated: use named [neorpc.FaultException] errors offered by [neorpc]
-	// package for errors.Is comparison. Also, a custom [neorpc.FaultException]
-	// error may be created with the required exception text if no suitable
-	// standard one is available.
-	ErrExecFailed = &neorpc.FaultException{}
-)
-
 // RPCActor is an interface required from the RPC client to successfully
 // create and send transactions.
 type RPCActor interface {
