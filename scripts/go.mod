@@ -6,7 +6,7 @@ replace github.com/nspcc-dev/neo-go => ../
 
 require (
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20260302080601-ff7471f924b3
-	github.com/nspcc-dev/neo-go v0.117.0
+	github.com/nspcc-dev/neo-go v0.121.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v2 v2.27.7
@@ -32,9 +32,9 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nspcc-dev/bbolt v0.0.0-20260404200350-24f70ceb2bd9 // indirect
 	github.com/nspcc-dev/hrw/v2 v2.0.4 // indirect
-	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.17 // indirect
+	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.21 // indirect
 	github.com/nspcc-dev/rfc6979 v0.2.4 // indirect
-	github.com/nspcc-dev/tzhash v1.8.3 // indirect
+	github.com/nspcc-dev/tzhash v1.8.4 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
