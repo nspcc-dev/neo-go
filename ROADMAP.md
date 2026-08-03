@@ -7,7 +7,7 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.122.0 (~Aug 2026)
+## Version 0.123.0 (~Sep 2026)
  * dynamic VM opcode prices support
  * protocol updates
  * bug fixes
@@ -35,12 +35,3 @@ registration way via `registerCandidate` method call is supported via
 Removal of `registerCandidate`–based support of candidate registration will be
 done once `registerCandidate` method is officially deprecated and removed from
 the NeoToken manifest with the subsequent hardfork.
-
-## actor.ErrExecFailed RPC client error
-
-`actor.ErrExecFailed` RPC client error is replaced by `neorpc.FaultException`
-error. Use a set of predefined `neorpc.FaultException` errors with errors.Is to
-detect specific FAULT exceptions or create a custom `neorpc.FaultException`
-error if no suitable standard one is available.
-
-`actor.ErrExecFailed` will be removed in ~v0.122.0 release (~Aug 2026).
