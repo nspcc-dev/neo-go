@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"math/big"
 	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -15,6 +16,9 @@ type Parameter struct {
 	Name string                  `json:"name"`
 	Type smartcontract.ParamType `json:"type"`
 }
+
+// Ensure required interface are implemented for proper RPC bindings generation.
+var _ = smartcontract.Convertible(&Parameter{})
 
 // Parameters is just an array of Parameter.
 type Parameters []Parameter
@@ -70,6 +74,16 @@ func (p *Parameter) FromStackItem(item stackitem.Item) error {
 		return err
 	}
 	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [Parameter].
+// It never returns an error. It implements [smartcontract.Convertible]
+// interface.
+func (p *Parameter) ToSCParameter() (smartcontract.Parameter, error) {
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		{Type: smartcontract.StringType, Value: p.Name},
+		{Type: smartcontract.IntegerType, Value: big.NewInt(int64(p.Type))},
+	}}, nil
 }
 
 // AreValid checks all parameters for validity and consistency.

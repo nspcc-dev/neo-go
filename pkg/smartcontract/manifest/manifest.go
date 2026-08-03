@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	ojson "github.com/nspcc-dev/go-ordered-json"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -62,6 +63,9 @@ type Manifest struct {
 	// Extra is an implementation-defined user data.
 	Extra json.RawMessage `json:"extra"`
 }
+
+// Ensure required interface are implemented for proper RPC bindings generation.
+var _ = smartcontract.Convertible(&Manifest{})
 
 // NewManifest returns a new manifest with necessary fields initialized.
 func NewManifest(name string) *Manifest {
@@ -193,6 +197,62 @@ func (m *Manifest) ToStackItem() (stackitem.Item, error) {
 		trusts,
 		extra,
 	}), nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [Manifest].
+// It never returns an error. It implements [smartcontract.Convertible]
+// interface.
+func (m *Manifest) ToSCParameter() (smartcontract.Parameter, error) {
+	groups := make([]smartcontract.Parameter, len(m.Groups))
+	for i := range m.Groups {
+		prm, err := m.Groups[i].ToSCParameter()
+		if err != nil {
+			return smartcontract.Parameter{}, err
+		}
+		groups[i] = prm
+	}
+	supportedStandards := make([]smartcontract.Parameter, len(m.SupportedStandards))
+	for i := range m.SupportedStandards {
+		supportedStandards[i] = smartcontract.Parameter{Type: smartcontract.StringType, Value: m.SupportedStandards[i]}
+	}
+	abi, err := m.ABI.ToSCParameter()
+	if err != nil {
+		return smartcontract.Parameter{}, err
+	}
+	permissions := make([]smartcontract.Parameter, len(m.Permissions))
+	for i := range m.Permissions {
+		prm, err := m.Permissions[i].ToSCParameter()
+		if err != nil {
+			return smartcontract.Parameter{}, err
+		}
+		permissions[i] = prm
+	}
+	trusts := smartcontract.Parameter{Type: smartcontract.AnyType}
+	if !m.Trusts.IsWildcard() {
+		tPrms := make([]smartcontract.Parameter, len(m.Trusts.Value))
+		for i, v := range m.Trusts.Value {
+			prm, err := v.ToSCParameter()
+			if err != nil {
+				return smartcontract.Parameter{}, err
+			}
+			tPrms[i] = prm
+		}
+		trusts = smartcontract.Parameter{Type: smartcontract.ArrayType, Value: tPrms}
+	}
+	extraBytes, err := extraToStackItem(m.Extra).TryBytes()
+	if err != nil {
+		return smartcontract.Parameter{}, err
+	}
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		{Type: smartcontract.StringType, Value: m.Name},
+		{Type: smartcontract.ArrayType, Value: groups},
+		{Type: smartcontract.MapType, Value: []smartcontract.ParameterPair{}},
+		{Type: smartcontract.ArrayType, Value: supportedStandards},
+		abi,
+		{Type: smartcontract.ArrayType, Value: permissions},
+		trusts,
+		{Type: smartcontract.ByteArrayType, Value: extraBytes},
+	}}, nil
 }
 
 // extraToStackItem removes indentation from `Extra` field in JSON and

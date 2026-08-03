@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -30,6 +31,9 @@ type ABI struct {
 	Methods []Method `json:"methods"`
 	Events  []Event  `json:"events"`
 }
+
+// Ensure required interface are implemented for proper RPC bindings generation.
+var _ = smartcontract.Convertible(&ABI{})
 
 // GetMethod returns methods with the specified name.
 func (a *ABI) GetMethod(name string, paramCount int) *Method {
@@ -144,4 +148,30 @@ func (a *ABI) FromStackItem(item stackitem.Item) error {
 		a.Events[i] = *e
 	}
 	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [ABI]. It
+// never returns an error. It implements [smartcontract.Convertible]
+// interface.
+func (a *ABI) ToSCParameter() (smartcontract.Parameter, error) {
+	methods := make([]smartcontract.Parameter, len(a.Methods))
+	for i := range a.Methods {
+		prm, err := a.Methods[i].ToSCParameter()
+		if err != nil {
+			return smartcontract.Parameter{}, err
+		}
+		methods[i] = prm
+	}
+	events := make([]smartcontract.Parameter, len(a.Events))
+	for i := range a.Events {
+		prm, err := a.Events[i].ToSCParameter()
+		if err != nil {
+			return smartcontract.Parameter{}, err
+		}
+		events[i] = prm
+	}
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		{Type: smartcontract.ArrayType, Value: methods},
+		{Type: smartcontract.ArrayType, Value: events},
+	}}, nil
 }

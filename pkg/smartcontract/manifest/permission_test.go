@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -181,6 +182,42 @@ func TestPermission_ToStackItemFromStackItem(t *testing.T) {
 			stackitem.Null{},
 		})
 		CheckToFromStackItem(t, p, expected)
+	})
+}
+
+func TestPermission_ToSCParameter(t *testing.T) {
+	t.Run("wildcard", func(t *testing.T) {
+		p := NewPermission(PermissionWildcard)
+		prm, err := p.ToSCParameter()
+		require.NoError(t, err)
+		require.Equal(t, smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+			{Type: smartcontract.AnyType},
+			{Type: smartcontract.AnyType},
+		}}, prm)
+	})
+
+	t.Run("hash", func(t *testing.T) {
+		p := NewPermission(PermissionHash, util.Uint160{1, 2, 3})
+		p.Methods = WildStrings{Value: []string{"a"}}
+		prm, err := p.ToSCParameter()
+		require.NoError(t, err)
+		require.Equal(t, smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+			{Type: smartcontract.Hash160Type, Value: util.Uint160{1, 2, 3}},
+			{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+				{Type: smartcontract.StringType, Value: "a"},
+			}},
+		}}, prm)
+	})
+
+	t.Run("group", func(t *testing.T) {
+		pk, _ := keys.NewPrivateKey()
+		p := NewPermission(PermissionGroup, pk.PublicKey())
+		prm, err := p.ToSCParameter()
+		require.NoError(t, err)
+		require.Equal(t, smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+			{Type: smartcontract.PublicKeyType, Value: pk.PublicKey().Bytes()},
+			{Type: smartcontract.AnyType},
+		}}, prm)
 	})
 }
 

@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -36,6 +37,9 @@ type Permission struct {
 	Contract PermissionDesc `json:"contract"`
 	Methods  WildStrings    `json:"methods"`
 }
+
+// Ensure required interface are implemented for proper RPC bindings generation.
+var _ = smartcontract.Convertible(&Permission{})
 
 // Permissions is just an array of Permission.
 type Permissions []Permission
@@ -242,6 +246,21 @@ func (d *PermissionDesc) ToStackItem() stackitem.Item {
 	}
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing
+// [PermissionDesc]. It never returns an error.
+func (d *PermissionDesc) ToSCParameter() (smartcontract.Parameter, error) {
+	switch d.Type {
+	case PermissionWildcard:
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	case PermissionHash:
+		return smartcontract.Parameter{Type: smartcontract.Hash160Type, Value: d.Hash()}, nil
+	case PermissionGroup:
+		return smartcontract.Parameter{Type: smartcontract.PublicKeyType, Value: d.Group().Bytes()}, nil
+	default:
+		panic("unsupported PermissionDesc type")
+	}
+}
+
 // FromStackItem converts stackitem.Item to PermissionDesc.
 func (d *PermissionDesc) FromStackItem(item stackitem.Item) error {
 	if _, ok := item.(stackitem.Null); ok {
@@ -326,4 +345,28 @@ func (p *Permission) FromStackItem(item stackitem.Item) error {
 		}
 	}
 	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [Permission].
+// It never returns an error. It implements [smartcontract.Convertible]
+// interface.
+func (p *Permission) ToSCParameter() (smartcontract.Parameter, error) {
+	contract, err := p.Contract.ToSCParameter()
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Contract: %w", err)
+	}
+	var methods smartcontract.Parameter
+	if p.Methods.IsWildcard() {
+		methods = smartcontract.Parameter{Type: smartcontract.AnyType}
+	} else {
+		m := make([]smartcontract.Parameter, len(p.Methods.Value))
+		for i := range p.Methods.Value {
+			m[i] = smartcontract.Parameter{Type: smartcontract.StringType, Value: p.Methods.Value[i]}
+		}
+		methods = smartcontract.Parameter{Type: smartcontract.ArrayType, Value: m}
+	}
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		contract,
+		methods,
+	}}, nil
 }
