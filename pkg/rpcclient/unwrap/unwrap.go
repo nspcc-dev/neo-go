@@ -475,3 +475,20 @@ func Nothing(r *result.Invoke, err error) error {
 	}
 	return nil
 }
+
+// Convertible unwraps a single stack item into a pointer to T via FromStackItem.
+// Null is unwrapped into a nil pointer without an error.
+func Convertible[T any, PT interface {
+	*T
+	stackitem.Convertible
+}](item stackitem.Item, err error) (*T, error) {
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := item.(stackitem.Null); ok {
+		return nil, nil
+	}
+	res := new(T)
+	err = PT(res).FromStackItem(item)
+	return res, err
+}

@@ -477,3 +477,34 @@ func TestMap(t *testing.T) {
 	require.Equal(t, 1, m.Len())
 	require.Equal(t, 0, m.Index(stackitem.Make(42)))
 }
+
+func TestConvertible(t *testing.T) {
+	t.Run("error", func(t *testing.T) {
+		res, err := Convertible[state.WhitelistFeeContract](nil, errors.New("smth"))
+		require.Error(t, err)
+		require.Nil(t, res)
+	})
+	t.Run("null", func(t *testing.T) {
+		res, err := Convertible[state.WhitelistFeeContract](stackitem.Null{}, nil)
+		require.NoError(t, err)
+		require.Nil(t, res)
+	})
+	t.Run("bad item", func(t *testing.T) {
+		_, err := Convertible[state.WhitelistFeeContract](stackitem.Make(42), nil)
+		require.Error(t, err)
+	})
+	t.Run("good", func(t *testing.T) {
+		expected := &state.WhitelistFeeContract{
+			Hash:   util.Uint160{1, 2, 3},
+			Method: "method",
+			ArgCnt: 2,
+			Fee:    100500,
+		}
+		item, err := expected.ToStackItem()
+		require.NoError(t, err)
+
+		res, err := Convertible[state.WhitelistFeeContract](item, nil)
+		require.NoError(t, err)
+		require.Equal(t, expected, res)
+	})
+}

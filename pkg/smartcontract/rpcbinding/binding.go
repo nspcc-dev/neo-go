@@ -35,14 +35,14 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) {{if .ReturnType }}({{ .ReturnType }}, error) {
-	return {{if and (not .ItemTo) (eq .Unwrapper "Item")}}func(item stackitem.Item, err error) ({{ .ReturnType }}, error) {
+	return {{if and (not .ItemTo) (not .NativeType) (eq .Unwrapper "Item")}}func(item stackitem.Item, err error) ({{ .ReturnType }}, error) {
 		if err != nil {
 			return nil, err
 		}
 		return {{addIndent (etTypeConverter .ExtendedReturn "item") "\t"}}
-	} ( {{- end -}} {{if .ItemTo -}} itemTo{{ .ItemTo }}( {{- end -}}
+	} ( {{- end -}} {{if .ItemTo -}} itemTo{{ .ItemTo }}( {{- end -}} {{if .NativeType -}} unwrap.Convertible[{{ .NativeType }}]( {{- end -}}
 			unwrap.{{.Unwrapper}}(c.invoker.Call(c.hash, "{{ .NameABI }}"
-		{{- range $arg := .Arguments -}}, {{.Name}}{{end -}} )) {{- if or .ItemTo (eq .Unwrapper "Item") -}} ) {{- end}}
+		{{- range $arg := .Arguments -}}, {{.Name}}{{end -}} )) {{- if or .ItemTo .NativeType (eq .Unwrapper "Item") -}} ) {{- end}}
 	{{- else -}} (*result.Invoke, error) {
 	c.invoker.Call(c.hash, "{{ .NameABI }}"
 		{{- range $arg := .Arguments -}}, {{.Name}}{{end}})
@@ -438,8 +438,10 @@ type (
 
 	SafeMethodTmpl struct {
 		binding.MethodTmpl
-		Unwrapper      string
-		ItemTo         string
+		Unwrapper string
+		ItemTo    string
+		// NativeType is the real type name used via [unwrap.Convertible] for reusable native types.
+		NativeType     string
 		ExtendedReturn binding.ExtendedType
 	}
 
@@ -563,6 +565,9 @@ func Generate(cfg binding.Config) error {
 	if standard.ComplyABI(cfg.Manifest, standard.Nep27) == nil {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep27)
 	}
+
+	// cfg and imports are ready to be used for template construction after this.
+	dropNativeTypes(cfg, imports)
 
 	ctr.ContractTmpl = binding.TemplateFromManifest(cfg, scTypeToGo)
 	ctr = scTemplateToRPC(cfg, ctr, imports, scTypeToGo)
@@ -691,6 +696,49 @@ func dropNep24Types(cfg binding.Config) binding.Config {
 	return cfg
 }
 
+type nativeType struct {
+	// pkg is the Go import path of the package containing the real type.
+	// It's only set for types that can be used on their own as a method
+	// (be reflected in the native contract manifest, i.e. as method parameter
+	// or method return value).
+	pkg string
+	// name is the aliased type reference to be used in generated code.
+	name string
+}
+
+// nativeTypes maps ExtendedType.Name to their reusable counterparts.
+var nativeTypes = map[string]nativeType{
+	"management.Contract":         {"github.com/nspcc-dev/neo-go/pkg/core/state", "state.Contract"},
+	"management.Manifest":         {"", "manifest.Manifest"},
+	"management.ABI":              {"", "manifest.ABI"},
+	"management.Method":           {"", "manifest.Method"},
+	"management.Event":            {"", "manifest.Event"},
+	"management.Parameter":        {"", "manifest.Parameter"},
+	"management.Permission":       {"", "manifest.Permission"},
+	"management.Group":            {"", "manifest.Group"},
+	"ledger.Block":                {"github.com/nspcc-dev/neo-go/pkg/rpcclient/ledger", "ledger.Block"},
+	"ledger.Transaction":          {"github.com/nspcc-dev/neo-go/pkg/rpcclient/ledger", "ledger.Transaction"},
+	"ledger.TransactionSigner":    {"github.com/nspcc-dev/neo-go/pkg/core/transaction", "transaction.Signer"},
+	"ledger.WitnessRule":          {"", "transaction.WitnessRule"},
+	"ledger.WitnessCondition":     {"", "transaction.WitnessCondition"},
+	"neo.AccountState":            {"github.com/nspcc-dev/neo-go/pkg/core/state", "state.NEOBalance"},
+	"policy.WhitelistFeeContract": {"github.com/nspcc-dev/neo-go/pkg/core/state", "state.WhitelistFeeContract"},
+}
+
+// dropNativeTypes removes named types with a reusable native counterpart
+// from cfg.NamedTypes and adds real packages to imports.
+func dropNativeTypes(cfg binding.Config, imports map[string]struct{}) {
+	for name, nt := range nativeTypes {
+		if _, ok := cfg.NamedTypes[name]; !ok {
+			continue
+		}
+		delete(cfg.NamedTypes, name)
+		if nt.pkg != "" {
+			imports[nt.pkg] = struct{}{}
+		}
+	}
+}
+
 func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.ExtendedType) (string, string) {
 	switch et.Base {
 	case smartcontract.AnyType:
@@ -713,6 +761,9 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 		return "[]byte", ""
 	case smartcontract.ArrayType:
 		if len(et.Name) > 0 {
+			if nt, ok := nativeTypes[et.Name]; ok {
+				return "*" + nt.name, nt.pkg
+			}
 			return "*" + toTypeName(et.Name), "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 		} else if et.Value != nil {
 			if et.Value.Base == smartcontract.PublicKeyType { // Special array wrapper.
@@ -800,6 +851,9 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 	}(` + v + `)`
 	case smartcontract.ArrayType:
 		if len(et.Name) > 0 {
+			if nt, ok := nativeTypes[et.Name]; ok && nt.pkg != "" {
+				return "unwrap.Convertible[" + nt.name + "](" + v + ", nil)"
+			}
 			return "itemTo" + toTypeName(et.Name) + "(" + v + ", nil)"
 		} else if et.Value != nil {
 			at, _ := extendedTypeToGo(et, nil)
@@ -1044,7 +1098,11 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 			if ok {
 				ctr.SafeMethods[len(ctr.SafeMethods)-1].ExtendedReturn = et
 				if abim.ReturnType == smartcontract.ArrayType && len(et.Name) > 0 {
-					ctr.SafeMethods[len(ctr.SafeMethods)-1].ItemTo = cutPointer(ctr.Methods[i].ReturnType)
+					if nt, ok := nativeTypes[et.Name]; ok && nt.pkg != "" {
+						ctr.SafeMethods[len(ctr.SafeMethods)-1].NativeType = nt.name
+					} else {
+						ctr.SafeMethods[len(ctr.SafeMethods)-1].ItemTo = cutPointer(ctr.Methods[i].ReturnType)
+					}
 				}
 			}
 			ctr.Methods = slices.Delete(ctr.Methods, i, i+1)
@@ -1157,6 +1215,11 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 			ctr.SafeMethods[i].Unwrapper = "ArrayOfPublicKeys"
 		default:
 			addETImports(ctr.SafeMethods[i].ExtendedReturn, cfg.NamedTypes, imports)
+			// This condition matches the SAFEMETHOD template's condition
+			// for generating the inline decoding func literal.
+			if ctr.SafeMethods[i].ItemTo == "" && ctr.SafeMethods[i].NativeType == "" {
+				imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
+			}
 			ctr.SafeMethods[i].Unwrapper = "Item"
 		}
 	}
@@ -1186,6 +1249,11 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 }
 
 func addETImports(et binding.ExtendedType, named map[string]binding.ExtendedType, imports map[string]struct{}) {
+	// Named types aliased to a reusable native type,
+	// so none of the packages below are needed for them.
+	if _, ok := nativeTypes[et.Name]; ok {
+		return
+	}
 	_, pkg := extendedTypeToGo(et, named)
 	if pkg != "" {
 		imports[pkg] = struct{}{}
