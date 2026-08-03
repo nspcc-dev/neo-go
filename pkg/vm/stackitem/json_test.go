@@ -51,9 +51,10 @@ func TestFromToJSON(t *testing.T) {
 		t.Run("Precision 53", func(t *testing.T) {
 			js := `9007199254740993`
 
+			// Both best/compat converters should cut the ending digit to match C# behaviour.
 			itm, err := FromJSON([]byte(js), 1, true)
 			require.NoError(t, err)
-			require.Equal(t, Make(9007199254740993), itm)
+			require.Equal(t, Make(9007199254740992), itm)
 
 			itm, err = FromJSON([]byte(js), 1, false)
 			require.NoError(t, err)

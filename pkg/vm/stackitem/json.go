@@ -234,10 +234,12 @@ func (d *decoder) decode() (Item, error) {
 		return NewByteArray([]byte(t)), nil
 	case json.Number:
 		ts := t.String()
-		var (
-			num  *big.Int
-			prec uint = CompatIntegerPrec
-		)
+		var num *big.Int
+		f, _, err := big.ParseFloat(ts, 10, CompatIntegerPrec, big.ToNearestEven)
+		if err != nil {
+			return nil, fmt.Errorf("%w (malformed exp value for int)", ErrInvalidValue)
+		}
+
 		// Int.SetString() is more efficient, but there are special
 		// cases requiring additional care for C# compatibility, that's
 		// why we're going through float first:
@@ -245,11 +247,10 @@ func (d *decoder) decode() (Item, error) {
 		//  * integers with fp notation, like 123.000
 		//  * numbers requiring more than 53 bits of mantissa
 		if d.bestIntPrecision {
-			prec = MaxIntegerPrec
-		}
-		f, _, err := big.ParseFloat(ts, 10, prec, big.ToNearestEven)
-		if err != nil {
-			return nil, fmt.Errorf("%w (malformed exp value for int)", ErrInvalidValue)
+			f, _, err = big.ParseFloat(f.Text('e', -1), 10, MaxIntegerPrec, big.ToNearestEven)
+			if err != nil {
+				return nil, fmt.Errorf("%w (malformed exp value for int)", ErrInvalidValue)
+			}
 		}
 		num = new(big.Int)
 		_, acc := f.Int(num)

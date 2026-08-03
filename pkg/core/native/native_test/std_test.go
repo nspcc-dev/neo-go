@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStd_HexEncodeDecodeCompat(t *testing.T) {
@@ -73,4 +74,39 @@ func TestStd_Itoa_Culture(t *testing.T) {
 	p := e.CommitteeInvoker(nativehashes.StdLib)
 
 	p.Invoke(t, stackitem.NewByteArray([]byte("-1")), "itoa", big.NewInt(-1))
+}
+
+// Data taken from https://github.com/nspcc-dev/neo-go/issues/4381.
+func TestStd_JSONDeserializeCompat(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFBasilisk.String(): 0, // enable explicitly to test post-Basilisk behaviour.
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	std := e.CommitteeInvoker(nativehashes.StdLib)
+
+	std.InvokeAndCheck(t, func(t testing.TB, stack []stackitem.Item) {
+		require.Equal(t, "43893649166666670000000000000000000", stack[0].Value().(*big.Int).String())
+	}, "jsonDeserialize", stackitem.Make("4.389364916666667e+34"))
+
+	std.InvokeAndCheck(t, func(t testing.TB, stack []stackitem.Item) {
+		require.Equal(t, "2221811666666666600000", stack[0].Value().(*big.Int).String())
+	}, "jsonDeserialize", stackitem.Make("2.2218116666666666e+21"))
+
+	std.InvokeAndCheck(t, func(t testing.TB, stack []stackitem.Item) {
+		require.Equal(t, "11039175000000000000", stack[0].Value().(*big.Int).String())
+	}, "jsonDeserialize", stackitem.Make("11039175000000000000"))
+
+	std.InvokeAndCheck(t, func(t testing.TB, stack []stackitem.Item) {
+		require.Equal(t, "90719925474099300000000000000000000", stack[0].Value().(*big.Int).String())
+	}, "jsonDeserialize", stackitem.Make("9.07199254740993e+34"))
+
+	std.InvokeAndCheck(t, func(t testing.TB, stack []stackitem.Item) {
+		require.Equal(t, "90071992547409940000000000000000000", stack[0].Value().(*big.Int).String())
+	}, "jsonDeserialize", stackitem.Make("9.007199254740993e+34"))
+
+	std.InvokeAndCheck(t, func(t testing.TB, stack []stackitem.Item) {
+		require.Equal(t, "90071992547409930000000000000000000000000000000000", stack[0].Value().(*big.Int).String())
+	}, "jsonDeserialize", stackitem.Make("9007199254740993e+34"))
 }
