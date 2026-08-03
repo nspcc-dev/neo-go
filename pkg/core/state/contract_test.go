@@ -2,6 +2,7 @@ package state
 
 import (
 	"math"
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -131,4 +132,68 @@ func TestContractFromStackItem(t *testing.T) {
 	var c = new(Contract)
 	err := c.FromStackItem(stackitem.Make([]stackitem.Item{id, counter, chash, nefItem, manifItem}))
 	require.NoError(t, err)
+}
+
+func TestContract_ToSCParameter(t *testing.T) {
+	script := []byte("testscript")
+	h := hash.Hash160(script)
+	m := manifest.NewManifest("Test")
+	m.ABI.Methods = []manifest.Method{{
+		Name: "main",
+		Parameters: []manifest.Parameter{
+			{Name: "amount", Type: smartcontract.IntegerType},
+			{Name: "hash", Type: smartcontract.Hash160Type},
+		},
+		ReturnType: smartcontract.BoolType,
+	}}
+	contract := &Contract{
+		UpdateCounter: 42,
+		ContractBase: ContractBase{
+			ID:   123,
+			Hash: h,
+			NEF: nef.File{
+				Header: nef.Header{
+					Magic:    nef.Magic,
+					Compiler: "neo-go.test-test",
+				},
+				Tokens:   []nef.MethodToken{},
+				Script:   script,
+				Checksum: 0,
+			},
+			Manifest: *m,
+		},
+	}
+	contract.NEF.Checksum = contract.NEF.CalculateChecksum()
+
+	prm, err := contract.ToSCParameter()
+	require.NoError(t, err)
+	require.Equal(t, smartcontract.ArrayType, prm.Type)
+	arr, ok := prm.Value.([]smartcontract.Parameter)
+	require.True(t, ok)
+	require.Len(t, arr, 5)
+
+	require.Equal(t, smartcontract.Parameter{Type: smartcontract.IntegerType, Value: big.NewInt(int64(contract.ID))}, arr[0])
+	require.Equal(t, smartcontract.Parameter{Type: smartcontract.IntegerType, Value: big.NewInt(int64(contract.UpdateCounter))}, arr[1])
+	require.Equal(t, smartcontract.Parameter{Type: smartcontract.Hash160Type, Value: contract.Hash}, arr[2])
+	rawNef, err := contract.NEF.Bytes()
+	require.NoError(t, err)
+	require.Equal(t, smartcontract.Parameter{Type: smartcontract.ByteArrayType, Value: rawNef}, arr[3])
+	mPrm, err := contract.Manifest.ToSCParameter()
+	require.NoError(t, err)
+	require.Equal(t, mPrm, arr[4])
+
+	t.Run("nil", func(t *testing.T) {
+		var nilContract *Contract
+		prm, err := nilContract.ToSCParameter()
+		require.NoError(t, err)
+		require.Equal(t, smartcontract.Parameter{Type: smartcontract.AnyType}, prm)
+	})
+
+	// Unlike Block/Transaction/NEOBalance/WhitelistFeeContract, a round trip
+	// via Parameter.ToStackItem() isn't possible here: Manifest.ToSCParameter
+	// always includes a MapType parameter for the (always empty) Features
+	// field, and smartcontract.ExpandParameterToEmitable doesn't support
+	// MapType (it's not used by any production code path, only by tests).
+	// The FromStackItem/ToStackItem round trip is already covered by
+	// TestContractStateToFromSI.
 }

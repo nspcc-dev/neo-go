@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -27,6 +28,12 @@ type ContractBase struct {
 	NEF      nef.File          `json:"nef"`
 	Manifest manifest.Manifest `json:"manifest"`
 }
+
+// Ensure required interfaces are implemented for proper RPC bindings generation.
+var (
+	_ = stackitem.Convertible(&Contract{})
+	_ = smartcontract.Convertible(&Contract{})
+)
 
 // ToStackItem converts state.Contract to stackitem.Item.
 func (c *Contract) ToStackItem() (stackitem.Item, error) {
@@ -87,6 +94,56 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 	}
 	c.Manifest = *m
 	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [Contract].
+// It implements [smartcontract.Convertible] interface so that [Contract]
+// could be used with invokers.
+func (c *Contract) ToSCParameter() (smartcontract.Parameter, error) {
+	if c == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	rawNef, err := c.NEF.Bytes()
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field NEF: %w", err)
+	}
+
+	var (
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 5)
+	)
+	prm, err = smartcontract.NewParameterFromValue(c.ID)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field ID: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(c.UpdateCounter)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field UpdateCounter: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(c.Hash)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Hash: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(rawNef)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field NEF: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = c.Manifest.ToSCParameter()
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Manifest: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 }
 
 // CreateContractHash creates a deployed contract hash from the transaction sender
