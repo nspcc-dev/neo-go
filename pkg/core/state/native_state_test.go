@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -77,6 +78,57 @@ func TestNEOBalanceSerialization(t *testing.T) {
 	bb = NEOBalance{}
 	require.NoError(t, bb.FromStackItem(si))
 	require.Equal(t, b, bb)
+}
+
+func TestNEOBalance_ToSCParameter(t *testing.T) {
+	check := func(t *testing.T, voteTo *keys.PublicKey) {
+		b := &NEOBalance{
+			NEP17Balance:   NEP17Balance{*big.NewInt(100500)},
+			BalanceHeight:  42,
+			VoteTo:         voteTo,
+			LastGasPerVote: *big.NewInt(123),
+		}
+
+		prm, err := b.ToSCParameter()
+		require.NoError(t, err)
+		require.Equal(t, smartcontract.ArrayType, prm.Type)
+		arr, ok := prm.Value.([]smartcontract.Parameter)
+		require.True(t, ok)
+		require.Len(t, arr, 4)
+
+		require.Equal(t, smartcontract.Parameter{Type: smartcontract.IntegerType, Value: &b.Balance}, arr[0])
+		require.Equal(t, smartcontract.Parameter{Type: smartcontract.IntegerType, Value: big.NewInt(int64(b.BalanceHeight))}, arr[1])
+		if voteTo != nil {
+			require.Equal(t, smartcontract.Parameter{Type: smartcontract.PublicKeyType, Value: voteTo.Bytes()}, arr[2])
+		} else {
+			require.Equal(t, smartcontract.Parameter{Type: smartcontract.AnyType}, arr[2])
+		}
+		require.Equal(t, smartcontract.Parameter{Type: smartcontract.IntegerType, Value: &b.LastGasPerVote}, arr[3])
+
+		t.Run("round trip via stack item", func(t *testing.T) {
+			item, err := prm.ToStackItem()
+			require.NoError(t, err)
+
+			actual := new(NEOBalance)
+			require.NoError(t, actual.FromStackItem(item))
+			require.Equal(t, b, actual)
+		})
+	}
+	t.Run("with VoteTo", func(t *testing.T) {
+		voteTo, err := keys.NewPublicKeyFromString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
+		require.NoError(t, err)
+		check(t, voteTo)
+	})
+	t.Run("without VoteTo", func(t *testing.T) {
+		check(t, nil)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		var nilBalance *NEOBalance
+		prm, err := nilBalance.ToSCParameter()
+		require.NoError(t, err)
+		require.Equal(t, smartcontract.Parameter{Type: smartcontract.AnyType}, prm)
+	})
 }
 
 func BenchmarkNEP17BalanceBytes(b *testing.B) {
