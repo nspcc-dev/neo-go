@@ -19,6 +19,7 @@ func TestCodeGen_DebugInfo(t *testing.T) {
 	import "github.com/nspcc-dev/neo-go/pkg/interop"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 var staticVar int
 func init() {
 	a := 1
@@ -39,7 +40,12 @@ func Main(op string) bool {
 	_ = MethodStruct()
 	_ = MethodConcat("a", "b", "c")
 	_ = unexportedMethod()
+	MethodNotify(nil)
 	return res == 42
+}
+
+func MethodNotify(addr interop.Hash160) {
+	runtime.Notify("Notify", addr)
 }
 
 func MethodInt(a string) int {
@@ -75,14 +81,15 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 	t.Run("return types", func(t *testing.T) {
 		returnTypes := map[string]string{
 			"MethodInt":    "Integer",
-			"MethodConcat": "ByteString",
-			"MethodString": "ByteString", "MethodByteArray": "ByteString",
-			"MethodArray": "Array", "MethodStruct": "Struct",
+			"MethodConcat": "String",
+			"MethodString": "String", "MethodByteArray": "ByteArray",
+			"MethodArray": "Array", "MethodStruct": "Array",
 			"Main":                    "Boolean",
 			"unexportedMethod":        "Integer",
 			"MethodOnStruct":          "Void",
 			"MethodOnPointerToStruct": "Void",
 			"MethodParams":            "Boolean",
+			"MethodNotify":            "Void",
 			"_deploy":                 "Void",
 			manifest.MethodInit:       "Void",
 		}
@@ -94,8 +101,8 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 
 	t.Run("variables", func(t *testing.T) {
 		vars := map[string][]string{
-			"Main":                {"s,ByteString", "res,Integer"},
-			manifest.MethodInit:   {"a,Integer", "x,ByteString"},
+			"Main":                {"s,String", "res,Integer"},
+			manifest.MethodInit:   {"a,Integer", "x,String"},
 			manifest.MethodDeploy: {"x,Integer"},
 		}
 		for i := range d.Methods {
@@ -126,7 +133,7 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 			},
 			"MethodInt": {{
 				Name: "a",
-				Type: "ByteString",
+				Type: "String",
 				RealType: binding.Override{
 					TypeName: "string",
 				},
@@ -135,7 +142,7 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 			"MethodConcat": {
 				{
 					Name: "a",
-					Type: "ByteString",
+					Type: "String",
 					RealType: binding.Override{
 						TypeName: "string",
 					},
@@ -143,7 +150,7 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 				},
 				{
 					Name: "b",
-					Type: "ByteString",
+					Type: "String",
 					RealType: binding.Override{
 						TypeName: "string",
 					},
@@ -151,7 +158,7 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 				},
 				{
 					Name: "c",
-					Type: "ByteString",
+					Type: "String",
 					RealType: binding.Override{
 						TypeName: "string",
 					},
@@ -160,7 +167,7 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 			},
 			"Main": {{
 				Name: "op",
-				Type: "ByteString",
+				Type: "String",
 				RealType: binding.Override{
 					TypeName: "string",
 				},
@@ -173,6 +180,32 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 				require.Equal(t, v, d.Methods[i].Parameters)
 			}
 		}
+
+		methodParamsTypes := map[string]string{
+			"addr":  "Hash160",
+			"h":     "Hash256",
+			"sig":   "Signature",
+			"pub":   "PublicKey",
+			"inter": "InteropInterface",
+			"ctx":   "InteropInterface",
+			"tx":    "Array",
+		}
+		for i := range d.Methods {
+			if d.Methods[i].ID != "MethodParams" {
+				continue
+			}
+			for _, p := range d.Methods[i].Parameters {
+				require.Equal(t, methodParamsTypes[p.Name], p.Type, "param %s", p.Name)
+			}
+		}
+	})
+
+	t.Run("notify event params", func(t *testing.T) {
+		emitted, ok := d.EmittedEvents["Notify"]
+		require.True(t, ok)
+		require.Len(t, emitted, 1)
+		require.Len(t, emitted[0].Params, 1)
+		require.Equal(t, "Hash160", emitted[0].Params[0].Type)
 	})
 
 	// basic check that last instruction of every method is indeed RET
@@ -278,6 +311,13 @@ func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 							manifest.NewParameter("tx", smartcontract.ArrayType),
 						},
 						ReturnType: smartcontract.BoolType,
+					},
+					{
+						Name: "methodNotify",
+						Parameters: []manifest.Parameter{
+							manifest.NewParameter("addr", smartcontract.Hash160Type),
+						},
+						ReturnType: smartcontract.VoidType,
 					},
 				},
 				Events: []manifest.Event{},
@@ -436,7 +476,7 @@ func TestDebugInfo_MarshalJSON(t *testing.T) {
 					{Name: "param1", Type: "Integer"},
 					{Name: "ok", Type: "Boolean"},
 				},
-				ReturnType: "ByteString",
+				ReturnType: "String",
 				Variables:  []string{},
 				SeqPoints: []DebugSeqPoint{
 					{

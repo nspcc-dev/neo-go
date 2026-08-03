@@ -112,7 +112,8 @@ type DebugRange struct {
 
 // DebugParam represents the variable's name and type.
 type DebugParam struct {
-	Name         string                  `json:"name"`
+	Name string `json:"name"`
+	// Type is the parameter's SC type name.
 	Type         string                  `json:"type"`
 	RealType     binding.Override        `json:"-"`
 	ExtendedType *binding.ExtendedType   `json:"-"`
@@ -253,12 +254,12 @@ func (c *codegen) addMethodsToDebugInfo(d *DebugInfo, fScopes iter.Seq2[string, 
 }
 
 func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
-	_, vt, _, _ := c.scAndVMTypeFromExpr(expr, nil)
+	st, _, _, _ := c.scAndVMTypeFromExpr(expr, nil)
 	if c.scope == nil {
-		c.staticVariables = append(c.staticVariables, name+","+vt.String())
+		c.staticVariables = append(c.staticVariables, name+","+st.String())
 		return
 	}
-	c.scope.variables = append(c.scope.variables, name+","+vt.String())
+	c.scope.variables = append(c.scope.variables, name+","+st.String())
 }
 
 func (c *codegen) methodInfoFromScope(name string, scope *funcScope, exts map[string]binding.ExtendedType) *MethodDebugInfo {
@@ -266,10 +267,10 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope, exts map[st
 	params := make([]DebugParam, 0, ps.NumFields())
 	for i := range ps.List {
 		for j := range ps.List[i].Names {
-			st, vt, rt, et := c.scAndVMTypeFromExpr(ps.List[i].Type, exts)
+			st, _, rt, et := c.scAndVMTypeFromExpr(ps.List[i].Type, exts)
 			params = append(params, DebugParam{
 				Name:         ps.List[i].Names[j].Name,
-				Type:         vt.String(),
+				Type:         st.String(),
 				ExtendedType: et,
 				RealType:     rt,
 				TypeSC:       st,
@@ -279,7 +280,7 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope, exts map[st
 	nameStart := strings.LastIndexByte(name, '.') + 1
 	name = name[nameStart:]
 	r, n := utf8.DecodeRuneInString(name)
-	st, vt, rt, et := c.scAndVMReturnTypeFromScope(scope, exts)
+	st, _, rt, et := c.scAndVMReturnTypeFromScope(scope, exts)
 
 	return &MethodDebugInfo{
 		ID: name,
@@ -291,7 +292,7 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope, exts map[st
 		IsFunction:         scope.decl.Recv == nil,
 		Range:              scope.rng,
 		Parameters:         params,
-		ReturnType:         vt,
+		ReturnType:         st.String(),
 		ReturnTypeExtended: et,
 		ReturnTypeReal:     rt,
 		ReturnTypeSC:       st,
