@@ -140,6 +140,38 @@ func TestStorageLimits(t *testing.T) {
 	require.EqualValues(t, storage.MaxValueLen, limits.MaxStorageValueLen)
 }
 
+func TestNativeExtendedTypes(t *testing.T) {
+	src := `package foo
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/neo"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+		)
+		func Block() ledger.Block { return ledger.Block{} }
+		func Transaction() ledger.Transaction { return ledger.Transaction{} }
+		func Contract() management.Contract { return management.Contract{} }
+		func AccountState() neo.AccountState { return neo.AccountState{} }
+		func Candidate() neo.Candidate { return neo.Candidate{} }
+		func WhitelistFeeContract() policy.WhitelistFeeContract { return policy.WhitelistFeeContract{} }
+	`
+	_, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(src), nil)
+	require.NoError(t, err)
+
+	for _, name := range []string{
+		"ledger.Block",
+		"ledger.Transaction",
+		"management.Contract",
+		"neo.AccountState",
+		"neo.Candidate",
+		"policy.WhitelistFeeContract",
+	} {
+		et, ok := di.NamedTypes[name]
+		require.True(t, ok, name)
+		require.Equal(t, smartcontract.ArrayType, et.Base, name)
+	}
+}
+
 type nativeTestCase struct {
 	method string
 	params []string
