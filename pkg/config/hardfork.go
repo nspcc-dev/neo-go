@@ -66,6 +66,9 @@ const (
 	// HFHuyao represents hard-fork introduced in #4330 (ported from
 	// https://github.com/neo-project/neo/pull/4571).
 	HFHuyao // Huyao
+	// HFIara represents hard-fork introduced in #4377 (ported from
+	// https://github.com/neo-project/neo/pull/4717).
+	HFIara // Iara
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
 	hfLast

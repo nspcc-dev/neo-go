@@ -84,6 +84,7 @@ var (
 		nativenames.CryptoLib:  `{"id":-3,"hash":"0x726cb6e0cd8628a1350a611384688911ab75f51b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":174904780},"manifest":{"name":"CryptoLib","abi":{"methods":[{"name":"bls12381Add","offset":0,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Deserialize","offset":7,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Equal","offset":14,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"Boolean","safe":true},{"name":"bls12381Mul","offset":21,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"mul","type":"ByteArray"},{"name":"neg","type":"Boolean"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Pairing","offset":28,"parameters":[{"name":"g1","type":"InteropInterface"},{"name":"g2","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Serialize","offset":35,"parameters":[{"name":"g","type":"InteropInterface"}],"returntype":"ByteArray","safe":true},{"name":"keccak256","offset":42,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"murmur32","offset":49,"parameters":[{"name":"data","type":"ByteArray"},{"name":"seed","type":"Integer"}],"returntype":"ByteArray","safe":true},{"name":"recoverSecp256K1","offset":56,"parameters":[{"name":"messageHash","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"ripemd160","offset":63,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"sha256","offset":70,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"verifyWithECDsa","offset":77,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"},{"name":"curveHash","type":"Integer"}],"returntype":"Boolean","safe":true},{"name":"verifyWithEd25519","offset":84,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"Boolean","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
 	huyaoCSS = map[string]string{}
+	iaraCSS  = map[string]string{}
 )
 
 func init() {
@@ -110,6 +111,11 @@ func init() {
 	for k, v := range gorgonCSS {
 		if _, ok := huyaoCSS[k]; !ok {
 			huyaoCSS[k] = v
+		}
+	}
+	for k, v := range huyaoCSS {
+		if _, ok := iaraCSS[k]; !ok {
+			iaraCSS[k] = v
 		}
 	}
 }
@@ -170,6 +176,7 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 				config.HFFaun.String():          100500,
 				config.HFGorgon.String():        100500,
 				config.HFHuyao.String():         100500,
+				config.HFIara.String():          100500,
 			}
 		})
 		check(t, mgmt, defaultCSS)
@@ -267,6 +274,22 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 		})
 		check(t, mgmt, huyaoCSS)
 	})
+	t.Run("Iara enabled", func(t *testing.T) {
+		mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       0,
+				config.HFEchidna.String():       0,
+				config.HFFaun.String():          0,
+				config.HFGorgon.String():        0,
+				config.HFHuyao.String():         0,
+				config.HFIara.String():          0,
+			}
+		})
+		check(t, mgmt, iaraCSS)
+	})
 }
 
 func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
@@ -277,6 +300,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 		faunHeight       = 6
 		gorgonHeight     = 7
 		huyaoHeight      = 8
+		iaraHeight       = 9
 	)
 	mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
@@ -288,10 +312,11 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 			config.HFFaun.String():          faunHeight,
 			config.HFGorgon.String():        gorgonHeight,
 			config.HFHuyao.String():         huyaoHeight,
+			config.HFIara.String():          iaraHeight,
 		}
 	})
 	e := mgmt.Executor
-	mgmt.GenerateNewBlocks(t, huyaoHeight)
+	mgmt.GenerateNewBlocks(t, iaraHeight)
 
 	// Check Deploy notifications.
 	aer, err := mgmt.Chain.GetAppExecResults(e.GetBlockByIndex(t, 0).Hash(), trigger.OnPersist)
@@ -420,6 +445,13 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 
 	// Check notifications for Huyao hardfork.
 	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(huyaoHeight), trigger.OnPersist)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
+	expected = expected[:0]
+	require.Equal(t, expected, aer[0].Events)
+
+	// Check notifications for Iara hardfork.
+	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(iaraHeight), trigger.OnPersist)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
 	expected = expected[:0]
