@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/store"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -963,4 +964,104 @@ func TestPolicy_ActivateHardfork(t *testing.T) {
 
 	// Overflow.
 	committeeInvoker.InvokeFail(t, "hardfork activation height overflow", "activateHardfork", "Jackalope", math.MaxUint32)
+}
+
+func TestPolicy_ActivateHardforkInteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFHuyao.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package policywrapper
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+		)
+		func ActivateHF(hf policy.Hardfork, h int) {
+			policy.ActivateHardfork(hf, h)
+		}
+		func GetHFActivationHeight(hf policy.Hardfork) *int {
+			return policy.GetHardforkActivationHeight(hf)
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "hf wrapper",
+		Permissions: []manifest.Permission{
+			{
+				Methods: manifest.WildStrings{
+					Value: []string{"activateHardfork", "getHardforkActivationHeight"},
+				},
+			},
+		},
+	})
+	e.DeployContract(t, ctr, nil)
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+
+	// Non-active.
+	ctrInvoker.Invoke(t, stackitem.Null{}, "getHFActivationHeight", config.HFIara.String())
+
+	// Active.
+	expected := ctrInvoker.Chain.BlockHeight() + 1 + 10
+	ctrInvoker.Invoke(t, stackitem.Null{}, "activateHF", config.HFIara.String(), 10)
+	ctrInvoker.Invoke(t, stackitem.Make(expected), "getHFActivationHeight", config.HFIara.String())
+}
+
+func TestPolicy_ActivateHardfork_ChainRestart(t *testing.T) {
+	s, path := store.NewLevelDBForTestingWithPath(t, "")
+	cfg := func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFAspidochelone.String(): 1,
+			config.HFBasilisk.String():      2,
+			config.HFCockatrice.String():    3,
+			config.HFDomovoi.String():       4,
+			config.HFEchidna.String():       5,
+			config.HFFaun.String():          6,
+			config.HFGorgon.String():        7,
+			config.HFHuyao.String():         8,
+		}
+	}
+	bc, acc := chain.NewSingleWithCustomConfigAndStore(t, cfg, s, false)
+	go bc.Run()
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	c := e.CommitteeInvoker(nativehashes.PolicyContract)
+
+	// Activate all hardforks up to Huyao.
+	for e.Chain.BlockHeight() < 8 {
+		e.AddNewBlock(t)
+	}
+	h := bc.BlockHeight()
+	require.False(t, bc.IsHardforkEnabled(new(config.HFJackalope), h))
+
+	// Activate Iara and Jackalope.
+	c.Invoke(t, stackitem.Null{}, "activateHardfork", config.HFIara.String(), 1)
+	c.Invoke(t, stackitem.Null{}, "activateHardfork", config.HFJackalope.String(), 1)
+	e.AddNewBlock(t)
+	h = bc.BlockHeight()
+
+	// Restart blockchain with the same DB, check hardforks were properly initialized.
+	bc.Close()
+	s, _ = store.NewLevelDBForTestingWithPath(t, path)
+	bc, _ = chain.NewSingleWithCustomConfigAndStore(t, cfg, s, true)
+	require.Equal(t, h, bc.BlockHeight())
+	require.False(t, bc.IsHardforkEnabled(new(config.HFJackalope), h-1))
+	require.True(t, bc.IsHardforkEnabled(new(config.HFJackalope), h))
+	require.True(t, bc.IsHardforkEnabled(new(config.HFJackalope), h+1))
+}
+
+func TestPolicy_ActivateHardfork_ShutdownOnUnknownHardfork(t *testing.T) {
+	cfg := func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFHuyao.String(): 0,
+		}
+	}
+	bc, acc := chain.NewSingleWithCustomConfig(t, cfg)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	c := e.CommitteeInvoker(nativehashes.PolicyContract)
+
+	// Activate some unknown hardfork and ensure block addition fails.
+	tx := c.PrepareInvoke(t, "activateHardfork", "HFUnknown", 1)
+	b := e.NewUnsignedBlock(t, tx)
+	e.SignBlock(b)
+	require.ErrorIs(t, e.Chain.AddBlock(b), native.ErrUnknownHardfork)
 }

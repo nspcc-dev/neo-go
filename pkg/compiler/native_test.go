@@ -246,6 +246,19 @@ func TestNativeNamedBasicTypes(t *testing.T) {
 	require.Equal(t, smartcontract.InteropInterfaceType, blsPoint.Parameters[0].TypeSC)
 }
 
+func TestPolicyHardforks(t *testing.T) {
+	require.EqualValues(t, policy.HFAspidochelone, config.HFAspidochelone.String())
+	require.EqualValues(t, policy.HFBasilisk, config.HFBasilisk.String())
+	require.EqualValues(t, policy.HFCockatrice, config.HFCockatrice.String())
+	require.EqualValues(t, policy.HFDomovoi, config.HFDomovoi.String())
+	require.EqualValues(t, policy.HFEchidna, config.HFEchidna.String())
+	require.EqualValues(t, policy.HFFaun, config.HFFaun.String())
+	require.EqualValues(t, policy.HFGorgon, config.HFGorgon.String())
+	require.EqualValues(t, policy.HFHuyao, config.HFHuyao.String())
+	require.EqualValues(t, policy.HFIara, config.HFIara.String())
+	require.EqualValues(t, policy.HFJackalope, config.HFJackalope.String())
+}
+
 type nativeTestCase struct {
 	method string
 	params []string
@@ -314,6 +327,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"removeWhitelistFeeContract", []string{u160, `"method"`, "1"}},
 		{"getWhitelistFeeContracts", nil},
 		{"recoverFund", []string{u160, u160}},
+		{"activateHardfork", []string{`"HF"`, "1"}},
+		{"getHardforkActivationHeight", []string{`"HF"`}},
 	})
 	runNativeTestCases(t, *cs.ByName(nativenames.Ledger).Metadata(), "ledger", []nativeTestCase{
 		{"currentHash", nil},
