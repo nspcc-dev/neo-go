@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
@@ -42,7 +43,7 @@ type FakeChain struct {
 }
 
 // IsHardforkEnabled implements Blockchainer interface.
-func (chain *FakeChain) IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool {
+func (chain *FakeChain) IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32, dao *dao.Simple, useCache bool) bool {
 	return false
 }
 

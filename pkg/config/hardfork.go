@@ -64,8 +64,11 @@ const (
 	// https://github.com/neo-project/neo/pull/4449).
 	HFGorgon // Gorgon
 	// HFHuyao represents hard-fork introduced in #4330 (ported from
-	// https://github.com/neo-project/neo/pull/4571).
+	// https://github.com/neo-project/neo/pull/4571), #4377.
 	HFHuyao // Huyao
+	// HFIara represents hard-fork introduced in #4377 (ported from
+	// https://github.com/neo-project/neo/pull/4717).
+	HFIara // Iara
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
 	hfLast
@@ -127,9 +130,14 @@ func (hf Hardfork) Prev() Hardfork {
 	return hf - 1
 }
 
-// IsHardforkValid denotes whether the provided string represents a valid
-// Hardfork name.
-func IsHardforkValid(s string) bool {
-	_, ok := hardforks[s]
-	return ok
+// ParseHardfork checks whether the provided string represents a valid Hardfork
+// name and returns the corresponding Hardfork.
+func ParseHardfork(s string) (Hardfork, bool) {
+	hf, ok := hardforks[s]
+	return hf, ok
+}
+
+// IsHardforkStable returns true if the provided hardfork is stable.
+func IsHardforkStable(hf Hardfork) bool {
+	return hf <= HFLatestStable
 }

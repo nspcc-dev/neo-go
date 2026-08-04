@@ -879,3 +879,83 @@ func TestPolicy_RecoverFundsInteropAPI(t *testing.T) {
 
 	ctrInvoker.Invoke(t, stackitem.NewBool(true), "recoverFunds", unlucky.ScriptHash(), nativehashes.GasToken)
 }
+
+func TestPolicy_ActivateHardfork(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFHuyao.String(): 3,
+		}
+	})
+	committeeInvoker := c.WithSigners(c.Committee)
+
+	t.Run("activateHardfork, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: activateHardfork/1", "activateHardfork", "I")
+	})
+	t.Run("getHardforkActivationHeight, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: getHardforkActivationHeight/1", "getHardforkActivationHeight", "I")
+	})
+
+	c.AddNewBlock(t) // enable Huyao.
+
+	// Not signed by committee.
+	c.NewInvoker(nativehashes.PolicyContract, c.NewAccount(t)).InvokeFail(t, "invalid committee signature", "activateHardfork", "I")
+
+	// Unknown hardfork.
+	committeeInvoker.InvokeFail(t, "unknown hardfork: I", "activateHardfork", "I")
+
+	// Non-active.
+	committeeInvoker.Invoke(t, stackitem.Null{}, "getHardforkActivationHeight", "Iara")
+
+	h := c.TopBlock(t).Index + 2
+	tx := committeeInvoker.Invoke(t, stackitem.Null{}, "activateHardfork", "Iara")
+	committeeInvoker.CheckTxNotificationEvent(t, tx, 0, state.NotificationEvent{
+		ScriptHash: nativehashes.PolicyContract,
+		Name:       "HardforkActivationScheduled",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make("Iara"),
+			stackitem.Make(h),
+		}),
+	})
+	committeeInvoker.Invoke(t, stackitem.Make(h), "getHardforkActivationHeight", "Iara")
+}
+
+func TestPolicy_ActivateHardforkInteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFHuyao.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package policywrapper
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+		)
+		func ActivateHF(hf policy.Hardfork) {
+			policy.ActivateHardfork(hf)
+		}
+		func GetHFActivationHeight(hf policy.Hardfork) *int {
+			return policy.GetHardforkActivationHeight(hf)
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "hf wrapper",
+		Permissions: []manifest.Permission{
+			{
+				Methods: manifest.WildStrings{
+					Value: []string{"activateHardfork", "getHardforkActivationHeight"},
+				},
+			},
+		},
+	})
+	e.DeployContract(t, ctr, nil)
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+
+	// Non-active.
+	ctrInvoker.Invoke(t, stackitem.Null{}, "getHFActivationHeight", config.HFIara.String())
+
+	// Active.
+	h := ctrInvoker.TopBlock(t).Index + 2
+	ctrInvoker.Invoke(t, stackitem.Null{}, "activateHF", config.HFIara.String())
+	ctrInvoker.Invoke(t, stackitem.Make(h), "getHFActivationHeight", config.HFIara.String())
+}

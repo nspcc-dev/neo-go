@@ -704,7 +704,7 @@ func (bc *Blockchain) init() error {
 		md := c.Metadata()
 		storedCS := bc.GetContractState(md.Hash)
 		// Check that contract was deployed.
-		if !bc.IsHardforkEnabled(c.ActiveIn(), bHeight) {
+		if !bc.IsHardforkEnabled(c.ActiveIn(), bHeight, bc.dao, true) {
 			if storedCS != nil {
 				return fmt.Errorf("native contract %s is already stored, but marked as inactive for height %d in config", md.Name, bHeight)
 			}
@@ -805,7 +805,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 			hf  = config.HFEchidna
 			err error
 		)
-		if bc.IsHardforkEnabled(&hf, p) {
+		if bc.IsHardforkEnabled(&hf, p, nil, false) {
 			// Native cache is not yet initialized, retrieve MaxTraceableBlocks from DAO directly using
 			// new storage prefix since we already have up-to-date storage.
 			mtb, err = bc.dao.GetInt(bc.policy.Metadata().ID, native.MaxTraceableBlocksKey)
@@ -958,7 +958,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			mtb = int64(bc.config.MaxTraceableBlocks)
 			hf  = config.HFEchidna
 		)
-		if bc.IsHardforkEnabled(&hf, currHeight) {
+		if bc.IsHardforkEnabled(&hf, currHeight, nil, false) {
 			// Cache isn't yet initialized, so retrieve MaxTraceableBlocks directly from DAO.
 			mtb, err = bc.dao.GetInt(bc.policy.Metadata().ID, native.MaxTraceableBlocksKey)
 			if err != nil {
@@ -1305,12 +1305,15 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 }
 
 func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) error {
+	isHardforkEnabled := func(hf *config.Hardfork, blockHeight uint32) bool {
+		return bc.IsHardforkEnabled(hf, blockHeight, d, false)
+	}
 	for _, c := range bc.contracts.List {
 		// Check that contract was deployed.
-		if !bc.IsHardforkEnabled(c.ActiveIn(), blockHeight) {
+		if !isHardforkEnabled(c.ActiveIn(), blockHeight) {
 			continue
 		}
-		err := c.InitializeCache(bc.IsHardforkEnabled, blockHeight, d)
+		err := c.InitializeCache(isHardforkEnabled, blockHeight, d)
 		if err != nil {
 			return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
 		}
@@ -1320,16 +1323,25 @@ func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) e
 
 // IsHardforkEnabled returns true if the specified hardfork is enabled at the
 // given height. nil hardfork is treated as always enabled. This method relies on fact that
-// heights of all omitted hardforks are sanitized by Blockchain constructor.
-func (bc *Blockchain) IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool {
-	hfs := bc.config.Hardforks
-	if hf != nil {
-		start, ok := hfs[hf.String()]
-		if !ok || start > blockHeight {
-			return false
-		}
+// heights of all omitted hardforks are sanitized by Blockchain constructor. If dao provided,
+// native Policy will be queried for post-Huyao committee-enabled hardforks (it's the caller's
+// duty to allow Policy cache access).
+func (bc *Blockchain) IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32, dao *dao.Simple, useCache bool) bool {
+	if hf == nil {
+		return true
 	}
-	return true
+	hfs := bc.config.Hardforks
+	start, ok := hfs[hf.String()]
+	if !ok && hf.Cmp(config.HFHuyao) > 0 && dao != nil { // check Policy iff the caller asks explicitly.
+		start, ok = bc.policy.GetHardforkActivationHeight(*hf, dao, useCache)
+	}
+	return ok && start <= blockHeight
+}
+
+// GetHardforkActivationHeight returns the hardfork enabling height and boolean value
+// denoting whether hardfork is scheduled. Do not use this method on uninitialized Blockchain.
+func (bc *Blockchain) GetHardforkActivationHeight(hf config.Hardfork) (uint32, bool) {
+	return bc.policy.GetHardforkActivationHeight(hf, bc.dao, true)
 }
 
 // Run runs chain loop, it needs to be run as goroutine and executing it is
@@ -2061,6 +2073,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				zap.Uint32("block", block.Index),
 				zap.Error(err))
 			faultException = err.Error()
+			if errors.Is(err, native.ErrUnknownHardfork) {
+				// Release goroutines, don't care about errors, we already have one.
+				close(aerchan)
+				<-aerdone
+				return fmt.Errorf("failed to activate harfork via committee-signed transaction: %w; please, upgrade your node to the latest version", err)
+			}
 		}
 		aer := &state.AppExecResult{
 			Container: tx.Hash(),
@@ -2439,7 +2457,7 @@ func (bc *Blockchain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, e
 // it returns the amount of GAS deposited to the native Notary contract by the secondary.
 func (bc *Blockchain) GetUtilityTokenBalance(primary, secondary util.Uint160) *big.Int {
 	if primary.Equals(nativehashes.Notary) && !secondary.Equals(util.Uint160{}) {
-		if bc.notary == native.INotary(nil) || !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight()) {
+		if bc.notary == native.INotary(nil) || !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight(), bc.dao, true) {
 			return big.NewInt(0)
 		}
 		return bc.notary.BalanceOf(bc.dao, secondary)
@@ -2461,7 +2479,7 @@ func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint
 // per key which is a reward per notary request key for designated notary nodes.
 // Default value is returned if Notary contract is not yet active.
 func (bc *Blockchain) GetNotaryServiceFeePerKey() int64 {
-	if !bc.IsHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight()) {
+	if !bc.IsHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight(), bc.dao, true) {
 		return 0
 	}
 	return bc.policy.GetAttributeFeeInternal(bc.dao, transaction.NotaryAssistedT)
@@ -2473,7 +2491,7 @@ func (bc *Blockchain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
 	if bc.notary == native.INotary(nil) {
 		return 0
 	}
-	if !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight()) {
+	if !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight(), bc.dao, true) {
 		return 0
 	}
 	return bc.notary.ExpirationOf(bc.dao, acc)
@@ -2949,7 +2967,6 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	}
 	// Policying.
 	if err := bc.policy.CheckPolicy(bc.dao, t); err != nil {
-		// Only one %w can be used.
 		return fmt.Errorf("%w: %w", ErrPolicy, err)
 	}
 	size := t.Size()
@@ -3100,7 +3117,7 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 				return fmt.Errorf("%w: conflicting transaction %s is already on chain", ErrInvalidAttribute, conflicts.Hash.StringLE())
 			}
 		case transaction.NotaryAssistedT:
-			if !bc.IsHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight()) {
+			if !bc.IsHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight(), bc.dao, true) {
 				return fmt.Errorf("%w: NotaryAssisted attribute was found, but %s is not active yet", ErrInvalidAttribute, transaction.NotaryAssistedActivation)
 			}
 			if !tx.HasSigner(nativehashes.Notary) {
@@ -3300,7 +3317,7 @@ func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 // expected to be initialized by this moment.
 func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 	var hf = config.HFEchidna
-	if bc.IsHardforkEnabled(&hf, bc.BlockHeight()) {
+	if bc.IsHardforkEnabled(&hf, bc.BlockHeight(), nil, false) {
 		return bc.policy.GetMaxValidUntilBlockIncrementFromCache(bc.dao)
 	}
 	return bc.GetConfig().MaxValidUntilBlockIncrement
@@ -3311,7 +3328,7 @@ func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 // cache hence Policy is expected to be initialized by this moment.
 func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
 	var hf = config.HFEchidna
-	if bc.IsHardforkEnabled(&hf, bc.BlockHeight()) {
+	if bc.IsHardforkEnabled(&hf, bc.BlockHeight(), nil, false) {
 		return bc.policy.GetMillisecondsPerBlockInternal(bc.dao)
 	}
 	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
@@ -3325,7 +3342,7 @@ func (bc *Blockchain) GetMaxTraceableBlocks() uint32 {
 		hf = config.HFEchidna
 		h  = bc.BlockHeight()
 	)
-	if bc.IsHardforkEnabled(&hf, h) {
+	if bc.IsHardforkEnabled(&hf, h, nil, false) {
 		// A special case for Genesis block since Policy storage might not yet be initialized.
 		if h == 0 {
 			return bc.GetConfig().Genesis.MaxTraceableBlocks
@@ -3539,7 +3556,7 @@ func (bc *Blockchain) GetMaxNotValidBeforeDelta() (uint32, error) {
 	if bc.notary == native.INotary(nil) {
 		return 0, errors.New("native Notary contract implementation is not initialized")
 	}
-	if !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight()) {
+	if !bc.IsHardforkEnabled(bc.notary.ActiveIn(), bc.BlockHeight(), bc.dao, true) {
 		return 0, fmt.Errorf("native Notary is active starting from %s", bc.notary.ActiveIn().String())
 	}
 	return bc.notary.GetMaxNotValidBeforeDelta(bc.dao), nil

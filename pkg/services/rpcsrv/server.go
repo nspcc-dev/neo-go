@@ -82,6 +82,7 @@ type (
 		GetEnrollments() ([]state.Validator, error)
 		GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, error)
 		GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
+		GetHardforkActivationHeight(hf config.Hardfork) (uint32, bool)
 		GetHeader(hash util.Uint256) (*block.Header, error)
 		GetHeaderHash(uint32) util.Uint256
 		GetMaxTraceableBlocks() uint32
@@ -904,7 +905,10 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 	for _, cfgHf := range config.Hardforks {
 		height, ok := cfg.Hardforks[cfgHf.String()]
 		if !ok {
-			continue
+			height, ok = s.chain.GetHardforkActivationHeight(cfgHf)
+			if !ok {
+				continue
+			}
 		}
 		hfs[cfgHf] = height
 	}
