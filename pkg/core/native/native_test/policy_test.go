@@ -918,3 +918,44 @@ func TestPolicy_ActivateHardfork(t *testing.T) {
 	})
 	committeeInvoker.Invoke(t, stackitem.Make(h), "getHardforkActivationHeight", "Iara")
 }
+
+func TestPolicy_ActivateHardforkInteropAPI(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFHuyao.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package policywrapper
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+		)
+		func ActivateHF(hf policy.Hardfork) {
+			policy.ActivateHardfork(hf)
+		}
+		func GetHFActivationHeight(hf policy.Hardfork) *int {
+			return policy.GetHardforkActivationHeight(hf)
+		}`
+
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "hf wrapper",
+		Permissions: []manifest.Permission{
+			{
+				Methods: manifest.WildStrings{
+					Value: []string{"activateHardfork", "getHardforkActivationHeight"},
+				},
+			},
+		},
+	})
+	e.DeployContract(t, ctr, nil)
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+
+	// Non-active.
+	ctrInvoker.Invoke(t, stackitem.Null{}, "getHFActivationHeight", config.HFIara.String())
+
+	// Active.
+	h := ctrInvoker.TopBlock(t).Index + 2
+	ctrInvoker.Invoke(t, stackitem.Null{}, "activateHF", config.HFIara.String())
+	ctrInvoker.Invoke(t, stackitem.Make(h), "getHFActivationHeight", config.HFIara.String())
+}
