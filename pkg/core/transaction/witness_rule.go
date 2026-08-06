@@ -3,9 +3,11 @@ package transaction
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -93,6 +95,44 @@ func (w *WitnessRule) ToStackItem() stackitem.Item {
 		stackitem.NewBigInteger(big.NewInt(int64(w.Action))),
 		w.Condition.ToStackItem(),
 	})
+}
+
+// FromStackItem retrieves fields of [WitnessRule] from the given
+// [stackitem.Item] or returns an error if it's not possible to do so.
+func (w *WitnessRule) FromStackItem(item stackitem.Item) error {
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return errors.New("wrong number of structure elements")
+	}
+	action, err := stackitem.ToUint8(arr[0])
+	if err != nil {
+		return fmt.Errorf("field Action: %w", err)
+	}
+	if WitnessAction(action) != WitnessDeny && WitnessAction(action) != WitnessAllow {
+		return errors.New("unknown witness rule action")
+	}
+	cond, err := condFromStackItem(arr[1], MaxConditionNesting)
+	if err != nil {
+		return fmt.Errorf("field Condition: %w", err)
+	}
+	w.Action = WitnessAction(action)
+	w.Condition = cond
+	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [WitnessRule].
+func (w *WitnessRule) ToSCParameter() (smartcontract.Parameter, error) {
+	condPrm, err := w.Condition.ToSCParameter()
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Condition: %w", err)
+	}
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		{Type: smartcontract.IntegerType, Value: big.NewInt(int64(w.Action))},
+		condPrm,
+	}}, nil
 }
 
 // Copy creates a deep copy of the WitnessRule.

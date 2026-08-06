@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +34,9 @@ func (c InvalidCondition) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 func (c InvalidCondition) ToStackItem() stackitem.Item {
+	panic("invalid")
+}
+func (c InvalidCondition) ToSCParameter() (smartcontract.Parameter, error) {
 	panic("invalid")
 }
 
@@ -126,6 +130,61 @@ func TestWitnessConditionSerDes(t *testing.T) {
 				assert.Equal(t, expected, actual, i)
 			}
 		}
+		for i, c := range cases {
+			if !c.success {
+				continue
+			}
+			item := c.condition.ToStackItem()
+			res, err := condFromStackItem(item, MaxConditionNesting)
+			require.NoErrorf(t, err, "case %d", i)
+			require.Equal(t, c.condition, res)
+		}
+	})
+	t.Run("stackitem via SC parameter", func(t *testing.T) {
+		for i, c := range cases {
+			if !c.success {
+				continue
+			}
+			prm, err := c.condition.ToSCParameter()
+			require.NoErrorf(t, err, "case %d", i)
+			item, err := prm.ToStackItem()
+			require.NoErrorf(t, err, "case %d", i)
+			res, err := condFromStackItem(item, MaxConditionNesting)
+			require.NoErrorf(t, err, "case %d", i)
+			require.Equal(t, c.condition, res)
+		}
+	})
+}
+
+func TestWitnessCondition_FromStackItemErrors(t *testing.T) {
+	errCases := map[string]stackitem.Item{
+		"not an array":              stackitem.Make(1),
+		"empty array":               stackitem.NewArray(nil),
+		"type is not a number":      stackitem.NewArray([]stackitem.Item{stackitem.NewArray(nil)}),
+		"invalid type":              stackitem.NewArray([]stackitem.Item{stackitem.Make(0xff), stackitem.Make(true)}),
+		"boolean, wrong length":     stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessBoolean)}),
+		"not, wrong length":         stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessNot)}),
+		"not, bad nested":           stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessNot), stackitem.Make(1)}),
+		"and, wrong length":         stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessAnd)}),
+		"and, not an array":         stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessAnd), stackitem.Make(1)}),
+		"and, empty":                stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessAnd), stackitem.NewArray(nil)}),
+		"and, bad element":          stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessAnd), stackitem.NewArray([]stackitem.Item{stackitem.Make(1)})}),
+		"script hash, wrong length": stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessScriptHash)}),
+		"script hash, bad value":    stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessScriptHash), stackitem.Make([]byte{1, 2, 3})}),
+		"group, wrong length":       stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessGroup)}),
+		"group, bad value":          stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessGroup), stackitem.Make([]byte{1, 2, 3})}),
+		"called by entry, extra":    stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessCalledByEntry), stackitem.Make(1)}),
+	}
+	for name, errCase := range errCases {
+		t.Run(name, func(t *testing.T) {
+			_, err := condFromStackItem(errCase, MaxConditionNesting)
+			require.Error(t, err)
+		})
+	}
+	t.Run("too many nesting levels", func(t *testing.T) {
+		item := (&ConditionNot{Condition: ConditionCalledByEntry{}}).ToStackItem()
+		_, err := condFromStackItem(item, 0)
+		require.Error(t, err)
 	})
 }
 
