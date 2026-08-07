@@ -196,6 +196,38 @@ func TestTypeAssertion(t *testing.T) {
 		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 		require.Error(t, err)
 	})
+	t.Run("converts mutable struct fields", func(t *testing.T) {
+		src := `package foo
+			type value struct {
+				data []byte
+			}
+			func Main(data []byte) []byte {
+				var item any = value{data: data}
+				return item.(value).data
+			}`
+
+		v := vmAndCompile(t, src)
+		v.Estack().PushItem(stackitem.NewByteArray([]byte{42}))
+
+		require.NoError(t, v.Run())
+		require.Equal(t, 1, v.Estack().Len())
+		require.Equal(t, stackitem.BufferT, v.Estack().Peek(0).Item().Type())
+		assertResult(t, v, []byte{42})
+	})
+	t.Run("allows mutable struct field assignment", func(t *testing.T) {
+		src := `package foo
+			type value struct {
+				data []byte
+			}
+			func Main() int {
+				var item any = value{data: []byte{42}}
+				v := item.(value)
+				v.data[0]++
+				return int(v.data[0])
+			}`
+
+		eval(t, src, big.NewInt(43))
+	})
 }
 
 func TestTypeAssertionWithOK(t *testing.T) {

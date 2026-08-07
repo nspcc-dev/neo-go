@@ -733,13 +733,13 @@ func TestPolicy_WhitelistContractsInteropAPI(t *testing.T) {
 	ctrInvoker.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexDecode", 1, 0)
 	ctrInvoker.Invoke(t, stackitem.Make([]stackitem.Item{
 		stackitem.NewStruct([]stackitem.Item{
-			stackitem.Make(nativehashes.StdLib),
+			stackitem.NewBuffer(nativehashes.StdLib.BytesBE()),
 			stackitem.Make("hexDecode"),
 			stackitem.Make(1),
 			stackitem.Make(0),
 		}),
 		stackitem.NewStruct([]stackitem.Item{
-			stackitem.Make(nativehashes.StdLib),
+			stackitem.NewBuffer(nativehashes.StdLib.BytesBE()),
 			stackitem.Make("hexEncode"),
 			stackitem.Make(1),
 			stackitem.Make(0),
@@ -748,7 +748,7 @@ func TestPolicy_WhitelistContractsInteropAPI(t *testing.T) {
 	ctrInvoker.Invoke(t, stackitem.Null{}, "removeWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1)
 	ctrInvoker.Invoke(t, stackitem.Make([]stackitem.Item{
 		stackitem.NewStruct([]stackitem.Item{
-			stackitem.Make(nativehashes.StdLib),
+			stackitem.NewBuffer(nativehashes.StdLib.BytesBE()),
 			stackitem.Make("hexDecode"),
 			stackitem.Make(1),
 			stackitem.Make(0),
