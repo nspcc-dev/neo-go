@@ -1116,13 +1116,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.CallExpr:
 		var (
-			f         *funcScope
-			ok        bool
-			name      string
-			numArgs   = len(n.Args)
-			isBuiltin bool
-			isFunc    bool
-			isLiteral bool
+			f           *funcScope
+			ok          bool
+			name        string
+			numArgs     = len(n.Args)
+			isBuiltin   bool
+			isFunc      bool
+			isFuncValue bool
 		)
 
 		switch expr := n.Fun.(type) {
@@ -1133,6 +1133,25 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.saveSequencePoint(n.Pos(), n.End())
 		}
 		switch fun := n.Fun.(type) {
+		case *ast.ParenExpr:
+			if tv := c.typeAndValueOf(fun); tv.IsType() {
+				if _, ok := tv.Type.Underlying().(*types.Signature); !ok {
+					// Other parenthesized conversions, e.g. (string)([]byte{1, 2}),
+					// may require a conversion between representations which
+					// isn't handled here yet.
+					c.prog.Err = fmt.Errorf("parenthesized type conversion to %s is not supported", tv.Type)
+					return nil
+				}
+				// Parenthesized type conversion, e.g. (func() int)(x).
+				// Conversions between func types are no-ops in NeoVM, so
+				// just evaluate the argument being converted.
+				ast.Walk(c, n.Args[0])
+				return nil
+			}
+			// Parenthesized value of func type that is immediately invoked,
+			// e.g. (f)(). Same as a function literal: evaluate n.Fun and
+			// invoke the returned function value.
+			isFuncValue = true
 		case *ast.Ident:
 			f, ok = c.getFuncFromIdent(fun)
 			isBuiltin = isGoBuiltin(fun.Name)
@@ -1206,8 +1225,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// for the conversion to be appropriate, just load the arg.
 			ast.Walk(c, n.Args[0])
 			return nil
-		case *ast.FuncLit:
-			isLiteral = true
+		case *ast.FuncLit, *ast.CallExpr, *ast.IndexExpr:
+			// The function being called is itself an expression that leaves
+			// a function value on the stack: a literal (func(){}()), the
+			// result of another call (f()()), or an index into a
+			// collection of funcs (arr[0]()).
+			isFuncValue = true
 		}
 
 		args := transformArgs(f, n.Fun, isBuiltin, n.Args)
@@ -1258,7 +1281,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitLoadVar("", name)
 				emit.Opcodes(c.prog.BinWriter, opcode.CALLA)
 			}
-		case isLiteral:
+		case isFuncValue:
 			ast.Walk(c, n.Fun)
 			emit.Opcodes(c.prog.BinWriter, opcode.CALLA)
 		case isSyscall(f):

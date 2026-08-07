@@ -298,6 +298,18 @@ func TestTypeConversionString(t *testing.T) {
 	eval(t, src, []byte("lamao"))
 }
 
+func TestParenthesizedTypeConversionNotSupported(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		m := map[string]int{}
+		key := (string)([]byte{42})
+		return m[key]
+	}`
+	_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not supported")
+}
+
 func TestInterfaceTypeConversion(t *testing.T) {
 	src := `package foo
 	func Main() int {
