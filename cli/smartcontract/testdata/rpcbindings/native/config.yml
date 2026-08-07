@@ -1,0 +1,3 @@
+name: "Native"
+sourceurl: https://github.com/nspcc-dev/neo-go/
+safemethods: ["getContract", "getBlock", "getAccount", "getWhitelist", "getSigners"]

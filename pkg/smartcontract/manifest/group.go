@@ -9,6 +9,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -20,6 +21,9 @@ type Group struct {
 	PublicKey *keys.PublicKey `json:"pubkey"`
 	Signature []byte          `json:"signature"`
 }
+
+// Ensure required interface are implemented for proper RPC bindings generation.
+var _ = smartcontract.Convertible(&Group{})
 
 // Groups is just an array of Group.
 type Groups []Group
@@ -141,4 +145,14 @@ func (g *Group) FromStackItem(item stackitem.Item) error {
 	}
 	g.Signature = sig
 	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [Group]. It
+// never returns an error. It implements [smartcontract.Convertible]
+// interface.
+func (g *Group) ToSCParameter() (smartcontract.Parameter, error) {
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		{Type: smartcontract.PublicKeyType, Value: g.PublicKey.Bytes()},
+		{Type: smartcontract.ByteArrayType, Value: g.Signature},
+	}}, nil
 }

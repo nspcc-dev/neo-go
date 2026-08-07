@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -15,6 +16,9 @@ type Method struct {
 	ReturnType smartcontract.ParamType `json:"returntype"`
 	Safe       bool                    `json:"safe"`
 }
+
+// Ensure required interface are implemented for proper RPC bindings generation.
+var _ = smartcontract.Convertible(&Method{})
 
 // IsValid checks Method consistency and correctness.
 func (m *Method) IsValid() error {
@@ -91,4 +95,25 @@ func (m *Method) FromStackItem(item stackitem.Item) error {
 	}
 	m.Safe = safe
 	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [Method]. It
+// never returns an error. It implements [smartcontract.Convertible]
+// interface.
+func (m *Method) ToSCParameter() (smartcontract.Parameter, error) {
+	params := make([]smartcontract.Parameter, len(m.Parameters))
+	for i := range m.Parameters {
+		prm, err := m.Parameters[i].ToSCParameter()
+		if err != nil {
+			return smartcontract.Parameter{}, err
+		}
+		params[i] = prm
+	}
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		{Type: smartcontract.StringType, Value: m.Name},
+		{Type: smartcontract.ArrayType, Value: params},
+		{Type: smartcontract.IntegerType, Value: big.NewInt(int64(m.ReturnType))},
+		{Type: smartcontract.IntegerType, Value: big.NewInt(int64(m.Offset))},
+		{Type: smartcontract.BoolType, Value: m.Safe},
+	}}, nil
 }

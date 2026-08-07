@@ -2,9 +2,11 @@ package transaction
 
 import (
 	"encoding/json"
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -72,6 +74,51 @@ func TestWitnessRule_ToStackItem(t *testing.T) {
 		}).ToStackItem()
 		require.Equal(t, expected, actual, act)
 	}
+}
+
+func TestWitnessRule_ToFromStackItem(t *testing.T) {
+	var b bool
+	expected := &WitnessRule{
+		Action:    WitnessAllow,
+		Condition: (*ConditionBoolean)(&b),
+	}
+	actual := &WitnessRule{}
+	require.NoError(t, actual.FromStackItem(expected.ToStackItem()))
+	require.Equal(t, expected, actual)
+}
+
+func TestWitnessRule_FromStackItemErrors(t *testing.T) {
+	goodCond := ConditionCalledByEntry{}.ToStackItem()
+	errCases := map[string]stackitem.Item{
+		"not an array":        stackitem.Make(1),
+		"wrong length":        stackitem.NewArray([]stackitem.Item{stackitem.Make(0)}),
+		"action not a number": stackitem.NewArray([]stackitem.Item{stackitem.NewArray(nil), goodCond}),
+		"unknown action":      stackitem.NewArray([]stackitem.Item{stackitem.Make(0xff), goodCond}),
+		"bad condition":       stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessAllow), stackitem.Make(1)}),
+	}
+	for name, errCase := range errCases {
+		t.Run(name, func(t *testing.T) {
+			w := new(WitnessRule)
+			require.Error(t, w.FromStackItem(errCase))
+		})
+	}
+}
+
+func TestWitnessRule_ToSCParameter(t *testing.T) {
+	var b = true
+	w := &WitnessRule{
+		Action:    WitnessAllow,
+		Condition: (*ConditionBoolean)(&b),
+	}
+	prm, err := w.ToSCParameter()
+	require.NoError(t, err)
+	require.Equal(t, smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		{Type: smartcontract.IntegerType, Value: big.NewInt(int64(WitnessAllow))},
+		{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+			{Type: smartcontract.IntegerType, Value: big.NewInt(int64(WitnessBoolean))},
+			{Type: smartcontract.BoolType, Value: b},
+		}},
+	}}, prm)
 }
 
 func TestWitnessRule_Copy(t *testing.T) {

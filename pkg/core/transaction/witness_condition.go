@@ -1,12 +1,15 @@
 package transaction
 
 import (
+	"crypto/elliptic"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -54,6 +57,8 @@ type WitnessCondition interface {
 	DecodeBinarySpecific(*io.BinReader, int)
 	// ToStackItem converts WitnessCondition to stackitem.Item.
 	ToStackItem() stackitem.Item
+	// ToSCParameter converts WitnessCondition to [smartcontract.Parameter].
+	ToSCParameter() (smartcontract.Parameter, error)
 	// Copy returns a deep copy of the condition.
 	Copy() WitnessCondition
 
@@ -141,6 +146,12 @@ func (c *ConditionBoolean) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), bool(*c))
 }
 
+// ToSCParameter implements the WitnessCondition interface allowing to
+// convert to [smartcontract.Parameter].
+func (c *ConditionBoolean) ToSCParameter() (smartcontract.Parameter, error) {
+	return condToSCParameter(c.Type(), bool(*c))
+}
+
 // Copy returns a deep copy of the condition.
 func (c *ConditionBoolean) Copy() WitnessCondition {
 	cc := *c
@@ -188,6 +199,12 @@ func (c *ConditionNot) MarshalJSON() ([]byte, error) {
 // to stackitem.Item.
 func (c *ConditionNot) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), c.Condition)
+}
+
+// ToSCParameter implements the WitnessCondition interface allowing to
+// convert to [smartcontract.Parameter].
+func (c *ConditionNot) ToSCParameter() (smartcontract.Parameter, error) {
+	return condToSCParameter(c.Type(), c.Condition)
 }
 
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
@@ -278,6 +295,12 @@ func (c *ConditionAnd) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), []WitnessCondition(*c))
 }
 
+// ToSCParameter implements the WitnessCondition interface allowing to
+// convert to [smartcontract.Parameter].
+func (c *ConditionAnd) ToSCParameter() (smartcontract.Parameter, error) {
+	return condToSCParameter(c.Type(), []WitnessCondition(*c))
+}
+
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionAnd) Copy() WitnessCondition {
 	cp := make(ConditionAnd, len(*c))
@@ -333,6 +356,12 @@ func (c *ConditionOr) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), []WitnessCondition(*c))
 }
 
+// ToSCParameter implements the WitnessCondition interface allowing to
+// convert to [smartcontract.Parameter].
+func (c *ConditionOr) ToSCParameter() (smartcontract.Parameter, error) {
+	return condToSCParameter(c.Type(), []WitnessCondition(*c))
+}
+
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionOr) Copy() WitnessCondition {
 	cp := make(ConditionOr, len(*c))
@@ -380,6 +409,12 @@ func (c *ConditionScriptHash) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), util.Uint160(*c))
 }
 
+// ToSCParameter implements the WitnessCondition interface allowing to
+// convert to [smartcontract.Parameter].
+func (c *ConditionScriptHash) ToSCParameter() (smartcontract.Parameter, error) {
+	return condToSCParameter(c.Type(), util.Uint160(*c))
+}
+
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionScriptHash) Copy() WitnessCondition {
 	cc := *c
@@ -424,6 +459,12 @@ func (c *ConditionGroup) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), keys.PublicKey(*c))
 }
 
+// ToSCParameter implements the WitnessCondition interface allowing to
+// convert to [smartcontract.Parameter].
+func (c *ConditionGroup) ToSCParameter() (smartcontract.Parameter, error) {
+	return condToSCParameter(c.Type(), keys.PublicKey(*c))
+}
+
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionGroup) Copy() WitnessCondition {
 	cp := *c
@@ -463,6 +504,12 @@ func (c ConditionCalledByEntry) MarshalJSON() ([]byte, error) {
 // to stackitem.Item.
 func (c ConditionCalledByEntry) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), nil)
+}
+
+// ToSCParameter implements the WitnessCondition interface allowing to
+// convert to [smartcontract.Parameter].
+func (c ConditionCalledByEntry) ToSCParameter() (smartcontract.Parameter, error) {
+	return condToSCParameter(c.Type(), nil)
 }
 
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
@@ -508,6 +555,12 @@ func (c *ConditionCalledByContract) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), util.Uint160(*c))
 }
 
+// ToSCParameter implements the WitnessCondition interface allowing to
+// convert to [smartcontract.Parameter].
+func (c *ConditionCalledByContract) ToSCParameter() (smartcontract.Parameter, error) {
+	return condToSCParameter(c.Type(), util.Uint160(*c))
+}
+
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionCalledByContract) Copy() WitnessCondition {
 	cc := *c
@@ -550,6 +603,12 @@ func (c *ConditionCalledByGroup) MarshalJSON() ([]byte, error) {
 // to stackitem.Item.
 func (c *ConditionCalledByGroup) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), keys.PublicKey(*c))
+}
+
+// ToSCParameter implements the WitnessCondition interface allowing to
+// convert to [smartcontract.Parameter].
+func (c *ConditionCalledByGroup) ToSCParameter() (smartcontract.Parameter, error) {
+	return condToSCParameter(c.Type(), keys.PublicKey(*c))
 }
 
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
@@ -602,6 +661,112 @@ func decodeBinaryCondition(r *io.BinReader, maxDepth int) WitnessCondition {
 		return nil
 	}
 	return res
+}
+
+// condFromStackItem decodes and returns a condition from the given
+// [stackitem.Item] (as produced by [WitnessCondition.ToStackItem]).
+func condFromStackItem(item stackitem.Item, maxDepth int) (WitnessCondition, error) {
+	if maxDepth <= 0 {
+		return nil, errors.New("too many nesting levels")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) == 0 {
+		return nil, errors.New("empty condition")
+	}
+	typ, err := stackitem.ToUint8(arr[0])
+	if err != nil {
+		return nil, fmt.Errorf("type: %w", err)
+	}
+	t := WitnessConditionType(typ)
+	wantLen := 2
+	if t == WitnessCalledByEntry {
+		wantLen = 1
+	}
+	if len(arr) != wantLen {
+		return nil, errors.New("wrong number of elements")
+	}
+	switch t {
+	case WitnessBoolean:
+		b, err := arr[1].TryBool()
+		if err != nil {
+			return nil, err
+		}
+		v := ConditionBoolean(b)
+		return &v, nil
+	case WitnessNot:
+		cond, err := condFromStackItem(arr[1], maxDepth-1)
+		if err != nil {
+			return nil, err
+		}
+		return &ConditionNot{Condition: cond}, nil
+	case WitnessAnd, WitnessOr:
+		items, ok := arr[1].Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		if len(items) == 0 {
+			return nil, errors.New("empty array of conditions")
+		}
+		if len(items) > maxSubitems {
+			return nil, errors.New("too many elements")
+		}
+		conds := make([]WitnessCondition, len(items))
+		for i := range items {
+			conds[i], err = condFromStackItem(items[i], maxDepth-1)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: %w", i, err)
+			}
+		}
+		if t == WitnessAnd {
+			v := ConditionAnd(conds)
+			return &v, nil
+		}
+		v := ConditionOr(conds)
+		return &v, nil
+	case WitnessScriptHash:
+		u, err := stackitem.ToUint160(arr[1])
+		if err != nil {
+			return nil, err
+		}
+		v := ConditionScriptHash(u)
+		return &v, nil
+	case WitnessGroup:
+		b, err := arr[1].TryBytes()
+		if err != nil {
+			return nil, err
+		}
+		pub, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+		if err != nil {
+			return nil, err
+		}
+		v := ConditionGroup(*pub)
+		return &v, nil
+	case WitnessCalledByEntry:
+		return ConditionCalledByEntry{}, nil
+	case WitnessCalledByContract:
+		u, err := stackitem.ToUint160(arr[1])
+		if err != nil {
+			return nil, err
+		}
+		v := ConditionCalledByContract(u)
+		return &v, nil
+	case WitnessCalledByGroup:
+		b, err := arr[1].TryBytes()
+		if err != nil {
+			return nil, err
+		}
+		pub, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+		if err != nil {
+			return nil, err
+		}
+		v := ConditionCalledByGroup(*pub)
+		return &v, nil
+	default:
+		return nil, errors.New("invalid condition type")
+	}
 }
 
 func unmarshalArrayOfConditionJSONs(arr []json.RawMessage, maxDepth int) ([]WitnessCondition, error) {
@@ -716,4 +881,38 @@ func condToStackItem(typ WitnessConditionType, c any) stackitem.Item {
 		// No additional item should be added.
 	}
 	return stackitem.NewArray(res)
+}
+
+func condToSCParameter(typ WitnessConditionType, c any) (smartcontract.Parameter, error) {
+	prms := make([]smartcontract.Parameter, 0, 2)
+	prms = append(prms, smartcontract.Parameter{Type: smartcontract.IntegerType, Value: big.NewInt(int64(typ))})
+	switch typ {
+	case WitnessBoolean:
+		prms = append(prms, smartcontract.Parameter{Type: smartcontract.BoolType, Value: c.(bool)})
+	case WitnessNot:
+		prm, err := c.(WitnessCondition).ToSCParameter()
+		if err != nil {
+			return smartcontract.Parameter{}, err
+		}
+		prms = append(prms, prm)
+	case WitnessAnd, WitnessOr:
+		v := c.([]WitnessCondition)
+		operands := make([]smartcontract.Parameter, len(v))
+		for i, op := range v {
+			prm, err := op.ToSCParameter()
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("operand %d: %w", i, err)
+			}
+			operands[i] = prm
+		}
+		prms = append(prms, smartcontract.Parameter{Type: smartcontract.ArrayType, Value: operands})
+	case WitnessScriptHash, WitnessCalledByContract:
+		prms = append(prms, smartcontract.Parameter{Type: smartcontract.Hash160Type, Value: c.(util.Uint160)})
+	case WitnessGroup, WitnessCalledByGroup:
+		g := c.(keys.PublicKey)
+		prms = append(prms, smartcontract.Parameter{Type: smartcontract.PublicKeyType, Value: (&g).Bytes()})
+	case WitnessCalledByEntry:
+		// No additional item should be added.
+	}
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 }

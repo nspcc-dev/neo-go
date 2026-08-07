@@ -545,6 +545,7 @@ func TestAssistedRPCBindings(t *testing.T) {
 		checkBinding(filepath.Join("testdata", "rpcbindings", "types"), "", "", hasDefinedHash, false)
 		checkBinding(filepath.Join("testdata", "rpcbindings", "structs"), "", "", hasDefinedHash, false)
 		checkBinding(filepath.Join("testdata", "rpcbindings", "royalty"), "", "", hasDefinedHash, false)
+		checkBinding(filepath.Join("testdata", "rpcbindings", "native"), "", "", hasDefinedHash, false)
 	}
 	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, false)
 	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, false, "extended")

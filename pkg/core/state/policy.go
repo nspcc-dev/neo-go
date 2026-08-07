@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -18,7 +19,11 @@ type WhitelistFeeContract struct {
 	Fee    int64
 }
 
-var _ = stackitem.Convertible(&WhitelistFeeContract{})
+// Ensure required interfaces are implemented for proper RPC bindings generation.
+var (
+	_ = stackitem.Convertible(&WhitelistFeeContract{})
+	_ = smartcontract.Convertible(&WhitelistFeeContract{})
+)
 
 // ToStackItem converts WhitelistFeeContract to stackitem.Item.
 func (r *WhitelistFeeContract) ToStackItem() (stackitem.Item, error) {
@@ -61,4 +66,44 @@ func (r *WhitelistFeeContract) FromStackItem(item stackitem.Item) error {
 	}
 
 	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing
+// [WhitelistFeeContract]. It implements [smartcontract.Convertible]
+// interface so that [WhitelistFeeContract] could be used with invokers.
+func (r *WhitelistFeeContract) ToSCParameter() (smartcontract.Parameter, error) {
+	if r == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 4)
+	)
+	prm, err = smartcontract.NewParameterFromValue(r.Hash)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Hash: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(r.Method)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Method: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(r.ArgCnt)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field ArgCnt: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(r.Fee)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Fee: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 }

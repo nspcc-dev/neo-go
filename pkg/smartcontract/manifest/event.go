@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -12,6 +13,9 @@ type Event struct {
 	Name       string      `json:"name"`
 	Parameters []Parameter `json:"parameters"`
 }
+
+// Ensure required interface are implemented for proper RPC bindings generation.
+var _ = smartcontract.Convertible(&Event{})
 
 // IsValid checks Event consistency and correctness.
 func (e *Event) IsValid() error {
@@ -74,4 +78,22 @@ func (e *Event) CheckCompliance(items []stackitem.Item) error {
 		}
 	}
 	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [Event]. It
+// never returns an error. It implements [smartcontract.Convertible]
+// interface.
+func (e *Event) ToSCParameter() (smartcontract.Parameter, error) {
+	params := make([]smartcontract.Parameter, len(e.Parameters))
+	for i := range e.Parameters {
+		prm, err := e.Parameters[i].ToSCParameter()
+		if err != nil {
+			return smartcontract.Parameter{}, err
+		}
+		params[i] = prm
+	}
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		{Type: smartcontract.StringType, Value: e.Name},
+		{Type: smartcontract.ArrayType, Value: params},
+	}}, nil
 }

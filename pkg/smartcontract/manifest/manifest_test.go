@@ -365,6 +365,105 @@ func TestManifestToStackItem(t *testing.T) {
 	})
 }
 
+func TestManifest_ToSCParameter(t *testing.T) {
+	pk, _ := keys.NewPrivateKey()
+	permHash := util.Uint160{1, 2, 3}
+	trustHash := util.Uint160{4, 5, 6}
+
+	m := &Manifest{
+		Name: "TestManifest",
+		ABI: ABI{
+			Methods: []Method{{
+				Name:       "method1",
+				Parameters: []Parameter{{Name: "p1", Type: smartcontract.BoolType}},
+				ReturnType: smartcontract.StringType,
+				Offset:     5,
+				Safe:       true,
+			}},
+			Events: []Event{{
+				Name:       "event1",
+				Parameters: []Parameter{{Name: "p1", Type: smartcontract.IntegerType}},
+			}},
+		},
+		Features: json.RawMessage(emptyFeatures),
+		Groups: []Group{{
+			PublicKey: pk.PublicKey(),
+			Signature: make([]byte, keys.SignatureLen),
+		}},
+		Permissions: []Permission{
+			*NewPermission(PermissionWildcard),
+			{Contract: *newPermissionDesc(PermissionHash, permHash), Methods: WildStrings{Value: []string{"a"}}},
+			*NewPermission(PermissionGroup, pk.PublicKey()),
+		},
+		SupportedStandards: []string{"NEP-17"},
+		Trusts:             WildPermissionDescs{Value: []PermissionDesc{*newPermissionDesc(PermissionHash, trustHash)}},
+		Extra:              json.RawMessage("null"),
+	}
+
+	prm, err := m.ToSCParameter()
+	require.NoError(t, err)
+	require.Equal(t, smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+		{Type: smartcontract.StringType, Value: m.Name},
+		{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{ // Groups.
+			{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+				{Type: smartcontract.PublicKeyType, Value: pk.PublicKey().Bytes()},
+				{Type: smartcontract.ByteArrayType, Value: m.Groups[0].Signature},
+			}},
+		}},
+		{Type: smartcontract.MapType, Value: []smartcontract.ParameterPair{}}, // features are always empty.
+		{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{ // SupportedStandards.
+			{Type: smartcontract.StringType, Value: "NEP-17"},
+		}},
+		{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{ // ABI.
+			{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{ // Methods.
+				{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+					{Type: smartcontract.StringType, Value: "method1"},
+					{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+						{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+							{Type: smartcontract.StringType, Value: "p1"},
+							{Type: smartcontract.IntegerType, Value: big.NewInt(int64(smartcontract.BoolType))},
+						}},
+					}},
+					{Type: smartcontract.IntegerType, Value: big.NewInt(int64(smartcontract.StringType))},
+					{Type: smartcontract.IntegerType, Value: big.NewInt(5)},
+					{Type: smartcontract.BoolType, Value: true},
+				}},
+			}},
+			{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{ // Events.
+				{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+					{Type: smartcontract.StringType, Value: "event1"},
+					{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+						{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+							{Type: smartcontract.StringType, Value: "p1"},
+							{Type: smartcontract.IntegerType, Value: big.NewInt(int64(smartcontract.IntegerType))},
+						}},
+					}},
+				}},
+			}},
+		}},
+		{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{ // Permissions.
+			{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+				{Type: smartcontract.AnyType},
+				{Type: smartcontract.AnyType},
+			}},
+			{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+				{Type: smartcontract.Hash160Type, Value: permHash},
+				{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+					{Type: smartcontract.StringType, Value: "a"},
+				}},
+			}},
+			{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
+				{Type: smartcontract.PublicKeyType, Value: pk.PublicKey().Bytes()},
+				{Type: smartcontract.AnyType},
+			}},
+		}},
+		{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{ // Trusts.
+			{Type: smartcontract.Hash160Type, Value: trustHash},
+		}},
+		{Type: smartcontract.ByteArrayType, Value: []byte("null")}, // Extra.
+	}}, prm)
+}
+
 func TestManifest_FromStackItemErrors(t *testing.T) {
 	name := stackitem.NewByteArray([]byte{})
 	groups := stackitem.NewArray([]stackitem.Item{})

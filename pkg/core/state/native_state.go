@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -23,6 +24,12 @@ type NEOBalance struct {
 	VoteTo         *keys.PublicKey
 	LastGasPerVote big.Int
 }
+
+// Ensure required interfaces are implemented for proper RPC bindings generation.
+var (
+	_ = stackitem.Convertible(&NEOBalance{})
+	_ = smartcontract.Convertible(&NEOBalance{})
+)
 
 // NEP17BalanceFromBytes converts the serialized NEP17Balance to a structure.
 func NEP17BalanceFromBytes(b []byte) (*NEP17Balance, error) {
@@ -164,4 +171,48 @@ func (s *NEOBalance) FromStackItem(item stackitem.Item) error {
 	}
 	s.LastGasPerVote = *lastGasPerVote
 	return nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing [NEOBalance].
+// It implements [smartcontract.Convertible] interface so that [NEOBalance]
+// could be used with invokers.
+func (s *NEOBalance) ToSCParameter() (smartcontract.Parameter, error) {
+	if s == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 4)
+	)
+	prm, err = smartcontract.NewParameterFromValue(&s.Balance)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Balance: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(s.BalanceHeight)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field BalanceHeight: %w", err)
+	}
+	prms = append(prms, prm)
+
+	if s.VoteTo != nil {
+		prm, err = smartcontract.NewParameterFromValue(s.VoteTo)
+		if err != nil {
+			return smartcontract.Parameter{}, fmt.Errorf("field VoteTo: %w", err)
+		}
+	} else {
+		prm = smartcontract.Parameter{Type: smartcontract.AnyType}
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(&s.LastGasPerVote)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field LastGasPerVote: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 }
