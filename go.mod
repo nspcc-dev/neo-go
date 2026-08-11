@@ -15,7 +15,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mr-tron/base58 v1.3.0
 	github.com/nspcc-dev/bbolt v0.0.0-20260404200350-24f70ceb2bd9
-	github.com/nspcc-dev/dbft v0.4.0
+	github.com/nspcc-dev/dbft v0.4.1-0.20261002120448-bd2ace2e6e44
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20260826165212-78b9a86d413c
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20260827144453-45263cbaf873
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.23

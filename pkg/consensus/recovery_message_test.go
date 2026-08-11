@@ -142,7 +142,8 @@ func TestRecoveryMessage_PrepareRequestBlockIndex(t *testing.T) {
 	p := NewPayload(netmode.UnitTestNet, false)
 	p.message.Type = prepareRequestType
 	p.BlockIndex = msgHeight
-	p.payload = randomMessage(t, prepareRequestType)
+	req := randomPrepareRequest(t)
+	p.payload = req
 
 	r := new(recoveryMessage)
 	r.AddPayload(p)
@@ -150,12 +151,14 @@ func TestRecoveryMessage_PrepareRequestBlockIndex(t *testing.T) {
 	data, err := testserdes.EncodeBinary(r)
 	require.NoError(t, err)
 
-	actual := &recoveryMessage{blockIndex: msgHeight}
+	extensionEnabled := func(h uint32) bool { return h >= msgHeight }
+	actual := &recoveryMessage{blockIndex: msgHeight, prepareRequestExtensionEnabled: extensionEnabled}
 	require.NoError(t, testserdes.DecodeBinary(data, actual))
 	require.EqualValues(t, msgHeight, actual.prepareRequest.BlockIndex)
+	require.Equal(t, req.txHashes(), actual.prepareRequest.payload.(*prepareRequest).txHashes())
 
 	t.Run("wrong index", func(t *testing.T) {
-		require.Error(t, testserdes.DecodeBinary(data, &recoveryMessage{blockIndex: msgHeight + 1}))
+		require.Error(t, testserdes.DecodeBinary(data, &recoveryMessage{blockIndex: msgHeight + 1, prepareRequestExtensionEnabled: extensionEnabled}))
 	})
 }
 

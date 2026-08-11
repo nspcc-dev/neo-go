@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -24,6 +25,9 @@ type (
 		payload io.Serializable
 		// stateRootEnabled specifies if state root is exchanged during consensus.
 		stateRootEnabled bool
+
+		// prepareRequestExtensionEnabled specifies if PrepareRequest extension is enabled for this message.
+		prepareRequestExtensionEnabled func(blockIndex uint32) bool
 	}
 
 	// Payload is a type for consensus-related messages.
@@ -45,7 +49,7 @@ const (
 	payloadGasLimit = 2000000 // 0.02 GAS
 )
 
-var _ dbft.ConsensusPayload[util.Uint256] = &Payload{}
+var _ dbft.ConsensusPayload[util.Uint256, *transaction.Transaction] = &Payload{}
 
 // ViewNumber implements the payload.ConsensusPayload interface.
 func (p Payload) ViewNumber() byte {
@@ -71,8 +75,8 @@ func (p Payload) Payload() any {
 func (p Payload) GetChangeView() dbft.ChangeView { return p.payload.(dbft.ChangeView) }
 
 // GetPrepareRequest implements the payload.ConsensusPayload interface.
-func (p Payload) GetPrepareRequest() dbft.PrepareRequest[util.Uint256] {
-	return p.payload.(dbft.PrepareRequest[util.Uint256])
+func (p Payload) GetPrepareRequest() dbft.PrepareRequest[util.Uint256, *transaction.Transaction] {
+	return p.payload.(dbft.PrepareRequest[util.Uint256, *transaction.Transaction])
 }
 
 // GetPrepareResponse implements the payload.ConsensusPayload interface.
@@ -93,8 +97,8 @@ func (p Payload) GetRecoveryRequest() dbft.RecoveryRequest {
 }
 
 // GetRecoveryMessage implements the payload.ConsensusPayload interface.
-func (p Payload) GetRecoveryMessage() dbft.RecoveryMessage[util.Uint256] {
-	return p.payload.(dbft.RecoveryMessage[util.Uint256])
+func (p Payload) GetRecoveryMessage() dbft.RecoveryMessage[util.Uint256, *transaction.Transaction] {
+	return p.payload.(dbft.RecoveryMessage[util.Uint256, *transaction.Transaction])
 }
 
 // ValidatorIndex implements the payload.ConsensusPayload interface.
@@ -171,9 +175,9 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 		cv.newViewNumber = m.ViewNumber + 1
 		m.payload = cv
 	case prepareRequestType:
-		r := new(prepareRequest)
-		if m.stateRootEnabled {
-			r.stateRootEnabled = true
+		r := &prepareRequest{
+			stateRootEnabled: m.stateRootEnabled,
+			extended:         m.prepareRequestExtensionEnabled(m.BlockIndex),
 		}
 		m.payload = r
 	case prepareResponseType:
@@ -183,9 +187,10 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 	case recoveryRequestType:
 		m.payload = new(recoveryRequest)
 	case recoveryMessageType:
-		r := &recoveryMessage{blockIndex: m.BlockIndex}
-		if m.stateRootEnabled {
-			r.stateRootEnabled = true
+		r := &recoveryMessage{
+			blockIndex:                     m.BlockIndex,
+			prepareRequestExtensionEnabled: m.prepareRequestExtensionEnabled,
+			stateRootEnabled:               m.stateRootEnabled,
 		}
 		m.payload = r
 	default:
