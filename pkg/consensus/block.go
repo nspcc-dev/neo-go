@@ -20,7 +20,7 @@ type neoBlock struct {
 	signature []byte
 }
 
-var _ dbft.Block[util.Uint256] = (*neoBlock)(nil)
+var _ dbft.Block[util.Uint256, *transaction.Transaction] = (*neoBlock)(nil)
 
 // Sign implements the block.Block interface.
 func (n *neoBlock) Sign(key dbft.PrivateKey) error {
@@ -40,21 +40,13 @@ func (n *neoBlock) Verify(key dbft.PublicKey, sign []byte) error {
 }
 
 // Transactions implements the block.Block interface.
-func (n *neoBlock) Transactions() []dbft.Transaction[util.Uint256] {
-	txes := make([]dbft.Transaction[util.Uint256], len(n.Block.Transactions))
-	for i, tx := range n.Block.Transactions {
-		txes[i] = tx
-	}
-
-	return txes
+func (n *neoBlock) Transactions() []*transaction.Transaction {
+	return n.Block.Transactions
 }
 
 // SetTransactions implements the block.Block interface.
-func (n *neoBlock) SetTransactions(txes []dbft.Transaction[util.Uint256]) {
-	n.Block.Transactions = make([]*transaction.Transaction, len(txes))
-	for i, tx := range txes {
-		n.Block.Transactions[i] = tx.(*transaction.Transaction)
-	}
+func (n *neoBlock) SetTransactions(txes []*transaction.Transaction) {
+	n.Block.Transactions = txes
 }
 
 // PrevHash implements the block.Block interface.

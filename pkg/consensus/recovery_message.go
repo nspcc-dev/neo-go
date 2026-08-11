@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/dbft"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -19,7 +20,10 @@ type (
 		commitPayloads      []*commitCompact
 		changeViewPayloads  []*changeViewCompact
 		stateRootEnabled    bool
-		prepareRequest      *message
+		// prepareRequestExtensionEnabled specifies if PrepareRequest
+		// extension is enabled for this recovery message.
+		prepareRequestExtensionEnabled func(blockIndex uint32) bool
+		prepareRequest                 *message
 	}
 
 	changeViewCompact struct {
@@ -42,7 +46,7 @@ type (
 	}
 )
 
-var _ dbft.RecoveryMessage[util.Uint256] = (*recoveryMessage)(nil)
+var _ dbft.RecoveryMessage[util.Uint256, *transaction.Transaction] = (*recoveryMessage)(nil)
 
 // errEmptyInvocation is returned on attempt to decode compact recovery message
 // content with empty invocation script.
@@ -54,7 +58,7 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 
 	var hasReq = r.ReadBool()
 	if hasReq {
-		m.prepareRequest = &message{stateRootEnabled: m.stateRootEnabled}
+		m.prepareRequest = &message{stateRootEnabled: m.stateRootEnabled, prepareRequestExtensionEnabled: m.prepareRequestExtensionEnabled}
 		m.prepareRequest.DecodeBinary(r)
 		if r.Err == nil && m.prepareRequest.Type != prepareRequestType {
 			r.Err = errors.New("recovery message PrepareRequest has wrong type")
@@ -153,7 +157,7 @@ func (p *preparationCompact) EncodeBinary(w *io.BinWriter) {
 }
 
 // AddPayload implements the payload.RecoveryMessage interface.
-func (m *recoveryMessage) AddPayload(p dbft.ConsensusPayload[util.Uint256]) {
+func (m *recoveryMessage) AddPayload(p dbft.ConsensusPayload[util.Uint256, *transaction.Transaction]) {
 	validator := uint8(p.ValidatorIndex())
 
 	switch p.Type() {
@@ -199,7 +203,7 @@ func (m *recoveryMessage) AddPayload(p dbft.ConsensusPayload[util.Uint256]) {
 }
 
 // GetPrepareRequest implements the payload.RecoveryMessage interface.
-func (m *recoveryMessage) GetPrepareRequest(p dbft.ConsensusPayload[util.Uint256], validators []dbft.PublicKey, primary uint16) dbft.ConsensusPayload[util.Uint256] {
+func (m *recoveryMessage) GetPrepareRequest(p dbft.ConsensusPayload[util.Uint256, *transaction.Transaction], validators []dbft.PublicKey, primary uint16) dbft.ConsensusPayload[util.Uint256, *transaction.Transaction] {
 	if m.prepareRequest == nil {
 		return nil
 	}
@@ -226,12 +230,12 @@ func (m *recoveryMessage) GetPrepareRequest(p dbft.ConsensusPayload[util.Uint256
 }
 
 // GetPrepareResponses implements the payload.RecoveryMessage interface.
-func (m *recoveryMessage) GetPrepareResponses(p dbft.ConsensusPayload[util.Uint256], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256] {
+func (m *recoveryMessage) GetPrepareResponses(p dbft.ConsensusPayload[util.Uint256, *transaction.Transaction], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256, *transaction.Transaction] {
 	if m.preparationHash == nil {
 		return nil
 	}
 
-	ps := make([]dbft.ConsensusPayload[util.Uint256], len(m.preparationPayloads))
+	ps := make([]dbft.ConsensusPayload[util.Uint256, *transaction.Transaction], len(m.preparationPayloads))
 
 	for i, resp := range m.preparationPayloads {
 		r := fromPayload(prepareResponseType, p.(*Payload), &prepareResponse{
@@ -249,8 +253,8 @@ func (m *recoveryMessage) GetPrepareResponses(p dbft.ConsensusPayload[util.Uint2
 }
 
 // GetChangeViews implements the payload.RecoveryMessage interface.
-func (m *recoveryMessage) GetChangeViews(p dbft.ConsensusPayload[util.Uint256], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256] {
-	ps := make([]dbft.ConsensusPayload[util.Uint256], len(m.changeViewPayloads))
+func (m *recoveryMessage) GetChangeViews(p dbft.ConsensusPayload[util.Uint256, *transaction.Transaction], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256, *transaction.Transaction] {
+	ps := make([]dbft.ConsensusPayload[util.Uint256, *transaction.Transaction], len(m.changeViewPayloads))
 
 	for i, cv := range m.changeViewPayloads {
 		c := fromPayload(changeViewType, p.(*Payload), &changeView{
@@ -271,13 +275,13 @@ func (m *recoveryMessage) GetChangeViews(p dbft.ConsensusPayload[util.Uint256], 
 
 // GetPreCommits implements the payload.RecoveryMessage interface. It's a stub
 // since N3 doesn't use extension enabling them.
-func (m *recoveryMessage) GetPreCommits(p dbft.ConsensusPayload[util.Uint256], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256] {
+func (m *recoveryMessage) GetPreCommits(p dbft.ConsensusPayload[util.Uint256, *transaction.Transaction], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256, *transaction.Transaction] {
 	return nil
 }
 
 // GetCommits implements the payload.RecoveryMessage interface.
-func (m *recoveryMessage) GetCommits(p dbft.ConsensusPayload[util.Uint256], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256] {
-	ps := make([]dbft.ConsensusPayload[util.Uint256], len(m.commitPayloads))
+func (m *recoveryMessage) GetCommits(p dbft.ConsensusPayload[util.Uint256, *transaction.Transaction], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256, *transaction.Transaction] {
+	ps := make([]dbft.ConsensusPayload[util.Uint256, *transaction.Transaction], len(m.commitPayloads))
 
 	for i, c := range m.commitPayloads {
 		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature})
