@@ -6,8 +6,9 @@ import (
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,10 +39,15 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	// sign payload to have verification script
 	require.NoError(t, p.Sign(privs[0]))
 
+	reqTx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	addSender(t, reqTx)
+	reqTx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
+	_ = reqTx.Hash() // Update hashes and serialized data.
+	_ = reqTx.Size()
 	req := &prepareRequest{
-		timestamp:         87,
-		transactionHashes: []util.Uint256{{1}},
-		stateRootEnabled:  enableStateRoot,
+		timestamp:        87,
+		transactions:     []*transaction.Transaction{reqTx},
+		stateRootEnabled: enableStateRoot,
 	}
 	p1 := NewPayload(netmode.UnitTestNet, enableStateRoot)
 	p1.message.Type = messageType(dbft.PrepareRequestType)

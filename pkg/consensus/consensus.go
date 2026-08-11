@@ -88,14 +88,13 @@ type service struct {
 	dbft *dbft.DBFT[util.Uint256]
 	// messages and transactions are channels needed to process
 	// everything in single thread.
-	messages     chan Payload
-	transactions chan *transaction.Transaction
+	messages chan Payload
 	// blockEvents is used to pass a new block event to the consensus
 	// process. It has a tiny buffer in order to avoid Blockchain blocking
 	// on block addition under the high load.
 	blockEvents  chan *coreb.Block
 	poolEvents   chan struct{}
-	lastProposal []util.Uint256
+	lastProposal []*transaction.Transaction
 	wallet       *wallet.Wallet
 	// started is a flag set with Start method that runs an event handling
 	// goroutine.
@@ -146,10 +145,9 @@ func NewService(cfg Config) (Service, error) {
 		txx:      newFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
 
-		transactions: make(chan *transaction.Transaction, 100),
-		blockEvents:  make(chan *coreb.Block, 1),
-		quit:         make(chan struct{}),
-		finished:     make(chan struct{}),
+		blockEvents: make(chan *coreb.Block, 1),
+		quit:        make(chan struct{}),
+		finished:    make(chan struct{}),
 	}
 
 	var err error
@@ -172,7 +170,9 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithLogger[util.Uint256](srv.log),
 		dbft.WithTimePerBlock[util.Uint256](srv.timePerBlock),
 		dbft.WithGetKeyPair[util.Uint256](srv.getKeyPair),
-		dbft.WithRequestTx[util.Uint256](cfg.RequestTx),
+		dbft.WithRequestTx[util.Uint256](func(h ...util.Uint256) {
+			panic("consensus: RequestTx must not be called, PrepareRequest transactions are always attached in full")
+		}),
 		dbft.WithStopTxFlow[util.Uint256](cfg.StopTxFlow),
 		dbft.WithGetTx[util.Uint256](srv.getTx),
 		dbft.WithGetVerified[util.Uint256](srv.getVerifiedTx),
@@ -248,11 +248,19 @@ func (s *service) newPayload(c *dbft.Context[util.Uint256], t dbft.MessageType, 
 	return cp
 }
 
-func (s *service) newPrepareRequest(ts uint64, nonce uint64, transactionsHashes []util.Uint256) dbft.PrepareRequest[util.Uint256] {
+// newPrepareRequest builds a PrepareRequest. It intentionally ignores
+// dbft-computed transaction hashes: only full transactions are ever put into
+// prepareRequest (see prepareRequest.transactions), hashes are never used or
+// serialized on the neo-go side.
+func (s *service) newPrepareRequest(ts uint64, nonce uint64, transactions []dbft.Transaction[util.Uint256]) dbft.PrepareRequest[util.Uint256] {
+	txx := make([]*transaction.Transaction, len(transactions))
+	for i, tx := range transactions {
+		txx[i] = tx.(*transaction.Transaction)
+	}
 	r := &prepareRequest{
-		timestamp:         ts / nsInMs,
-		nonce:             nonce,
-		transactionHashes: transactionsHashes,
+		timestamp:    ts / nsInMs,
+		nonce:        nonce,
+		transactions: txx,
 	}
 	if s.ProtocolConfiguration.StateRootInHeader {
 		r.stateRootEnabled = true
@@ -397,8 +405,6 @@ events:
 
 			log("received message", fields...)
 			s.dbft.OnReceive(&msg)
-		case tx := <-s.transactions:
-			s.dbft.OnTransaction(tx)
 		case b := <-s.blockEvents:
 			s.handleChainBlock(b)
 		}
@@ -421,7 +427,6 @@ drainLoop:
 	for {
 		select {
 		case <-s.messages:
-		case <-s.transactions:
 		case <-s.blockEvents:
 		case <-s.poolEvents:
 		default:
@@ -429,7 +434,6 @@ drainLoop:
 		}
 	}
 	close(s.messages)
-	close(s.transactions)
 	close(s.blockEvents)
 	close(s.finished)
 }
@@ -512,10 +516,9 @@ func (s *service) OnPayload(cp *npayload.Extensible) error {
 	return nil
 }
 
-func (s *service) OnTransaction(tx *transaction.Transaction) {
-	if s.dbft != nil && s.started.Load() {
-		s.transactions <- tx
-	}
+// OnTransaction implements the Service interface.
+func (s *service) OnTransaction(*transaction.Transaction) {
+	panic("consensus: OnTransaction must not be called, PrepareRequest transactions are always attached in full")
 }
 
 func (s *service) broadcast(p dbft.ConsensusPayload[util.Uint256]) {
@@ -626,11 +629,11 @@ func (s *service) verifyRequest(p dbft.ConsensusPayload[util.Uint256]) error {
 			return fmt.Errorf("%w: %s != %s", errInvalidStateRoot, sr.Root, req.stateRoot)
 		}
 	}
-	if len(req.TransactionHashes()) > int(s.ProtocolConfiguration.MaxTransactionsPerBlock) {
-		return fmt.Errorf("%w: max = %d, got %d", errInvalidTransactionsCount, s.ProtocolConfiguration.MaxTransactionsPerBlock, len(req.TransactionHashes()))
+	if len(req.transactions) > int(s.ProtocolConfiguration.MaxTransactionsPerBlock) {
+		return fmt.Errorf("%w: max = %d, got %d", errInvalidTransactionsCount, s.ProtocolConfiguration.MaxTransactionsPerBlock, len(req.transactions))
 	}
 	// Save lastProposal for getVerified().
-	s.lastProposal = req.transactionHashes
+	s.lastProposal = req.transactions
 
 	return nil
 }
@@ -712,7 +715,7 @@ func (s *service) getVerifiedTx() []dbft.Transaction[util.Uint256] {
 	if s.dbft.ViewNumber > 0 && len(s.lastProposal) > 0 {
 		txx = make([]*transaction.Transaction, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
-			if tx, ok := pool.TryGetValue(s.lastProposal[i]); ok {
+			if tx, ok := pool.TryGetValue(s.lastProposal[i].Hash()); ok {
 				txx = append(txx, tx)
 			}
 		}
@@ -811,7 +814,11 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 	block.PrimaryIndex = primaryIndex
 
 	// it's OK to have ctx.TransactionsHashes == nil here
-	block.Block.MerkleRoot = hash.CalcMerkleRoot(slices.Clone(ctx.TransactionHashes))
+	txHashes := make([]util.Uint256, len(ctx.TransactionsOrdered))
+	for i, tx := range ctx.TransactionsOrdered {
+		txHashes[i] = tx.Hash()
+	}
+	block.Block.MerkleRoot = hash.CalcMerkleRoot(txHashes)
 
 	return block
 }

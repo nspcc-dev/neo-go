@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -196,12 +195,17 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 	const txCount = 3
 
 	req := &prepareRequest{
-		timestamp:         rand.Uint64(),
-		transactionHashes: make([]util.Uint256, txCount),
+		timestamp:    rand.Uint64(),
+		transactions: make([]*transaction.Transaction, txCount),
 	}
 
 	for i := range txCount {
-		req.transactionHashes[i] = random.Uint256()
+		tx := transaction.New([]byte{byte(opcode.PUSH1), byte(i)}, 0)
+		addSender(t, tx)
+		tx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
+		_ = tx.Hash() // Update hashes and serialized data.
+		_ = tx.Size()
+		req.transactions[i] = tx
 	}
 
 	return req
