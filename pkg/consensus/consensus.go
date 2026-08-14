@@ -75,8 +75,6 @@ type Service interface {
 
 	// OnPayload is a callback to notify the Service about a newly received payload.
 	OnPayload(p *npayload.Extensible) error
-	// OnTransaction is a callback to notify the Service about a newly received transaction.
-	OnTransaction(tx *transaction.Transaction)
 }
 
 type service struct {
@@ -514,11 +512,6 @@ func (s *service) OnPayload(cp *npayload.Extensible) error {
 
 	s.messages <- *p
 	return nil
-}
-
-// OnTransaction implements the Service interface.
-func (s *service) OnTransaction(*transaction.Transaction) {
-	panic("consensus: OnTransaction must not be called, PrepareRequest transactions are always attached in full")
 }
 
 func (s *service) broadcast(p dbft.ConsensusPayload[util.Uint256]) {

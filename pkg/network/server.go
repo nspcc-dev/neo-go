@@ -126,7 +126,6 @@ type (
 		serviceLock    sync.RWMutex
 		services       map[string]Service
 		extensHandlers map[string]func(*payload.Extensible) error
-		txCallback     func(*transaction.Transaction)
 		txCbList       atomic.Value
 
 		txIn *inMap[*transaction.Transaction]
@@ -500,10 +499,9 @@ func (s *Server) addExtensibleService(svc Service, category string, handler func
 }
 
 // AddConsensusService registers consensus service that handles transactions and dBFT extensible payloads.
-func (s *Server) AddConsensusService(svc Service, handler func(*payload.Extensible) error, txCallback func(*transaction.Transaction)) {
+func (s *Server) AddConsensusService(svc Service, handler func(*payload.Extensible) error) {
 	s.serviceLock.Lock()
 	defer s.serviceLock.Unlock()
-	s.txCallback = txCallback
 	s.addExtensibleService(svc, payload.ConsensusCategory, handler)
 }
 
@@ -538,7 +536,6 @@ func (s *Server) delExtensibleService(svc Service, category string) {
 func (s *Server) DelConsensusService(svc Service) {
 	s.serviceLock.Lock()
 	defer s.serviceLock.Unlock()
-	s.txCallback = nil
 	s.delExtensibleService(svc, payload.ConsensusCategory)
 }
 
@@ -1340,19 +1337,6 @@ txloop:
 	for {
 		select {
 		case tx := <-in:
-			s.serviceLock.RLock()
-			txCallback := s.txCallback
-			s.serviceLock.RUnlock()
-			if txCallback != nil {
-				var cbList = s.txCbList.Load()
-				if cbList != nil {
-					var list = cbList.([]util.Uint256)
-					_, found := slices.BinarySearchFunc(list, tx.Hash(), util.Uint256.Compare)
-					if found {
-						txCallback(tx)
-					}
-				}
-			}
 			err := s.verifyAndPoolTX(tx)
 			if err == nil {
 				s.broadcastTX(tx)

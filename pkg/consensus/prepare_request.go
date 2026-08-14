@@ -56,6 +56,7 @@ func (p *prepareRequest) TransactionHashes() []util.Uint256 { return nil }
 
 // Transactions implements the payload.PrepareRequest interface.
 func (p *prepareRequest) Transactions() []dbft.Transaction[util.Uint256] {
+	// TODO: avoid conversion (and allocation), return directly p.transactions
 	txx := make([]dbft.Transaction[util.Uint256], len(p.transactions))
 	for i, tx := range p.transactions {
 		txx[i] = tx
