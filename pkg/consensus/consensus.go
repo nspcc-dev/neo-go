@@ -92,7 +92,7 @@ type service struct {
 	// on block addition under the high load.
 	blockEvents  chan *coreb.Block
 	poolEvents   chan struct{}
-	lastProposal []*transaction.Transaction
+	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
 	// started is a flag set with Start method that runs an event handling
 	// goroutine.
@@ -192,6 +192,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewRecoveryRequest[util.Uint256](srv.newRecoveryRequest),
 		dbft.WithNewRecoveryMessage[util.Uint256](srv.newRecoveryMessage),
 		dbft.WithVerifyPrepareRequest[util.Uint256](srv.verifyRequest),
+		dbft.WithUnpackTransactions[util.Uint256](srv.unpackTransactions),
 		dbft.WithVerifyPrepareResponse[util.Uint256](srv.verifyResponse),
 		dbft.WithVerifyCommit[util.Uint256](srv.verifyCommit),
 	}
@@ -539,6 +540,31 @@ func (s *service) getTx(h util.Uint256) dbft.Transaction[util.Uint256] {
 	return nil
 }
 
+func (s *service) unpackTransactions(p dbft.PrepareRequest[util.Uint256]) ([]dbft.Transaction[util.Uint256], error) {
+	req := p.(*prepareRequest)
+	pool := s.Chain.GetMemPool()
+	txx := make([]dbft.Transaction[util.Uint256], len(req.transactionHashes))
+	for i, h := range req.transactionHashes {
+		if tx, ok := pool.TryGetValue(h); ok {
+			txx[i] = tx
+			continue
+		}
+
+		br := io.NewBinReaderFromBuf(req.transactionsData[req.transactionsOffsets[i]:])
+		tx := new(transaction.Transaction)
+		tx.DecodeBinary(br)
+		if br.Err != nil {
+			return nil, fmt.Errorf("failed to decode proposed transaction %s: %w", h.StringLE(), br.Err)
+		}
+		if tx.Hash() != h {
+			return nil, fmt.Errorf("%w: %s", errTransactionMismatch, h.StringLE())
+		}
+		txx[i] = tx
+	}
+
+	return txx, nil
+}
+
 func (s *service) verifyBlock(b dbft.Block[util.Uint256]) bool {
 	coreb := &b.(*neoBlock).Block
 
@@ -622,11 +648,11 @@ func (s *service) verifyRequest(p dbft.ConsensusPayload[util.Uint256]) error {
 			return fmt.Errorf("%w: %s != %s", errInvalidStateRoot, sr.Root, req.stateRoot)
 		}
 	}
-	if len(req.transactions) > int(s.ProtocolConfiguration.MaxTransactionsPerBlock) {
-		return fmt.Errorf("%w: max = %d, got %d", errInvalidTransactionsCount, s.ProtocolConfiguration.MaxTransactionsPerBlock, len(req.transactions))
+	if len(req.transactionHashes) > int(s.ProtocolConfiguration.MaxTransactionsPerBlock) {
+		return fmt.Errorf("%w: max = %d, got %d", errInvalidTransactionsCount, s.ProtocolConfiguration.MaxTransactionsPerBlock, len(req.transactionHashes))
 	}
 	// Save lastProposal for getVerified().
-	s.lastProposal = req.transactions
+	s.lastProposal = req.transactionHashes
 
 	return nil
 }
@@ -708,7 +734,7 @@ func (s *service) getVerifiedTx() []dbft.Transaction[util.Uint256] {
 	if s.dbft.ViewNumber > 0 && len(s.lastProposal) > 0 {
 		txx = make([]*transaction.Transaction, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
-			if tx, ok := pool.TryGetValue(s.lastProposal[i].Hash()); ok {
+			if tx, ok := pool.TryGetValue(s.lastProposal[i]); ok {
 				txx = append(txx, tx)
 			}
 		}
