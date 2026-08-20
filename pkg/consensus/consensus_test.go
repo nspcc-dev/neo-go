@@ -204,7 +204,7 @@ func TestService_GetVerified(t *testing.T) {
 	signTx(t, srv.Chain, txs...)
 	require.NoError(t, srv.Chain.PoolTx(txs[3]))
 
-	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
+	reqTxs := []*transaction.Transaction{txs[0], txs[1], txs[2]}
 
 	// Everyone sends a message.
 	for i := range 4 {
@@ -212,7 +212,7 @@ func TestService_GetVerified(t *testing.T) {
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
 			p.message.Type = messageType(dbft.PrepareRequestType)
-			p.payload = &prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), transactionHashes: hashes}
+			p.payload = &prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), transactions: reqTxs}
 		} else {
 			p.message.Type = messageType(dbft.ChangeViewType)
 			p.payload = &changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)}
@@ -227,7 +227,7 @@ func TestService_GetVerified(t *testing.T) {
 		srv.dbft.OnReceive(p)
 	}
 	require.Equal(t, uint8(1), srv.dbft.ViewNumber)
-	require.Equal(t, hashes, srv.lastProposal)
+	require.Equal(t, reqTxs, srv.lastProposal)
 
 	t.Run("new transactions will be proposed in case of failure", func(t *testing.T) {
 		txx := srv.getVerifiedTx()
@@ -352,9 +352,9 @@ func TestService_PrepareRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	checkRequest(t, errInvalidTransactionsCount, &prepareRequest{stateRootEnabled: true,
-		prevHash:          prevHash,
-		stateRoot:         sr.Root,
-		transactionHashes: make([]util.Uint256, srv.ProtocolConfiguration.MaxTransactionsPerBlock+1),
+		prevHash:     prevHash,
+		stateRoot:    sr.Root,
+		transactions: make([]*transaction.Transaction, srv.ProtocolConfiguration.MaxTransactionsPerBlock+1),
 	})
 
 	checkRequest(t, nil, &prepareRequest{

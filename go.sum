@@ -149,8 +149,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/nspcc-dev/bbolt v0.0.0-20260404200350-24f70ceb2bd9 h1:LVNeyu4uG1ZmFclEqtqiZ8qjWyFhsl7iNzodkbRvAr0=
 github.com/nspcc-dev/bbolt v0.0.0-20260404200350-24f70ceb2bd9/go.mod h1:iYl+DCkSLXgVCeQWyC+kqS9V1fAQCA74JZtptwjNYpc=
-github.com/nspcc-dev/dbft v0.4.0 h1:4/atD4GrrMEtrYBDiZPrPzdKZ6ws7PR/cg0M4DEdVeI=
-github.com/nspcc-dev/dbft v0.4.0/go.mod h1:msYlF5GIGwOZ9jUIHttBAAtiqJ29jzV8PPKKv1avXAI=
+github.com/nspcc-dev/dbft v0.4.1-0.20260819163612-8ecec1c16eec h1:lulnaqf/hDYP3BzeoYRoTxIlY3+cu6fs2mufTeuNE9M=
+github.com/nspcc-dev/dbft v0.4.1-0.20260819163612-8ecec1c16eec/go.mod h1:wlDUe85rc9UVf4ojolXJ5mml1O/B1VFz4oGOE0Acc2E=
 github.com/nspcc-dev/go-ordered-json v0.0.0-20260302080601-ff7471f924b3 h1:txQ9PnyK2SW8aLmQMatGDDeZqQX8XdslrMnbcptmW5A=
 github.com/nspcc-dev/go-ordered-json v0.0.0-20260302080601-ff7471f924b3/go.mod h1:LtSGm9lKJLWHnB9w4q0ZPfA9bvt/D3FZcm2vHmbsfxQ=
 github.com/nspcc-dev/hrw/v2 v2.0.4 h1:o3Zh/2aF+IgGpvt414f46Ya20WG9u9vWxVd16ErFI8w=

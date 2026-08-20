@@ -434,7 +434,7 @@ func mkConsensus(config config.Consensus, chain *core.Blockchain, serv *network.
 		return nil, fmt.Errorf("can't initialize Consensus module: %w", err)
 	}
 
-	serv.AddConsensusService(srv, srv.OnPayload, srv.OnTransaction)
+	serv.AddConsensusService(srv, srv.OnPayload)
 	return srv, nil
 }
 
