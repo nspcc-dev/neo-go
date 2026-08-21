@@ -640,7 +640,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*tra
 	expectedPayerFee = actualPayerFee
 	for _, conflictingTx := range conflictsToBeRemoved {
 		conflictingPayer, _ := getPayer(conflictingTx)
-		if conflictingPayer.primary.Equals(p.primary) && conflictingPayer.secondary.Equals(conflictingPayer.secondary) { // only pick conflicts, those removals will affect payer's fee sum (either standard GAS or notary deposit).
+		if conflictingPayer.primary.Equals(p.primary) && conflictingPayer.secondary.Equals(p.secondary) { // only pick conflicts, those removals will affect payer's fee sum (either standard GAS or notary deposit).
 			expectedPayerFee.feeSum.SubUint64(&expectedPayerFee.feeSum, uint64(conflictingTx.SystemFee+conflictingTx.NetworkFee))
 		}
 	}
