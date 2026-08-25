@@ -55,24 +55,24 @@ func ToString(bi *big.Int, precision int) string {
 
 // FromString converts a string to a big decimal with the specified precision.
 func FromString(s string, precision int) (*big.Int, error) {
-	parts := strings.SplitN(s, ".", 2)
-	bi, ok := new(big.Int).SetString(parts[0], 10)
+	integer, fractional, hasFraction := strings.Cut(s, ".")
+	bi, ok := new(big.Int).SetString(integer, 10)
 	if !ok {
 		return nil, ErrInvalidFormat
 	}
 	bi.Mul(bi, pow10(precision))
-	if len(parts) == 1 {
+	if !hasFraction {
 		return bi, nil
 	}
 
-	if len(parts[1]) > precision {
+	if len(fractional) > precision {
 		return nil, ErrInvalidFormat
 	}
-	fp, ok := new(big.Int).SetString(parts[1], 10)
+	fp, ok := new(big.Int).SetString(fractional, 10)
 	if !ok {
 		return nil, ErrInvalidFormat
 	}
-	fp.Mul(fp, pow10(precision-len(parts[1])))
+	fp.Mul(fp, pow10(precision-len(fractional)))
 	if bi.Sign() == -1 {
 		return bi.Sub(bi, fp), nil
 	}
