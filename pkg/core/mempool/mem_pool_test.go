@@ -458,6 +458,34 @@ func TestMemPoolNotaryFees(t *testing.T) {
 	require.Equal(t, 0, len(mp.fees))
 }
 
+func TestConflictsPayerSecondaryIgnored(t *testing.T) {
+	mp := New(3, false, nil)
+	fs := &FeerStub{notaryBalance: 10}
+	depositorA := util.Uint160{1}
+	depositorB := util.Uint160{2}
+
+	newNotaryTx := func(netFee int64, depositor util.Uint160) *transaction.Transaction {
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+		tx.NetworkFee = netFee
+		tx.Signers = []transaction.Signer{{Account: nativehashes.Notary}, {Account: depositor}}
+		return tx
+	}
+
+	txA0 := newNotaryTx(6, depositorA)
+	require.NoError(t, mp.Add(txA0, fs))
+
+	txB := newNotaryTx(3, depositorB)
+	require.NoError(t, mp.Add(txB, fs))
+
+	txA1 := newNotaryTx(5, depositorA)
+	txA1.Attributes = []transaction.Attribute{{
+		Type:  transaction.ConflictsT,
+		Value: &transaction.Conflicts{Hash: txB.Hash()},
+	}}
+
+	require.ErrorContains(t, mp.Add(txA1, fs), "insufficient funds for all pooled tx")
+}
+
 func TestMempoolItemsOrder(t *testing.T) {
 	sender0 := util.Uint160{1, 2, 3}
 	balance := big.NewInt(10000000)
