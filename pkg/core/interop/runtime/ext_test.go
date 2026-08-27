@@ -345,7 +345,6 @@ func TestCheckWitness(t *testing.T) {
 				})
 				t.Run("allow", func(t *testing.T) {
 					hash := random.Uint160()
-					var cond = true
 					tx := &transaction.Transaction{
 						Signers: []transaction.Signer{
 							{
@@ -353,7 +352,7 @@ func TestCheckWitness(t *testing.T) {
 								Scopes:  transaction.Rules,
 								Rules: []transaction.WitnessRule{{
 									Action:    transaction.WitnessAllow,
-									Condition: (*transaction.ConditionBoolean)(&cond),
+									Condition: (*transaction.ConditionBoolean)(new(true)),
 								}},
 							},
 						},
@@ -364,7 +363,6 @@ func TestCheckWitness(t *testing.T) {
 				})
 				t.Run("deny", func(t *testing.T) {
 					hash := random.Uint160()
-					var cond = true
 					tx := &transaction.Transaction{
 						Signers: []transaction.Signer{
 							{
@@ -372,7 +370,7 @@ func TestCheckWitness(t *testing.T) {
 								Scopes:  transaction.Rules,
 								Rules: []transaction.WitnessRule{{
 									Action:    transaction.WitnessDeny,
-									Condition: (*transaction.ConditionBoolean)(&cond),
+									Condition: (*transaction.ConditionBoolean)(new(true)),
 								}},
 							},
 						},

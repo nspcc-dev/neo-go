@@ -122,10 +122,9 @@ func TestWitnessRule_ToSCParameter(t *testing.T) {
 }
 
 func TestWitnessRule_Copy(t *testing.T) {
-	b := true
 	wr := &WitnessRule{
 		Action:    WitnessDeny,
-		Condition: (*ConditionBoolean)(&b),
+		Condition: (*ConditionBoolean)(new(true)),
 	}
 	copied := wr.Copy()
 	require.Equal(t, wr.Action, copied.Action)

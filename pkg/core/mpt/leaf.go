@@ -80,6 +80,5 @@ func (n *LeafNode) UnmarshalJSON(data []byte) error {
 
 // Clone implements Node interface.
 func (n *LeafNode) Clone() Node {
-	res := *n
-	return &res
+	return new(*n)
 }

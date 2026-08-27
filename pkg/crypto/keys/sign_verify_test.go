@@ -21,16 +21,16 @@ func TestIssue1223(t *testing.T) {
 		PrivateKey: ecdsa.PrivateKey{
 			PublicKey: ecdsa.PublicKey{
 				Curve: secp256k1.S256(), // nolint:staticcheck
-				X:     &x,
-				Y:     &y,
+				X:     &x,               // nolint: staticcheck
+				Y:     &y,               // nolint: staticcheck
 			},
-			D: &d,
+			D: &d, // nolint: staticcheck
 		},
 	}
 	pubKey := PublicKey(ecdsa.PublicKey{
 		Curve: secp256k1.S256(), // nolint:staticcheck
-		X:     privateKey.X,
-		Y:     privateKey.Y,
+		X:     privateKey.X,     // nolint: staticcheck
+		Y:     privateKey.Y,     // nolint: staticcheck
 	})
 
 	hashedData := hash.Sha256([]byte("sample"))

@@ -101,13 +101,12 @@ func TestReader(t *testing.T) {
 	val, err := pc.IsBlocked(util.Uint160{1, 2, 3})
 	require.NoError(t, err)
 	require.True(t, val)
-	iid := uuid.New()
 	ta.res = &result.Invoke{
 		Session: uuid.New(),
 		State:   "HALT",
 		Stack: []stackitem.Item{
 			stackitem.NewInterop(result.Iterator{
-				ID: &iid,
+				ID: new(uuid.New()),
 			}),
 		},
 	}

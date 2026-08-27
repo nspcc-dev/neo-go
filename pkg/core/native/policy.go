@@ -408,16 +408,14 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple, isHardforkE
 		return fmt.Errorf("failed to initialize attribute fees: %w", fErr)
 	}
 
-	var echidna = config.HFEchidna
-	if isHardforkEnabled(&echidna, blockHeight) {
+	if isHardforkEnabled(new(config.HFEchidna), blockHeight) {
 		cache.maxVUBIncrement = uint32(getIntWithKey(p.ID, d, maxVUBIncrementKey))
 		cache.msPerBlock = uint32(getIntWithKey(p.ID, d, msPerBlockKey))
 		cache.maxTraceableBlocks = uint32(getIntWithKey(p.ID, d, MaxTraceableBlocksKey))
 	}
 
 	cache.whitelistedContracts = make([]whitelistedContract, 0)
-	var faun = config.HFFaun
-	if isHardforkEnabled(&faun, blockHeight) {
+	if isHardforkEnabled(new(config.HFFaun), blockHeight) {
 		cache.faunInitialized = true
 		d.Seek(p.ID, storage.SeekRange{Prefix: []byte{whitelistedFeeContractPrefix}}, func(k, v []byte) bool {
 			if len(k) != util.Uint160Size+4 {

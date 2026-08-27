@@ -530,9 +530,8 @@ func (bc *Blockchain) SetOracle(mod native.OracleService) {
 	if orc == native.IOracle(nil) {
 		panic("native Oracle contract implementation is not initialized")
 	}
-	currentHF := bc.getCurrentHF()
 	if mod != nil {
-		orcMd := orc.Metadata().HFSpecificContractMD(&currentHF)
+		orcMd := orc.Metadata().HFSpecificContractMD(new(bc.getCurrentHF()))
 		md, ok := orcMd.GetMethod(manifest.MethodVerify, -1)
 		if !ok {
 			panic(fmt.Errorf("%s method not found", manifest.MethodVerify))
@@ -802,10 +801,9 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 
 		var (
 			mtb = int64(bc.config.MaxTraceableBlocks)
-			hf  = config.HFEchidna
 			err error
 		)
-		if bc.IsHardforkEnabled(&hf, p) {
+		if bc.IsHardforkEnabled(new(config.HFEchidna), p) {
 			// Native cache is not yet initialized, retrieve MaxTraceableBlocks from DAO directly using
 			// new storage prefix since we already have up-to-date storage.
 			mtb, err = bc.dao.GetInt(bc.policy.Metadata().ID, native.MaxTraceableBlocksKey)
@@ -956,9 +954,8 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		}
 		var (
 			mtb = int64(bc.config.MaxTraceableBlocks)
-			hf  = config.HFEchidna
 		)
-		if bc.IsHardforkEnabled(&hf, currHeight) {
+		if bc.IsHardforkEnabled(new(config.HFEchidna), currHeight) {
 			// Cache isn't yet initialized, so retrieve MaxTraceableBlocks directly from DAO.
 			mtb, err = bc.dao.GetInt(bc.policy.Metadata().ID, native.MaxTraceableBlocksKey)
 			if err != nil {
@@ -3299,8 +3296,7 @@ func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 // validation. This method performs access to native Policy storage hence Policy is
 // expected to be initialized by this moment.
 func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
-	var hf = config.HFEchidna
-	if bc.IsHardforkEnabled(&hf, bc.BlockHeight()) {
+	if bc.IsHardforkEnabled(new(config.HFEchidna), bc.BlockHeight()) {
 		return bc.policy.GetMaxValidUntilBlockIncrementFromCache(bc.dao)
 	}
 	return bc.GetConfig().MaxValidUntilBlockIncrement
@@ -3310,8 +3306,7 @@ func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 // nodes work with (in milliseconds). This method performs access to native Policy
 // cache hence Policy is expected to be initialized by this moment.
 func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
-	var hf = config.HFEchidna
-	if bc.IsHardforkEnabled(&hf, bc.BlockHeight()) {
+	if bc.IsHardforkEnabled(new(config.HFEchidna), bc.BlockHeight()) {
 		return bc.policy.GetMillisecondsPerBlockInternal(bc.dao)
 	}
 	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
@@ -3321,11 +3316,8 @@ func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
 // This method performs access to native Policy storage hence Policy is expected to be
 // initialized by this moment.
 func (bc *Blockchain) GetMaxTraceableBlocks() uint32 {
-	var (
-		hf = config.HFEchidna
-		h  = bc.BlockHeight()
-	)
-	if bc.IsHardforkEnabled(&hf, h) {
+	var h = bc.BlockHeight()
+	if bc.IsHardforkEnabled(new(config.HFEchidna), h) {
 		// A special case for Genesis block since Policy storage might not yet be initialized.
 		if h == 0 {
 			return bc.GetConfig().Genesis.MaxTraceableBlocks

@@ -623,8 +623,7 @@ func (i ByteArray) TryInteger() (*big.Int, error) {
 
 // Equals implements the Item interface.
 func (i *ByteArray) Equals(s Item) bool {
-	var limit = MaxByteArrayComparableSize
-	return i.equalsLimited(s, &limit)
+	return i.equalsLimited(s, new(MaxByteArrayComparableSize))
 }
 
 // equalsLimited compares ByteArray with provided stackitem using the limit.

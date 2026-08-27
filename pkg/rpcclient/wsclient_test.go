@@ -200,8 +200,6 @@ func TestWSClientEvents(t *testing.T) {
 	memAllCh := make(chan *result.MempoolEvent)
 	memAddedCh := make(chan *result.MempoolEvent)
 	memRemovedCh := make(chan *result.MempoolEvent)
-	halt := "HALT"
-	fault := "FAULT"
 	wsc.subscriptionsLock.Lock()
 	wsc.subscriptions["0"] = &blockReceiver{ch: bCh1}
 	wsc.receivers[chan<- *block.Block(bCh1)] = []string{"0"}
@@ -214,18 +212,16 @@ func TestWSClientEvents(t *testing.T) {
 
 	wsc.subscriptions["4"] = &executionReceiver{ch: aerCh1}
 	wsc.receivers[chan<- *state.AppExecResult(aerCh1)] = []string{"4"}
-	wsc.subscriptions["5"] = &executionReceiver{filter: &neorpc.ExecutionFilter{State: &halt}, ch: aerCh2}
+	wsc.subscriptions["5"] = &executionReceiver{filter: &neorpc.ExecutionFilter{State: new("HALT")}, ch: aerCh2}
 	wsc.receivers[chan<- *state.AppExecResult(aerCh2)] = []string{"5"}
-	wsc.subscriptions["6"] = &executionReceiver{filter: &neorpc.ExecutionFilter{State: &fault}, ch: aerCh3}
+	wsc.subscriptions["6"] = &executionReceiver{filter: &neorpc.ExecutionFilter{State: new("FAULT")}, ch: aerCh3}
 	wsc.receivers[chan<- *state.AppExecResult(aerCh3)] = []string{"6"}
 
-	added := mempoolevent.TransactionAdded
-	removed := mempoolevent.TransactionRemoved
 	wsc.subscriptions["7"] = &mempoolEventReceiver{ch: memAllCh}
 	wsc.receivers[chan<- *result.MempoolEvent(memAllCh)] = []string{"7"}
-	wsc.subscriptions["8"] = &mempoolEventReceiver{filter: &neorpc.MempoolEventFilter{Type: &added}, ch: memAddedCh}
+	wsc.subscriptions["8"] = &mempoolEventReceiver{filter: &neorpc.MempoolEventFilter{Type: new(mempoolevent.TransactionAdded)}, ch: memAddedCh}
 	wsc.receivers[chan<- *result.MempoolEvent(memAddedCh)] = []string{"8"}
-	wsc.subscriptions["9"] = &mempoolEventReceiver{filter: &neorpc.MempoolEventFilter{Type: &removed}, ch: memRemovedCh}
+	wsc.subscriptions["9"] = &mempoolEventReceiver{filter: &neorpc.MempoolEventFilter{Type: new(mempoolevent.TransactionRemoved)}, ch: memRemovedCh}
 	wsc.receivers[chan<- *result.MempoolEvent(memRemovedCh)] = []string{"9"}
 	// MissedEvent must close the channels above.
 
@@ -417,8 +413,7 @@ func TestWSExecutionVMStateCheck(t *testing.T) {
 	require.NoError(t, err)
 	wsc.getNextRequestID = getTestRequestID
 	require.NoError(t, wsc.Init())
-	filter := "NONE"
-	_, err = wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: &filter}, make(chan *state.AppExecResult))
+	_, err = wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: new("NONE")}, make(chan *state.AppExecResult))
 	require.ErrorIs(t, err, neorpc.ErrInvalidSubscriptionFilter)
 	wsc.Close()
 }
@@ -430,8 +425,7 @@ func TestWSExecutionNotificationNameCheck(t *testing.T) {
 	require.NoError(t, err)
 	wsc.getNextRequestID = getTestRequestID
 	require.NoError(t, wsc.Init())
-	filter := "notification_from_execution_with_long_name"
-	_, err = wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Name: &filter}, make(chan *state.ContainedNotificationEvent))
+	_, err = wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Name: new("notification_from_execution_with_long_name")}, make(chan *state.ContainedNotificationEvent))
 	require.ErrorIs(t, err, neorpc.ErrInvalidSubscriptionFilter)
 	wsc.Close()
 }
@@ -444,8 +438,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 	}{
 		{"block header primary",
 			func(t *testing.T, wsc *WSClient) {
-				primary := byte(3)
-				_, err := wsc.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{Primary: &primary}, make(chan *block.Header))
+				_, err := wsc.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{Primary: new(byte(3))}, make(chan *block.Header))
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -490,12 +483,11 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"header primary, since and till",
 			func(t *testing.T, wsc *WSClient) {
 				var (
-					since   uint32 = 3
-					primary        = byte(2)
-					till    uint32 = 5
+					since uint32 = 3
+					till  uint32 = 5
 				)
 				_, err := wsc.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{
-					Primary: &primary,
+					Primary: new(byte(2)),
 					Since:   &since,
 					Till:    &till,
 				}, make(chan *block.Header))
@@ -512,8 +504,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		},
 		{"blocks primary",
 			func(t *testing.T, wsc *WSClient) {
-				primary := byte(3)
-				_, err := wsc.ReceiveBlocks(&neorpc.BlockFilter{Primary: &primary}, make(chan *block.Block))
+				_, err := wsc.ReceiveBlocks(&neorpc.BlockFilter{Primary: new(byte(3))}, make(chan *block.Block))
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -558,12 +549,11 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"blocks primary, since and till",
 			func(t *testing.T, wsc *WSClient) {
 				var (
-					since   uint32 = 3
-					primary        = byte(2)
-					till    uint32 = 5
+					since uint32 = 3
+					till  uint32 = 5
 				)
 				_, err := wsc.ReceiveBlocks(&neorpc.BlockFilter{
-					Primary: &primary,
+					Primary: new(byte(2)),
 					Since:   &since,
 					Till:    &till,
 				}, make(chan *block.Block))
@@ -638,8 +628,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		},
 		{"notifications name",
 			func(t *testing.T, wsc *WSClient) {
-				name := "my_pretty_notification"
-				_, err := wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Name: &name}, make(chan *state.ContainedNotificationEvent))
+				_, err := wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Name: new("my_pretty_notification")}, make(chan *state.ContainedNotificationEvent))
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -654,8 +643,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"notifications contract hash and name",
 			func(t *testing.T, wsc *WSClient) {
 				contract := util.Uint160{1, 2, 3, 4, 5}
-				name := "my_pretty_notification"
-				_, err := wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Contract: &contract, Name: &name}, make(chan *state.ContainedNotificationEvent))
+				_, err := wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Contract: &contract, Name: new("my_pretty_notification")}, make(chan *state.ContainedNotificationEvent))
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -670,10 +658,9 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"notifications parameters",
 			func(t *testing.T, wsc *WSClient) {
 				contract := util.Uint160{1, 2, 3, 4, 5}
-				name := "my_pretty_notification"
 				prms, err := smartcontract.NewParametersFromValues(1, "2", []byte{3})
 				require.NoError(t, err)
-				_, err = wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Contract: &contract, Name: &name, Parameters: prms}, make(chan *state.ContainedNotificationEvent))
+				_, err = wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Contract: &contract, Name: new("my_pretty_notification"), Parameters: prms}, make(chan *state.ContainedNotificationEvent))
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -689,8 +676,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		},
 		{"executions state",
 			func(t *testing.T, wsc *WSClient) {
-				vmstate := "FAULT"
-				_, err := wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: &vmstate}, make(chan *state.AppExecResult))
+				_, err := wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: new("FAULT")}, make(chan *state.AppExecResult))
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -717,9 +703,8 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		},
 		{"executions state and container",
 			func(t *testing.T, wsc *WSClient) {
-				vmstate := "FAULT"
 				container := util.Uint256{1, 2, 3}
-				_, err := wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: &vmstate, Container: &container}, make(chan *state.AppExecResult))
+				_, err := wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: new("FAULT"), Container: &container}, make(chan *state.AppExecResult))
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -765,8 +750,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{
 			"notary request type",
 			func(t *testing.T, wsc *WSClient) {
-				mempoolType := mempoolevent.TransactionAdded
-				_, err := wsc.ReceiveNotaryRequests(&neorpc.NotaryRequestFilter{Type: &mempoolType}, make(chan *result.NotaryRequestEvent))
+				_, err := wsc.ReceiveNotaryRequests(&neorpc.NotaryRequestFilter{Type: new(mempoolevent.TransactionAdded)}, make(chan *result.NotaryRequestEvent))
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -782,8 +766,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			func(t *testing.T, wsc *WSClient) {
 				sender := util.Uint160{1, 2, 3, 4, 5}
 				signer := util.Uint160{0, 42}
-				mempoolType := mempoolevent.TransactionAdded
-				_, err := wsc.ReceiveNotaryRequests(&neorpc.NotaryRequestFilter{Type: &mempoolType, Signer: &signer, Sender: &sender}, make(chan *result.NotaryRequestEvent))
+				_, err := wsc.ReceiveNotaryRequests(&neorpc.NotaryRequestFilter{Type: new(mempoolevent.TransactionAdded), Signer: &signer, Sender: &sender}, make(chan *result.NotaryRequestEvent))
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -798,8 +781,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{
 			name: "mempool event type",
 			clientCode: func(t *testing.T, wsc *WSClient) {
-				typ := mempoolevent.TransactionAdded
-				_, err := wsc.ReceiveMempoolEvents(&neorpc.MempoolEventFilter{Type: &typ}, make(chan *result.MempoolEvent))
+				_, err := wsc.ReceiveMempoolEvents(&neorpc.MempoolEventFilter{Type: new(mempoolevent.TransactionAdded)}, make(chan *result.MempoolEvent))
 				require.NoError(t, err)
 			},
 			serverCode: func(t *testing.T, p *params.Params) {
@@ -857,8 +839,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 					req := params.In{}
 					err = ws.ReadJSON(&req)
 					require.NoError(t, err)
-					params := params.Params(req.RawParams)
-					c.serverCode(t, &params)
+					c.serverCode(t, new(params.Params(req.RawParams)))
 					err = ws.SetWriteDeadline(time.Now().Add(5 * time.Second))
 					require.NoError(t, err)
 					err = ws.WriteMessage(1, []byte(`{"jsonrpc": "2.0", "id": 1, "result": "0"}`))

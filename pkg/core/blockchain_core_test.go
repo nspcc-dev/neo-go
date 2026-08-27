@@ -33,12 +33,10 @@ func TestVerifyHeader(t *testing.T) {
 		t.Run("Hash", func(t *testing.T) {
 			h := prev.Hash()
 			h[0] = ^h[0]
-			hdr := newBlock(bc.config.ProtocolConfiguration, 1, h).Header
-			require.ErrorIs(t, bc.verifyHeader(&hdr, &prev), ErrHdrHashMismatch)
+			require.ErrorIs(t, bc.verifyHeader(new(newBlock(bc.config.ProtocolConfiguration, 1, h).Header), &prev), ErrHdrHashMismatch)
 		})
 		t.Run("Index", func(t *testing.T) {
-			hdr := newBlock(bc.config.ProtocolConfiguration, 3, prev.Hash()).Header
-			require.ErrorIs(t, bc.verifyHeader(&hdr, &prev), ErrHdrIndexMismatch)
+			require.ErrorIs(t, bc.verifyHeader(new(newBlock(bc.config.ProtocolConfiguration, 3, prev.Hash()).Header), &prev), ErrHdrIndexMismatch)
 		})
 		t.Run("Timestamp", func(t *testing.T) {
 			hdr := newBlock(bc.config.ProtocolConfiguration, 1, prev.Hash()).Header
@@ -47,8 +45,7 @@ func TestVerifyHeader(t *testing.T) {
 		})
 	})
 	t.Run("Valid", func(t *testing.T) {
-		hdr := newBlock(bc.config.ProtocolConfiguration, 1, prev.Hash()).Header
-		require.NoError(t, bc.verifyHeader(&hdr, &prev))
+		require.NoError(t, bc.verifyHeader(new(newBlock(bc.config.ProtocolConfiguration, 1, prev.Hash()).Header), &prev))
 	})
 }
 

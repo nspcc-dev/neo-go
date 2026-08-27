@@ -538,8 +538,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				tmp.Div(tmp, votes)
 
 				key = makeVoterKey([]byte(cs[i].Key), key)
-				r := n.getLatestGASPerVote(ic.DAO, key)
-				tmp.Add(tmp, &r)
+				tmp.Add(tmp, new(n.getLatestGASPerVote(ic.DAO, key)))
 
 				if !isCacheRW {
 					cache = ic.DAO.GetRWCache(n.ID).(*NeoCache)
@@ -689,8 +688,7 @@ func (n *NEO) GetGASPerBlock(d *dao.Simple, index uint32) *big.Int {
 	gr := cache.gasPerBlock
 	for i := range slices.Backward(gr) {
 		if gr[i].Index <= index {
-			g := gr[i].GASPerBlock
-			return &g
+			return new(gr[i].GASPerBlock)
 		}
 	}
 	panic("NEO cache not initialized")
@@ -832,8 +830,7 @@ func (n *NEO) calculateBonus(d *dao.Simple, acc *state.NEOBalance, end uint32) (
 	}
 
 	var key = makeVoterKey(acc.VoteTo.Bytes())
-	var reward = n.getLatestGASPerVote(d, key)
-	var tmp = big.NewInt(0).Sub(&reward, &acc.LastGasPerVote)
+	var tmp = big.NewInt(0).Sub(new(n.getLatestGASPerVote(d, key)), &acc.LastGasPerVote)
 	tmp.Mul(tmp, &acc.Balance)
 	tmp.Div(tmp, bigVoterRewardFactor)
 	tmp.Add(tmp, r)

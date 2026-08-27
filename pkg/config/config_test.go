@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 const testConfigPath = "./testdata/protocol.test.yml"

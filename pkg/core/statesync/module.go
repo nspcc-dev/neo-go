@@ -417,9 +417,8 @@ func (s *Module) getLatestSavedBlock(p uint32) uint32 {
 	var (
 		result uint32
 		mtb    = s.bc.GetConfig().MaxTraceableBlocks
-		hf     = config.HFEchidna
 	)
-	if s.bc.IsHardforkEnabled(&hf, p) {
+	if s.bc.IsHardforkEnabled(new(config.HFEchidna), p) {
 		// Retrieve MaxTraceableBlocks from DAO directly using temporary storage prefix.
 		key := make([]byte, 1+4+1)
 		key[0] = byte(TemporaryPrefix(s.dao.Version.StoragePrefix))

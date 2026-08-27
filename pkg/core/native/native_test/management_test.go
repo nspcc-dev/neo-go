@@ -476,8 +476,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 		if name == nativenames.Neo || name == nativenames.CryptoLib {
 			// A tiny hack to reuse cockatriceCSS map in the check below.
 			require.Equal(t, uint16(1), cs.UpdateCounter, name)
-			cp := *cs
-			actual = &cp // avoid Management cache corruption.
+			actual = new(*cs) // avoid Management cache corruption.
 			actual.UpdateCounter--
 		}
 		jBytes, err := ojson.Marshal(actual)
@@ -499,8 +498,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 			require.NotNil(t, cs, name)
 		}
 		// A tiny hack to reuse echidnaCSS map in the check below.
-		cp := *cs
-		actual := &cp // avoid Management cache corruption.
+		actual := new(*cs) // avoid Management cache corruption.
 		actual.UpdateCounter = 0
 		jBytes, err := ojson.Marshal(actual)
 		require.NoError(t, err, name)
@@ -516,8 +514,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 		cs := c.Chain.GetContractState(h)
 		require.NotNil(t, cs, name)
 		// A tiny hack to reuse faunCSS map in the check below.
-		cp := *cs
-		actual := &cp // avoid Management cache corruption.
+		actual := new(*cs) // avoid Management cache corruption.
 		actual.UpdateCounter = 0
 		jBytes, err := ojson.Marshal(actual)
 		require.NoError(t, err, name)
@@ -1454,8 +1451,7 @@ func TestManagement_VotingContractDestroy(t *testing.T) {
 				stackitem.Make(3_000_000),
 			}),
 		}}
-		gorgon := config.HFGorgon
-		if c.Chain.IsHardforkEnabled(&gorgon, c.Chain.BlockHeight()) {
+		if c.Chain.IsHardforkEnabled(new(config.HFGorgon), c.Chain.BlockHeight()) {
 			expected = append(expected, state.NotificationEvent{
 				Name:       "OnNEP17Payment",
 				ScriptHash: ctr.Hash,

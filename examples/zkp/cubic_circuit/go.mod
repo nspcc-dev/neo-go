@@ -1,6 +1,6 @@
 module github.com/nspcc-dev/neo-go/examples/zkp/cubic
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/consensys/gnark v0.14.0
@@ -34,7 +34,7 @@ require (
 	github.com/nspcc-dev/bbolt v0.0.0-20250911202005-807225ebb0c8 // indirect
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20250911084817-6fb4472993d1 // indirect
 	github.com/nspcc-dev/hrw/v2 v2.0.4 // indirect
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20260609115526-14bc7067ea2e // indirect
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20260827144453-45263cbaf873 // indirect
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.16 // indirect
 	github.com/nspcc-dev/rfc6979 v0.2.4 // indirect
 	github.com/nspcc-dev/tzhash v1.8.3 // indirect

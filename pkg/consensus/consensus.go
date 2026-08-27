@@ -367,8 +367,7 @@ events:
 				if rec.preparationHash == nil {
 					req := rec.GetPrepareRequest(&msg, s.dbft.Validators, uint16(s.dbft.PrimaryIndex))
 					if req != nil {
-						h := req.Hash()
-						rec.preparationHash = &h
+						rec.preparationHash = new(req.Hash())
 					}
 				}
 

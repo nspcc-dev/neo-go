@@ -18,7 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // coordLen is the number of bytes in serialized X or Y coordinate.
@@ -115,11 +115,11 @@ func (p *PublicKey) Cmp(key *PublicKey) int {
 	if key.IsInfinity() {
 		return 1
 	}
-	xCmp := p.X.Cmp(key.X)
+	xCmp := p.X.Cmp(key.X) // nolint: staticcheck
 	if xCmp != 0 {
 		return xCmp
 	}
-	return p.Y.Cmp(key.Y)
+	return p.Y.Cmp(key.Y) // nolint: staticcheck
 }
 
 // NewPublicKeyFromString returns a public key created from the
@@ -185,12 +185,12 @@ func (p *PublicKey) writeBytes(buf []byte, compressed bool) {
 	}
 	var prefix byte
 
-	p.X.FillBytes(buf[1 : 1+coordLen])
+	p.X.FillBytes(buf[1 : 1+coordLen]) // nolint: staticcheck
 	if compressed {
 		prefix = 0x02 + byte(p.Y.Bit(0))
 	} else {
 		prefix = 0x04
-		p.Y.FillBytes(buf[1+coordLen : 1+2*coordLen])
+		p.Y.FillBytes(buf[1+coordLen : 1+2*coordLen]) // nolint: staticcheck
 	}
 	buf[0] = prefix
 }
@@ -221,8 +221,7 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 	if !ok {
 		return nil, errors.New("given bytes aren't ECDSA public key")
 	}
-	result := PublicKey(*pk)
-	return &result, nil
+	return new(PublicKey(*pk)), nil
 }
 
 // decodeCompressedY performs decompression of Y coordinate for the given X and Y's least significant bit.
@@ -332,7 +331,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		r.Err = errors.New("enccoded point is not correct (X or Y is bigger than P")
 		return
 	}
-	p.X, p.Y = x, y
+	p.X, p.Y = x, y // nolint: staticcheck
 }
 
 // EncodeBinary encodes a PublicKey to the given BinWriter.
@@ -387,7 +386,7 @@ func (p *PublicKey) Address() string {
 // Verify returns true if the signature is valid and corresponds
 // to the hash and public key.
 func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
-	if p.X == nil || p.Y == nil || len(signature) != SignatureLen {
+	if p.X == nil || p.Y == nil || len(signature) != SignatureLen { // nolint: staticcheck
 		return false
 	}
 	rBytes := new(big.Int).SetBytes(signature[0:32])
@@ -404,7 +403,7 @@ func (p *PublicKey) VerifyHashable(signature []byte, net uint32, hh hash.Hashabl
 
 // IsInfinity checks if the key is infinite (null or uninitialized, basically).
 func (p *PublicKey) IsInfinity() bool {
-	return p.X == nil && p.Y == nil
+	return p.X == nil && p.Y == nil // nolint: staticcheck
 }
 
 // String implements the Stringer interface.
@@ -412,8 +411,8 @@ func (p *PublicKey) String() string {
 	if p.IsInfinity() {
 		return "00"
 	}
-	bx := hex.EncodeToString(p.X.Bytes())
-	by := hex.EncodeToString(p.Y.Bytes())
+	bx := hex.EncodeToString(p.X.Bytes()) // nolint: staticcheck
+	by := hex.EncodeToString(p.Y.Bytes()) // nolint: staticcheck
 	return fmt.Sprintf("%s%s", bx, by)
 }
 

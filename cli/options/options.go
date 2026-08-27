@@ -34,8 +34,8 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.yaml.in/yaml/v3"
 	"golang.org/x/term"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -453,8 +453,7 @@ func GetUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*
 		if err != nil {
 			return nil, fmt.Errorf("error reading password: %w", err)
 		}
-		trimmed := strings.TrimRight(string(rawPass), "\n")
-		pass = &trimmed
+		pass = new(strings.TrimRight(string(rawPass), "\n"))
 	}
 	err := acc.Decrypt(*pass, wall.Scrypt)
 	if err != nil {

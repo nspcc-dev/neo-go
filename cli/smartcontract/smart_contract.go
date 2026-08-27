@@ -30,7 +30,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli/v2"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // addressFlagName and addressFlagAlias are a flag name and its alias
@@ -453,7 +453,7 @@ func initSmartContract(ctx *cli.Context) error {
 
 	gm := []byte("module " + contractName + `
 
-go 1.25
+go 1.26
 
 require (
 	github.com/nspcc-dev/neo-go/pkg/interop ` + ver + `

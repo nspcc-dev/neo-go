@@ -278,8 +278,7 @@ func TestNotary(t *testing.T) {
 		// we'll collect only m signatures out of n (so only m payloads are needed), but let's create payloads for all requesters (for the next tests)
 		for i, r := range requesters {
 			for _, acc := range r.accounts {
-				cp := mainTx
-				main := &cp
+				main := new(mainTx)
 				main.Scripts = make([]transaction.Witness, len(requesters))
 				for j := range main.Scripts {
 					main.Scripts[j].VerificationScript = verificationScripts[j]

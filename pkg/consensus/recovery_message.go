@@ -150,8 +150,7 @@ func (m *recoveryMessage) AddPayload(p dbft.ConsensusPayload[util.Uint256]) {
 			payload:          p.GetPrepareRequest().(*prepareRequest),
 			stateRootEnabled: m.stateRootEnabled,
 		}
-		h := p.Hash()
-		m.preparationHash = &h
+		m.preparationHash = new(p.Hash())
 		m.preparationPayloads = append(m.preparationPayloads, &preparationCompact{
 			ValidatorIndex:   validator,
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
@@ -163,8 +162,7 @@ func (m *recoveryMessage) AddPayload(p dbft.ConsensusPayload[util.Uint256]) {
 		})
 
 		if m.preparationHash == nil {
-			h := p.GetPrepareResponse().(*prepareResponse).preparationHash
-			m.preparationHash = &h
+			m.preparationHash = new(p.GetPrepareResponse().(*prepareResponse).preparationHash)
 		}
 	case dbft.ChangeViewType:
 		m.changeViewPayloads = append(m.changeViewPayloads, &changeViewCompact{
