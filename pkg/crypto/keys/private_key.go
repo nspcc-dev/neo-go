@@ -71,10 +71,10 @@ func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 		ecdsa.PrivateKey{
 			PublicKey: ecdsa.PublicKey{
 				Curve: c,
-				X:     x,
-				Y:     y,
+				X:     x, // nolint: staticcheck
+				Y:     y, // nolint: staticcheck
 			},
-			D: d,
+			D: d, // nolint: staticcheck
 		},
 	}, nil
 }
@@ -122,7 +122,7 @@ func (p *PrivateKey) WIF() string {
 // Destroy wipes the contents of the private key from memory. Any operations
 // with the key after call to Destroy have undefined behavior.
 func (p *PrivateKey) Destroy() {
-	clear(p.D.Bits())
+	clear(p.D.Bits()) // nolint: staticcheck
 }
 
 // Address derives the public NEO address that is coupled with the private key, and
@@ -178,7 +178,7 @@ func (p *PrivateKey) String() string {
 // Bytes returns the underlying bytes of the PrivateKey.
 func (p *PrivateKey) Bytes() []byte {
 	result := make([]byte, 32)
-	_ = p.D.FillBytes(result)
+	_ = p.D.FillBytes(result) // nolint: staticcheck
 
 	return result
 }
