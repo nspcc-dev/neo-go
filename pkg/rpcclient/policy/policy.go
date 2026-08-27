@@ -587,8 +587,7 @@ func (e *WhitelistFeeChangedEvent) FromStackItem(item *stackitem.Array) error {
 		if err != nil {
 			return fmt.Errorf("invalid fee: %w", err)
 		}
-		v := fee.Int64()
-		e.Fee = &v
+		e.Fee = new(fee.Int64())
 	}
 
 	return nil

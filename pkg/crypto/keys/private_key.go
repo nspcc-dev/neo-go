@@ -91,8 +91,7 @@ func NewPrivateKeyFromASN1(b []byte) (*PrivateKey, error) {
 
 // PublicKey derives the public key from the private key.
 func (p *PrivateKey) PublicKey() *PublicKey {
-	result := PublicKey(p.PrivateKey.PublicKey)
-	return &result
+	return new(PublicKey(p.PrivateKey.PublicKey))
 }
 
 // NewPrivateKeyFromWIF returns a NEO PrivateKey from the given

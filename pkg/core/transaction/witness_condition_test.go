@@ -420,8 +420,7 @@ func TestWitnessConditionMatch(t *testing.T) {
 }
 
 func TestWitnessConditionCopy(t *testing.T) {
-	var someBool = true
-	boolCondition := (*ConditionBoolean)(&someBool)
+	boolCondition := (*ConditionBoolean)(new(true))
 	pk, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 

@@ -681,32 +681,28 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive, by hash",
 			params: fmt.Sprintf(`["%s", "dGVzdGtleQ=="]`, testContractHashLE),
 			result: func(e *executor) any {
-				v := base64.StdEncoding.EncodeToString([]byte("newtestvalue"))
-				return &v
+				return new(base64.StdEncoding.EncodeToString([]byte("newtestvalue")))
 			},
 		},
 		{
 			name:   "positive, by address",
 			params: fmt.Sprintf(`["%s", "dGVzdGtleQ=="]`, address.Uint160ToString(testContractHash)),
 			result: func(e *executor) any {
-				v := base64.StdEncoding.EncodeToString([]byte("newtestvalue"))
-				return &v
+				return new(base64.StdEncoding.EncodeToString([]byte("newtestvalue")))
 			},
 		},
 		{
 			name:   "positive, by ID",
 			params: fmt.Sprintf(`[%d, "dGVzdGtleQ=="]`, basicchain.RublesContractID),
 			result: func(e *executor) any {
-				v := base64.StdEncoding.EncodeToString([]byte("newtestvalue"))
-				return &v
+				return new(base64.StdEncoding.EncodeToString([]byte("newtestvalue")))
 			},
 		},
 		{
 			name:   "positive, by native name",
 			params: fmt.Sprintf(`["%s", "%s"]`, nativenames.Policy, base64.StdEncoding.EncodeToString([]byte{19})), // storgePrice key.
 			result: func(e *executor) any {
-				v := bigint.ToBytes(big.NewInt(native.DefaultStoragePrice))
-				return &v
+				return new(bigint.ToBytes(big.NewInt(native.DefaultStoragePrice)))
 			},
 		},
 		{
@@ -745,8 +741,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa10"))),
 			result: func(e *executor) any {
-				v := base64.StdEncoding.EncodeToString([]byte("v2"))
-				return &v
+				return new(base64.StdEncoding.EncodeToString([]byte("v2")))
 			},
 		},
 		{
@@ -1088,8 +1083,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			params: "[]",
 			result: func(e *executor) any {
-				v := "0x" + e.chain.CurrentBlockHash().StringLE()
-				return &v
+				return new("0x" + e.chain.CurrentBlockHash().StringLE())
 			},
 		},
 	},
@@ -1149,8 +1143,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			params: "[]",
 			result: func(e *executor) any {
-				v := int(e.chain.BlockHeight() + 1)
-				return &v
+				return new(int(e.chain.BlockHeight() + 1))
 			},
 		},
 	},
@@ -1161,8 +1154,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				// We don't have `t` here for proper handling, but
 				// error here would lead to panic down below.
 				block, _ := e.chain.GetBlock(e.chain.GetHeaderHash(1))
-				expectedHash := "0x" + block.Hash().StringLE()
-				return &expectedHash
+				return new("0x" + block.Hash().StringLE())
 			},
 		},
 		{
@@ -1208,8 +1200,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			params: "[]",
 			result: func(e *executor) any {
-				v := int(e.chain.HeaderHeight() + 1)
-				return &v
+				return new(int(e.chain.HeaderHeight() + 1))
 			},
 		},
 	},
@@ -1260,8 +1251,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			params: "[]",
 			result: func(*executor) any {
-				v := 0
-				return &v
+				return new(0)
 			},
 		},
 	},
@@ -1318,8 +1308,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: `["` + deploymentTxHash + `"]`,
 			result: func(e *executor) any {
-				h := 0
-				return &h
+				return new(0)
 			},
 			check: func(t *testing.T, e *executor, resp any) {
 				h, ok := resp.(*int)
@@ -3051,12 +3040,11 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		})
 
 		t.Run("verbose != 0", func(t *testing.T) {
-			nextHash := chain.GetHeaderHash(hdr.Index + 1)
 			expected := &result.Header{
 				Header: *hdr,
 				BlockMetadata: result.BlockMetadata{
 					Size:          io.GetVarSize(hdr),
-					NextBlockHash: &nextHash,
+					NextBlockHash: new(chain.GetHeaderHash(hdr.Index + 1)),
 					Confirmations: e.chain.BlockHeight() - hdr.Index + 1,
 				},
 			}

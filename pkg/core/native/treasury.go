@@ -77,8 +77,7 @@ func (t *Treasury) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint
 
 // ActiveIn implements the [interop.Contract] interface.
 func (t *Treasury) ActiveIn() *config.Hardfork {
-	var f = config.HFFaun
-	return &f
+	return new(config.HFFaun)
 }
 
 func (t *Treasury) verify(ic *interop.Context, _ []stackitem.Item) stackitem.Item {

@@ -344,8 +344,7 @@ func AddNetworkFee(t testing.TB, bc *core.Blockchain, tx *transaction.Transactio
 			sc, err := csgr.Account().Contract.InvocationBuilder(true, tx)
 			require.NoError(t, err)
 
-			txCopy := *tx
-			ic, err := bc.GetTestVM(trigger.Verification, &txCopy, nil)
+			ic, err := bc.GetTestVM(trigger.Verification, new(*tx), nil)
 			require.NoError(t, err)
 
 			ic.UseSigners(tx.Signers)
@@ -436,8 +435,7 @@ func (e *Executor) TestInvoke(tx *transaction.Transaction) (*vm.VM, error) {
 
 	// `GetTestVM` as well as `Run` can use a transaction hash which will set a cached value.
 	// This is unwanted behavior, so we explicitly copy the transaction to perform execution.
-	ttx := *tx
-	ic, _ := e.Chain.GetTestVM(trigger.Application, &ttx, b)
+	ic, _ := e.Chain.GetTestVM(trigger.Application, new(*tx), b)
 
 	if e.collectCoverage {
 		ic.VM.SetOnExecHook(e.coverageHook)

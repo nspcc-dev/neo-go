@@ -66,8 +66,7 @@ func (o *OracleRequest) FromStackItem(it stackitem.Item) error {
 	if !ok {
 		return errors.New("invalid filter")
 	} else if !isNull {
-		filter := s
-		o.Filter = &filter
+		o.Filter = new(s)
 	}
 
 	o.CallbackContract, err = stackitem.ToUint160(arr[4])

@@ -90,8 +90,7 @@ func TestMempoolFilterCopy(t *testing.T) {
 	*bf.Signer = util.Uint160{3, 2, 1}
 	require.NotEqual(t, bf, tf)
 
-	added := mempoolevent.TransactionAdded
-	bf.Type = &added
+	bf.Type = new(mempoolevent.TransactionAdded)
 
 	tf = bf.Copy()
 	require.Equal(t, bf, tf)

@@ -356,8 +356,7 @@ func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []strin
 		name = strings.TrimSuffix(name, "WithData")
 	}
 
-	latestHF := config.HFLatestKnown
-	cMD := ctr.HFSpecificContractMD(&latestHF)
+	cMD := ctr.HFSpecificContractMD(new(config.HFLatestKnown))
 	md, ok := cMD.GetMethod(name, paramLen)
 	require.True(t, ok, cMD.Manifest.Name, name, paramLen)
 	return md

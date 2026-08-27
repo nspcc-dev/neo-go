@@ -66,9 +66,8 @@ func TestOracle_Request(t *testing.T) {
 	helperValidatorInvoker := e.ValidatorInvoker(cs.Hash)
 
 	gasForResponse := int64(2000_1234)
-	var filter = "flt"
 	userData := []byte("custom info")
-	putOracleRequest(t, helperValidatorInvoker, "url", &filter, "handle", userData, gasForResponse)
+	putOracleRequest(t, helperValidatorInvoker, "url", new("flt"), "handle", userData, gasForResponse)
 
 	// Designate single Oracle node.
 	oracleNode := e.NewAccount(t)
@@ -168,8 +167,7 @@ func TestOracle_Request(t *testing.T) {
 			putOracleRequest(t, helperValidatorInvoker, "\xff", nil, "", []byte{1, 2}, gasForResponse, "invalid value: not UTF-8")
 		})
 		t.Run("non-UTF8 filter", func(t *testing.T) {
-			var f = "\xff"
-			putOracleRequest(t, helperValidatorInvoker, "url", &f, "", []byte{1, 2}, gasForResponse, "invalid value: not UTF-8")
+			putOracleRequest(t, helperValidatorInvoker, "url", new("\xff"), "", []byte{1, 2}, gasForResponse, "invalid value: not UTF-8")
 		})
 		t.Run("not enough gas", func(t *testing.T) {
 			putOracleRequest(t, helperValidatorInvoker, "url", nil, "", nil, 1000, "not enough gas for response")

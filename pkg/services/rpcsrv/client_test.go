@@ -2257,7 +2257,6 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 
 	checkRelevant := func(t *testing.T, filtered bool) {
 		b, bNext, primary, sender, ntfName, st := getData(t)
-		typ := mempoolevent.TransactionAdded
 		var (
 			bID, txID, ntfID, aerID, memID string
 			blockCh                        = make(chan *block.Block)
@@ -2277,7 +2276,7 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 			txFlt = &neorpc.TxFilter{Sender: &sender}
 			ntfFlt = &neorpc.NotificationFilter{Name: &ntfName}
 			aerFlt = &neorpc.ExecutionFilter{State: &st}
-			memFlt = &neorpc.MempoolEventFilter{Type: &typ}
+			memFlt = &neorpc.MempoolEventFilter{Type: new(mempoolevent.TransactionAdded)}
 		}
 		bID, err = c.ReceiveBlocks(bFlt, blockCh)
 		require.NoError(t, err)
@@ -2513,8 +2512,7 @@ func TestClient_FindStorage(t *testing.T) {
 	require.Equal(t, expected, actual)
 
 	// Non-nil start.
-	start := 1
-	actual, err = c.FindStorageByHash(h, prefix, &start)
+	actual, err = c.FindStorageByHash(h, prefix, new(1))
 	require.NoError(t, err)
 	require.Equal(t, result.FindStorage{
 		Results: []result.KeyValue{
@@ -2584,8 +2582,7 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 	require.Equal(t, expected, actual)
 
 	// Non-nil start.
-	start := 1
-	actual, err = c.FindStorageByHashHistoric(root, h, prefix, &start)
+	actual, err = c.FindStorageByHashHistoric(root, h, prefix, new(1))
 	require.NoError(t, err)
 	require.Equal(t, result.FindStorage{
 		Results: []result.KeyValue{
@@ -2729,17 +2726,15 @@ func TestGetBlockNotifications(t *testing.T) {
 		require.NotEmpty(t, bn)
 	})
 	t.Run("bad filter", func(t *testing.T) {
-		badName := "Transfer1"
 		bn, err := c.GetBlockNotifications(chain.GetHeaderHash(1), &neorpc.NotificationFilter{
-			Name: &badName,
+			Name: new("Transfer1"),
 		})
 		require.NoError(t, err)
 		require.Empty(t, bn)
 	})
 	t.Run("good", func(t *testing.T) {
-		name := "Transfer"
 		bn, err := c.GetBlockNotifications(chain.GetHeaderHash(1), &neorpc.NotificationFilter{
-			Name: &name,
+			Name: new("Transfer"),
 		})
 		require.NoError(t, err)
 		require.NotEmpty(t, bn)

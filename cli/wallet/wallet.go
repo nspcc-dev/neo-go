@@ -609,8 +609,7 @@ func importMultisig(ctx *cli.Context) error {
 	}
 
 	if ctx.IsSet("name") {
-		l := ctx.String("name")
-		label = &l
+		label = new(ctx.String("name"))
 	}
 
 loop:
@@ -676,8 +675,7 @@ func importDeployed(ctx *cli.Context) error {
 
 	var label *string
 	if ctx.IsSet("name") {
-		l := ctx.String("name")
-		label = &l
+		label = new(ctx.String("name"))
 	}
 	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)
 	if err != nil {
@@ -731,8 +729,7 @@ func importWallet(ctx *cli.Context) error {
 
 	var label *string
 	if ctx.IsSet("name") {
-		l := ctx.String("name")
-		label = &l
+		label = new(ctx.String("name"))
 	}
 
 	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)

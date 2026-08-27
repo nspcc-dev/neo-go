@@ -273,8 +273,7 @@ func (s *Module) ResetState(height uint32, cache *storage.MemCachedStore) error 
 	}, func(k, v []byte) bool {
 		if len(k) == 5 {
 			if len(v) > witnessesLenOffset && v[witnessesLenOffset] != 0 {
-				i := binary.BigEndian.Uint32(k[1:])
-				validated = &i
+				validated = new(binary.BigEndian.Uint32(k[1:]))
 				return false
 			}
 		}

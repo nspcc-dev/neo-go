@@ -176,9 +176,8 @@ func TestInvoker(t *testing.T) {
 		inv := New(mockClient, nil)
 
 		sessionID := uuid.New()
-		iteratorID := uuid.New()
 		iter := &result.Iterator{
-			ID:     &iteratorID,
+			ID:     new(uuid.New()),
 			Values: []stackitem.Item{stackitem.Make(10), stackitem.Make(20)},
 		}
 		res, err := inv.TraverseIterator(sessionID, iter, 2)

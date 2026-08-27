@@ -154,14 +154,13 @@ func TestReaderTokensOf(t *testing.T) {
 			_, err := fun()
 			require.Error(t, err)
 
-			iid := uuid.New()
 			ta.err = nil
 			ta.res = &result.Invoke{
 				Session: uuid.New(),
 				State:   "HALT",
 				Stack: []stackitem.Item{
 					stackitem.NewInterop(result.Iterator{
-						ID: &iid,
+						ID: new(uuid.New()),
 					}),
 				},
 			}

@@ -154,8 +154,7 @@ func (c *ConditionBoolean) ToSCParameter() (smartcontract.Parameter, error) {
 
 // Copy returns a deep copy of the condition.
 func (c *ConditionBoolean) Copy() WitnessCondition {
-	cc := *c
-	return &cc
+	return new(*c)
 }
 
 // Type implements the WitnessCondition interface and returns condition type.
@@ -209,8 +208,7 @@ func (c *ConditionNot) ToSCParameter() (smartcontract.Parameter, error) {
 
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionNot) Copy() WitnessCondition {
-	cp := *c
-	return &cp
+	return new(*c)
 }
 
 // Type implements the WitnessCondition interface and returns condition type.
@@ -417,8 +415,7 @@ func (c *ConditionScriptHash) ToSCParameter() (smartcontract.Parameter, error) {
 
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionScriptHash) Copy() WitnessCondition {
-	cc := *c
-	return &cc
+	return new(*c)
 }
 
 // Type implements the WitnessCondition interface and returns condition type.
@@ -467,8 +464,7 @@ func (c *ConditionGroup) ToSCParameter() (smartcontract.Parameter, error) {
 
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionGroup) Copy() WitnessCondition {
-	cp := *c
-	return &cp
+	return new(*c)
 }
 
 // Type implements the WitnessCondition interface and returns condition type.
@@ -563,8 +559,7 @@ func (c *ConditionCalledByContract) ToSCParameter() (smartcontract.Parameter, er
 
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionCalledByContract) Copy() WitnessCondition {
-	cc := *c
-	return &cc
+	return new(*c)
 }
 
 // Type implements the WitnessCondition interface and returns condition type.
@@ -613,8 +608,7 @@ func (c *ConditionCalledByGroup) ToSCParameter() (smartcontract.Parameter, error
 
 // Copy implements the WitnessCondition interface and returns a deep copy of the condition.
 func (c *ConditionCalledByGroup) Copy() WitnessCondition {
-	cp := *c
-	return &cp
+	return new(*c)
 }
 
 // DecodeBinaryCondition decodes and returns condition from the given binary stream.
@@ -694,8 +688,7 @@ func condFromStackItem(item stackitem.Item, maxDepth int) (WitnessCondition, err
 		if err != nil {
 			return nil, err
 		}
-		v := ConditionBoolean(b)
-		return &v, nil
+		return new(ConditionBoolean(b)), nil
 	case WitnessNot:
 		cond, err := condFromStackItem(arr[1], maxDepth-1)
 		if err != nil {
@@ -721,18 +714,15 @@ func condFromStackItem(item stackitem.Item, maxDepth int) (WitnessCondition, err
 			}
 		}
 		if t == WitnessAnd {
-			v := ConditionAnd(conds)
-			return &v, nil
+			return new(ConditionAnd(conds)), nil
 		}
-		v := ConditionOr(conds)
-		return &v, nil
+		return new(ConditionOr(conds)), nil
 	case WitnessScriptHash:
 		u, err := stackitem.ToUint160(arr[1])
 		if err != nil {
 			return nil, err
 		}
-		v := ConditionScriptHash(u)
-		return &v, nil
+		return new(ConditionScriptHash(u)), nil
 	case WitnessGroup:
 		b, err := arr[1].TryBytes()
 		if err != nil {
@@ -742,8 +732,7 @@ func condFromStackItem(item stackitem.Item, maxDepth int) (WitnessCondition, err
 		if err != nil {
 			return nil, err
 		}
-		v := ConditionGroup(*pub)
-		return &v, nil
+		return new(ConditionGroup(*pub)), nil
 	case WitnessCalledByEntry:
 		return ConditionCalledByEntry{}, nil
 	case WitnessCalledByContract:
@@ -751,8 +740,7 @@ func condFromStackItem(item stackitem.Item, maxDepth int) (WitnessCondition, err
 		if err != nil {
 			return nil, err
 		}
-		v := ConditionCalledByContract(u)
-		return &v, nil
+		return new(ConditionCalledByContract(u)), nil
 	case WitnessCalledByGroup:
 		b, err := arr[1].TryBytes()
 		if err != nil {
@@ -762,8 +750,7 @@ func condFromStackItem(item stackitem.Item, maxDepth int) (WitnessCondition, err
 		if err != nil {
 			return nil, err
 		}
-		v := ConditionCalledByGroup(*pub)
-		return &v, nil
+		return new(ConditionCalledByGroup(*pub)), nil
 	default:
 		return nil, errors.New("invalid condition type")
 	}
@@ -875,8 +862,7 @@ func condToStackItem(typ WitnessConditionType, c any) stackitem.Item {
 	case WitnessScriptHash, WitnessCalledByContract:
 		res = append(res, stackitem.NewByteArray(c.(util.Uint160).BytesBE()))
 	case WitnessGroup, WitnessCalledByGroup:
-		g := c.(keys.PublicKey)
-		res = append(res, stackitem.NewByteArray((&g).Bytes()))
+		res = append(res, stackitem.NewByteArray((new(c.(keys.PublicKey))).Bytes()))
 	case WitnessCalledByEntry:
 		// No additional item should be added.
 	}
@@ -909,8 +895,7 @@ func condToSCParameter(typ WitnessConditionType, c any) (smartcontract.Parameter
 	case WitnessScriptHash, WitnessCalledByContract:
 		prms = append(prms, smartcontract.Parameter{Type: smartcontract.Hash160Type, Value: c.(util.Uint160)})
 	case WitnessGroup, WitnessCalledByGroup:
-		g := c.(keys.PublicKey)
-		prms = append(prms, smartcontract.Parameter{Type: smartcontract.PublicKeyType, Value: (&g).Bytes()})
+		prms = append(prms, smartcontract.Parameter{Type: smartcontract.PublicKeyType, Value: (new(c.(keys.PublicKey))).Bytes()})
 	case WitnessCalledByEntry:
 		// No additional item should be added.
 	}

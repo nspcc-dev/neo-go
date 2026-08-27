@@ -48,8 +48,7 @@ func (r *RPCClient) GetBlockCount() (uint32, error) {
 	return r.bCount.Load(), r.err
 }
 func (r *RPCClient) GetVersion() (*result.Version, error) {
-	verCopy := *r.version
-	return &verCopy, r.err
+	return new(*r.version), r.err
 }
 func (r *RPCClient) SendRawTransaction(tx *transaction.Transaction) (util.Uint256, error) {
 	return r.hash, r.err

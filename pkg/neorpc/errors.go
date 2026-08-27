@@ -316,8 +316,7 @@ func (e *Error) Error() string {
 
 // Is denotes whether the error matches the target one.
 func (e *Error) Is(target error) bool {
-	var clTarget *Error
-	if errors.As(target, &clTarget) {
+	if clTarget, ok := errors.AsType[*Error](target); ok {
 		return e.Code == clTarget.Code
 	}
 	return false

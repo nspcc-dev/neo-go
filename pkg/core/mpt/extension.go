@@ -101,6 +101,5 @@ func (e *ExtensionNode) UnmarshalJSON(data []byte) error {
 
 // Clone implements Node interface.
 func (e *ExtensionNode) Clone() Node {
-	res := *e
-	return &res
+	return new(*e)
 }

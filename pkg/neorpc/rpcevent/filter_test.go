@@ -54,7 +54,6 @@ func TestMatches(t *testing.T) {
 	cnt := util.Uint256{1, 2, 3}
 	badUint256 := util.Uint256{9, 9, 9}
 	name := "ntf name"
-	badName := "bad name"
 	goodType := mempoolevent.TransactionAdded
 	badType := mempoolevent.TransactionRemoved
 	parameters, err := smartcontract.NewParametersFromValues(1, "2", []byte{3})
@@ -72,8 +71,6 @@ func TestMatches(t *testing.T) {
 		pld: &block.Header{PrimaryIndex: byte(primary), Index: index},
 	}
 	st := vmstate.Halt
-	goodState := st.String()
-	badState := "FAULT"
 	txContainer := testContainer{
 		id:  neorpc.TransactionEventID,
 		pld: &transaction.Transaction{Signers: []transaction.Signer{{Account: sender}, {Account: signer}}},
@@ -270,7 +267,7 @@ func TestMatches(t *testing.T) {
 			name: "notification, name mismatch",
 			comparator: testComparator{
 				id:     neorpc.NotificationEventID,
-				filter: neorpc.NotificationFilter{Name: &badName},
+				filter: neorpc.NotificationFilter{Name: new("bad name")},
 			},
 			container: ntfContainer,
 			expected:  false,
@@ -312,7 +309,7 @@ func TestMatches(t *testing.T) {
 			name: "execution, state mismatch",
 			comparator: testComparator{
 				id:     neorpc.ExecutionEventID,
-				filter: neorpc.ExecutionFilter{State: &badState},
+				filter: neorpc.ExecutionFilter{State: new("FAULT")},
 			},
 			container: exContainer,
 			expected:  false,
@@ -330,7 +327,7 @@ func TestMatches(t *testing.T) {
 			name: "execution, filter mismatch",
 			comparator: testComparator{
 				id:     neorpc.ExecutionEventID,
-				filter: neorpc.ExecutionFilter{State: &goodState, Container: &cnt},
+				filter: neorpc.ExecutionFilter{State: new(st.String()), Container: &cnt},
 			},
 			container: exContainer,
 			expected:  true,

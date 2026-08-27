@@ -166,8 +166,7 @@ func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool, error) {
 	// (*Blockchain).GetTestVM calls Hash() method of the provided transaction; once being called, this
 	// method caches transaction hash, but tx building is not yet completed and hash will be changed.
 	// So, make a copy of the tx to avoid wrong hash caching.
-	cp := *tx
-	ic, err := o.Chain.GetTestVM(trigger.Verification, &cp, nil)
+	ic, err := o.Chain.GetTestVM(trigger.Verification, new(*tx), nil)
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to create test VM: %w", err)
 	}

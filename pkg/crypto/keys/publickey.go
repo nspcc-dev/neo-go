@@ -221,8 +221,7 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 	if !ok {
 		return nil, errors.New("given bytes aren't ECDSA public key")
 	}
-	result := PublicKey(*pk)
-	return &result, nil
+	return new(PublicKey(*pk)), nil
 }
 
 // decodeCompressedY performs decompression of Y coordinate for the given X and Y's least significant bit.

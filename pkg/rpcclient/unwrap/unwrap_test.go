@@ -299,8 +299,7 @@ func TestSessionIterator(t *testing.T) {
 	_, _, err = SessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.NewInterop(42)}}, nil)
 	require.Error(t, err)
 
-	iid := uuid.New()
-	iter := result.Iterator{ID: &iid}
+	iter := result.Iterator{ID: new(uuid.New())}
 	_, _, err = SessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.NewInterop(iter)}}, nil)
 	require.Error(t, err)
 
@@ -334,8 +333,7 @@ func TestArraySessionIterator(t *testing.T) {
 	_, _, _, err = ArrayAndSessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{arr, stackitem.NewInterop(42)}}, nil)
 	require.Error(t, err)
 
-	iid := uuid.New()
-	iter := result.Iterator{ID: &iid}
+	iter := result.Iterator{ID: new(uuid.New())}
 	_, _, _, err = ArrayAndSessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{arr, stackitem.NewInterop(iter)}}, nil)
 	require.ErrorIs(t, err, ErrNoSessionID)
 

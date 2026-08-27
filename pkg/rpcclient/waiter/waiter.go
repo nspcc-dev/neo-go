@@ -279,8 +279,7 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 	)
 
 	// Execution event preceded the block event, thus wait until the VUB-th block to be sure.
-	since := vub
-	blocksID, err := w.ws.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{Since: &since}, hRcvr)
+	blocksID, err := w.ws.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{Since: new(vub)}, hRcvr)
 	if err != nil {
 		wsWaitErr = fmt.Errorf("failed to subscribe for new headers: %w", err)
 	} else {

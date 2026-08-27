@@ -170,7 +170,5 @@ func TestFixed8_Arith(t *testing.T) {
 }
 
 func TestFixed8_Serializable(t *testing.T) {
-	a := Fixed8(0x0102030405060708)
-
-	testserdes.EncodeDecodeBinary(t, &a, new(Fixed8))
+	testserdes.EncodeDecodeBinary(t, new(Fixed8(0x0102030405060708)), new(Fixed8))
 }

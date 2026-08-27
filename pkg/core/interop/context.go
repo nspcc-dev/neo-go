@@ -354,8 +354,7 @@ func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 		}
 
 		// Perform method descriptor copy to support independent HF-based offset update.
-		md := *m.MD
-		m.MD = &md
+		m.MD = new(*m.MD)
 		m.MD.Offset = w.Len()
 
 		emit.Int(w.BinWriter, 0)

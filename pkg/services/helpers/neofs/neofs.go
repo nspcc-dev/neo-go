@@ -128,8 +128,7 @@ func parseNeoFSURL(u *url.URL) (*oid.Address, string, error) {
 	if err := objectID.DecodeString(oidPart); err != nil {
 		return nil, "", fmt.Errorf("%w: %w", ErrInvalidObject, err)
 	}
-	var objAddr = oid.NewAddress(containerID, objectID)
-	return &objAddr, rest, nil
+	return new(oid.NewAddress(containerID, objectID)), rest, nil
 }
 
 func getPayload(ctx context.Context, s user.Signer, c Client, addr *oid.Address) (io.ReadCloser, error) {

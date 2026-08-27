@@ -23,8 +23,7 @@ func TestOracleRequestToFromSI(t *testing.T) {
 		testserdes.ToFromStackItem(t, r, new(OracleRequest))
 
 		t.Run("WithFilter", func(t *testing.T) {
-			s := "filter"
-			r.Filter = &s
+			r.Filter = new("filter")
 			testserdes.ToFromStackItem(t, r, new(OracleRequest))
 		})
 	})
