@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/rpcbinding"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/urfave/cli/v2"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 var generatorFlags = []cli.Flag{

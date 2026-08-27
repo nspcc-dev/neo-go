@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // generated via `go run ./scripts/gendump/main.go --out ./cli/server/testdata/chain50x2.acc --blocks 50 --txs 2`.

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 const (

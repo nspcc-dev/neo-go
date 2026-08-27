@@ -3,7 +3,7 @@ package binding
 import (
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // Override contains a package and a type to replace manifest method parameter type with.
