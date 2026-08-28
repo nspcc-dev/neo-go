@@ -2502,19 +2502,19 @@ func (bc *Blockchain) persist() (time.Duration, error) {
 
 	persisted, err = bc.dao.Persist()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to persist dao: %w", err)
 	}
 	if persisted > 0 {
 		bHeight, err := bc.persistent.GetCurrentBlockHeight()
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("failed to get current block height: %w", err)
 		}
 		oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
 		diff := bHeight - oldHeight
 
 		storedHeaderHeight, _, err := bc.persistent.GetCurrentHeaderHeight()
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("failed to get current header height: %w", err)
 		}
 		duration = time.Since(start)
 		// Low number of keys is not representative and duration _can_

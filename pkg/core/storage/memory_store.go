@@ -25,8 +25,13 @@ func NewMemoryStore() *MemoryStore {
 	}
 }
 
-// Get implements the Store interface.
-func (s *MemoryStore) Get(key []byte) ([]byte, error) {
+// BeginView implements the Store interface.
+func (s *MemoryStore) BeginView() (IView, error) {
+	panic("bug: not supported")
+}
+
+// GetWithView implements the Store interface.
+func (s *MemoryStore) GetWithView(view IView, key []byte) ([]byte, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	m := s.chooseMap(key)
@@ -71,8 +76,8 @@ func (s *MemoryStore) Len() int {
 	return len(s.mem) + len(s.stor)
 }
 
-// Seek implements the Store interface.
-func (s *MemoryStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
+// SeekWithView implements the Store interface.
+func (s *MemoryStore) SeekWithView(view IView, rng SeekRange, f func(k, v []byte) bool) {
 	s.seek(rng, f, s.mut.RLock, s.mut.RUnlock)
 }
 

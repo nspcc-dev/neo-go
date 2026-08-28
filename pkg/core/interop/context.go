@@ -572,6 +572,7 @@ func (ic *Context) Finalize() {
 		f()
 	}
 	ic.cancelFuncs = nil
+	_ = ic.DAO.Store.Finalize() // TODO: need a workaround to avoid finalization error.
 }
 
 // Exec executes loaded VM script and calls registered finalizers to release the occupied resources.
