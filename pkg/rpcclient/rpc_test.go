@@ -640,6 +640,20 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return []util.Uint256{hash}
 			},
 		},
+		{
+			name: "positive, filtered",
+			invoke: func(c *Client) (any, error) {
+				return c.GetRawMemPool(util.Uint160{1, 2, 3})
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":["0x9786cce0dddb524c40ddbdd5e31a41ed1f6b5c8a683c122f627ca4a007a7cf4e"]}`,
+			result: func(c *Client) any {
+				hash, err := util.Uint256DecodeStringLE("9786cce0dddb524c40ddbdd5e31a41ed1f6b5c8a683c122f627ca4a007a7cf4e")
+				if err != nil {
+					panic(err)
+				}
+				return []util.Uint256{hash}
+			},
+		},
 	},
 	"getrawtransaction": {
 		{
@@ -1433,6 +1447,18 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			name: "empty pool",
 			invoke: func(c *Client) (any, error) {
 				return c.GetRawNotaryPool()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{}}`,
+			result: func(c *Client) any {
+				return &result.RawNotaryPool{
+					Hashes: map[util.Uint256][]util.Uint256{},
+				}
+			},
+		},
+		{
+			name: "empty pool, filtered",
+			invoke: func(c *Client) (any, error) {
+				return c.GetRawNotaryPool(util.Uint160{1, 2, 3})
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{}}`,
 			result: func(c *Client) any {

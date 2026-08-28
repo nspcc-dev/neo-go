@@ -261,6 +261,14 @@ The resulting JSON is an object with three (if matched) field: "onpersist",
 "application" and "postpersist" containing arrays of notifications (same JSON
 as used in notification service) for the respective triggers.
 
+#### `getrawmempool` call
+
+This method is extended with an optional signer filter parameter. The first
+optional parameter is `verbose` (compatible with the Neo RPC protocol), the
+second optional parameter is a signer account (`Uint160` hex string or address).
+When the signer is specified, only transactions containing that signer are
+returned. This filter works for both verbose and non-verbose responses.
+
 #### Historic calls
 
 A set of `*historic` extension methods provide the ability of interacting with
@@ -348,9 +356,11 @@ only.
 `getrawnotarypool` method provides the ability to retrieve the content of the 
 RPC node's notary pool (a map from main transaction hashes to the corresponding
 fallback transaction hashes for currently processing P2PNotaryRequest payloads).
-You can use the `getrawnotarytransaction` method to iterate through
-the results of `getrawnotarypool`, retrieve main/fallback transactions,
-check their contents and act accordingly.
+An optional signer parameter (`Uint160` hex string or address) can be used to
+only return notary requests where this signer is present in either main or
+fallback transaction. You can use the `getrawnotarytransaction` method to
+iterate through the results of `getrawnotarypool`, retrieve main/fallback
+transactions, check their contents and act accordingly.
 
 ##### `getrawnotarytransaction` call
 

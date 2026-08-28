@@ -958,11 +958,18 @@ func (s *Server) getPeers(_ params.Params) (any, *neorpc.Error) {
 
 func (s *Server) getRawMempool(reqParams params.Params) (any, *neorpc.Error) {
 	verbose, _ := reqParams.Value(0).GetBoolean()
+	signerP := reqParams.Value(1)
+	signer, err := signerP.GetUint160FromAddressOrHex()
+	if signerP != nil && err != nil {
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid signer filter: %s", err))
+	}
 	mp := s.chain.GetMemPool()
 	txes := mp.GetVerifiedTransactions()
-	hashList := make([]util.Uint256, len(txes))
-	for i := range txes {
-		hashList[i] = txes[i].Hash()
+	hashList := make([]util.Uint256, 0, len(txes))
+	for _, tx := range txes {
+		if signerP == nil || tx.HasSigner(signer) {
+			hashList = append(hashList, tx.Hash())
+		}
 	}
 	if !verbose {
 		return hashList, nil
@@ -3358,19 +3365,27 @@ func (s *Server) Addresses() []string {
 	return res
 }
 
-func (s *Server) getRawNotaryPool(_ params.Params) (any, *neorpc.Error) {
+func (s *Server) getRawNotaryPool(reqParams params.Params) (any, *neorpc.Error) {
 	if !s.chain.P2PSigExtensionsEnabled() {
 		return nil, neorpc.NewInternalServerError("P2PSignatureExtensions are disabled")
+	}
+	signerP := reqParams.Value(0)
+	signer, err := signerP.GetUint160FromAddressOrHex()
+	if signerP != nil && err != nil {
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid signer filter: %s", err))
 	}
 	nrp := s.coreServer.GetNotaryPool()
 	res := &result.RawNotaryPool{Hashes: make(map[util.Uint256][]util.Uint256)}
 	nrp.IterateVerifiedTransactions(func(tx *transaction.Transaction, data any) bool {
-		if data != nil {
-			d := data.(*payload.P2PNotaryRequest)
-			mainHash := d.MainTransaction.Hash()
-			fallbackHash := d.FallbackTransaction.Hash()
-			res.Hashes[mainHash] = append(res.Hashes[mainHash], fallbackHash)
+		d := data.(*payload.P2PNotaryRequest)
+		if signerP != nil &&
+			!d.MainTransaction.HasSigner(signer) &&
+			!d.FallbackTransaction.HasSigner(signer) {
+			return true
 		}
+		mainHash := d.MainTransaction.Hash()
+		fallbackHash := d.FallbackTransaction.Hash()
+		res.Hashes[mainHash] = append(res.Hashes[mainHash], fallbackHash)
 		return true
 	})
 	return res, nil
