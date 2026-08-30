@@ -179,7 +179,7 @@ func TestRebroadcast(t *testing.T) {
 				check(t)
 
 				// Wait 1ns more, timer should fire.
-				time.Sleep(1) //nolint:staticcheck
+				time.Sleep(time.Nanosecond)
 				synctest.Wait()
 				expected = append(expected, ep1.Hash())
 				check(t)
@@ -192,7 +192,7 @@ func TestRebroadcast(t *testing.T) {
 			ep2 := &payload.Extensible{ValidBlockEnd: 101, Category: payload.ConsensusCategory}
 			p.testAdd(t, true, nil, ep2)
 			// Sleeping the rest of 1ns won't trigger the timer since it was reset.
-			time.Sleep(1) //nolint:staticcheck
+			time.Sleep(time.Nanosecond)
 			synctest.Wait()
 			check(t)
 
