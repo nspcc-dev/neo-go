@@ -426,11 +426,19 @@ func (c *Client) GetPeers() (*result.GetPeers, error) {
 	return resp, nil
 }
 
-// GetRawMemPool returns a list of unconfirmed transactions in the memory.
-func (c *Client) GetRawMemPool() ([]util.Uint256, error) {
-	var resp = new([]util.Uint256)
+// GetRawMemPool returns a list of unconfirmed transactions in the memory. If
+// a signer is specified, only transactions with the matching signer will be
+// returned (supported by NeoGo nodes only).
+func (c *Client) GetRawMemPool(signer ...util.Uint160) ([]util.Uint256, error) {
+	var (
+		resp   = new([]util.Uint256)
+		params []any
+	)
+	if len(signer) > 0 {
+		params = append(params, false, signer[0].StringLE()) // first parameter is for positional "verbose".
+	}
 
-	if err := c.performRequest("getrawmempool", nil, resp); err != nil {
+	if err := c.performRequest("getrawmempool", params, resp); err != nil {
 		return *resp, err
 	}
 	return *resp, nil
@@ -1051,10 +1059,18 @@ func (c *Client) GetRawNotaryTransactionVerbose(hash util.Uint256) (*transaction
 
 // GetRawNotaryPool returns hashes of main P2PNotaryRequest transactions that
 // are currently in the RPC node's notary request pool with the corresponding
-// hashes of fallback transactions.
-func (c *Client) GetRawNotaryPool() (*result.RawNotaryPool, error) {
-	resp := &result.RawNotaryPool{}
-	if err := c.performRequest("getrawnotarypool", nil, resp); err != nil {
+// hashes of fallback transactions. If a signer is specified, only notary
+// requests with the matching signer (either present in main or fallback
+// transaction) will be returned (supported by NeoGo nodes only).
+func (c *Client) GetRawNotaryPool(signer ...util.Uint160) (*result.RawNotaryPool, error) {
+	var (
+		resp   = &result.RawNotaryPool{}
+		params []any
+	)
+	if len(signer) > 0 {
+		params = append(params, signer[0].StringLE())
+	}
+	if err := c.performRequest("getrawnotarypool", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
