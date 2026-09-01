@@ -7,7 +7,7 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.123.0 (~Sep 2026)
+## Version 0.124.0 (~Sep 2026)
  * dynamic VM opcode prices support
  * protocol updates
  * bug fixes
