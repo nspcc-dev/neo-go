@@ -2,6 +2,30 @@
 
 This document outlines major changes between releases.
 
+## 0.123.0 "Granulation" (01 Sep 2026)
+
+This version drops support for Go 1.25 and requires 1.26+ to build (with
+Go 1.27 supported) remaining fully compatible with v3.10+ of the C# node. It
+brings filtering functionality to the `getrawmempool` and `getnotarypool` RPC
+handlers and drops deprecated range/hash NeoFS operations from Oracle service.
+
+No configuration changes or resync is required on upgrade.
+
+Behaviour changes:
+ * `getrawmempool` and `getnotarypool` RPC handlers are extended with signer
+   filter (#4149)
+ * range and hash support is dropped from the Oracle service (#4382)
+
+Improvements:
+ * reusable native contract types in auto-generated RPC bindings (#4385)
+ * Go 1.26 upgrade (#4396)
+ * dependencies upgrade (#4396)
+
+Bugs fixed:
+ * panic on attempt to change casted byte-slice struct field (#4364)
+ * panic on immediately-invoked function literals compilation (#4363)
+ * always-true conflicting payer fee check in memory pool (#4391)
+
 ## 0.122.0 "Vitalization" (03 Aug 2026)
 
 This version mostly focuses on potential state difference problems. Also, it
