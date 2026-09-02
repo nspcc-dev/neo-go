@@ -1,9 +1,15 @@
 package interop_test
 
 import (
+	"encoding/csv"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -34,7 +40,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -89,57 +94,69 @@ func benchInterop(b *testing.B, ic *interop.Context, bc benchCase, cs *state.Con
 
 // --- System.Contract.* ---
 
-func BenchmarkCreateStandardAccount(b *testing.B) {
+func genCreateStandardAccount(nopNs float64) float64 {
 	priv, err := keys.NewPrivateKey()
 	if err != nil {
-		b.Fatal(err)
+		panic(err)
 	}
 	pubBytes := priv.PublicKey().Bytes()
 
-	benchInterop(b, nil, benchCase{
-		f:           contract.CreateStandardAccount,
-		itemsToAdd:  []any{pubBytes},
-		amountToPop: 1,
-	}, nil)
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           contract.CreateStandardAccount,
+			itemsToAdd:  []any{pubBytes},
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGetCallFlags(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           contract.GetCallFlags,
-		amountToPop: 1,
-	}, nil)
+func genGetCallFlags(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           contract.GetCallFlags,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkCreateMultisigAccount(b *testing.B) {
+func genCreateMultisigAccount(nopNs float64) [][]string {
 	priv, err := keys.NewPrivateKey()
 	if err != nil {
-		b.Fatal(err)
+		panic(err)
 	}
 	pubBytes := priv.PublicKey().Bytes()
 
-	stepPubKeysCount := vm.MaxStackSize / countPoints
-	currPubKeysCount := stepPubKeysCount
-	for i := 1; i <= countPoints; i++ {
-		pubs := make([]any, currPubKeysCount)
+	measure := func(n int) []string {
+		pubs := make([]any, n)
 		for j := range pubs {
 			pubs[j] = pubBytes
 		}
-		b.Run(fmt.Sprintf("%d", currPubKeysCount), func(b *testing.B) {
+		ns := measureNsPerOp(func(b *testing.B) {
 			benchInterop(b, nil, benchCase{
 				f:           contract.CreateMultisigAccount,
 				itemsToAdd:  []any{pubs, 1},
 				amountToPop: 1,
 			}, nil)
 		})
+		return []string{strconv.Itoa(n), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	stepPubKeysCount := vm.MaxStackSize / countPoints
+	currPubKeysCount := stepPubKeysCount
+	rows := make([][]string, 0, countPoints+1)
+	rows = append(rows, measure(1))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currPubKeysCount))
 		currPubKeysCount += stepPubKeysCount
 	}
+	return rows
 }
 
-func BenchmarkContractCall_NameLen(b *testing.B) {
-	stepNameLen := manifest.MaxManifestSize / countPoints
-	currNameLen := stepNameLen
-	for i := 1; i <= countPoints; i++ {
-		name := make([]byte, currNameLen)
+func genContractCallNameLen(nopNs float64) [][]string {
+	measure := func(nameLen int) []string {
+		name := make([]byte, nameLen)
 		cs := &state.Contract{
 			ContractBase: state.ContractBase{
 				Hash: random.Uint160(),
@@ -154,7 +171,7 @@ func BenchmarkContractCall_NameLen(b *testing.B) {
 				},
 			},
 		}
-		b.Run(fmt.Sprintf("%d", currNameLen), func(b *testing.B) {
+		ns := measureNsPerOp(func(b *testing.B) {
 			benchInterop(b, nil, benchCase{
 				f:          contract.Call,
 				itemsToAdd: []any{[]any{}, int32(0), name, cs.Hash},
@@ -163,18 +180,25 @@ func BenchmarkContractCall_NameLen(b *testing.B) {
 				isStepNeeded: true,
 			}, cs)
 		})
+		return []string{strconv.Itoa(nameLen), "0", "0", "1", strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	stepNameLen := manifest.MaxManifestSize / countPoints
+	currNameLen := stepNameLen
+	rows := make([][]string, 0, countPoints+1)
+	rows = append(rows, measure(0))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currNameLen))
 		currNameLen += stepNameLen
 	}
+	return rows
 }
 
-func BenchmarkContractCall_ArgsCount(b *testing.B) {
-	maxArgsCount := getMaxContractParamCount()
-	stepArgsCount := maxArgsCount / countPoints
-	currArgsCount := stepArgsCount
-	for i := 1; i <= countPoints; i++ {
-		args := make([]any, currArgsCount)
-		cs := newContractWithParamCount(currArgsCount)
-		b.Run(fmt.Sprintf("%d", currArgsCount), func(b *testing.B) {
+func genContractCallArgsCount(nopNs float64) [][]string {
+	measure := func(argsCount int) []string {
+		args := make([]any, argsCount)
+		cs := newContractWithParamCount(argsCount)
+		ns := measureNsPerOp(func(b *testing.B) {
 			benchInterop(b, nil, benchCase{
 				f:          contract.Call,
 				itemsToAdd: []any{args, int32(0), "", cs.Hash},
@@ -183,8 +207,19 @@ func BenchmarkContractCall_ArgsCount(b *testing.B) {
 				isStepNeeded: true,
 			}, cs)
 		})
+		return []string{"0", strconv.Itoa(argsCount), "0", "1", strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	maxArgsCount := getMaxContractParamCount()
+	stepArgsCount := maxArgsCount / countPoints
+	currArgsCount := stepArgsCount
+	rows := make([][]string, 0, countPoints+1)
+	rows = append(rows, measure(0))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currArgsCount))
 		currArgsCount += stepArgsCount
 	}
+	return rows
 }
 
 func getMaxContractParamCount() int {
@@ -226,34 +261,31 @@ func getMaxManifestPermissionsCount() int {
 	return i - 1
 }
 
-func BenchmarkContractCall_PermissionsCount(b *testing.B) {
-	maxPermissionsCount := getMaxManifestPermissionsCount()
-	stepPermissionsCount := maxPermissionsCount / countPoints
-	currPermissionsCount := stepPermissionsCount
-	for i := 1; i <= countPoints; i++ {
+func genContractCallPermissionsCount(nopNs float64) [][]string {
+	measure := func(permissionsCount int) []string {
 		cs := newContractWithParamCount(0)
 
 		callerManifest := manifest.NewManifest("caller")
-		callerManifest.Permissions = make([]manifest.Permission, currPermissionsCount)
-		for j := range currPermissionsCount - 1 {
+		callerManifest.Permissions = make([]manifest.Permission, permissionsCount)
+		for j := range permissionsCount - 1 {
 			callerManifest.Permissions[j] = *manifest.NewPermission(manifest.PermissionHash, random.Uint160())
 		}
-		callerManifest.Permissions[currPermissionsCount-1] = *manifest.NewPermission(manifest.PermissionHash, cs.Hash)
+		callerManifest.Permissions[permissionsCount-1] = *manifest.NewPermission(manifest.PermissionHash, cs.Hash)
 
-		blkChain, _ := chain.NewSingle(b)
-		ic, err := blkChain.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
-		if err != nil {
-			b.Fatal(err)
-		}
-		callerScript := []byte{byte(opcode.RET)}
-		callerNEF, err := nef.NewFile(callerScript)
-		if err != nil {
-			b.Fatal(err)
-		}
-		ic.VM.LoadNEFMethod(callerNEF, callerManifest, util.Uint160{}, hash.Hash160(callerScript),
-			callflag.All, false, 0, -1, nil, nil, false)
+		ns := measureNsPerOp(func(b *testing.B) {
+			blkChain, _ := chain.NewSingle(b)
+			ic, err := blkChain.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+			if err != nil {
+				b.Fatal(err)
+			}
+			callerScript := []byte{byte(opcode.RET)}
+			callerNEF, err := nef.NewFile(callerScript)
+			if err != nil {
+				b.Fatal(err)
+			}
+			ic.VM.LoadNEFMethod(callerNEF, callerManifest, util.Uint160{}, hash.Hash160(callerScript),
+				callflag.All, false, 0, -1, nil, nil, false)
 
-		b.Run(fmt.Sprintf("%d", currPermissionsCount), func(b *testing.B) {
 			benchInterop(b, ic, benchCase{
 				f:          contract.Call,
 				itemsToAdd: []any{[]any{}, int32(0), "", cs.Hash},
@@ -262,8 +294,19 @@ func BenchmarkContractCall_PermissionsCount(b *testing.B) {
 				isStepNeeded: true,
 			}, cs)
 		})
+		return []string{"0", "0", strconv.Itoa(permissionsCount), "1", strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	maxPermissionsCount := getMaxManifestPermissionsCount()
+	stepPermissionsCount := maxPermissionsCount / countPoints
+	currPermissionsCount := stepPermissionsCount
+	rows := make([][]string, 0, countPoints+1)
+	rows = append(rows, measure(1))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currPermissionsCount))
 		currPermissionsCount += stepPermissionsCount
 	}
+	return rows
 }
 
 func getMaxMethodsCount() int {
@@ -278,10 +321,10 @@ func getMaxMethodsCount() int {
 func newContractWithMethodCount(methodCount int) *state.Contract {
 	methods := make([]manifest.Method, methodCount)
 	for i := range methods {
-		methods[i] = manifest.Method{Name: fmt.Sprintf("dummy%d", i)}
+		methods[i] = manifest.Method{Name: strconv.Itoa(i)}
 	}
 	if methodCount > 0 {
-		methods[methodCount-1] = manifest.Method{Name: "target"}
+		methods[methodCount-1] = manifest.Method{Name: ""}
 	}
 	return &state.Contract{
 		ContractBase: state.ContractBase{
@@ -295,35 +338,42 @@ func newContractWithMethodCount(methodCount int) *state.Contract {
 	}
 }
 
-func BenchmarkContractCall_MethodsCount(b *testing.B) {
-	maxMethodsCount := getMaxMethodsCount()
-	stepMethodsCount := maxMethodsCount / countPoints
-	currMethodsCount := stepMethodsCount
-	for i := 1; i <= countPoints; i++ {
-		cs := newContractWithMethodCount(currMethodsCount)
-		b.Run(fmt.Sprintf("%d", currMethodsCount), func(b *testing.B) {
+func genContractCallMethodsCount(nopNs float64) [][]string {
+	measure := func(methodsCount int) []string {
+		cs := newContractWithMethodCount(methodsCount)
+		ns := measureNsPerOp(func(b *testing.B) {
 			benchInterop(b, nil, benchCase{
 				f:          contract.Call,
-				itemsToAdd: []any{[]any{}, int32(0), "target", cs.Hash},
+				itemsToAdd: []any{[]any{}, int32(0), "", cs.Hash},
 				// Call pushes a new context onto Istack.
 				// One Step executes single RET and unloads it.
 				isStepNeeded: true,
 			}, cs)
 		})
+		// name_len=0 (called name is ""), args_count=0, permissions_count=0.
+		return []string{"0", "0", "0", strconv.Itoa(methodsCount), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	maxMethodsCount := getMaxMethodsCount()
+	stepMethodsCount := maxMethodsCount / countPoints
+	currMethodsCount := stepMethodsCount
+	rows := make([][]string, 0, countPoints+1)
+	rows = append(rows, measure(1))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currMethodsCount))
 		currMethodsCount += stepMethodsCount
 	}
+	return rows
 }
 
-func BenchmarkContractCallNative_RefsDelta(b *testing.B) {
-	stepArraySize := vm.MaxStackSize / countPoints
-	currArraySize := stepArraySize - 2
-	for i := 1; i <= countPoints; i++ {
-		items := make([]stackitem.Item, 0, currArraySize)
-		for range currArraySize {
+func genContractCallNativeRefsDelta(nopNs float64) [][]string {
+	measure := func(arraySize int) []string {
+		items := make([]stackitem.Item, 0, arraySize)
+		for range arraySize {
 			items = append(items, stackitem.Null{})
 		}
 		arr := stackitem.NewArray(items)
-		b.Run(fmt.Sprintf("%d", currArraySize), func(b *testing.B) {
+		ns := measureNsPerOp(func(b *testing.B) {
 			blkChain, _ := chain.NewSingle(b)
 			ic, err := blkChain.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
 			if err != nil {
@@ -367,16 +417,26 @@ func BenchmarkContractCallNative_RefsDelta(b *testing.B) {
 				b.StartTimer()
 			}
 		})
+		return []string{strconv.Itoa(arraySize + 1), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	stepArraySize := vm.MaxStackSize / countPoints
+	currArraySize := stepArraySize - 2
+	rows := make([][]string, 0, countPoints+1)
+	rows = append(rows, measure(0))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currArraySize))
 		currArraySize += stepArraySize
 	}
+	return rows
 }
 
 // --- System.Crypto.* ---
 
-func BenchmarkCheckSig(b *testing.B) {
+func genCheckSig(nopNs float64) float64 {
 	priv, err := keys.NewPrivateKey()
 	if err != nil {
-		b.Fatal(err)
+		panic(err)
 	}
 
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
@@ -387,64 +447,37 @@ func BenchmarkCheckSig(b *testing.B) {
 	pub := priv.PublicKey().Bytes()
 
 	ic.SpawnVM()
-	benchInterop(b, ic, benchCase{
-		f:           crypto.ECDSASecp256r1CheckSig,
-		itemsToAdd:  []any{sign, pub},
-		amountToPop: 1,
-	}, nil)
-}
-
-func BenchmarkCheckMultisig(b *testing.B) {
-	priv, err := keys.NewPrivateKey()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	d := dao.NewSimple(storage.NewMemoryStore(), false)
-	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: d}
-	tx := transaction.New([]byte{0, 1, 2}, 1)
-	ic.Container = tx
-	sign := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
-	pub := priv.PublicKey().Bytes()
-
-	ic.SpawnVM()
-
-	stepKeysCount := vm.MaxStackSize / 2 / countPoints
-	currKeysCount := stepKeysCount
-	for i := 1; i <= countPoints; i++ {
-		pubs := make([]any, currKeysCount)
-		sigs := make([]any, currKeysCount)
-		for j := range pubs {
-			pubs[j] = pub
-			sigs[j] = sign
-		}
-		b.Run(fmt.Sprintf("%d", currKeysCount), func(b *testing.B) {
-			benchInterop(b, ic, benchCase{
-				f:           crypto.ECDSASecp256r1CheckMultisig,
-				itemsToAdd:  []any{sigs, pubs},
-				amountToPop: 1,
-			}, nil)
-		})
-		currKeysCount += stepKeysCount
-	}
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, ic, benchCase{
+			f:           crypto.ECDSASecp256r1CheckSig,
+			itemsToAdd:  []any{sign, pub},
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
 // --- System.Iterator.* ---
 
-func BenchmarkIteratorNext(b *testing.B) {
+func genIteratorNext(nopNs float64) float64 {
 	ch := make(chan storage.KeyValue)
 	close(ch)
 	it := stackitem.NewInterop(istorage.NewIterator(ch, nil, 0))
-	benchInterop(b, nil, benchCase{
-		f:           iterator.Next,
-		itemsToAdd:  []any{it},
-		amountToPop: 1,
-	}, nil)
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           iterator.Next,
+			itemsToAdd:  []any{it},
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func benchIteratorValue(b *testing.B, name string, item stackitem.Item) {
+func iteratorValueNsPerOp(item stackitem.Item) float64 {
 	itemBytes, err := stackitem.Serialize(item)
-	require.NoError(b, err)
+	if err != nil {
+		panic(err)
+	}
 	ch := make(chan storage.KeyValue, 1)
 	it := istorage.NewIterator(ch, nil, istorage.FindDeserialize|istorage.FindValuesOnly)
 
@@ -454,7 +487,7 @@ func benchIteratorValue(b *testing.B, name string, item stackitem.Item) {
 	}
 	it.Next()
 
-	b.Run(name, func(b *testing.B) {
+	return measureNsPerOp(func(b *testing.B) {
 		benchInterop(b, nil, benchCase{
 			f:           iterator.Value,
 			itemsToAdd:  []any{stackitem.NewInterop(it)},
@@ -463,69 +496,69 @@ func benchIteratorValue(b *testing.B, name string, item stackitem.Item) {
 	})
 }
 
-func BenchmarkIteratorValue(b *testing.B) {
+func genIteratorValueRefsDelta(nopNs float64) [][]string {
+	measure := func(arraySize int) []string {
+		ns := iteratorValueNsPerOp(stackitem.Make(make([]any, arraySize)))
+		return []string{strconv.Itoa(arraySize + 1), "0", strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
 	stepArraySize := vm.MaxStackSize / countPoints
 	currArraySize := stepArraySize - 1
+	rows := make([][]string, 0, countPoints+1)
+	rows = append(rows, measure(0))
 	for range countPoints {
-		benchIteratorValue(b, fmt.Sprintf("refs_delta=%d", currArraySize), stackitem.Make(make([]any, currArraySize)))
+		rows = append(rows, measure(currArraySize))
 		currArraySize += stepArraySize
+	}
+	return rows
+}
+
+func genIteratorValueNumBytes(nopNs float64) [][]string {
+	measure := func(numBytes int) []string {
+		ns := iteratorValueNsPerOp(stackitem.Make(make([]byte, numBytes)))
+		return []string{"1", strconv.Itoa(numBytes), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
 	}
 
 	stepNumBytes := stackitem.MaxSize / countPoints
 	currNumBytes := stepNumBytes
+	rows := make([][]string, 0, countPoints+1)
+	rows = append(rows, measure(0))
 	for range countPoints {
-		benchIteratorValue(b, fmt.Sprintf("num_bytes=%d", currNumBytes), stackitem.Make(make([]byte, currNumBytes)))
+		rows = append(rows, measure(currNumBytes))
 		currNumBytes += stepNumBytes
 	}
+	return rows
 }
 
 // --- System.Runtime.* ---
 
-func BenchmarkBurnGas(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.BurnGas,
-		itemsToAdd:  []any{int64(1)},
-		amountToPop: 0,
-	}, nil)
+func genBurnGas(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.BurnGas,
+			itemsToAdd:  []any{int64(1)},
+			amountToPop: 0,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGasLeft(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GasLeft,
-		amountToPop: 1,
-	}, nil)
+func genGasLeft(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GasLeft,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGetNotifications(b *testing.B) {
-	stepNotificationsCount := vm.MaxStackSize / countPoints
-	currNotificationsCount := stepNotificationsCount
+func genGetNotificationsRefsDelta(nopNs float64) [][]string {
 	ic := &interop.Context{}
 	ic.SpawnVM()
-	for i := 1; i <= countPoints; i++ {
-		notifications := make([]state.NotificationEvent, currNotificationsCount)
-		for j := range notifications {
-			notifications[j] = state.NotificationEvent{Item: stackitem.NewArray(nil)}
-		}
-		ic.Notifications = notifications
 
-		b.Run(fmt.Sprintf("%d", currNotificationsCount), func(b *testing.B) {
-			benchInterop(b, ic, benchCase{
-				f:           runtime.GetNotifications,
-				itemsToAdd:  []any{stackitem.Null{}},
-				amountToPop: 1,
-			}, nil)
-		})
-		currNotificationsCount += stepNotificationsCount
-	}
-}
-
-func BenchmarkGetNotifications_RefsDelta(b *testing.B) {
-	stepArraySize := vm.MaxStackSize / countPoints
-	currArraySize := stepArraySize - 1
-	ic := &interop.Context{}
-	ic.SpawnVM()
-	for i := 1; i <= countPoints; i++ {
-		items := make([]stackitem.Item, currArraySize)
+	measure := func(arraySize int) []string {
+		items := make([]stackitem.Item, arraySize)
 		for j := range items {
 			items[j] = stackitem.Null{}
 		}
@@ -533,26 +566,36 @@ func BenchmarkGetNotifications_RefsDelta(b *testing.B) {
 			{Item: stackitem.NewArray(items)},
 		}
 
-		b.Run(fmt.Sprintf("%d", currArraySize), func(b *testing.B) {
+		ns := measureNsPerOp(func(b *testing.B) {
 			benchInterop(b, ic, benchCase{
 				f:           runtime.GetNotifications,
 				itemsToAdd:  []any{stackitem.Null{}},
 				amountToPop: 1,
 			}, nil)
 		})
+		// Exactly one notification is created above.
+		return []string{"1", strconv.Itoa(arraySize), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	stepArraySize := vm.MaxStackSize / countPoints
+	currArraySize := stepArraySize - 1
+	rows := make([][]string, 0, countPoints+1)
+	// An empty notification Item array is a valid minimal value.
+	rows = append(rows, measure(0))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currArraySize))
 		currArraySize += stepArraySize
 	}
+	return rows
 }
 
-func BenchmarkLoadScript_ScriptLen(b *testing.B) {
-	stepScriptLen := stackitem.MaxSize / countPoints
-	currScriptLen := stepScriptLen
-	for i := 1; i <= countPoints; i++ {
-		script := make([]byte, currScriptLen)
+func genLoadScriptScriptLen(nopNs float64) [][]string {
+	measure := func(scriptLen int) []string {
+		script := make([]byte, scriptLen)
 		for j := range script {
 			script[j] = byte(opcode.RET)
 		}
-		b.Run(fmt.Sprintf("%d", currScriptLen), func(b *testing.B) {
+		ns := measureNsPerOp(func(b *testing.B) {
 			benchInterop(b, nil, benchCase{
 				f:          runtime.LoadScript,
 				itemsToAdd: []any{[]any{}, int(callflag.All), script},
@@ -561,40 +604,62 @@ func BenchmarkLoadScript_ScriptLen(b *testing.B) {
 				isStepNeeded: true,
 			}, nil)
 		})
+		// args_count=0, refs_delta=0.
+		return []string{strconv.Itoa(scriptLen), "0", "0", strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	stepScriptLen := stackitem.MaxSize / countPoints
+	currScriptLen := stepScriptLen
+	rows := make([][]string, 0, countPoints+1)
+	// isStepNeeded relies on running the loaded script's RET, so the
+	// script needs at least 1 byte (an empty script has no RET to run).
+	rows = append(rows, measure(1))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currScriptLen))
 		currScriptLen += stepScriptLen
 	}
+	return rows
 }
 
-func BenchmarkLoadScript_ArgsCount(b *testing.B) {
+func genLoadScriptArgsCount(nopNs float64) [][]string {
 	script := []byte{byte(opcode.RET)}
-	stepArgsCount := vm.MaxStackSize / countPoints
-	currArgsCount := stepArgsCount - 1
-	for i := 1; i <= countPoints; i++ {
-		args := make([]any, currArgsCount)
+
+	measure := func(argsCount int) []string {
+		args := make([]any, argsCount)
 		for j := range args {
 			args[j] = j
 		}
-		b.Run(fmt.Sprintf("%d", currArgsCount), func(b *testing.B) {
+		ns := measureNsPerOp(func(b *testing.B) {
 			benchInterop(b, nil, benchCase{
 				f:           runtime.LoadScript,
 				itemsToAdd:  []any{args, int(callflag.All), script},
-				amountToPop: currArgsCount,
+				amountToPop: argsCount,
 				// LoadScript loads a dynamic context onto Istack.
 				// One Step executes the RET and unloads it.
 				isStepNeeded: true,
 			}, nil)
 		})
+		return []string{"1", strconv.Itoa(argsCount), strconv.Itoa(argsCount), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	stepArgsCount := vm.MaxStackSize / countPoints
+	currArgsCount := stepArgsCount - 1
+	rows := make([][]string, 0, countPoints+1)
+	// 0 args is a valid minimal value.
+	rows = append(rows, measure(0))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currArgsCount))
 		currArgsCount += stepArgsCount
 	}
+	return rows
 }
 
-func BenchmarkLoadScript_RefsDelta(b *testing.B) {
+func genLoadScriptRefsDelta(nopNs float64) [][]string {
 	script := []byte{byte(opcode.RET)}
-	stepArraySize := vm.MaxStackSize / countPoints
-	currArraySize := stepArraySize - 1
-	for i := 1; i <= countPoints; i++ {
-		arg := stackitem.Make(make([]any, currArraySize))
-		b.Run(fmt.Sprintf("%d", currArraySize), func(b *testing.B) {
+
+	measure := func(arraySize int) []string {
+		arg := stackitem.Make(make([]any, arraySize))
+		ns := measureNsPerOp(func(b *testing.B) {
 			benchInterop(b, nil, benchCase{
 				f:           runtime.LoadScript,
 				itemsToAdd:  []any{[]any{arg}, int(callflag.All), script},
@@ -604,60 +669,93 @@ func BenchmarkLoadScript_RefsDelta(b *testing.B) {
 				isStepNeeded: true,
 			}, nil)
 		})
+		// script_len=1 (script is a single RET), args_count=1.
+		return []string{"1", "1", strconv.Itoa(arraySize), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	stepArraySize := vm.MaxStackSize / countPoints
+	currArraySize := stepArraySize - 1
+	rows := make([][]string, 0, countPoints+1)
+	// An empty array argument is a valid minimal value.
+	rows = append(rows, measure(0))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currArraySize))
 		currArraySize += stepArraySize
 	}
+	return rows
 }
 
-func BenchmarkGetAddressVersion(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GetAddressVersion,
-		amountToPop: 1,
-	}, nil)
+func genGetAddressVersion(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GetAddressVersion,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGetCallingScriptHash(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GetCallingScriptHash,
-		amountToPop: 1,
-	}, nil)
+func genGetCallingScriptHash(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GetCallingScriptHash,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGetEntryScriptHash(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GetEntryScriptHash,
-		amountToPop: 1,
-	}, nil)
+func genGetEntryScriptHash(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GetEntryScriptHash,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGetExecutingScriptHash(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GetExecutingScriptHash,
-		amountToPop: 1,
-	}, nil)
+func genGetExecutingScriptHash(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GetExecutingScriptHash,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGetInvocationCounter(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GetInvocationCounter,
-		amountToPop: 1,
-	}, nil)
+func genGetInvocationCounter(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GetInvocationCounter,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGetNetwork(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GetNetwork,
-		amountToPop: 1,
-	}, nil)
+func genGetNetwork(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GetNetwork,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGetRandom(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GetRandom,
-		amountToPop: 1,
-	}, nil)
+func genGetRandom(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GetRandom,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
-func BenchmarkGetScriptContainer(b *testing.B) {
+func genGetScriptContainer(nopNs float64) float64 {
 	ic := &interop.Context{
 		Container: &transaction.Transaction{
 			Signers: []transaction.Signer{{}},
@@ -665,10 +763,13 @@ func BenchmarkGetScriptContainer(b *testing.B) {
 	}
 	ic.SpawnVM()
 
-	benchInterop(b, ic, benchCase{
-		f:           runtime.GetScriptContainer,
-		amountToPop: 1,
-	}, nil)
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, ic, benchCase{
+			f:           runtime.GetScriptContainer,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
 }
 
 func getMaxSignersCount() int {
@@ -680,36 +781,49 @@ func getMaxSignersCount() int {
 	return i - 1
 }
 
-func BenchmarkCurrentSigners(b *testing.B) {
-	maxSignersCount := getMaxSignersCount()
-	stepSignersCount := maxSignersCount / countPoints
-	currSignersCount := stepSignersCount
+func genCurrentSigners(nopNs float64) [][]string {
 	ic := &interop.Context{}
 	ic.SpawnVM()
-	for i := 1; i <= countPoints; i++ {
+
+	measure := func(signersCount int) []string {
 		tx := transaction.New(nil, 0)
-		tx.Signers = make([]transaction.Signer, currSignersCount)
+		tx.Signers = make([]transaction.Signer, signersCount)
 		ic.Container = tx
 
-		b.Run(fmt.Sprintf("%d", currSignersCount), func(b *testing.B) {
+		ns := measureNsPerOp(func(b *testing.B) {
 			benchInterop(b, ic, benchCase{
 				f:           runtime.CurrentSigners,
 				amountToPop: 1,
 			}, nil)
 		})
+		return []string{strconv.Itoa(signersCount), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	maxSignersCount := getMaxSignersCount()
+	stepSignersCount := maxSignersCount / countPoints
+	currSignersCount := stepSignersCount
+	rows := make([][]string, 0, countPoints+1)
+	// 0 signers is a valid minimal value.
+	rows = append(rows, measure(0))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currSignersCount))
 		currSignersCount += stepSignersCount
 	}
+	return rows
 }
 
-func BenchmarkLog(b *testing.B) {
+func genLog(nopNs float64) float64 {
 	ic := &interop.Context{Log: zap.NewNop()}
 	ic.SpawnVM()
 	msg := string(make([]byte, runtime.MaxNotificationSize))
 
-	benchInterop(b, ic, benchCase{
-		f:          runtime.Log,
-		itemsToAdd: []any{msg},
-	}, nil)
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, ic, benchCase{
+			f:          runtime.Log,
+			itemsToAdd: []any{msg},
+		}, nil)
+	})
+	return ns / nopNs
 }
 
 func getMaxManifestEventsCount() int {
@@ -725,37 +839,48 @@ func getMaxManifestEventsCount() int {
 	return i - 1
 }
 
-func BenchmarkNotify_EventsCount(b *testing.B) {
-	maxEventsCount := getMaxManifestEventsCount()
-	stepEventsCount := maxEventsCount / countPoints
-	currEventsCount := stepEventsCount
-	for i := 1; i <= countPoints; i++ {
-		events := make([]manifest.Event, currEventsCount)
+func genNotifyEventsCount(nopNs float64) [][]string {
+	measure := func(eventsCount int) []string {
+		events := make([]manifest.Event, eventsCount)
 		for j := range events {
 			events[j] = manifest.Event{Name: fmt.Sprintf("e%d", j)}
 		}
-		events[currEventsCount-1] = manifest.Event{Name: "target"}
+		events[eventsCount-1] = manifest.Event{Name: "target"}
 		m := manifest.NewManifest("caller")
 		m.ABI.Events = events
 
-		script := []byte{byte(opcode.RET)}
-		nefFile, err := nef.NewFile(script)
-		if err != nil {
-			b.Fatal(err)
-		}
-		d := dao.NewSimple(storage.NewMemoryStore(), false)
-		ic := &interop.Context{DAO: d}
-		ic.SpawnVM()
-		ic.VM.LoadNEFMethod(nefFile, m, util.Uint160{}, hash.Hash160(script), callflag.All, false, 0, -1, nil, nil, false)
+		ns := measureNsPerOp(func(b *testing.B) {
+			script := []byte{byte(opcode.RET)}
+			nefFile, err := nef.NewFile(script)
+			if err != nil {
+				b.Fatal(err)
+			}
+			d := dao.NewSimple(storage.NewMemoryStore(), false)
+			ic := &interop.Context{DAO: d}
+			ic.SpawnVM()
+			ic.VM.LoadNEFMethod(nefFile, m, util.Uint160{}, hash.Hash160(script), callflag.All, false, 0, -1, nil, nil, false)
 
-		b.Run(fmt.Sprintf("%d", currEventsCount), func(b *testing.B) {
 			benchInterop(b, ic, benchCase{
 				f:          runtime.Notify,
 				itemsToAdd: []any{[]any{}, "target"},
 			}, nil)
 		})
+		// The "target" event that's actually notified has 0 parameters.
+		return []string{strconv.Itoa(eventsCount), "0", strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	maxEventsCount := getMaxManifestEventsCount()
+	stepEventsCount := maxEventsCount / countPoints
+	currEventsCount := stepEventsCount
+	rows := make([][]string, 0, countPoints+1)
+	// The notified "target" event must itself be present in the manifest,
+	// so at least 1 event is required.
+	rows = append(rows, measure(1))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currEventsCount))
 		currEventsCount += stepEventsCount
 	}
+	return rows
 }
 
 func getMaxNotifyArgsCount() int {
@@ -774,13 +899,10 @@ func getMaxNotifyArgsCount() int {
 	return i - 1
 }
 
-func BenchmarkNotify_ParamsCount(b *testing.B) {
-	maxParamsCount := getMaxNotifyArgsCount()
-	stepParamsCount := maxParamsCount / countPoints
-	currParamsCount := stepParamsCount
-	for i := 1; i <= countPoints; i++ {
-		params := make([]manifest.Parameter, currParamsCount)
-		args := make([]any, currParamsCount)
+func genNotifyParamsCount(nopNs float64) [][]string {
+	measure := func(paramsCount int) []string {
+		params := make([]manifest.Parameter, paramsCount)
+		args := make([]any, paramsCount)
 		for j := range params {
 			params[j] = manifest.NewParameter(fmt.Sprintf("p%d", j), smartcontract.AnyType)
 			args[j] = stackitem.Null{}
@@ -788,43 +910,305 @@ func BenchmarkNotify_ParamsCount(b *testing.B) {
 		m := manifest.NewManifest("caller")
 		m.ABI.Events = []manifest.Event{{Name: "target", Parameters: params}}
 
-		script := []byte{byte(opcode.RET)}
-		nefFile, err := nef.NewFile(script)
-		if err != nil {
-			b.Fatal(err)
-		}
-		d := dao.NewSimple(storage.NewMemoryStore(), false)
-		ic := &interop.Context{DAO: d}
-		ic.SpawnVM()
-		ic.VM.LoadNEFMethod(nefFile, m, util.Uint160{}, hash.Hash160(script), callflag.All, false, 0, -1, nil, nil, false)
+		ns := measureNsPerOp(func(b *testing.B) {
+			script := []byte{byte(opcode.RET)}
+			nefFile, err := nef.NewFile(script)
+			if err != nil {
+				b.Fatal(err)
+			}
+			d := dao.NewSimple(storage.NewMemoryStore(), false)
+			ic := &interop.Context{DAO: d}
+			ic.SpawnVM()
+			ic.VM.LoadNEFMethod(nefFile, m, util.Uint160{}, hash.Hash160(script), callflag.All, false, 0, -1, nil, nil, false)
 
-		b.Run(fmt.Sprintf("%d", currParamsCount), func(b *testing.B) {
 			benchInterop(b, ic, benchCase{
 				f:          runtime.Notify,
 				itemsToAdd: []any{args, "target"},
 			}, nil)
 		})
+		// Exactly one event ("target") is defined in the manifest.
+		return []string{"1", strconv.Itoa(paramsCount), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	maxParamsCount := getMaxNotifyArgsCount()
+	stepParamsCount := maxParamsCount / countPoints
+	currParamsCount := stepParamsCount
+	rows := make([][]string, 0, countPoints+1)
+	// 0 event parameters is a valid minimal value.
+	rows = append(rows, measure(0))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currParamsCount))
 		currParamsCount += stepParamsCount
+	}
+	return rows
+}
+
+func genGetTime(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GetTime,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
+}
+
+func genGetTrigger(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.GetTrigger,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
+}
+
+func genPlatform(nopNs float64) float64 {
+	ns := measureNsPerOp(func(b *testing.B) {
+		benchInterop(b, nil, benchCase{
+			f:           runtime.Platform,
+			amountToPop: 1,
+		}, nil)
+	})
+	return ns / nopNs
+}
+
+func benchmarkNOP(b *testing.B, ic *interop.Context) {
+	script := []byte{byte(opcode.NOP), byte(opcode.RET)}
+	for b.Loop() {
+		b.StopTimer()
+		ic.VM.LoadScript(script)
+		b.StartTimer()
+
+		if err := ic.VM.Step(); err != nil {
+			b.Fatal(err)
+		}
+
+		b.StopTimer()
+		if err := ic.VM.Step(); err != nil {
+			b.Fatal(err)
+		}
+		b.StartTimer()
 	}
 }
 
-func BenchmarkGetTime(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GetTime,
-		amountToPop: 1,
-	}, nil)
+// --- Price CSV generation ---
+
+var (
+	genBenchmarks = flag.String("genbenchmarks", "", "comma-separated list of interop names to generate price CSVs for")
+	genOutDir     = flag.String("genoutdir", ".", "directory to write <interop>.csv files into")
+)
+
+func measureNsPerOp(f func(b *testing.B)) float64 {
+	return float64(testing.Benchmark(f).NsPerOp())
 }
 
-func BenchmarkGetTrigger(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.GetTrigger,
-		amountToPop: 1,
-	}, nil)
+func writeCSV(dir, name string, header []string, rows [][]string) error {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return err
+	}
+	f, err := os.Create(filepath.Join(dir, name+".csv"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	w := csv.NewWriter(f)
+	if err := w.Write(header); err != nil {
+		return err
+	}
+	if err := w.WriteAll(rows); err != nil {
+		return err
+	}
+	w.Flush()
+	return w.Error()
 }
 
-func BenchmarkPlatform(b *testing.B) {
-	benchInterop(b, nil, benchCase{
-		f:           runtime.Platform,
-		amountToPop: 1,
-	}, nil)
+type depGenerator struct {
+	name string
+	run  func(nopNs float64) [][]string
+}
+
+var interopGenerators = map[string][]depGenerator{
+	"CreateMultisigAccount": {
+		{"pubkeys_count", genCreateMultisigAccount},
+	},
+	"ContractCall": {
+		{"name_len", genContractCallNameLen},
+		{"args_count", genContractCallArgsCount},
+		{"permissions_count", genContractCallPermissionsCount},
+		{"methods_count", genContractCallMethodsCount},
+	},
+	"ContractCallNative": {
+		{"refs_delta", genContractCallNativeRefsDelta},
+	},
+	"CheckMultisig": {
+		{"keys_count", genCheckMultisig},
+	},
+	"IteratorValue": {
+		{"refs_delta", genIteratorValueRefsDelta},
+		{"num_bytes", genIteratorValueNumBytes},
+	},
+	"GetNotifications": {
+		{"notifications_count", genGetNotifications},
+		{"refs_delta", genGetNotificationsRefsDelta},
+	},
+	"LoadScript": {
+		{"script_len", genLoadScriptScriptLen},
+		{"args_count", genLoadScriptArgsCount},
+		{"refs_delta", genLoadScriptRefsDelta},
+	},
+	"CurrentSigners": {
+		{"signers_count", genCurrentSigners},
+	},
+	"Notify": {
+		{"events_count", genNotifyEventsCount},
+		{"params_count", genNotifyParamsCount},
+	},
+}
+
+var staticGenerators = map[string]func(nopNs float64) float64{
+	"CreateStandardAccount":  genCreateStandardAccount,
+	"GetCallFlags":           genGetCallFlags,
+	"CheckSig":               genCheckSig,
+	"IteratorNext":           genIteratorNext,
+	"BurnGas":                genBurnGas,
+	"GasLeft":                genGasLeft,
+	"GetAddressVersion":      genGetAddressVersion,
+	"GetCallingScriptHash":   genGetCallingScriptHash,
+	"GetEntryScriptHash":     genGetEntryScriptHash,
+	"GetExecutingScriptHash": genGetExecutingScriptHash,
+	"GetInvocationCounter":   genGetInvocationCounter,
+	"GetNetwork":             genGetNetwork,
+	"GetRandom":              genGetRandom,
+	"GetScriptContainer":     genGetScriptContainer,
+	"Log":                    genLog,
+	"GetTime":                genGetTime,
+	"GetTrigger":             genGetTrigger,
+	"Platform":               genPlatform,
+}
+
+func combineRows(deps []depGenerator, nopNs float64) (header []string, rows [][]string) {
+	for _, dep := range deps {
+		header = append(header, dep.name)
+	}
+	header = append(header, "ns")
+
+	for _, dep := range deps {
+		rows = append(rows, dep.run(nopNs)...)
+	}
+	return header, rows
+}
+
+func TestGenerateInteropPriceCSV(t *testing.T) {
+	names := strings.FieldsFunc(*genBenchmarks, func(r rune) bool { return r == ',' })
+	if len(names) == 0 {
+		for name := range interopGenerators {
+			names = append(names, name)
+		}
+		for name := range staticGenerators {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+	}
+
+	nopIC := &interop.Context{}
+	nopIC.SpawnVM()
+	nopIC.VM.SetGasLimit(-1)
+	nopNs := measureNsPerOp(func(b *testing.B) { benchmarkNOP(b, nopIC) })
+	t.Logf("nop ns/op = %v", nopNs)
+
+	for _, name := range names {
+		if deps, ok := interopGenerators[name]; ok {
+			header, rows := combineRows(deps, nopNs)
+			if err := writeCSV(*genOutDir, name, header, rows); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		if gen, ok := staticGenerators[name]; ok {
+			row := []string{strconv.FormatFloat(gen(nopNs), 'f', 6, 64)}
+			if err := writeCSV(*genOutDir, name, []string{"ns"}, [][]string{row}); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		t.Fatalf("unknown interop: %s", name)
+	}
+}
+
+func genGetNotifications(nopNs float64) [][]string {
+	measure := func(notificationsCount int) []string {
+		ic := &interop.Context{}
+		ic.SpawnVM()
+		notifications := make([]state.NotificationEvent, notificationsCount)
+		for j := range notifications {
+			notifications[j] = state.NotificationEvent{Item: stackitem.NewArray(nil)}
+		}
+		ic.Notifications = notifications
+
+		ns := measureNsPerOp(func(b *testing.B) {
+			benchInterop(b, ic, benchCase{
+				f:           runtime.GetNotifications,
+				itemsToAdd:  []any{stackitem.Null{}},
+				amountToPop: 1,
+			}, nil)
+		})
+		// Each notification's Item is an empty array, so refs_delta is really 0.
+		return []string{strconv.Itoa(notificationsCount), "0", strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	stepNotificationsCount := vm.MaxStackSize / countPoints
+	currNotificationsCount := stepNotificationsCount
+	rows := make([][]string, 0, countPoints+1)
+	// 0 notifications is a valid minimal value.
+	rows = append(rows, measure(0))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currNotificationsCount))
+		currNotificationsCount += stepNotificationsCount
+	}
+	return rows
+}
+
+func genCheckMultisig(nopNs float64) [][]string {
+	priv, err := keys.NewPrivateKey()
+	if err != nil {
+		panic(err)
+	}
+
+	d := dao.NewSimple(storage.NewMemoryStore(), false)
+	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: d}
+	tx := transaction.New([]byte{0, 1, 2}, 1)
+	ic.Container = tx
+	sign := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
+	pub := priv.PublicKey().Bytes()
+	ic.SpawnVM()
+
+	measure := func(keysCount int) []string {
+		pubs := make([]any, keysCount)
+		sigs := make([]any, keysCount)
+		for j := range pubs {
+			pubs[j] = pub
+			sigs[j] = sign
+		}
+
+		ns := measureNsPerOp(func(b *testing.B) {
+			benchInterop(b, ic, benchCase{
+				f:           crypto.ECDSASecp256r1CheckMultisig,
+				itemsToAdd:  []any{sigs, pubs},
+				amountToPop: 1,
+			}, nil)
+		})
+		return []string{strconv.Itoa(keysCount), strconv.FormatFloat(ns/nopNs, 'f', 6, 64)}
+	}
+
+	stepKeysCount := vm.MaxStackSize / 2 / countPoints
+	currKeysCount := stepKeysCount
+	rows := make([][]string, 0, countPoints+1)
+	// PopSigElements rejects an empty array, so at least 1 key/signature is required.
+	rows = append(rows, measure(1))
+	for i := 1; i <= countPoints; i++ {
+		rows = append(rows, measure(currKeysCount))
+		currKeysCount += stepKeysCount
+	}
+	return rows
 }
