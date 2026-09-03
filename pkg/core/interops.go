@@ -8,6 +8,9 @@ package core
 */
 
 import (
+	"fmt"
+	"slices"
+
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -32,64 +35,102 @@ func SpawnVM(ic *interop.Context) *vm.VM {
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
-	{Name: interopnames.SystemContractCall, Func: contract.Call, Price: 1 << 15,
-		RequiredFlags: callflag.ReadStates | callflag.AllowCall},
-	{Name: interopnames.SystemContractCallNative, Func: native.Call, Price: 0},
-	{Name: interopnames.SystemContractCreateMultisigAccount, Func: contract.CreateMultisigAccount, Price: 0},
-	{Name: interopnames.SystemContractCreateStandardAccount, Func: contract.CreateStandardAccount, Price: 0},
-	{Name: interopnames.SystemContractGetCallFlags, Func: contract.GetCallFlags, Price: 1 << 10},
-	{Name: interopnames.SystemContractNativeOnPersist, Func: native.OnPersist, Price: 0, RequiredFlags: callflag.States},
-	{Name: interopnames.SystemContractNativePostPersist, Func: native.PostPersist, Price: 0, RequiredFlags: callflag.States},
-	{Name: interopnames.SystemCryptoCheckMultisig, Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0},
-	{Name: interopnames.SystemCryptoCheckSig, Func: crypto.ECDSASecp256r1CheckSig, Price: fee.ECDSAVerifyPrice},
-	{Name: interopnames.SystemIteratorNext, Func: iterator.Next, Price: 1 << 15},
-	{Name: interopnames.SystemIteratorValue, Func: iterator.Value, Price: 1 << 4},
-	{Name: interopnames.SystemRuntimeBurnGas, Func: runtime.BurnGas, Price: 1 << 4},
-	{Name: interopnames.SystemRuntimeCheckWitness, Func: runtime.CheckWitness, Price: 1 << 10,
-		RequiredFlags: callflag.NoneFlag},
-	{Name: interopnames.SystemRuntimeCurrentSigners, Func: runtime.CurrentSigners, Price: 1 << 4,
-		RequiredFlags: callflag.NoneFlag},
-	{Name: interopnames.SystemRuntimeGasLeft, Func: runtime.GasLeft, Price: 1 << 4},
-	{Name: interopnames.SystemRuntimeGetAddressVersion, Func: runtime.GetAddressVersion, Price: 1 << 3},
-	{Name: interopnames.SystemRuntimeGetCallingScriptHash, Func: runtime.GetCallingScriptHash, Price: 1 << 4},
-	{Name: interopnames.SystemRuntimeGetEntryScriptHash, Func: runtime.GetEntryScriptHash, Price: 1 << 4},
-	{Name: interopnames.SystemRuntimeGetExecutingScriptHash, Func: runtime.GetExecutingScriptHash, Price: 1 << 4},
-	{Name: interopnames.SystemRuntimeGetInvocationCounter, Func: runtime.GetInvocationCounter, Price: 1 << 4},
-	{Name: interopnames.SystemRuntimeGetNetwork, Func: runtime.GetNetwork, Price: 1 << 3},
-	{Name: interopnames.SystemRuntimeGetNotifications, Func: runtime.GetNotifications, Price: 1 << 12},
-	{Name: interopnames.SystemRuntimeGetRandom, Func: runtime.GetRandom, Price: 0},
-	{Name: interopnames.SystemRuntimeGetScriptContainer, Func: runtime.GetScriptContainer, Price: 1 << 3},
-	{Name: interopnames.SystemRuntimeGetTime, Func: runtime.GetTime, Price: 1 << 3, RequiredFlags: callflag.ReadStates},
-	{Name: interopnames.SystemRuntimeGetTrigger, Func: runtime.GetTrigger, Price: 1 << 3},
-	{Name: interopnames.SystemRuntimeLoadScript, Func: runtime.LoadScript, Price: 1 << 15, RequiredFlags: callflag.AllowCall},
-	{Name: interopnames.SystemRuntimeLog, Func: runtime.Log, Price: 1 << 15, RequiredFlags: callflag.AllowNotify},
-	{Name: interopnames.SystemRuntimeNotify, Func: runtime.Notify, Price: 1 << 15, RequiredFlags: callflag.AllowNotify},
-	{Name: interopnames.SystemRuntimePlatform, Func: runtime.Platform, Price: 1 << 3},
-	{Name: interopnames.SystemStorageDelete, Func: storage.Delete, Price: 1 << 15,
-		RequiredFlags: callflag.WriteStates},
-	{Name: interopnames.SystemStorageFind, Func: storage.Find, Price: 1 << 15, RequiredFlags: callflag.ReadStates},
-	{Name: interopnames.SystemStorageGet, Func: storage.Get, Price: 1 << 15, RequiredFlags: callflag.ReadStates},
-	{Name: interopnames.SystemStorageGetContext, Func: storage.GetContext, Price: 1 << 4,
-		RequiredFlags: callflag.ReadStates},
-	{Name: interopnames.SystemStorageGetReadOnlyContext, Func: storage.GetReadOnlyContext, Price: 1 << 4,
-		RequiredFlags: callflag.ReadStates},
-	{Name: interopnames.SystemStoragePut, Func: storage.Put, Price: 1 << 15, RequiredFlags: callflag.WriteStates},
-	{Name: interopnames.SystemStorageAsReadOnly, Func: storage.ContextAsReadOnly, Price: 1 << 4,
-		RequiredFlags: callflag.ReadStates},
-	{Name: interopnames.SystemStorageLocalGet, Func: storage.LocalGet, Price: 1 << 15,
-		RequiredFlags: callflag.ReadStates, ActiveFrom: config.HFFaun},
-	{Name: interopnames.SystemStorageLocalFind, Func: storage.LocalFind, Price: 1 << 15,
-		RequiredFlags: callflag.ReadStates, ActiveFrom: config.HFFaun},
-	{Name: interopnames.SystemStorageLocalPut, Func: storage.LocalPut, Price: 1 << 15,
-		RequiredFlags: callflag.WriteStates, ActiveFrom: config.HFFaun},
-	{Name: interopnames.SystemStorageLocalDelete, Func: storage.LocalDelete, Price: 1 << 15,
-		RequiredFlags: callflag.WriteStates, ActiveFrom: config.HFFaun},
+	{Name: interopnames.SystemContractCall, Func: contract.Call,
+		RequiredFlags: callflag.ReadStates | callflag.AllowCall, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 0}}},
+	{Name: interopnames.SystemContractCallNative, Func: native.Call,
+		Prices: []interop.HFPrice{{Hardfork: config.HFHuyao, Price: 1130000}}},
+	{Name: interopnames.SystemContractCreateMultisigAccount, Func: contract.CreateMultisigAccount},
+	{Name: interopnames.SystemContractCreateStandardAccount, Func: contract.CreateStandardAccount,
+		Prices: []interop.HFPrice{{Hardfork: config.HFHuyao, Price: 41833}}},
+	{Name: interopnames.SystemContractGetCallFlags, Func: contract.GetCallFlags,
+		Prices: []interop.HFPrice{{Price: 1 << 10 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 5933}}},
+	{Name: interopnames.SystemContractNativeOnPersist, Func: native.OnPersist,
+		RequiredFlags: callflag.States},
+	{Name: interopnames.SystemContractNativePostPersist, Func: native.PostPersist,
+		RequiredFlags: callflag.States},
+	{Name: interopnames.SystemCryptoCheckMultisig, Func: crypto.ECDSASecp256r1CheckMultisig},
+	{Name: interopnames.SystemCryptoCheckSig, Func: crypto.ECDSASecp256r1CheckSig,
+		Prices: []interop.HFPrice{{Price: fee.ECDSAVerifyPrice * vm.OpcodePriceMultiplier},
+			{Hardfork: config.HFHuyao, Price: fee.ECDSAVerifyPriceAfterHuyao}}},
+	{Name: interopnames.SystemIteratorNext, Func: iterator.Next,
+		Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 3367}}},
+	{Name: interopnames.SystemIteratorValue, Func: iterator.Value,
+		Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 0}}},
+	{Name: interopnames.SystemRuntimeBurnGas, Func: runtime.BurnGas,
+		Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 3067}}},
+	{Name: interopnames.SystemRuntimeCheckWitness, Func: runtime.CheckWitness,
+		RequiredFlags: callflag.NoneFlag, Prices: []interop.HFPrice{{Price: 1 << 10 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 0}}},
+	{Name: interopnames.SystemRuntimeCurrentSigners, Func: runtime.CurrentSigners,
+		RequiredFlags: callflag.NoneFlag, Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 0}}},
+	{Name: interopnames.SystemRuntimeGasLeft, Func: runtime.GasLeft,
+		Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 8900}}},
+	{Name: interopnames.SystemRuntimeGetAddressVersion, Func: runtime.GetAddressVersion,
+		Prices: []interop.HFPrice{{Price: 1 << 3 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 8867}}},
+	{Name: interopnames.SystemRuntimeGetCallingScriptHash, Func: runtime.GetCallingScriptHash,
+		Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 9567}}},
+	{Name: interopnames.SystemRuntimeGetEntryScriptHash, Func: runtime.GetEntryScriptHash,
+		Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 9900}}},
+	{Name: interopnames.SystemRuntimeGetExecutingScriptHash, Func: runtime.GetExecutingScriptHash,
+		Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 9900}}},
+	{Name: interopnames.SystemRuntimeGetInvocationCounter, Func: runtime.GetInvocationCounter,
+		Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 10267}}},
+	{Name: interopnames.SystemRuntimeGetNetwork, Func: runtime.GetNetwork,
+		Prices: []interop.HFPrice{{Price: 1 << 3 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 9833}}},
+	{Name: interopnames.SystemRuntimeGetNotifications, Func: runtime.GetNotifications,
+		Prices: []interop.HFPrice{{Price: 1 << 12 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 0}}},
+	{Name: interopnames.SystemRuntimeGetRandom, Func: runtime.GetRandom,
+		Prices: []interop.HFPrice{{Hardfork: config.HFHuyao, Price: 15833}}},
+	{Name: interopnames.SystemRuntimeGetScriptContainer, Func: runtime.GetScriptContainer,
+		Prices: []interop.HFPrice{{Price: 1 << 3 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 36533}}},
+	{Name: interopnames.SystemRuntimeGetTime, Func: runtime.GetTime,
+		RequiredFlags: callflag.ReadStates, Prices: []interop.HFPrice{{Price: 1 << 3 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 9033}}},
+	{Name: interopnames.SystemRuntimeGetTrigger, Func: runtime.GetTrigger,
+		Prices: []interop.HFPrice{{Price: 1 << 3 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 8700}}},
+	{Name: interopnames.SystemRuntimeLoadScript, Func: runtime.LoadScript,
+		RequiredFlags: callflag.AllowCall, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 0}}},
+	{Name: interopnames.SystemRuntimeLog, Func: runtime.Log,
+		RequiredFlags: callflag.AllowNotify, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 31767}}},
+	{Name: interopnames.SystemRuntimeNotify, Func: runtime.Notify,
+		RequiredFlags: callflag.AllowNotify, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 0}}},
+	{Name: interopnames.SystemRuntimePlatform, Func: runtime.Platform,
+		Prices: []interop.HFPrice{{Price: 1 << 3 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 8867}}},
+	{Name: interopnames.SystemStorageDelete, Func: storage.Delete,
+		RequiredFlags: callflag.WriteStates, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}}},
+	{Name: interopnames.SystemStorageFind, Func: storage.Find,
+		RequiredFlags: callflag.ReadStates, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: fee.ReadFromDiskPrice}}},
+	{Name: interopnames.SystemStorageGet, Func: storage.Get,
+		RequiredFlags: callflag.ReadStates, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: fee.ReadFromDiskPrice}}},
+	{Name: interopnames.SystemStorageGetContext, Func: storage.GetContext,
+		RequiredFlags: callflag.ReadStates, Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 12200}}},
+	{Name: interopnames.SystemStorageGetReadOnlyContext, Func: storage.GetReadOnlyContext,
+		RequiredFlags: callflag.ReadStates, Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 11933}}},
+	{Name: interopnames.SystemStoragePut, Func: storage.Put,
+		RequiredFlags: callflag.WriteStates, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}}},
+	{Name: interopnames.SystemStorageAsReadOnly, Func: storage.ContextAsReadOnly,
+		RequiredFlags: callflag.ReadStates, Prices: []interop.HFPrice{{Price: 1 << 4 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: 11233}}},
+	{Name: interopnames.SystemStorageLocalGet, Func: storage.LocalGet,
+		RequiredFlags: callflag.ReadStates, ActiveFrom: config.HFFaun, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: fee.ReadFromDiskPrice}}},
+	{Name: interopnames.SystemStorageLocalFind, Func: storage.LocalFind,
+		RequiredFlags: callflag.ReadStates, ActiveFrom: config.HFFaun, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}, {Hardfork: config.HFHuyao, Price: fee.ReadFromDiskPrice}}},
+	{Name: interopnames.SystemStorageLocalPut, Func: storage.LocalPut,
+		RequiredFlags: callflag.WriteStates, ActiveFrom: config.HFFaun, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}}},
+	{Name: interopnames.SystemStorageLocalDelete, Func: storage.LocalDelete,
+		RequiredFlags: callflag.WriteStates, ActiveFrom: config.HFFaun, Prices: []interop.HFPrice{{Price: 1 << 15 * vm.OpcodePriceMultiplier}}},
 }
 
-// init initializes IDs in the global interop slices.
+// init initializes IDs in the global interop slices and sorts interop prices by
+// hardfork in descending order. It panics if some interop has several prices
+// for the same hardfork.
 func init() {
 	for i := range systemInterops {
 		systemInterops[i].ID = interopnames.ToID([]byte(systemInterops[i].Name))
+		prices := systemInterops[i].Prices
+		slices.SortFunc(prices, func(a, b interop.HFPrice) int { return b.Hardfork.Cmp(a.Hardfork) })
+		for j := range len(prices) - 1 {
+			if prices[j].Hardfork == prices[j+1].Hardfork {
+				panic(fmt.Sprintf("duplicating %s price for %s", prices[j].Hardfork, systemInterops[i].Name))
+			}
+		}
 	}
 	interop.Sort(systemInterops)
 }

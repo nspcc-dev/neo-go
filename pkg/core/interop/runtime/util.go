@@ -22,6 +22,12 @@ func GasLeft(ic *interop.Context) error {
 	return nil
 }
 
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const (
+	getNotificationsPricePerNotification = 6926
+	getNotificationsBasePrice            = 205000
+)
+
 // GetNotifications returns notifications emitted in the current execution context.
 func GetNotifications(ic *interop.Context) error {
 	item := ic.VM.Estack().Pop().Item()
@@ -44,6 +50,12 @@ func GetNotifications(ic *interop.Context) error {
 	}
 	if len(notifications) > vm.MaxStackSize {
 		return errors.New("too many notifications")
+	}
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		price := getNotificationsPricePerNotification*int64(len(notifications)) + getNotificationsBasePrice
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
 	}
 	arr := stackitem.NewArray(make([]stackitem.Item, 0, len(notifications)))
 	for i := range notifications {
@@ -90,12 +102,14 @@ func GetRandom(ic *interop.Context) error {
 		seed  = ic.Network
 	)
 	isHF := ic.IsHardforkEnabled(config.HFAspidochelone)
-	if isHF {
-		price = 1 << 13
-		seed += ic.GetRandomCounter
-		ic.GetRandomCounter++
-	} else {
-		price = 1 << 4
+	if !ic.IsHardforkEnabled(config.HFHuyao) {
+		if isHF {
+			price = 1 << 13
+			seed += ic.GetRandomCounter
+			ic.GetRandomCounter++
+		} else {
+			price = 1 << 4
+		}
 	}
 	res := murmur128(ic.NonceData[:], seed)
 	if !isHF {

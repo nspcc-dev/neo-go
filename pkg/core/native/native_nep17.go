@@ -144,7 +144,7 @@ func (c *nep17TokenNative) transferDeferrable(ic *interop.Context, args []stacki
 
 	caller := ic.VM.GetCallingScriptHash()
 	if caller.Equals(util.Uint160{}) || !from.Equals(caller) {
-		ok, err := runtime.CheckHashedWitness(ic, from)
+		ok, _, err := runtime.CheckHashedWitness(ic, from)
 		if err != nil || !ok {
 			popArgsPushRes(stackitem.NewBool(false))
 			return

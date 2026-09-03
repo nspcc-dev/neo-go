@@ -461,7 +461,9 @@ func TestLoadScript(t *testing.T) {
 func TestGasLeft(t *testing.T) {
 	const runtimeGasLeftPrice = 1 << 4
 
-	bc, acc := chain.NewSingle(t)
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{config.HFFaun.String(): 0}
+	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
 	w := io.NewBufBinWriter()
 

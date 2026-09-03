@@ -36,6 +36,10 @@ type Iterator struct {
 	// copied if no FindRemovePrefix option specified since it's shared between all
 	// iterator items.
 	prefix []byte
+	// deserializedLen is the total length of Buffer/ByteArray items produced
+	// by deserializing the current value, 0 if FindDeserialize wasn't used
+	// for it.
+	deserializedLen int
 }
 
 // NewIterator creates a new Iterator with the given options for the given channel of store.Seek results.
@@ -60,6 +64,7 @@ func (s *Iterator) Value() stackitem.Item {
 	if !s.next {
 		panic("iterator index out of range")
 	}
+	s.deserializedLen = 0
 	key := s.curr.Key
 	if s.opts&FindRemovePrefix == 0 {
 		key = slices.Concat(s.prefix, key)
@@ -71,7 +76,7 @@ func (s *Iterator) Value() stackitem.Item {
 	if s.opts&FindDeserialize != 0 {
 		bs := s.curr.Value
 		var err error
-		value, err = stackitem.Deserialize(bs)
+		value, s.deserializedLen, err = stackitem.DeserializeCounted(bs)
 		if err != nil {
 			panic(err)
 		}
@@ -88,6 +93,10 @@ func (s *Iterator) Value() stackitem.Item {
 		stackitem.NewByteArray(key),
 		value,
 	})
+}
+
+func (s *Iterator) DeserializedLen() int {
+	return s.deserializedLen
 }
 
 func findWithContext(ic *interop.Context, stc *Context, getID ...func(ic *interop.Context) (int32, error)) error {

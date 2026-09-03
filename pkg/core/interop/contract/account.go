@@ -14,6 +14,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const (
+	createMultisigAccountPricePerKey = 10581
+	createMultisigAccountBasePrice   = 62153
+)
+
 // CreateMultisigAccount calculates multisig contract scripthash for a
 // given m and a set of public keys.
 func CreateMultisigAccount(ic *interop.Context) error {
@@ -23,6 +29,12 @@ func CreateMultisigAccount(ic *interop.Context) error {
 		return errors.New("m must be positive and fit int32")
 	}
 	arr := ic.VM.Estack().Pop().Array()
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		price := createMultisigAccountPricePerKey*int64(len(arr)) + createMultisigAccountBasePrice
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
+	}
 	pubs := make(keys.PublicKeys, len(arr))
 	for i, pk := range arr {
 		p, err := keys.NewPublicKeyFromBytes(pk.Value().([]byte), elliptic.P256())
@@ -31,15 +43,18 @@ func CreateMultisigAccount(ic *interop.Context) error {
 		}
 		pubs[i] = p
 	}
-	var invokeFee int64
-	if ic.IsHardforkEnabled(config.HFAspidochelone) {
-		invokeFee = fee.ECDSAVerifyPrice * int64(len(pubs))
-	} else {
-		invokeFee = 1 << 8
-	}
-	invokeFee *= ic.BaseExecFee()
-	if err := ic.VM.AddPicoGas(invokeFee); err != nil {
-		return err
+
+	if !ic.IsHardforkEnabled(config.HFHuyao) {
+		var invokeFee int64
+		if ic.IsHardforkEnabled(config.HFAspidochelone) {
+			invokeFee = fee.ECDSAVerifyPrice * int64(len(pubs))
+		} else {
+			invokeFee = 1 << 8
+		}
+		invokeFee *= ic.BaseExecFee()
+		if err := ic.VM.AddPicoGas(invokeFee); err != nil {
+			return err
+		}
 	}
 	script, err := smartcontract.CreateMultiSigRedeemScript(int(mu64), pubs)
 	if err != nil {
@@ -56,15 +71,17 @@ func CreateStandardAccount(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	var invokeFee int64
-	if ic.IsHardforkEnabled(config.HFAspidochelone) {
-		invokeFee = fee.ECDSAVerifyPrice
-	} else {
-		invokeFee = 1 << 8
-	}
-	invokeFee *= ic.BaseExecFee()
-	if err := ic.VM.AddPicoGas(invokeFee); err != nil {
-		return err
+	if !ic.IsHardforkEnabled(config.HFHuyao) {
+		var invokeFee int64
+		if ic.IsHardforkEnabled(config.HFAspidochelone) {
+			invokeFee = fee.ECDSAVerifyPrice
+		} else {
+			invokeFee = 1 << 8
+		}
+		invokeFee *= ic.BaseExecFee()
+		if err := ic.VM.AddPicoGas(invokeFee); err != nil {
+			return err
+		}
 	}
 	ic.VM.Estack().PushItem(stackitem.NewByteArray(p.GetScriptHash().BytesBE()))
 	return nil

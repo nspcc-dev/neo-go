@@ -174,7 +174,9 @@ func TestCurrentSigners(t *testing.T) {
 
 func TestDeepCopy(t *testing.T) {
 	t.Run("Buffer", func(t *testing.T) {
-		require.Equal(t, stackitem.NewByteArray([]byte{1, 2, 3}), deepCopy(stackitem.NewBuffer([]byte{1, 2, 3})))
+		actual, count := deepCopy(stackitem.NewBuffer([]byte{1, 2, 3}))
+		require.Equal(t, stackitem.NewByteArray([]byte{1, 2, 3}), actual)
+		require.Equal(t, 1, count)
 	})
 
 	t.Run("not deeply copied", func(t *testing.T) {
@@ -185,12 +187,16 @@ func TestDeepCopy(t *testing.T) {
 			stackitem.NewPointer(1, []byte{1, 2, 3}),
 			stackitem.NewInterop(&[]byte{1, 2}),
 		} {
-			require.True(t, item == deepCopy(item))
+			actual, count := deepCopy(item)
+			require.True(t, item == actual)
+			require.Equal(t, 1, count)
 		}
 	})
 
 	t.Run("Null", func(t *testing.T) {
-		require.Equal(t, stackitem.Null{}, deepCopy(stackitem.Null{}))
+		actual, count := deepCopy(stackitem.Null{})
+		require.Equal(t, stackitem.Null{}, actual)
+		require.Equal(t, 1, count)
 	})
 
 	t.Run("Array", func(t *testing.T) {
@@ -199,9 +205,10 @@ func TestDeepCopy(t *testing.T) {
 		items[0] = stackitem.NewBool(true)
 		items[1] = arr
 
-		actual := deepCopy(arr)
+		actual, count := deepCopy(arr)
 		arr.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
 		require.Equal(t, arr, actual)
+		require.Equal(t, 3, count)
 		require.False(t, arr == actual)
 		require.True(t, actual == actual.Value().([]stackitem.Item)[1])
 	})
@@ -212,9 +219,10 @@ func TestDeepCopy(t *testing.T) {
 		items[0] = stackitem.NewBool(true)
 		items[1] = st
 
-		actual := deepCopy(st)
+		actual, count := deepCopy(st)
 		st.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
 		require.Equal(t, st, actual)
+		require.Equal(t, 3, count)
 		require.False(t, st == actual)
 		require.True(t, actual == actual.Value().([]stackitem.Item)[1])
 	})
@@ -224,9 +232,10 @@ func TestDeepCopy(t *testing.T) {
 		m.Add(stackitem.NewBool(true), m)
 		m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewByteArray([]byte{1, 2, 3}))
 
-		actual := deepCopy(m)
+		actual, count := deepCopy(m)
 		m.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
 		require.Equal(t, m, actual)
+		require.Equal(t, 5, count)
 		require.False(t, m == actual)
 		require.True(t, actual == actual.Value().([]stackitem.MapElement)[0].Value)
 	})

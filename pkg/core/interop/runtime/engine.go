@@ -72,6 +72,12 @@ func GetTrigger(ic *interop.Context) error {
 	return nil
 }
 
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const (
+	notifyPricePerItem = 30024
+	notifyBasePrice    = 2245000
+)
+
 // Notify should pass stack item to the notify plugin to handle it, but
 // in neo-go the only meaningful thing to do here is to log.
 func Notify(ic *interop.Context) error {
@@ -115,8 +121,24 @@ func Notify(ic *interop.Context) error {
 	if len(bytes) > MaxNotificationSize {
 		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
 	}
-	return ic.AddNotification(curHash, name, deepCopy(stackitem.NewArray(args)).(*stackitem.Array))
+	cpItem, count := deepCopy(stackitem.NewArray(args))
+	if err := ic.AddNotification(curHash, name, cpItem.(*stackitem.Array)); err != nil {
+		return err
+	}
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		price := notifyPricePerItem*int64(count) + notifyBasePrice
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
+	}
+	return nil
 }
+
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const (
+	loadScriptPricePerByte = 187
+	loadScriptBasePrice    = 700000
+)
 
 // LoadScript takes a script and arguments from the stack and loads it into the VM.
 func LoadScript(ic *interop.Context) error {
@@ -126,6 +148,12 @@ func LoadScript(ic *interop.Context) error {
 		return errors.New("call flags out of range")
 	}
 	args := ic.VM.Estack().Pop().Array()
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		price := loadScriptPricePerByte*int64(len(script)) + loadScriptBasePrice
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
+	}
 	err := scparser.IsScriptCorrect(script, nil)
 	if err != nil {
 		return fmt.Errorf("invalid script: %w", err)
@@ -181,16 +209,28 @@ func BurnGas(ic *interop.Context) error {
 	return nil
 }
 
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const (
+	currentSignersPricePerRef = 2892
+	currentSignersBasePrice   = 18429
+)
+
 // CurrentSigners returns signers of the currently loaded transaction or stackitem.Null
 // if script container is not a transaction.
 func CurrentSigners(ic *interop.Context) error {
 	tx, ok := ic.Container.(*transaction.Transaction)
+	r := ic.VM.RefCount()
 	if ok {
 		ic.VM.Estack().PushItem(transaction.SignersToStackItem(tx.Signers))
 	} else {
 		ic.VM.Estack().PushItem(stackitem.Null{})
 	}
-
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		price := currentSignersPricePerRef*int64(ic.VM.RefCount()-r) + currentSignersBasePrice
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -199,54 +239,61 @@ func CurrentSigners(ic *interop.Context) error {
 // Bool, ByteArray, BigInteger, Pointer and Interop are returned as is since
 // they're immutable. Buffer is copied into a new immutable ByteArray, and Null
 // is returned as a new instance. Unsupported item types result in a nil return.
-func deepCopy(item stackitem.Item) stackitem.Item {
+// It also returns the number of visited items including repeated references.
+func deepCopy(item stackitem.Item) (stackitem.Item, int) {
 	seen := make(map[stackitem.Item]stackitem.Item, 4)
 	return deepCopyAux(item, seen)
 }
 
-func deepCopyAux(item stackitem.Item, seen map[stackitem.Item]stackitem.Item) stackitem.Item {
+func deepCopyAux(item stackitem.Item, seen map[stackitem.Item]stackitem.Item) (stackitem.Item, int) {
+	count := 1
 	if it := seen[item]; it != nil {
-		return it
+		return it, count
 	}
 	switch it := item.(type) {
 	case stackitem.Null:
-		return stackitem.Null{}
+		return stackitem.Null{}, count
 	case *stackitem.Array:
 		src := it.Value().([]stackitem.Item)
 		arr := stackitem.NewArray(make([]stackitem.Item, len(src)))
 		seen[item] = arr
 		dst := arr.Value().([]stackitem.Item)
 		for i := range src {
-			dst[i] = deepCopyAux(src[i], seen)
+			cpItem, n := deepCopyAux(src[i], seen)
+			count += n
+			dst[i] = cpItem
 		}
 		arr.MarkAsReadOnly()
-		return arr
+		return arr, count
 	case *stackitem.Struct:
 		src := it.Value().([]stackitem.Item)
 		st := stackitem.NewStruct(make([]stackitem.Item, len(src)))
 		seen[item] = st
 		dst := st.Value().([]stackitem.Item)
 		for i := range src {
-			dst[i] = deepCopyAux(src[i], seen)
+			cpItem, n := deepCopyAux(src[i], seen)
+			count += n
+			dst[i] = cpItem
 		}
 		st.MarkAsReadOnly()
-		return st
+		return st, count
 	case *stackitem.Map:
 		m := stackitem.NewMap()
 		seen[item] = m
 		for _, e := range it.Value().([]stackitem.MapElement) {
-			key := deepCopyAux(e.Key, seen)
-			value := deepCopyAux(e.Value, seen)
+			key, nKey := deepCopyAux(e.Key, seen)
+			value, nValue := deepCopyAux(e.Value, seen)
+			count += nKey + nValue
 			m.Add(key, value)
 		}
 		m.MarkAsReadOnly()
-		return m
+		return m, count
 	case *stackitem.Buffer:
-		return stackitem.NewByteArray(bytes.Clone(it.Value().([]byte)))
+		return stackitem.NewByteArray(bytes.Clone(it.Value().([]byte))), count
 	case *stackitem.Pointer, *stackitem.Interop, stackitem.Bool,
 		*stackitem.ByteArray, *stackitem.BigInteger:
-		return item
+		return item, count
 	default:
-		return nil
+		return nil, count
 	}
 }
