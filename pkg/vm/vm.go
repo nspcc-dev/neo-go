@@ -221,6 +221,11 @@ func (v *VM) GasConsumed() int64 {
 	return v.gasLimit / ExecFeeFactorMultiplier // known to be divisible without remnant.
 }
 
+// RefCount returns the current value of the VM's reference counter.
+func (v *VM) RefCount() int {
+	return int(v.refs)
+}
+
 // GasLeft returns the amount of GAS left in Datoshi units rounded from picoGAS
 // to the lower integer (if positive).
 func (v *VM) GasLeft() *big.Int {

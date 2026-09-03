@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
@@ -157,10 +158,10 @@ func runSyscallTestCase(t *testing.T, ic *interop.Context, realName string,
 	f := ic.GetFunction(syscallID)
 	require.NotNil(t, f)
 	called := false
-	f.Func = func(ic *interop.Context) error {
+	f.Func = func(ic *interop.Context) (*fee.InteropRunStats, error) {
 		called = true
 		if ic.VM.Estack().Len() < len(tc.params) {
-			return errors.New("not enough parameters")
+			return nil, errors.New("not enough parameters")
 		}
 		for range len(tc.params) {
 			ic.VM.Estack().Pop()
@@ -168,7 +169,7 @@ func runSyscallTestCase(t *testing.T, ic *interop.Context, realName string,
 		if !tc.isVoid {
 			ic.VM.Estack().PushVal(42)
 		}
-		return nil
+		return nil, nil
 	}
 	defer func() { f.Func = nil }()
 
