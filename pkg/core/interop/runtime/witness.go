@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -16,12 +17,18 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const (
+	checkWitnessPricePerRule = 297286
+	checkWitnessBasePrice    = 1035000
+)
+
 // CheckHashedWitness checks the given hash against the current list of script hashes
 // for verifying in the interop context.
-func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
+func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, int, error) {
 	callingSH := ic.VM.GetCallingScriptHash()
 	if !callingSH.Equals(util.Uint160{}) && hash.Equals(callingSH) {
-		return true, nil
+		return true, 0, nil
 	}
 	return checkScope(ic, hash)
 }
@@ -62,59 +69,61 @@ func (sc scopeContext) CurrentScriptHasGroup(k *keys.PublicKey) (bool, error) {
 	return sc.checkScriptGroups(sc.GetCurrentScriptHash(), k)
 }
 
-func checkScope(ic *interop.Context, hash util.Uint160) (bool, error) {
+func checkScope(ic *interop.Context, hash util.Uint160) (bool, int, error) {
 	signers := ic.Signers()
 	if len(signers) == 0 {
-		return false, errors.New("no valid signers")
+		return false, 0, errors.New("no valid signers")
 	}
 	for i := range signers {
 		c := &signers[i]
 		if c.Account == hash {
 			if c.Scopes == transaction.Global {
-				return true, nil
+				return true, 0, nil
 			}
 			if c.Scopes&transaction.CalledByEntry != 0 {
 				if ic.VM.Context().IsCalledByEntry() {
-					return true, nil
+					return true, 0, nil
 				}
 			}
 			if c.Scopes&transaction.CustomContracts != 0 {
 				currentScriptHash := ic.VM.GetCurrentScriptHash()
 				if slices.Contains(c.AllowedContracts, currentScriptHash) {
-					return true, nil
+					return true, 0, nil
 				}
 			}
 			if c.Scopes&transaction.CustomGroups != 0 {
 				groups, err := getContractGroups(ic.VM, ic, ic.VM.GetCurrentScriptHash())
 				if err != nil {
-					return false, err
+					return false, 0, err
 				}
 				// check if the current group is the required one
 				if slices.ContainsFunc(c.AllowedGroups, groups.Contains) {
-					return true, nil
+					return true, 0, nil
 				}
 			}
+			rulesCount := 0
 			if c.Scopes&transaction.Rules != 0 {
 				ctx := scopeContext{ic.VM, ic}
-				for _, r := range c.Rules {
+				for i, r := range c.Rules {
 					res, err := r.Condition.Match(ctx)
 					if err != nil {
-						return false, err
+						return false, 0, err
 					}
 					if res {
-						return r.Action == transaction.WitnessAllow, nil
+						return r.Action == transaction.WitnessAllow, i + 1, nil
 					}
 				}
+				rulesCount = len(c.Rules)
 			}
-			return false, nil
+			return false, rulesCount, nil
 		}
 	}
-	return false, nil
+	return false, 0, nil
 }
 
 // CheckKeyedWitness checks the hash of the signature check contract with the given public
 // key against the current list of script hashes for verifying in the interop context.
-func CheckKeyedWitness(ic *interop.Context, key *keys.PublicKey) (bool, error) {
+func CheckKeyedWitness(ic *interop.Context, key *keys.PublicKey) (bool, int, error) {
 	return CheckHashedWitness(ic, key.GetScriptHash())
 }
 
@@ -125,18 +134,25 @@ func CheckWitness(ic *interop.Context) error {
 
 	hashOrKey := ic.VM.Estack().Pop().Bytes()
 	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
+	rulesCount := 0
 	if err != nil {
 		var key *keys.PublicKey
 		key, err = keys.NewPublicKeyFromBytes(hashOrKey, elliptic.P256())
 		if err != nil {
 			return errors.New("parameter given is neither a key nor a hash")
 		}
-		res, err = CheckKeyedWitness(ic, key)
+		res, rulesCount, err = CheckKeyedWitness(ic, key)
 	} else {
-		res, err = CheckHashedWitness(ic, hash)
+		res, rulesCount, err = CheckHashedWitness(ic, hash)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to check witness: %w", err)
+	}
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		price := checkWitnessPricePerRule*int64(rulesCount) + checkWitnessBasePrice
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
 	}
 	ic.VM.Estack().PushItem(stackitem.Bool(res))
 	return nil
