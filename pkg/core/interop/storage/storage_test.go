@@ -39,48 +39,57 @@ func TestPut(t *testing.T) {
 		v.SetGasLimit(gas)
 		v.Estack().PushVal(value)
 		v.Estack().PushVal(key)
-		require.NoError(t, istorage.GetContext(ic))
+		_, err := istorage.GetContext(ic)
+		require.NoError(t, err)
 	}
 
 	t.Run("create, not enough gas", func(t *testing.T) {
 		initVM(t, []byte{1}, []byte{2, 3}, 2*native.DefaultStoragePrice)
-		err := istorage.Put(ic)
+		_, err := istorage.Put(ic)
 		require.ErrorIs(t, err, vm.ErrGASLimitExceeded)
 	})
 
 	initVM(t, []byte{4}, []byte{5, 6}, 3*native.DefaultStoragePrice)
-	require.NoError(t, istorage.Put(ic))
+	_, err := istorage.Put(ic)
+	require.NoError(t, err)
 
 	t.Run("update", func(t *testing.T) {
 		t.Run("not enough gas", func(t *testing.T) {
 			initVM(t, []byte{4}, []byte{5, 6, 7, 8}, native.DefaultStoragePrice)
-			err := istorage.Put(ic)
+			_, err := istorage.Put(ic)
 			require.ErrorIs(t, err, vm.ErrGASLimitExceeded)
 		})
 		initVM(t, []byte{4}, []byte{5, 6, 7, 8}, 3*native.DefaultStoragePrice)
-		require.NoError(t, istorage.Put(ic))
+		_, err := istorage.Put(ic)
+		require.NoError(t, err)
 		initVM(t, []byte{4}, []byte{5, 6}, native.DefaultStoragePrice)
-		require.NoError(t, istorage.Put(ic))
+		_, err = istorage.Put(ic)
+		require.NoError(t, err)
 	})
 
 	t.Run("check limits", func(t *testing.T) {
 		initVM(t, make([]byte, limits.MaxStorageKeyLen), make([]byte, limits.MaxStorageValueLen), -1)
-		require.NoError(t, istorage.Put(ic))
+		_, err := istorage.Put(ic)
+		require.NoError(t, err)
 	})
 
 	t.Run("bad", func(t *testing.T) {
 		t.Run("readonly context", func(t *testing.T) {
 			initVM(t, []byte{1}, []byte{1}, -1)
-			require.NoError(t, istorage.ContextAsReadOnly(ic))
-			require.Error(t, istorage.Put(ic))
+			_, err := istorage.ContextAsReadOnly(ic)
+			require.NoError(t, err)
+			_, err = istorage.Put(ic)
+			require.Error(t, err)
 		})
 		t.Run("big key", func(t *testing.T) {
 			initVM(t, make([]byte, limits.MaxStorageKeyLen+1), []byte{1}, -1)
-			require.Error(t, istorage.Put(ic))
+			_, err := istorage.Put(ic)
+			require.Error(t, err)
 		})
 		t.Run("big value", func(t *testing.T) {
 			initVM(t, []byte{1}, make([]byte, limits.MaxStorageValueLen+1), -1)
-			require.Error(t, istorage.Put(ic))
+			_, err := istorage.Put(ic)
+			require.Error(t, err)
 		})
 	})
 }
@@ -93,8 +102,10 @@ func TestDelete(t *testing.T) {
 	put := func(key, value string, flag int) {
 		v.Estack().PushVal(value)
 		v.Estack().PushVal(key)
-		require.NoError(t, istorage.GetContext(ic))
-		require.NoError(t, istorage.Put(ic))
+		_, err := istorage.GetContext(ic)
+		require.NoError(t, err)
+		_, err = istorage.Put(ic)
+		require.NoError(t, err)
 	}
 	put("key1", "value1", 0)
 	put("key2", "value2", 0)
@@ -102,19 +113,26 @@ func TestDelete(t *testing.T) {
 
 	t.Run("good", func(t *testing.T) {
 		v.Estack().PushVal("key1")
-		require.NoError(t, istorage.GetContext(ic))
-		require.NoError(t, istorage.Delete(ic))
+		_, err := istorage.GetContext(ic)
+		require.NoError(t, err)
+		_, err = istorage.Delete(ic)
+		require.NoError(t, err)
 	})
 	t.Run("readonly context", func(t *testing.T) {
 		v.Estack().PushVal("key2")
-		require.NoError(t, istorage.GetReadOnlyContext(ic))
-		require.Error(t, istorage.Delete(ic))
+		_, err := istorage.GetReadOnlyContext(ic)
+		require.NoError(t, err)
+		_, err = istorage.Delete(ic)
+		require.Error(t, err)
 	})
 	t.Run("readonly context (from normal)", func(t *testing.T) {
 		v.Estack().PushVal("key3")
-		require.NoError(t, istorage.GetContext(ic))
-		require.NoError(t, istorage.ContextAsReadOnly(ic))
-		require.Error(t, istorage.Delete(ic))
+		_, err := istorage.GetContext(ic)
+		require.NoError(t, err)
+		_, err = istorage.ContextAsReadOnly(ic)
+		require.NoError(t, err)
+		_, err = istorage.Delete(ic)
+		require.Error(t, err)
 	})
 }
 
@@ -163,7 +181,7 @@ func TestFind(t *testing.T) {
 		v.Estack().PushVal(prefix)
 		v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: id}))
 
-		err := istorage.Find(context)
+		_, err := istorage.Find(context)
 		require.NoError(t, err)
 
 		var iter *stackitem.Interop
@@ -171,20 +189,23 @@ func TestFind(t *testing.T) {
 
 		for i := range expected { // sorted indices with matching prefix
 			v.Estack().PushVal(iter)
-			require.NoError(t, iterator.Next(context))
+			_, err := iterator.Next(context)
+			require.NoError(t, err)
 			require.True(t, v.Estack().Pop().Bool())
 
 			v.Estack().PushVal(iter)
 			if expected[i] == nil {
-				require.Panics(t, func() { _ = iterator.Value(context) })
+				require.Panics(t, func() { _, _ = iterator.Value(context) })
 				return
 			}
-			require.NoError(t, iterator.Value(context))
+			_, err = iterator.Value(context)
+			require.NoError(t, err)
 			require.Equal(t, expected[i], v.Estack().Pop().Item())
 		}
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, iterator.Next(context))
+		_, err = iterator.Next(context)
+		require.NoError(t, err)
 		require.False(t, v.Estack().Pop().Bool())
 	}
 
@@ -242,17 +263,18 @@ func TestFind(t *testing.T) {
 			v.Estack().PushVal(istorage.FindDeserialize)
 			v.Estack().PushVal([]byte{0x05})
 			v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: id}))
-			err := istorage.Find(context)
+			_, err := istorage.Find(context)
 			require.NoError(t, err)
 
 			var iter *stackitem.Interop
 			require.NotPanics(t, func() { iter = v.Estack().Pop().Interop() })
 
 			v.Estack().PushVal(iter)
-			require.NoError(t, iterator.Next(context))
+			_, err = iterator.Next(context)
+			require.NoError(t, err)
 
 			v.Estack().PushVal(iter)
-			require.Panics(t, func() { _ = iterator.Value(context) })
+			require.Panics(t, func() { _, _ = iterator.Value(context) })
 		})
 	})
 	t.Run("PickN", func(t *testing.T) {
@@ -286,7 +308,8 @@ func TestFind(t *testing.T) {
 			v.Estack().PushVal(opts)
 			v.Estack().PushVal([]byte{0x01})
 			v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: id}))
-			require.Error(t, istorage.Find(context))
+			_, err := istorage.Find(context)
+			require.Error(t, err)
 		}
 	})
 	t.Run("invalid type for storage.Context", func(t *testing.T) {
@@ -294,7 +317,8 @@ func TestFind(t *testing.T) {
 		v.Estack().PushVal([]byte{0x01})
 		v.Estack().PushVal(stackitem.NewInterop(nil))
 
-		require.Error(t, istorage.Find(context))
+		_, err := istorage.Find(context)
+		require.Error(t, err)
 	})
 
 	t.Run("invalid id", func(t *testing.T) {
@@ -304,8 +328,10 @@ func TestFind(t *testing.T) {
 		v.Estack().PushVal([]byte{0x01})
 		v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: invalidID}))
 
-		require.NoError(t, istorage.Find(context))
-		require.NoError(t, iterator.Next(context))
+		_, err := istorage.Find(context)
+		require.NoError(t, err)
+		_, err = iterator.Next(context)
+		require.NoError(t, err)
 		require.False(t, v.Estack().Pop().Bool())
 	})
 }
@@ -388,16 +414,20 @@ func TestLocal_Errors(t *testing.T) {
 	v, ic, _ := createVM(t)
 
 	v.Estack().PushVal([]byte{1})
-	require.ErrorContains(t, istorage.LocalDelete(ic), "storage context can not be retrieved in dynamic scripts")
+	_, err := istorage.LocalDelete(ic)
+	require.ErrorContains(t, err, "storage context can not be retrieved in dynamic scripts")
 
 	v.Estack().PushVal([]byte{1})
-	require.ErrorContains(t, istorage.LocalGet(ic), "storage context can not be retrieved in dynamic scripts")
+	_, err = istorage.LocalGet(ic)
+	require.ErrorContains(t, err, "storage context can not be retrieved in dynamic scripts")
 
 	v.Estack().PushVal([]byte{1})
 	v.Estack().PushVal([]byte{2})
-	require.ErrorContains(t, istorage.LocalPut(ic), "storage context can not be retrieved in dynamic scripts")
+	_, err = istorage.LocalPut(ic)
+	require.ErrorContains(t, err, "storage context can not be retrieved in dynamic scripts")
 
 	v.Estack().PushVal([]byte{1})
 	v.Estack().PushVal(1)
-	require.ErrorContains(t, istorage.LocalFind(ic), "storage context can not be retrieved in dynamic scripts")
+	_, err = istorage.LocalFind(ic)
+	require.ErrorContains(t, err, "storage context can not be retrieved in dynamic scripts")
 }

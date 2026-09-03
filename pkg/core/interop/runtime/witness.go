@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -119,7 +120,7 @@ func CheckKeyedWitness(ic *interop.Context, key *keys.PublicKey) (bool, error) {
 }
 
 // CheckWitness checks witnesses.
-func CheckWitness(ic *interop.Context) error {
+func CheckWitness(ic *interop.Context) (*fee.InteropRunStats, error) {
 	var res bool
 	var err error
 
@@ -129,15 +130,15 @@ func CheckWitness(ic *interop.Context) error {
 		var key *keys.PublicKey
 		key, err = keys.NewPublicKeyFromBytes(hashOrKey, elliptic.P256())
 		if err != nil {
-			return errors.New("parameter given is neither a key nor a hash")
+			return nil, errors.New("parameter given is neither a key nor a hash")
 		}
 		res, err = CheckKeyedWitness(ic, key)
 	} else {
 		res, err = CheckHashedWitness(ic, hash)
 	}
 	if err != nil {
-		return fmt.Errorf("failed to check witness: %w", err)
+		return nil, fmt.Errorf("failed to check witness: %w", err)
 	}
 	ic.VM.Estack().PushItem(stackitem.Bool(res))
-	return nil
+	return nil, nil
 }

@@ -153,7 +153,7 @@ func TestCheckWitness(t *testing.T) {
 	scriptHash := hash.Hash160(script)
 	check := func(t *testing.T, ic *interop.Context, arg any, shouldFail bool, expected ...bool) {
 		ic.VM.Estack().PushVal(arg)
-		err := runtime.CheckWitness(ic)
+		_, err := runtime.CheckWitness(ic)
 		if shouldFail {
 			require.Error(t, err)
 		} else {
@@ -461,7 +461,9 @@ func TestLoadScript(t *testing.T) {
 func TestGasLeft(t *testing.T) {
 	const runtimeGasLeftPrice = 1 << 4
 
-	bc, acc := chain.NewSingle(t)
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{config.HFFaun.String(): 0}
+	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
 	w := io.NewBufBinWriter()
 
@@ -504,12 +506,14 @@ func TestGetInvocationCounter(t *testing.T) {
 	t.Run("No invocations", func(t *testing.T) {
 		v.Load([]byte{1})
 		// do not return an error in this case.
-		require.NoError(t, runtime.GetInvocationCounter(ic))
+		_, err := runtime.GetInvocationCounter(ic)
+		require.NoError(t, err)
 		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Int64())
 	})
 	t.Run("NonZero", func(t *testing.T) {
 		v.Load([]byte{2})
-		require.NoError(t, runtime.GetInvocationCounter(ic))
+		_, err := runtime.GetInvocationCounter(ic)
+		require.NoError(t, err)
 		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 	})
 	t.Run("Contract", func(t *testing.T) {
@@ -542,7 +546,8 @@ func TestGetNotifications(t *testing.T) {
 
 	t.Run("NoFilter", func(t *testing.T) {
 		v.Estack().PushVal(stackitem.Null{})
-		require.NoError(t, runtime.GetNotifications(ic))
+		_, err := runtime.GetNotifications(ic)
+		require.NoError(t, err)
 
 		arr := v.Estack().Pop().Array()
 		require.Equal(t, len(ic.Notifications), len(arr))
@@ -560,7 +565,8 @@ func TestGetNotifications(t *testing.T) {
 	t.Run("WithFilter", func(t *testing.T) {
 		h := util.Uint160{2}.BytesBE()
 		v.Estack().PushVal(h)
-		require.NoError(t, runtime.GetNotifications(ic))
+		_, err := runtime.GetNotifications(ic)
+		require.NoError(t, err)
 
 		arr := v.Estack().Pop().Array()
 		require.Equal(t, 1, len(arr))
@@ -613,19 +619,24 @@ func TestGetRandomCompatibility(t *testing.T) {
 	ic.VM.LoadScript([]byte{0x01})
 	ic.VM.SetGasLimit(1100_00000000)
 
-	require.NoError(t, runtime.GetRandom(ic))
+	_, err = runtime.GetRandom(ic)
+	require.NoError(t, err)
 	require.Equal(t, "271339657438512451304577787170704246350", ic.VM.Estack().Pop().BigInt().String())
 
-	require.NoError(t, runtime.GetRandom(ic))
+	_, err = runtime.GetRandom(ic)
+	require.NoError(t, err)
 	require.Equal(t, "98548189559099075644778613728143131367", ic.VM.Estack().Pop().BigInt().String())
 
-	require.NoError(t, runtime.GetRandom(ic))
+	_, err = runtime.GetRandom(ic)
+	require.NoError(t, err)
 	require.Equal(t, "247654688993873392544380234598471205121", ic.VM.Estack().Pop().BigInt().String())
 
-	require.NoError(t, runtime.GetRandom(ic))
+	_, err = runtime.GetRandom(ic)
+	require.NoError(t, err)
 	require.Equal(t, "291082758879475329976578097236212073607", ic.VM.Estack().Pop().BigInt().String())
 
-	require.NoError(t, runtime.GetRandom(ic))
+	_, err = runtime.GetRandom(ic)
+	require.NoError(t, err)
 	require.Equal(t, "247152297361212656635216876565962360375", ic.VM.Estack().Pop().BigInt().String())
 }
 
@@ -642,7 +653,7 @@ func TestNotify(t *testing.T) {
 	}
 	t.Run("big name", func(t *testing.T) {
 		ic := newIC(string(make([]byte, runtime.MaxEventNameLen+1)), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}))
-		err := runtime.Notify(ic)
+		_, err := runtime.Notify(ic)
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "event name must be less than 32"), err)
 	})
@@ -651,7 +662,7 @@ func TestNotify(t *testing.T) {
 		ic.VM.LoadScriptWithHash([]byte{1}, random.Uint160(), callflag.NoneFlag)
 		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
 		ic.VM.Estack().PushVal("event")
-		err := runtime.Notify(ic)
+		_, err := runtime.Notify(ic)
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "notifications are not allowed in dynamic scripts"), err)
 	})
@@ -659,7 +670,7 @@ func TestNotify(t *testing.T) {
 		arr := stackitem.NewArray([]stackitem.Item{stackitem.Null{}})
 		arr.Append(arr)
 		ic := newIC("event", stackitem.NewArray([]stackitem.Item{arr})) // upper array is needed to match manifest event signature.
-		err := runtime.Notify(ic)
+		_, err := runtime.Notify(ic)
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "bad notification: recursive item"), err)
 	})
@@ -667,14 +678,15 @@ func TestNotify(t *testing.T) {
 		bs := stackitem.NewByteArray(make([]byte, runtime.MaxNotificationSize+1))
 		arr := stackitem.NewArray([]stackitem.Item{bs})
 		ic := newIC("event", arr)
-		err := runtime.Notify(ic)
+		_, err := runtime.Notify(ic)
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "notification size shouldn't exceed 1024"), err)
 	})
 	t.Run("good", func(t *testing.T) {
 		arr := stackitem.NewArray([]stackitem.Item{stackitem.Make(42)})
 		ic := newIC("event", arr)
-		require.NoError(t, runtime.Notify(ic))
+		_, err := runtime.Notify(ic)
+		require.NoError(t, err)
 		require.Equal(t, 1, len(ic.Notifications))
 
 		arr.MarkAsReadOnly() // tiny hack for test to be able to compare object references.

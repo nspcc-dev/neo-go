@@ -1,6 +1,7 @@
 package iterator
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -10,24 +11,37 @@ type iterator interface {
 	Value() stackitem.Item
 }
 
+type deserializer interface {
+	DeserializedLen() int
+}
+
 // Next advances the iterator, pushes true on success and false otherwise.
-func Next(ic *interop.Context) error {
+func Next(ic *interop.Context) (*fee.InteropRunStats, error) {
 	iop := ic.VM.Estack().Pop().Interop()
 	arr := iop.Value().(iterator)
 	ic.VM.Estack().PushItem(stackitem.Bool(arr.Next()))
 
-	return nil
+	return nil, nil
 }
 
 // Value returns current iterator value and depends on iterator type:
 // For slices the result is just value.
 // For maps the result is key-value pair packed in a struct.
-func Value(ic *interop.Context) error {
+func Value(ic *interop.Context) (*fee.InteropRunStats, error) {
 	iop := ic.VM.Estack().Pop().Interop()
 	arr := iop.Value().(iterator)
-	ic.VM.Estack().PushItem(arr.Value())
+	val := arr.Value()
 
-	return nil
+	r1 := ic.VM.RefCount()
+	ic.VM.Estack().PushItem(val)
+	r2 := ic.VM.RefCount()
+	var length int
+	if d, ok := arr.(deserializer); ok {
+		length = d.DeserializedLen()
+	}
+	stats := &fee.InteropRunStats{RefsDelta: r2 - r1, Length: length}
+
+	return stats, nil
 }
 
 // IsIterator returns whether stackitem implements iterator interface.

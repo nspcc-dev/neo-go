@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -47,32 +48,38 @@ func LoadToken(ic *interop.Context, id int32) error {
 	if tok.HasReturn != (md.ReturnType != smartcontract.VoidType) {
 		return fmt.Errorf("token %s/%d return value (%t) doesn't match the actual method return value", tok.Method, len(args), tok.HasReturn)
 	}
-	return callInternal(ic, cs, md, tok.CallFlag, tok.HasReturn, args, false)
+	_, err = callInternal(ic, cs, md, tok.CallFlag, tok.HasReturn, args, false)
+	return err
 }
 
 // Call calls a contract with flags.
-func Call(ic *interop.Context) error {
+func Call(ic *interop.Context) (*fee.InteropRunStats, error) {
 	h := ic.VM.Estack().Pop().Bytes()
 	u, err := util.Uint160DecodeBytesBE(h)
 	if err != nil {
-		return errors.New("invalid contract hash")
+		return nil, errors.New("invalid contract hash")
 	}
 	method := ic.VM.Estack().Pop().String()
 	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
 	if fs&^callflag.All != 0 {
-		return errors.New("call flags out of range")
+		return nil, errors.New("call flags out of range")
 	}
 	args := ic.VM.Estack().Pop().Array()
 	cs, err := ic.GetContract(u)
 	if err != nil {
-		return fmt.Errorf("called contract %s not found: %w", u.StringLE(), err)
+		return nil, fmt.Errorf("called contract %s not found: %w", u.StringLE(), err)
 	}
 	if strings.HasPrefix(method, "_") {
-		return errors.New("invalid method name (starts with '_')")
+		return nil, errors.New("invalid method name (starts with '_')")
 	}
 	md := cs.Manifest.ABI.GetMethod(method, len(args))
 	if md == nil {
-		return fmt.Errorf("method not found: %s/%d", method, len(args))
+		return nil, fmt.Errorf("method not found: %s/%d", method, len(args))
+	}
+	stats := &fee.InteropRunStats{
+		Length:       len(method),
+		ArgsCount:    len(args),
+		MethodsCount: len(cs.Manifest.ABI.Methods),
 	}
 	hasReturn := md.ReturnType != smartcontract.VoidType
 
@@ -87,11 +94,13 @@ func Call(ic *interop.Context) error {
 		ci := state.NewContractInvocation(u, method, bytes.Clone(argBytes), uint32(arrCount))
 		ic.InvocationCalls = append(ic.InvocationCalls, *ci)
 	}
-	return callInternal(ic, cs, md, fs, hasReturn, args, true)
+	stats.EntriesCount, err = callInternal(ic, cs, md, fs, hasReturn, args, true)
+	return stats, err
 }
 
 func callInternal(ic *interop.Context, cs *state.Contract, md *manifest.Method, f callflag.CallFlag,
-	hasReturn bool, args []stackitem.Item, isDynamic bool) error {
+	hasReturn bool, args []stackitem.Item, isDynamic bool) (int, error) {
+	var permissionsCount int
 	if md.Safe {
 		f &^= (callflag.WriteStates | callflag.AllowNotify)
 	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
@@ -104,11 +113,15 @@ func callInternal(ic *interop.Context, cs *state.Contract, md *manifest.Method, 
 				mfst = &curr.Manifest
 			}
 		}
-		if mfst != nil && !mfst.CanCall(cs.Hash, &cs.Manifest, md.Name) {
-			return errors.New("disallowed method call")
+		if mfst != nil {
+			if !mfst.CanCall(cs.Hash, &cs.Manifest, md.Name) {
+				return 0, errors.New("disallowed method call")
+			}
+			permissionsCount = len(mfst.Permissions)
 		}
 	}
-	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, md.Name, args, f, hasReturn, isDynamic)
+	err := callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, md.Name, args, f, hasReturn, isDynamic)
+	return permissionsCount, err
 }
 
 // callExFromNative creates a new execution context with the specified contract
@@ -207,7 +220,7 @@ func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract
 }
 
 // GetCallFlags returns current context calling flags.
-func GetCallFlags(ic *interop.Context) error {
+func GetCallFlags(ic *interop.Context) (*fee.InteropRunStats, error) {
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(ic.VM.Context().GetCallFlags()))))
-	return nil
+	return nil, nil
 }

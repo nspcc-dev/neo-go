@@ -32,14 +32,16 @@ func TestGetTrigger(t *testing.T) {
 	triggers := []trigger.Type{trigger.Application, trigger.Verification}
 	for _, tr := range triggers {
 		ic := &interop.Context{Trigger: tr, VM: vm.New()}
-		require.NoError(t, GetTrigger(ic))
+		_, err := GetTrigger(ic)
+		require.NoError(t, err)
 		checkStack(t, ic.VM, int64(tr))
 	}
 }
 
 func TestPlatform(t *testing.T) {
 	ic := &interop.Context{VM: vm.New()}
-	require.NoError(t, Platform(ic))
+	_, err := Platform(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, "NEO")
 }
 
@@ -47,7 +49,8 @@ func TestGetTime(t *testing.T) {
 	b := block.New(false)
 	b.Timestamp = 1725021259
 	ic := &interop.Context{VM: vm.New(), Block: b}
-	require.NoError(t, GetTime(ic))
+	_, err := GetTime(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, new(big.Int).SetUint64(1725021259))
 }
 
@@ -63,36 +66,49 @@ func TestGetScriptHash(t *testing.T) {
 	}
 
 	ic := &interop.Context{VM: vm.New()}
+	var err error
 	ic.VM.LoadScriptWithFlags(scripts[0].s, callflag.All)
-	require.NoError(t, GetEntryScriptHash(ic))
+	_, err = GetEntryScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[0].h.BytesBE())
-	require.NoError(t, GetCallingScriptHash(ic))
+	_, err = GetCallingScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, util.Uint160{}.BytesBE())
-	require.NoError(t, GetExecutingScriptHash(ic))
+	_, err = GetExecutingScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[0].h.BytesBE())
 
 	ic.VM.LoadScriptWithHash(scripts[1].s, scripts[1].h, callflag.All)
-	require.NoError(t, GetEntryScriptHash(ic))
+	_, err = GetEntryScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[0].h.BytesBE())
-	require.NoError(t, GetCallingScriptHash(ic))
+	_, err = GetCallingScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[0].h.BytesBE())
-	require.NoError(t, GetExecutingScriptHash(ic))
+	_, err = GetExecutingScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[1].h.BytesBE())
 
 	ic.VM.LoadScript(scripts[2].s)
-	require.NoError(t, GetEntryScriptHash(ic))
+	_, err = GetEntryScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[0].h.BytesBE())
-	require.NoError(t, GetCallingScriptHash(ic))
+	_, err = GetCallingScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[1].h.BytesBE())
-	require.NoError(t, GetExecutingScriptHash(ic))
+	_, err = GetExecutingScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[2].h.BytesBE())
 
 	ic.VM.LoadScript(scripts[3].s)
-	require.NoError(t, GetEntryScriptHash(ic))
+	_, err = GetEntryScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[0].h.BytesBE())
-	require.NoError(t, GetCallingScriptHash(ic))
+	_, err = GetCallingScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[2].h.BytesBE())
-	require.NoError(t, GetExecutingScriptHash(ic))
+	_, err = GetExecutingScriptHash(ic)
+	require.NoError(t, err)
 	checkStack(t, ic.VM, scripts[3].h.BytesBE())
 }
 
@@ -109,7 +125,8 @@ func TestLog(t *testing.T) {
 		ic := &interop.Context{Log: zap.NewNop(), VM: vm.New()}
 		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.All)
 		ic.VM.Estack().PushVal(string(make([]byte, MaxNotificationSize+1)))
-		require.Error(t, Log(ic))
+		_, err := Log(ic)
+		require.Error(t, err)
 	})
 
 	t.Run("good", func(t *testing.T) {
@@ -117,7 +134,8 @@ func TestLog(t *testing.T) {
 		ic := &interop.Context{Log: log, VM: vm.New()}
 		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.All)
 		ic.VM.Estack().PushVal("hello")
-		require.NoError(t, Log(ic))
+		_, err := Log(ic)
+		require.NoError(t, err)
 
 		ls := buf.Lines()
 		require.Equal(t, 1, len(ls))
@@ -134,7 +152,8 @@ func TestCurrentSigners(t *testing.T) {
 	t.Run("container is block", func(t *testing.T) {
 		b := block.New(false)
 		ic := &interop.Context{VM: vm.New(), Container: b}
-		require.NoError(t, CurrentSigners(ic))
+		_, err := CurrentSigners(ic)
+		require.NoError(t, err)
 		checkStack(t, ic.VM, stackitem.Null{})
 	})
 
@@ -152,7 +171,8 @@ func TestCurrentSigners(t *testing.T) {
 			},
 		}
 		ic := &interop.Context{VM: vm.New(), Container: tx}
-		require.NoError(t, CurrentSigners(ic))
+		_, err := CurrentSigners(ic)
+		require.NoError(t, err)
 		checkStack(t, ic.VM, stackitem.NewArray([]stackitem.Item{
 			stackitem.NewArray([]stackitem.Item{
 				stackitem.NewByteArray(util.Uint160{1}.BytesBE()),

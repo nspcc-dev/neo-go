@@ -1225,3 +1225,27 @@ func deepCopy(item Item, seen map[Item]Item, asImmutable bool) Item {
 		return nil
 	}
 }
+
+// BufferBytesLen returns the total length of all Buffer/ByteArray items
+// found in item, recursing into Array, Struct and Map.
+func BufferBytesLen(item Item) int {
+	switch item.Type() {
+	case ByteArrayT, BufferT:
+		b, _ := item.Value().([]byte)
+		return len(b)
+	case ArrayT, StructT:
+		var n int
+		for _, sub := range item.Value().([]Item) {
+			n += BufferBytesLen(sub)
+		}
+		return n
+	case MapT:
+		var n int
+		for _, kv := range item.Value().([]MapElement) {
+			n += BufferBytesLen(kv.Key) + BufferBytesLen(kv.Value)
+		}
+		return n
+	default:
+		return 0
+	}
+}

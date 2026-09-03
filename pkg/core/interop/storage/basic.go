@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -19,29 +20,29 @@ type Context struct {
 }
 
 // Delete deletes stored key-value pair.
-func Delete(ic *interop.Context) error {
+func Delete(ic *interop.Context) (*fee.InteropRunStats, error) {
 	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*Context)
 	if !ok {
-		return fmt.Errorf("%T is not a storage.Context", stcInterface)
+		return nil, fmt.Errorf("%T is not a storage.Context", stcInterface)
 	}
 	key := ic.VM.Estack().Pop().Bytes()
 	if stc.ReadOnly {
-		return errors.New("storage.Context is read only")
+		return nil, errors.New("storage.Context is read only")
 	}
 	ic.DAO.DeleteStorageItem(stc.ID, key)
-	return nil
+	return nil, nil
 }
 
 // LocalDelete is similar to Delete, but does not require storage context.
-func LocalDelete(ic *interop.Context) error {
+func LocalDelete(ic *interop.Context) (*fee.InteropRunStats, error) {
 	key := ic.VM.Estack().Pop().Bytes()
 	contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 	if err != nil {
-		return fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
+		return nil, fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
 	}
 	ic.DAO.DeleteStorageItem(contract.ID, key)
-	return nil
+	return nil, nil
 }
 
 func get(ic *interop.Context, getID func(ic *interop.Context) (int32, error)) error {
@@ -60,20 +61,20 @@ func get(ic *interop.Context, getID func(ic *interop.Context) (int32, error)) er
 }
 
 // Get returns stored key-value pair.
-func Get(ic *interop.Context) error {
+func Get(ic *interop.Context) (*fee.InteropRunStats, error) {
 	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*Context)
 	if !ok {
-		return fmt.Errorf("%T is not a storage.Context", stcInterface)
+		return nil, fmt.Errorf("%T is not a storage.Context", stcInterface)
 	}
-	return get(ic, func(ic *interop.Context) (int32, error) {
+	return nil, get(ic, func(ic *interop.Context) (int32, error) {
 		return stc.ID, nil
 	})
 }
 
 // LocalGet is similar to Get, but does not require storage context.
-func LocalGet(ic *interop.Context) error {
-	return get(ic, func(ic *interop.Context) (int32, error) {
+func LocalGet(ic *interop.Context) (*fee.InteropRunStats, error) {
+	return nil, get(ic, func(ic *interop.Context) (int32, error) {
 		contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 		if err != nil {
 			return 0, fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
@@ -83,13 +84,13 @@ func LocalGet(ic *interop.Context) error {
 }
 
 // GetContext returns storage context for the currently executing contract.
-func GetContext(ic *interop.Context) error {
-	return getContextInternal(ic, false)
+func GetContext(ic *interop.Context) (*fee.InteropRunStats, error) {
+	return nil, getContextInternal(ic, false)
 }
 
 // GetReadOnlyContext returns read-only storage context for the currently executing contract.
-func GetReadOnlyContext(ic *interop.Context) error {
-	return getContextInternal(ic, true)
+func GetReadOnlyContext(ic *interop.Context) (*fee.InteropRunStats, error) {
+	return nil, getContextInternal(ic, true)
 }
 
 // getContextInternal is internal version of storageGetContext and
@@ -136,36 +137,36 @@ func putWithContext(ic *interop.Context, stc *Context, key []byte, value []byte)
 }
 
 // Put puts key-value pair into the storage.
-func Put(ic *interop.Context) error {
+func Put(ic *interop.Context) (*fee.InteropRunStats, error) {
 	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*Context)
 	if !ok {
-		return fmt.Errorf("%T is not a storage.Context", stcInterface)
+		return nil, fmt.Errorf("%T is not a storage.Context", stcInterface)
 	}
 	key := ic.VM.Estack().Pop().Bytes()
 	value := ic.VM.Estack().Pop().Bytes()
-	return putWithContext(ic, stc, key, value)
+	return nil, putWithContext(ic, stc, key, value)
 }
 
 // LocalPut is similar to Put, but does not require storage context.
-func LocalPut(ic *interop.Context) error {
+func LocalPut(ic *interop.Context) (*fee.InteropRunStats, error) {
 	key := ic.VM.Estack().Pop().Bytes()
 	value := ic.VM.Estack().Pop().Bytes()
 	contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 	if err != nil {
-		return fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
+		return nil, fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
 	}
-	return putWithContext(ic, &Context{
+	return nil, putWithContext(ic, &Context{
 		ID: contract.ID,
 	}, key, value)
 }
 
 // ContextAsReadOnly sets given context to read-only mode.
-func ContextAsReadOnly(ic *interop.Context) error {
+func ContextAsReadOnly(ic *interop.Context) (*fee.InteropRunStats, error) {
 	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*Context)
 	if !ok {
-		return fmt.Errorf("%T is not a storage.Context", stcInterface)
+		return nil, fmt.Errorf("%T is not a storage.Context", stcInterface)
 	}
 	if !stc.ReadOnly {
 		stx := &Context{
@@ -175,5 +176,5 @@ func ContextAsReadOnly(ic *interop.Context) error {
 		stc = stx
 	}
 	ic.VM.Estack().PushItem(stackitem.NewInterop(stc))
-	return nil
+	return nil, nil
 }

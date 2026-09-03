@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -165,7 +166,7 @@ func (ic *Context) Signers() []transaction.Signer {
 type Function struct {
 	ID         uint32
 	Name       string
-	Func       func(*Context) error
+	Func       func(*Context) (*fee.InteropRunStats, error)
 	Price      int64
 	ActiveFrom config.Hardfork
 	// RequiredFlags is a set of flags which must be set during script invocations.
@@ -529,11 +530,19 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 	if !cf.Has(f.RequiredFlags) {
 		return fmt.Errorf("missing call flags: %05b vs %05b", cf, f.RequiredFlags)
 	}
-	price := f.Price * ic.BaseExecFee()
-	if err := ic.VM.AddPicoGas(price); err != nil {
+	if !ic.IsHardforkEnabled(config.HFGorgon) {
+		price := f.Price * ic.BaseExecFee()
+		if err := ic.VM.AddPicoGas(price); err != nil {
+			return err
+		}
+		_, fErr := f.Func(ic)
+		return fErr
+	}
+	stats, fErr := f.Func(ic)
+	if err := ic.VM.AddPicoGas(fee.InteropV1(ic.baseExecFee, f.Name, stats)); err != nil {
 		return err
 	}
-	return f.Func(ic)
+	return fErr
 }
 
 // SpawnVM spawns a new VM with the specified gas limit and set context.VM field.

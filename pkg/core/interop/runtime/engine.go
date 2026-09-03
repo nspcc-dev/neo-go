@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -29,60 +30,60 @@ const (
 )
 
 // GetExecutingScriptHash returns executing script hash.
-func GetExecutingScriptHash(ic *interop.Context) error {
-	return ic.VM.PushContextScriptHash(0)
+func GetExecutingScriptHash(ic *interop.Context) (*fee.InteropRunStats, error) {
+	return nil, ic.VM.PushContextScriptHash(0)
 }
 
 // GetCallingScriptHash returns calling script hash.
 // While Executing and Entry script hashes are always valid for non-native contracts,
 // Calling hash is set explicitly when native contracts are used, because when switching from
 // one native to another, no operations are performed on invocation stack.
-func GetCallingScriptHash(ic *interop.Context) error {
+func GetCallingScriptHash(ic *interop.Context) (*fee.InteropRunStats, error) {
 	h := ic.VM.GetCallingScriptHash()
 	ic.VM.Estack().PushItem(stackitem.NewByteArray(h.BytesBE()))
-	return nil
+	return nil, nil
 }
 
 // GetEntryScriptHash returns entry script hash.
-func GetEntryScriptHash(ic *interop.Context) error {
-	return ic.VM.PushContextScriptHash(len(ic.VM.Istack()) - 1)
+func GetEntryScriptHash(ic *interop.Context) (*fee.InteropRunStats, error) {
+	return nil, ic.VM.PushContextScriptHash(len(ic.VM.Istack()) - 1)
 }
 
 // GetScriptContainer returns transaction or block that contains the script
 // being run.
-func GetScriptContainer(ic *interop.Context) error {
+func GetScriptContainer(ic *interop.Context) (*fee.InteropRunStats, error) {
 	c, ok := ic.Container.(itemable)
 	if !ok {
-		return errors.New("unknown script container")
+		return nil, errors.New("unknown script container")
 	}
 	ic.VM.Estack().PushItem(c.ToStackItem())
-	return nil
+	return nil, nil
 }
 
 // Platform returns the name of the platform.
-func Platform(ic *interop.Context) error {
+func Platform(ic *interop.Context) (*fee.InteropRunStats, error) {
 	ic.VM.Estack().PushItem(stackitem.NewByteArray([]byte("NEO")))
-	return nil
+	return nil, nil
 }
 
 // GetTrigger returns the script trigger.
-func GetTrigger(ic *interop.Context) error {
+func GetTrigger(ic *interop.Context) (*fee.InteropRunStats, error) {
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(ic.Trigger))))
-	return nil
+	return nil, nil
 }
 
 // Notify should pass stack item to the notify plugin to handle it, but
 // in neo-go the only meaningful thing to do here is to log.
-func Notify(ic *interop.Context) error {
+func Notify(ic *interop.Context) (*fee.InteropRunStats, error) {
 	name := ic.VM.Estack().Pop().String()
 	elem := ic.VM.Estack().Pop()
 	args := elem.Array()
 	if len(name) > MaxEventNameLen {
-		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
+		return nil, fmt.Errorf("event name must be less than %d", MaxEventNameLen)
 	}
 	curr := ic.VM.Context().GetManifest()
 	if curr == nil {
-		return errors.New("notifications are not allowed in dynamic scripts")
+		return nil, errors.New("notifications are not allowed in dynamic scripts")
 	}
 	var (
 		ev       = curr.ABI.GetEvent(name)
@@ -99,7 +100,7 @@ func Notify(ic *interop.Context) error {
 	}
 	if checkErr != nil {
 		if ic.IsHardforkEnabled(config.HFBasilisk) {
-			return checkErr
+			return nil, checkErr
 		}
 		ic.Log.Info("bad notification", zap.String("contract", curHash.StringLE()), zap.String("event", name), zap.Error(checkErr))
 	}
@@ -109,40 +110,41 @@ func Notify(ic *interop.Context) error {
 	// outside of the interop subsystem anyway.
 	bytes, err := ic.DAO.GetItemCtx().Serialize(elem.Item(), false)
 	if err != nil {
-		return fmt.Errorf("bad notification: %w", err)
+		return nil, fmt.Errorf("bad notification: %w", err)
 	}
 	if len(bytes) > MaxNotificationSize {
-		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
+		return nil, fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
 	}
-	return ic.AddNotification(curHash, name, stackitem.DeepCopy(stackitem.NewArray(args), true).(*stackitem.Array))
+	return &fee.InteropRunStats{EntriesCount: len(curr.ABI.Events), ArgsCount: len(args)}, ic.AddNotification(curHash, name, stackitem.DeepCopy(stackitem.NewArray(args), true).(*stackitem.Array))
 }
 
 // LoadScript takes a script and arguments from the stack and loads it into the VM.
-func LoadScript(ic *interop.Context) error {
+func LoadScript(ic *interop.Context) (*fee.InteropRunStats, error) {
 	script := ic.VM.Estack().Pop().Bytes()
 	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
 	if fs&^callflag.All != 0 {
-		return errors.New("call flags out of range")
+		return nil, errors.New("call flags out of range")
 	}
 	args := ic.VM.Estack().Pop().Array()
 	err := scparser.IsScriptCorrect(script, nil)
 	if err != nil {
-		return fmt.Errorf("invalid script: %w", err)
+		return nil, fmt.Errorf("invalid script: %w", err)
 	}
 	fs = ic.VM.Context().GetCallFlags() & callflag.ReadOnly & fs
 	ic.VM.LoadDynamicScript(script, fs)
 
+	r1 := ic.VM.RefCount()
 	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
 		e.PushItem(args[i])
 	}
-	return nil
+	return &fee.InteropRunStats{Length: len(script), ArgsCount: len(args), RefsDelta: ic.VM.RefCount() - r1}, nil
 }
 
 // Log logs the message passed.
-func Log(ic *interop.Context) error {
+func Log(ic *interop.Context) (*fee.InteropRunStats, error) {
 	state := ic.VM.Estack().Pop().String()
 	if len(state) > MaxNotificationSize {
-		return fmt.Errorf("message length shouldn't exceed %v", MaxNotificationSize)
+		return nil, fmt.Errorf("message length shouldn't exceed %v", MaxNotificationSize)
 	}
 	var txHash string
 	if ic.Tx != nil {
@@ -152,43 +154,42 @@ func Log(ic *interop.Context) error {
 		zap.String("tx", txHash),
 		zap.String("script", ic.VM.GetCurrentScriptHash().StringLE()),
 		zap.String("msg", state))
-	return nil
+	return nil, nil
 }
 
 // GetTime returns timestamp of the block being verified, or the latest
 // one in the blockchain if no block is given to Context.
-func GetTime(ic *interop.Context) error {
+func GetTime(ic *interop.Context) (*fee.InteropRunStats, error) {
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(new(big.Int).SetUint64(ic.GetTime())))
-	return nil
+	return nil, nil
 }
 
 // BurnGas burns GAS to benefit Neo ecosystem.
-func BurnGas(ic *interop.Context) error {
+func BurnGas(ic *interop.Context) (*fee.InteropRunStats, error) {
 	gas := ic.VM.Estack().Pop().BigInt()
 	if !gas.IsInt64() {
-		return errors.New("invalid GAS value")
+		return nil, errors.New("invalid GAS value")
 	}
 
 	g := gas.Int64()
 	if g <= 0 {
-		return errors.New("GAS must be positive")
+		return nil, errors.New("GAS must be positive")
 	}
 
 	if err := ic.VM.AddDatoshi(g); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
 // CurrentSigners returns signers of the currently loaded transaction or stackitem.Null
 // if script container is not a transaction.
-func CurrentSigners(ic *interop.Context) error {
+func CurrentSigners(ic *interop.Context) (*fee.InteropRunStats, error) {
 	tx, ok := ic.Container.(*transaction.Transaction)
 	if ok {
 		ic.VM.Estack().PushItem(transaction.SignersToStackItem(tx.Signers))
-	} else {
-		ic.VM.Estack().PushItem(stackitem.Null{})
+		return &fee.InteropRunStats{EntriesCount: len(tx.Signers)}, nil
 	}
-
-	return nil
+	ic.VM.Estack().PushItem(stackitem.Null{})
+	return nil, nil
 }

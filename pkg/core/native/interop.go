@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -13,10 +14,10 @@ import (
 )
 
 // Call calls the specified native contract method.
-func Call(ic *interop.Context) error {
+func Call(ic *interop.Context) (*fee.InteropRunStats, error) {
 	version := ic.VM.Estack().Pop().BigInt().Int64()
 	if version != 0 {
-		return fmt.Errorf("native contract of version %d is not active", version)
+		return nil, fmt.Errorf("native contract of version %d is not active", version)
 	}
 	var (
 		c    interop.Contract
@@ -29,7 +30,7 @@ func Call(ic *interop.Context) error {
 		}
 	}
 	if c == nil {
-		return fmt.Errorf("native contract %s (version %d) not found", curr.StringLE(), version)
+		return nil, fmt.Errorf("native contract %s (version %d) not found", curr.StringLE(), version)
 	}
 	var (
 		genericMeta = c.Metadata()
@@ -40,7 +41,7 @@ func Call(ic *interop.Context) error {
 		// Persisting block must not be taken into account, native contract can be called
 		// only AFTER its initialization block persist, thus, can't use ic.IsHardforkEnabled.
 		if !ok || ic.BlockHeight() < height {
-			return fmt.Errorf("native contract %s is active after hardfork %s", genericMeta.Name, activeIn.String())
+			return nil, fmt.Errorf("native contract %s is active after hardfork %s", genericMeta.Name, activeIn.String())
 		}
 	}
 	var current config.Hardfork
@@ -53,7 +54,7 @@ func Call(ic *interop.Context) error {
 	meta := genericMeta.HFSpecificContractMD(&current)
 	m, ok := meta.GetMethodByOffset(ic.VM.Context().IP())
 	if !ok {
-		return fmt.Errorf("method not found")
+		return nil, fmt.Errorf("method not found")
 	}
 	reqFlags := m.RequiredFlags
 	if !ic.IsHardforkEnabled(config.HFAspidochelone) && meta.ID == ic.Chain.NativeManagementID() &&
@@ -61,7 +62,7 @@ func Call(ic *interop.Context) error {
 		reqFlags &= callflag.States | callflag.AllowNotify
 	}
 	if !ic.VM.Context().GetCallFlags().Has(reqFlags) {
-		return fmt.Errorf("missing call flags for native %d `%s` operation call: %05b vs %05b",
+		return nil, fmt.Errorf("missing call flags for native %d `%s` operation call: %05b vs %05b",
 			version, m.MD.Name, ic.VM.Context().GetCallFlags(), reqFlags)
 	}
 	// Filter out whitelisted contracts since the fee was already charged by the System.Contract.Call handler.
@@ -69,7 +70,7 @@ func Call(ic *interop.Context) error {
 		ic.PolicyChecker == nil || ic.PolicyChecker.WhitelistedFee(ic.DAO, curr, m.MD.Offset) == -1 {
 		invokeFee := m.CPUFee*ic.BaseExecFee() + m.StorageFee*ic.BaseStorageFee()
 		if err := ic.VM.AddPicoGas(invokeFee); err != nil {
-			return fmt.Errorf("%w executing %s/%s/%d", err, curr.StringLE(), m.MD.Name, len(m.MD.Parameters))
+			return nil, fmt.Errorf("%w executing %s/%s/%d", err, curr.StringLE(), m.MD.Name, len(m.MD.Parameters))
 		}
 	}
 	ctx := ic.VM.Context()
@@ -77,13 +78,17 @@ func Call(ic *interop.Context) error {
 	for i := range args {
 		args[i] = ic.VM.Estack().Peek(i).Item()
 	}
+	var stats *fee.InteropRunStats
 	popArgsPushRes := func(result stackitem.Item) {
+		r1 := ic.VM.RefCount()
 		for range m.MD.Parameters {
 			ctx.Estack().Pop()
 		}
+		r2 := ic.VM.RefCount()
 		if m.MD.ReturnType != smartcontract.VoidType {
 			ctx.Estack().PushItem(result)
 		}
+		stats = &fee.InteropRunStats{RefsDelta: r1 - r2}
 	}
 	if m.DeferrableFunc != nil {
 		m.DeferrableFunc(ic, args, popArgsPushRes)
@@ -91,13 +96,13 @@ func Call(ic *interop.Context) error {
 		result := m.Func(ic, args)
 		popArgsPushRes(result)
 	}
-	return nil
+	return stats, nil
 }
 
 // OnPersist calls OnPersist methods for all native contracts.
-func OnPersist(ic *interop.Context) error {
+func OnPersist(ic *interop.Context) (*fee.InteropRunStats, error) {
 	if ic.Trigger != trigger.OnPersist {
-		return errors.New("onPersist must be triggered by system")
+		return nil, errors.New("onPersist must be triggered by system")
 	}
 	for _, c := range ic.Natives {
 		activeIn := c.ActiveIn()
@@ -106,16 +111,16 @@ func OnPersist(ic *interop.Context) error {
 		}
 		err := c.OnPersist(ic)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // PostPersist calls PostPersist methods for all native contracts.
-func PostPersist(ic *interop.Context) error {
+func PostPersist(ic *interop.Context) (*fee.InteropRunStats, error) {
 	if ic.Trigger != trigger.PostPersist {
-		return errors.New("postPersist must be triggered by system")
+		return nil, errors.New("postPersist must be triggered by system")
 	}
 	for _, c := range ic.Natives {
 		activeIn := c.ActiveIn()
@@ -124,8 +129,8 @@ func PostPersist(ic *interop.Context) error {
 		}
 		err := c.PostPersist(ic)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return nil, nil
 }
