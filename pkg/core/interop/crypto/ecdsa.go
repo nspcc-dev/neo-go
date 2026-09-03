@@ -30,7 +30,11 @@ func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
 	if len(pkeys) < len(sigs) {
 		return errors.New("more signatures than there are keys")
 	}
-	if err := ic.VM.AddPicoGas(ic.BaseExecFee() * fee.ECDSAVerifyPrice * int64(len(pkeys))); err != nil {
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * fee.ECDSAVerifyPriceSinceHuyao * int64(len(pkeys))); err != nil {
+			return err
+		}
+	} else if err := ic.VM.AddPicoGas(ic.BaseExecFee() * fee.ECDSAVerifyPrice * int64(len(pkeys))); err != nil {
 		return err
 	}
 	if ic.IsHardforkEnabled(config.HFGorgon) {
