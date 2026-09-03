@@ -38,7 +38,8 @@ func TestGetCallFlags(t *testing.T) {
 	require.NoError(t, err)
 
 	ic.VM.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, callflag.All)
-	require.NoError(t, contract.GetCallFlags(ic))
+	_, err = contract.GetCallFlags(ic)
+	require.NoError(t, err)
 	require.Equal(t, int64(callflag.All), ic.VM.Estack().Pop().Value().(*big.Int).Int64())
 }
 
@@ -62,7 +63,8 @@ func TestCall(t *testing.T) {
 			ic.VM.Estack().PushVal(callflag.All)
 			ic.VM.Estack().PushVal("add")
 			ic.VM.Estack().PushVal(h.BytesBE())
-			require.NoError(t, contract.Call(ic))
+			_, err := contract.Call(ic)
+			require.NoError(t, err)
 			require.NoError(t, ic.VM.Run())
 			require.Equal(t, 2, ic.VM.Estack().Len())
 			require.Equal(t, big.NewInt(3), ic.VM.Estack().Pop().Value())
@@ -75,7 +77,8 @@ func TestCall(t *testing.T) {
 			ic.VM.Estack().PushVal(callflag.All)
 			ic.VM.Estack().PushVal("add")
 			ic.VM.Estack().PushVal(h.BytesBE())
-			require.NoError(t, contract.Call(ic))
+			_, err := contract.Call(ic)
+			require.NoError(t, err)
 			require.NoError(t, ic.VM.Run())
 			require.Equal(t, 2, ic.VM.Estack().Len())
 			require.Equal(t, big.NewInt(6), ic.VM.Estack().Pop().Value())
@@ -89,7 +92,8 @@ func TestCall(t *testing.T) {
 		ic.VM.Estack().PushVal(byte(0xFF))
 		ic.VM.Estack().PushVal("add")
 		ic.VM.Estack().PushVal(h.BytesBE())
-		require.Error(t, contract.Call(ic))
+		_, err := contract.Call(ic)
+		require.Error(t, err)
 	})
 
 	runInvalid := func(args ...any) func(t *testing.T) {
@@ -101,7 +105,7 @@ func TestCall(t *testing.T) {
 			// interops can both return error and panic,
 			// we don't care which kind of error has occurred
 			require.Panics(t, func() {
-				err := contract.Call(ic)
+				_, err := contract.Call(ic)
 				if err != nil {
 					panic(err)
 				}
@@ -131,7 +135,8 @@ func TestCall(t *testing.T) {
 			ic.VM.Estack().PushVal(callflag.All)
 			ic.VM.Estack().PushVal("invalidReturn")
 			ic.VM.Estack().PushVal(h.BytesBE())
-			require.NoError(t, contract.Call(ic))
+			_, err := contract.Call(ic)
+			require.NoError(t, err)
 			require.Error(t, ic.VM.Run())
 		})
 		t.Run("Void", func(t *testing.T) {
@@ -140,7 +145,8 @@ func TestCall(t *testing.T) {
 			ic.VM.Estack().PushVal(callflag.All)
 			ic.VM.Estack().PushVal("justReturn")
 			ic.VM.Estack().PushVal(h.BytesBE())
-			require.NoError(t, contract.Call(ic))
+			_, err := contract.Call(ic)
+			require.NoError(t, err)
 			require.NoError(t, ic.VM.Run())
 			require.Equal(t, 2, ic.VM.Estack().Len())
 			require.Equal(t, stackitem.Null{}, ic.VM.Estack().Pop().Item())
@@ -154,7 +160,8 @@ func TestCall(t *testing.T) {
 		ic.VM.Estack().PushVal(callflag.All)
 		ic.VM.Estack().PushVal("drop")
 		ic.VM.Estack().PushVal(h.BytesBE())
-		require.NoError(t, contract.Call(ic))
+		_, err := contract.Call(ic)
+		require.NoError(t, err)
 		require.Error(t, ic.VM.Run())
 	})
 
@@ -166,7 +173,8 @@ func TestCall(t *testing.T) {
 		ic.VM.Estack().PushVal(callflag.All)
 		ic.VM.Estack().PushVal("add3")
 		ic.VM.Estack().PushVal(h.BytesBE())
-		require.NoError(t, contract.Call(ic))
+		_, err := contract.Call(ic)
+		require.NoError(t, err)
 		require.NoError(t, ic.VM.Run())
 		require.Equal(t, 2, ic.VM.Estack().Len())
 		require.Equal(t, big.NewInt(8), ic.VM.Estack().Pop().Value())
@@ -177,7 +185,8 @@ func TestCall(t *testing.T) {
 		ic.VM.Reset(trigger.Application)
 		ic.VM.Estack().PushVal("method")
 		ic.VM.Estack().PushVal([]byte{1, 2, 3}) // not a hash.
-		require.ErrorContains(t, contract.Call(ic), "invalid contract hash")
+		_, err := contract.Call(ic)
+		require.ErrorContains(t, err, "invalid contract hash")
 
 		// Ensure no additional arguments are POP-ed from the stack since it affects the resulting RC.
 		require.Equal(t, 1, ic.VM.Estack().Len())

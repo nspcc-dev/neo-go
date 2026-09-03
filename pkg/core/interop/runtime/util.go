@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -17,23 +18,23 @@ import (
 )
 
 // GasLeft returns the remaining amount of GAS.
-func GasLeft(ic *interop.Context) error {
+func GasLeft(ic *interop.Context) (*fee.InteropRunStats, error) {
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(ic.VM.GasLeft()))
-	return nil
+	return nil, nil
 }
 
 // GetNotifications returns notifications emitted in the current execution context.
-func GetNotifications(ic *interop.Context) error {
+func GetNotifications(ic *interop.Context) (*fee.InteropRunStats, error) {
 	item := ic.VM.Estack().Pop().Item()
 	notifications := ic.Notifications
 	if _, ok := item.(stackitem.Null); !ok {
 		b, err := item.TryBytes()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		u, err := util.Uint160DecodeBytesBE(b)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		notifications = []state.NotificationEvent{}
 		for i := range ic.Notifications {
@@ -43,7 +44,7 @@ func GetNotifications(ic *interop.Context) error {
 		}
 	}
 	if len(notifications) > vm.MaxStackSize {
-		return errors.New("too many notifications")
+		return nil, errors.New("too many notifications")
 	}
 	arr := stackitem.NewArray(make([]stackitem.Item, 0, len(notifications)))
 	for i := range notifications {
@@ -55,11 +56,11 @@ func GetNotifications(ic *interop.Context) error {
 		arr.Append(ev)
 	}
 	ic.VM.Estack().PushItem(arr)
-	return nil
+	return &fee.InteropRunStats{Stat: len(notifications)}, nil
 }
 
 // GetInvocationCounter returns how many times the current contract has been invoked during the current tx execution.
-func GetInvocationCounter(ic *interop.Context) error {
+func GetInvocationCounter(ic *interop.Context) (*fee.InteropRunStats, error) {
 	currentScriptHash := ic.VM.GetCurrentScriptHash()
 	count, ok := ic.Invocations[currentScriptHash]
 	if !ok {
@@ -67,24 +68,24 @@ func GetInvocationCounter(ic *interop.Context) error {
 		ic.Invocations[currentScriptHash] = count
 	}
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(count))))
-	return nil
+	return nil, nil
 }
 
 // GetAddressVersion returns the address version of the current protocol.
-func GetAddressVersion(ic *interop.Context) error {
+func GetAddressVersion(ic *interop.Context) (*fee.InteropRunStats, error) {
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(address.NEO3Prefix))))
-	return nil
+	return nil, nil
 }
 
 // GetNetwork returns chain network number.
-func GetNetwork(ic *interop.Context) error {
+func GetNetwork(ic *interop.Context) (*fee.InteropRunStats, error) {
 	m := ic.Chain.GetConfig().Magic
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(m))))
-	return nil
+	return nil, nil
 }
 
 // GetRandom returns pseudo-random number which depends on block nonce and transaction hash.
-func GetRandom(ic *interop.Context) error {
+func GetRandom(ic *interop.Context) (*fee.InteropRunStats, error) {
 	var (
 		price int64
 		seed  = ic.Network
@@ -102,12 +103,12 @@ func GetRandom(ic *interop.Context) error {
 		ic.NonceData = [interop.ContextNonceDataLen]byte(res)
 	}
 	if err := ic.VM.AddPicoGas(ic.BaseExecFee() * price); err != nil {
-		return err
+		return nil, err
 	}
 	// Resulting data is interpreted as an unsigned LE integer.
 	slices.Reverse(res)
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(new(big.Int).SetBytes(res)))
-	return nil
+	return nil, nil
 }
 
 func murmur128(data []byte, seed uint32) []byte {
