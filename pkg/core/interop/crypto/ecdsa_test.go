@@ -193,7 +193,7 @@ func TestCheckSig(t *testing.T) {
 					err = fmt.Errorf("panic: %v", r)
 				}
 			}()
-			err = verifyFunc(ic)
+			_, err = verifyFunc(ic)
 		}()
 
 		if isErr {

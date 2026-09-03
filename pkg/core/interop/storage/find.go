@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -36,6 +37,10 @@ type Iterator struct {
 	// copied if no FindRemovePrefix option specified since it's shared between all
 	// iterator items.
 	prefix []byte
+	// deserializedLen is the total length of Buffer/ByteArray items produced
+	// by deserializing the current value, 0 if FindDeserialize wasn't used
+	// for it.
+	deserializedLen int
 }
 
 // NewIterator creates a new Iterator with the given options for the given channel of store.Seek results.
@@ -60,6 +65,7 @@ func (s *Iterator) Value() stackitem.Item {
 	if !s.next {
 		panic("iterator index out of range")
 	}
+	s.deserializedLen = 0
 	key := s.curr.Key
 	if s.opts&FindRemovePrefix == 0 {
 		key = slices.Concat(s.prefix, key)
@@ -71,7 +77,7 @@ func (s *Iterator) Value() stackitem.Item {
 	if s.opts&FindDeserialize != 0 {
 		bs := s.curr.Value
 		var err error
-		value, err = stackitem.Deserialize(bs)
+		value, s.deserializedLen, err = stackitem.DeserializeCounted(bs)
 		if err != nil {
 			panic(err)
 		}
@@ -88,6 +94,10 @@ func (s *Iterator) Value() stackitem.Item {
 		stackitem.NewByteArray(key),
 		value,
 	})
+}
+
+func (s *Iterator) DeserializedLen() int {
+	return s.deserializedLen
 }
 
 func findWithContext(ic *interop.Context, stc *Context, getID ...func(ic *interop.Context) (int32, error)) error {
@@ -135,18 +145,18 @@ func findWithContext(ic *interop.Context, stc *Context, getID ...func(ic *intero
 }
 
 // Find finds stored key-value pair.
-func Find(ic *interop.Context) error {
+func Find(ic *interop.Context) (*fee.InteropRunStats, error) {
 	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*Context)
 	if !ok {
-		return fmt.Errorf("%T is not a storage.Context", stcInterface)
+		return nil, fmt.Errorf("%T is not a storage.Context", stcInterface)
 	}
-	return findWithContext(ic, stc)
+	return nil, findWithContext(ic, stc)
 }
 
 // LocalFind is similar to Find, but does not require storage context.
-func LocalFind(ic *interop.Context) error {
-	return findWithContext(ic, &Context{ReadOnly: true}, func(ic *interop.Context) (int32, error) {
+func LocalFind(ic *interop.Context) (*fee.InteropRunStats, error) {
+	return nil, findWithContext(ic, &Context{ReadOnly: true}, func(ic *interop.Context) (int32, error) {
 		contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 		if err != nil {
 			return 0, fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
