@@ -67,7 +67,14 @@ const (
 	MaxStackSize = 2 * 1024
 
 	maxSHLArg = stackitem.MaxBigIntegerSizeBits
+
+	// OpcodePriceMultiplier is a multiplier applied to opcode price weights starting
+	// from [config.HFHuyao] hardfork to provide fractional opcode pricing
+	// functionality.
+	OpcodePriceMultiplier = 1000
 )
+
+var uint256OpcodePriceMultiplier = uint256.NewInt(OpcodePriceMultiplier)
 
 // SyscallHandler is a type for syscall handler.
 type SyscallHandler = func(*VM, uint32) error
@@ -170,7 +177,7 @@ func (v *VM) SetIsHardforkEnabled(f func(config.Hardfork) bool) {
 func (v *VM) SetGasLimit(datoshi int64) {
 	v.gasLimit = datoshi
 	if datoshi > 0 {
-		v.gasLimit *= ExecFeeFactorMultiplier
+		v.gasLimit *= ExecFeeFactorMultiplier * OpcodePriceMultiplier
 	}
 }
 
@@ -178,7 +185,7 @@ func (v *VM) SetGasLimit(datoshi int64) {
 func (v *VM) GasLimit() int64 {
 	res := v.gasLimit
 	if res > 0 {
-		res /= ExecFeeFactorMultiplier // gasLimit is divisible by ExecFeeFactorMultiplier by definition.
+		res /= ExecFeeFactorMultiplier * OpcodePriceMultiplier // gasLimit is divisible by this product by definition.
 	}
 	return res
 }
@@ -211,14 +218,20 @@ var uint256ExecFeeFactorMultiplier = uint256.NewInt(ExecFeeFactorMultiplier)
 // GasConsumed returns the amount of GAS consumed during execution in Datoshi
 // units rounded from picoGAS to the upper integer.
 func (v *VM) GasConsumed() int64 {
-	consumed := PicoGasToDatoshi(v.gasConsumed)
+	picoGas := new(uint256.Int).Div(v.gasConsumed, uint256OpcodePriceMultiplier)
+	consumed := PicoGasToDatoshi(picoGas)
 	if consumed.IsUint64() {
 		u64 := consumed.Uint64()
 		if u64 <= math.MaxInt64 {
 			return int64(u64)
 		}
 	}
-	return v.gasLimit / ExecFeeFactorMultiplier // known to be divisible without remnant.
+	return v.gasLimit / (ExecFeeFactorMultiplier * OpcodePriceMultiplier) // known to be divisible without remnant.
+}
+
+// RefCount returns the current value of the VM's reference counter.
+func (v *VM) RefCount() int {
+	return int(v.refs)
 }
 
 // GasLeft returns the amount of GAS left in Datoshi units rounded from picoGAS
@@ -230,8 +243,8 @@ func (v *VM) GasLeft() *big.Int {
 	if !v.gasConsumed.LtUint64(uint64(v.gasLimit)) {
 		return big.NewInt(0)
 	}
-	// (gasLimit - gasConsumed) / ExecFeeFactorMultiplier
-	return new(uint256.Int).Div(new(uint256.Int).Sub(uint256.NewInt(uint64(v.gasLimit)), v.gasConsumed), uint256ExecFeeFactorMultiplier).ToBig()
+	// (gasLimit - gasConsumed) / (ExecFeeFactorMultiplier * OpcodePriceMultiplier)
+	return new(uint256.Int).Div(new(uint256.Int).Sub(uint256.NewInt(uint64(v.gasLimit)), v.gasConsumed), new(uint256.Int).Mul(uint256ExecFeeFactorMultiplier, uint256OpcodePriceMultiplier)).ToBig()
 }
 
 // PicoGasToDatoshi divides x by ExecFeeFactorMultiplier and rounds the result
@@ -260,6 +273,18 @@ func (v *VM) AddPicoGas(gas int64) error {
 
 // addPicoGasInternal is an internal AddPicoGas representation accepting uint256.Int.
 func (v *VM) addPicoGasInternal(gas *uint256.Int) error {
+	return v.addFemtoGasInternal(new(uint256.Int).Mul(gas, uint256OpcodePriceMultiplier))
+}
+
+// AddFemtoGas consumes the specified amount of gas in femtoGAS units if the
+// executing method is not whitelisted. It returns [ErrGASLimitExceeded] if the
+// gas limit was exceeded.
+func (v *VM) AddFemtoGas(gas int64) error {
+	return v.addFemtoGasInternal(uint256.NewInt(uint64(gas)))
+}
+
+// addFemtoGasInternal is an internal AddFemtoGas representation accepting uint256.Int.
+func (v *VM) addFemtoGasInternal(gas *uint256.Int) error {
 	if ctx := v.Context(); ctx == nil || !ctx.sc.whitelisted {
 		v.gasConsumed.Add(v.gasConsumed, gas)
 	}
@@ -737,11 +762,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 	}()
 
-	if v.getPrice != nil && ctx.IP() < len(ctx.sc.prog) && !ctx.sc.whitelisted {
-		p := v.getPrice(op, parameter)
-		v.gasConsumed.AddUint64(v.gasConsumed, uint64(p))
-		if v.gasLimit >= 0 && v.gasConsumed.GtUint64(uint64(v.gasLimit)) {
-			panic(ErrGASLimitExceeded)
+	if v.getPrice != nil && ctx.IP() < len(ctx.sc.prog) {
+		if err := v.AddPicoGas(v.getPrice(op, parameter)); err != nil {
+			panic(err)
 		}
 	}
 

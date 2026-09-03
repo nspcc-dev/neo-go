@@ -19,14 +19,16 @@ func TestGasLeft(t *testing.T) {
 		ic := &interop.Context{VM: vm.New()}
 		ic.VM.SetGasLimit(-1)
 		require.NoError(t, ic.VM.AddDatoshi(58))
-		require.NoError(t, GasLeft(ic))
+		_, err := GasLeft(ic)
+		require.NoError(t, err)
 		checkStack(t, ic.VM, -1)
 	})
 	t.Run("with limit", func(t *testing.T) {
 		ic := &interop.Context{VM: vm.New()}
 		ic.VM.SetGasLimit(100)
 		require.NoError(t, ic.VM.AddDatoshi(58))
-		require.NoError(t, GasLeft(ic))
+		_, err := GasLeft(ic)
+		require.NoError(t, err)
 		checkStack(t, ic.VM, 42)
 	})
 }
@@ -44,7 +46,8 @@ func TestRuntimeGetNotifications(t *testing.T) {
 
 	t.Run("NoFilter", func(t *testing.T) {
 		v.Estack().PushVal(stackitem.Null{})
-		require.NoError(t, GetNotifications(ic))
+		_, err := GetNotifications(ic)
+		require.NoError(t, err)
 
 		arr := v.Estack().Pop().Array()
 		require.Equal(t, len(ic.Notifications), len(arr))
@@ -62,7 +65,8 @@ func TestRuntimeGetNotifications(t *testing.T) {
 	t.Run("WithFilter", func(t *testing.T) {
 		h := util.Uint160{2}.BytesBE()
 		v.Estack().PushVal(h)
-		require.NoError(t, GetNotifications(ic))
+		_, err := GetNotifications(ic)
+		require.NoError(t, err)
 
 		arr := v.Estack().Pop().Array()
 		require.Equal(t, 1, len(arr))
@@ -77,11 +81,13 @@ func TestRuntimeGetNotifications(t *testing.T) {
 	t.Run("Bad", func(t *testing.T) {
 		t.Run("not bytes", func(t *testing.T) {
 			v.Estack().PushVal(stackitem.NewInterop(util.Uint160{1}))
-			require.Error(t, GetNotifications(ic))
+			_, err := GetNotifications(ic)
+			require.Error(t, err)
 		})
 		t.Run("not uint160", func(t *testing.T) {
 			v.Estack().PushVal([]byte{1, 2, 3})
-			require.Error(t, GetNotifications(ic))
+			_, err := GetNotifications(ic)
+			require.Error(t, err)
 		})
 		t.Run("too many notifications", func(t *testing.T) {
 			for range vm.MaxStackSize + 1 {
@@ -92,7 +98,8 @@ func TestRuntimeGetNotifications(t *testing.T) {
 				})
 			}
 			v.Estack().PushVal(stackitem.Null{})
-			require.Error(t, GetNotifications(ic))
+			_, err := GetNotifications(ic)
+			require.Error(t, err)
 		})
 	})
 }
@@ -107,12 +114,14 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 		h1[0] ^= 0xFF
 		ic.VM.LoadScriptWithHash([]byte{1}, h1, callflag.NoneFlag)
 		// do not return an error in this case.
-		require.NoError(t, GetInvocationCounter(ic))
+		_, err := GetInvocationCounter(ic)
+		require.NoError(t, err)
 		checkStack(t, ic.VM, 1)
 	})
 	t.Run("NonZero", func(t *testing.T) {
 		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.NoneFlag)
-		require.NoError(t, GetInvocationCounter(ic))
+		_, err := GetInvocationCounter(ic)
+		require.NoError(t, err)
 		checkStack(t, ic.VM, 42)
 	})
 }
