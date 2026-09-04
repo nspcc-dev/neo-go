@@ -1962,9 +1962,20 @@ func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
 // transactions with all appropriate side-effects and updates Blockchain state.
 // This is the only way to change Blockchain state.
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
+	fmt.Printf("\nstoreBlock #%d:\n", block.Index)
+	fmt.Println("storeBlock: allocating cache")
 	var (
-		cache          = bc.dao.GetPrivate()
-		aerCache       = bc.dao.GetPrivate()
+		cache = bc.dao.GetPrivate(true)
+	)
+	fmt.Println("storeBlock: allocating AER cache")
+	var (
+		aerCache = bc.dao.GetPrivate(true)
+	)
+	fmt.Printf("storeBlock #%d: start processing\n", block.Index)
+	defer func() {
+		fmt.Printf("storeBlock #%d: end processing\n\n", block.Index)
+	}()
+	var (
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
@@ -2085,6 +2096,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	appExecResults = append(appExecResults, aer)
 	aerchan <- aer
 	close(aerchan)
+
+	cache.Store.Finalize()
+	aerCache.Store.Finalize()
+
 	b := mpt.MapToMPTBatch(cache.Store.GetStorageChanges())
 	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, cache.Store)
 	if err != nil {

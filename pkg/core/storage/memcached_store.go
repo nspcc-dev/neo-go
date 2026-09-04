@@ -25,7 +25,8 @@ type MemCachedStore struct {
 	// case if the current instance of MemCachedStore is private. View is opened
 	// during private MemCachedStore construction and is closed once
 	// MemCachedStore is released via
-	View IView
+	View    IView
+	closeTx bool
 }
 
 type (
@@ -61,18 +62,18 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 // Finalize releases RO DB view occupied by the current private instance of
 // MemCachedStore and, recursively, by its parents (if so).
 func (s *MemCachedStore) Finalize() error {
-	if s.private {
-		if lower, ok := s.ps.(*MemCachedStore); ok && lower.View != nil {
+	if s.private && s.closeTx {
+		/*if lower, ok := s.ps.(*MemCachedStore); ok && lower.View != nil {
 			err := lower.Finalize()
 			if err != nil {
 				return fmt.Errorf("failed to finalize parent's store: %w", err)
 			}
-		} else {
-			err := s.View.Close()
-			if err != nil {
-				return fmt.Errorf("failed to close DB view: %w", err)
-			}
+		} else {*/
+		err := s.View.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close DB view: %w", err)
 		}
+		//}
 		s.View = nil
 	}
 
@@ -81,23 +82,33 @@ func (s *MemCachedStore) Finalize() error {
 
 // NewPrivateMemCachedStore creates a new private (unlocked) MemCachedStore object.
 // Private cached stores are closed after Persist.
-func NewPrivateMemCachedStore(lower Store) *MemCachedStore {
-	var view IView
+func NewPrivateMemCachedStore(lower Store, openReadTx ...bool) *MemCachedStore {
+	var (
+		view    IView
+		closeTx bool
+	)
 	if cache, ok := lower.(*MemCachedStore); ok && cache.View != nil {
 		view = cache.View
-	} else {
+	}
+	if len(openReadTx) > 0 && openReadTx[0] {
 		var err error
+		fmt.Println("BeginView: NewPrivateMemCachedStore")
 		view, err = lower.BeginView()
 		if err != nil {
-			panic(fmt.Errorf("failed to initialize read transaction: %w", err))
+			panic(fmt.Errorf("failed to initialize read transaction to lower persistent storage: %w", err))
 		}
-	}
-
+		closeTx = true
+	} /*
+		if view == nil {
+			panic("bug: nil view")
+		}
+	*/
 	return &MemCachedStore{
 		MemoryStore: *NewMemoryStore(),
 		private:     true,
 		ps:          lower,
 		View:        view,
+		closeTx:     closeTx,
 	}
 }
 
@@ -131,6 +142,7 @@ func (s *MemCachedStore) runlock() {
 
 // BeginView implements the Store interface.
 func (s *MemCachedStore) BeginView() (IView, error) {
+	fmt.Println("BeginView: (s *MemCachedStore) BeginView()")
 	return s.ps.BeginView()
 }
 
@@ -141,6 +153,7 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 		err  error
 	)
 	if !s.private {
+		fmt.Println("BeginView: (s *MemCachedStore) Get")
 		view, err = s.ps.BeginView()
 		if err != nil {
 			return nil, err
@@ -191,6 +204,7 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 		err  error
 	)
 	if !s.private {
+		fmt.Println("BeginView: (s *MemCachedStore) GetBatch()")
 		view, err = s.ps.BeginView()
 		if err != nil {
 			panic(err)
@@ -230,6 +244,7 @@ func (s *MemCachedStore) Seek(rng SeekRange, cont func(k, v []byte) bool) {
 		err  error
 	)
 	if !s.private {
+		fmt.Println("BeginView: (s *MemCachedStore) Seek")
 		view, err = s.ps.BeginView()
 		if err != nil {
 			panic(err)
@@ -266,6 +281,7 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix
 		err  error
 	)
 	if !s.private {
+		fmt.Println("BeginView: (s *MemCachedStore) SeekAsync")
 		view, err = s.ps.BeginView()
 		if err != nil {
 			panic(err)

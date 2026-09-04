@@ -101,8 +101,9 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
 	loadTokenFunc func(ic *Context, id int32) error,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
+	var startRO = d.Store.View == nil
 	var (
-		dao = d.GetPrivate()
+		dao = d.GetPrivate(startRO)
 		cfg = bc.GetConfig()
 		pch PolicyChecker
 	)

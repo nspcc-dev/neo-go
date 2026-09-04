@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"cmp"
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -25,15 +26,38 @@ func NewMemoryStore() *MemoryStore {
 	}
 }
 
+// memoryViewAdapter is a wrapper around MemoryStore mutex emulating read
+// transactions to MemoryStore (if used as a persistent storage) and
+// implementing IView interface.
+type memoryViewAdapter struct {
+	finalize func()
+}
+
+// Close implements IView interface.
+func (m memoryViewAdapter) Close() error {
+	fmt.Println("CLOSING VIEW")
+	m.finalize()
+	fmt.Println("VIEW CLOSED")
+	return nil
+}
+
 // BeginView implements the Store interface.
 func (s *MemoryStore) BeginView() (IView, error) {
-	panic("bug: not supported")
+	fmt.Println("BEGIN VIEW")
+	s.mut.RLock()
+	return memoryViewAdapter{
+		finalize: func() {
+			s.mut.RUnlock()
+		},
+	}, nil
 }
 
 // GetWithView implements the Store interface.
 func (s *MemoryStore) GetWithView(view IView, key []byte) ([]byte, error) {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
+	if view == nil {
+		s.mut.RLock()
+		defer s.mut.RUnlock()
+	}
 	m := s.chooseMap(key)
 	if val, ok := m[string(key)]; ok && val != nil {
 		return val, nil
@@ -78,7 +102,15 @@ func (s *MemoryStore) Len() int {
 
 // SeekWithView implements the Store interface.
 func (s *MemoryStore) SeekWithView(view IView, rng SeekRange, f func(k, v []byte) bool) {
-	s.seek(rng, f, s.mut.RLock, s.mut.RUnlock)
+	s.seek(rng, f, func() {
+		if view == nil {
+			s.mut.RLock()
+		}
+	}, func() {
+		if view == nil {
+			s.mut.RUnlock()
+		}
+	})
 }
 
 // SeekGC implements the Store interface.
