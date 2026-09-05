@@ -21,6 +21,12 @@ type MemCachedStore struct {
 	plock sync.Mutex
 	// Persistent Store.
 	ps Store
+	// View holds an opened read-only transaction to the persistent Store in
+	// case if the current instance of MemCachedStore is private. View is opened
+	// during private MemCachedStore construction and is closed once
+	// MemCachedStore is released via
+	View    IView
+	closeTx bool
 }
 
 type (
@@ -53,13 +59,56 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 	}
 }
 
+// Finalize releases RO DB view occupied by the current private instance of
+// MemCachedStore and, recursively, by its parents (if so).
+func (s *MemCachedStore) Finalize() error {
+	if s.private && s.closeTx {
+		/*if lower, ok := s.ps.(*MemCachedStore); ok && lower.View != nil {
+			err := lower.Finalize()
+			if err != nil {
+				return fmt.Errorf("failed to finalize parent's store: %w", err)
+			}
+		} else {*/
+		err := s.View.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close DB view: %w", err)
+		}
+		//}
+		s.View = nil
+	}
+
+	return nil
+}
+
 // NewPrivateMemCachedStore creates a new private (unlocked) MemCachedStore object.
 // Private cached stores are closed after Persist.
-func NewPrivateMemCachedStore(lower Store) *MemCachedStore {
+func NewPrivateMemCachedStore(lower Store, openReadTx ...bool) *MemCachedStore {
+	var (
+		view    IView
+		closeTx bool
+	)
+	if cache, ok := lower.(*MemCachedStore); ok && cache.View != nil {
+		view = cache.View
+	}
+	if len(openReadTx) > 0 && openReadTx[0] {
+		var err error
+		fmt.Println("BeginView: NewPrivateMemCachedStore")
+		view, err = lower.BeginView()
+		if err != nil {
+			panic(fmt.Errorf("failed to initialize read transaction to lower persistent storage: %w", err))
+		}
+		closeTx = true
+	} /*
+		if view == nil {
+			panic("bug: nil view")
+		}
+	*/
 	return &MemCachedStore{
 		MemoryStore: *NewMemoryStore(),
 		private:     true,
 		ps:          lower,
+		View:        view,
+		closeTx:     closeTx,
 	}
 }
 
@@ -91,8 +140,32 @@ func (s *MemCachedStore) runlock() {
 	}
 }
 
-// Get implements the Store interface.
+// BeginView implements the Store interface.
+func (s *MemCachedStore) BeginView() (IView, error) {
+	fmt.Println("BeginView: (s *MemCachedStore) BeginView()")
+	return s.ps.BeginView()
+}
+
+// Get offers get functionality over underlying DB.
 func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
+	var (
+		view = s.View
+		err  error
+	)
+	if !s.private {
+		fmt.Println("BeginView: (s *MemCachedStore) Get")
+		view, err = s.ps.BeginView()
+		if err != nil {
+			return nil, err
+		}
+		defer view.Close()
+	}
+	return s.GetWithView(view, key)
+}
+
+// GetWithView implements the Store interface. It is not designated for the
+// external usage. Use Get instead.
+func (s *MemCachedStore) GetWithView(view IView, key []byte) ([]byte, error) {
 	s.rlock()
 	defer s.runlock()
 	m := s.chooseMap(key)
@@ -102,7 +175,7 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 		}
 		return val, nil
 	}
-	return s.ps.Get(key)
+	return s.ps.GetWithView(view, key)
 }
 
 // Put puts new KV pair into the store.
@@ -126,6 +199,18 @@ func (s *MemCachedStore) Delete(key []byte) {
 func (s *MemCachedStore) GetBatch() *MemBatch {
 	s.rlock()
 	defer s.runlock()
+	var (
+		view = s.View
+		err  error
+	)
+	if !s.private {
+		fmt.Println("BeginView: (s *MemCachedStore) GetBatch()")
+		view, err = s.ps.BeginView()
+		if err != nil {
+			panic(err)
+		}
+		defer view.Close()
+	}
 	var b MemBatch
 
 	b.Put = make([]KeyValueExists, 0, len(s.mem)+len(s.stor))
@@ -133,7 +218,7 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 	for _, m := range []map[string][]byte{s.mem, s.stor} {
 		for k, v := range m {
 			key := []byte(k)
-			_, err := s.ps.Get(key)
+			_, err := s.ps.GetWithView(view, key)
 			if v == nil {
 				b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
 			} else {
@@ -152,10 +237,28 @@ func (s *MemCachedStore) PutChangeSet(puts map[string][]byte, stores map[string]
 	return nil
 }
 
-// Seek implements the Store interface.
+// Seek offers the DB seek functionality. See Store comments for behaviour details.
 func (s *MemCachedStore) Seek(rng SeekRange, cont func(k, v []byte) bool) {
+	var (
+		view = s.View
+		err  error
+	)
+	if !s.private {
+		fmt.Println("BeginView: (s *MemCachedStore) Seek")
+		view, err = s.ps.BeginView()
+		if err != nil {
+			panic(err)
+		}
+		defer view.Close()
+	}
+	s.SeekWithView(view, rng, cont)
+}
+
+// SeekWithView implements the Store interface. It is not designated for the
+// external usage. Use Seek instead.
+func (s *MemCachedStore) SeekWithView(view IView, rng SeekRange, cont func(k, v []byte) bool) {
 	ps, memRes := s.prepareSeekMemSnapshot(rng)
-	performSeek(context.Background(), ps, memRes, rng, false, cont)
+	performSeek(context.Background(), view, ps, memRes, rng, false, cont)
 }
 
 // GetStorageChanges returns all current storage changes. It can only be done for private
@@ -173,8 +276,22 @@ func (s *MemCachedStore) GetStorageChanges() map[string][]byte {
 func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix bool) chan KeyValue {
 	res := make(chan KeyValue)
 	ps, memRes := s.prepareSeekMemSnapshot(rng)
+	var (
+		view = s.View
+		err  error
+	)
+	if !s.private {
+		fmt.Println("BeginView: (s *MemCachedStore) SeekAsync")
+		view, err = s.ps.BeginView()
+		if err != nil {
+			panic(err)
+		}
+	}
 	go func() {
-		performSeek(ctx, ps, memRes, rng, cutPrefix, func(k, v []byte) bool {
+		if !s.private {
+			defer view.Close()
+		}
+		performSeek(ctx, view, ps, memRes, rng, cutPrefix, func(k, v []byte) bool {
 			select {
 			case <-ctx.Done():
 				return false
@@ -231,7 +348,7 @@ func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) (Store, []KeyValu
 // `cutPrefix` denotes whether provided key needs to be cut off the resulting keys.
 // `rng` specifies prefix items must match and point to start seeking from. Backwards
 // seeking from some point is supported with corresponding `rng` field set.
-func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng SeekRange, cutPrefix bool, cont func(k, v []byte) bool) {
+func performSeek(ctx context.Context, view IView, ps Store, memRes []KeyValueExists, rng SeekRange, cutPrefix bool, cont func(k, v []byte) bool) {
 	lPrefix := len(string(rng.Prefix))
 	var cmpFunc = getCmpFunc(rng.Backwards)
 
@@ -304,7 +421,7 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 		if rng.SearchDepth > 1 {
 			rng.SearchDepth--
 		}
-		ps.Seek(rng, mergeFunc)
+		ps.SeekWithView(view, rng, mergeFunc)
 	}
 
 	if !done && haveMem {
