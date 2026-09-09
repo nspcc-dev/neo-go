@@ -101,8 +101,9 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
 	loadTokenFunc func(ic *Context, id int32) error,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
+	var startRO = d.Store.View == nil
 	var (
-		dao = d.GetPrivate()
+		dao = d.GetPrivate(startRO)
 		cfg = bc.GetConfig()
 		pch PolicyChecker
 	)
@@ -572,6 +573,7 @@ func (ic *Context) Finalize() {
 		f()
 	}
 	ic.cancelFuncs = nil
+	_ = ic.DAO.Store.Finalize() // TODO: need a workaround to avoid finalization error.
 }
 
 // Exec executes loaded VM script and calls registered finalizers to release the occupied resources.

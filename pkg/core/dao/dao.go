@@ -102,14 +102,14 @@ func (dao *Simple) GetWrapped() *Simple {
 
 // GetPrivate returns a new DAO instance with another layer of private
 // MemCachedStore around the current DAO Store.
-func (dao *Simple) GetPrivate() *Simple {
+func (dao *Simple) GetPrivate(openReadTx ...bool) *Simple {
 	d := &Simple{
 		Version: dao.Version,
 		keyBuf:  dao.keyBuf,
 		dataBuf: dao.dataBuf,
 		serCtx:  dao.serCtx,
 	} // Inherit everything...
-	d.Store = storage.NewPrivateMemCachedStore(dao.Store) // except storage, wrap another layer.
+	d.Store = storage.NewPrivateMemCachedStore(dao.Store, openReadTx...) // except storage, wrap another layer.
 	d.private = true
 	d.nativeCachePS = dao
 	// Do not inherit cache from nativeCachePS; instead should create clear map:

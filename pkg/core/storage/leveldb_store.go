@@ -38,9 +38,29 @@ func NewLevelDBStore(cfg dbconfig.LevelDBOptions) (*LevelDBStore, error) {
 	}, nil
 }
 
-// Get implements the Store interface.
-func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
-	value, err := s.db.Get(key, nil)
+// viewAdapter is a wrapper around leveldb transaction implementing IView interface.
+type levelViewAdapter struct {
+	*leveldb.Snapshot
+}
+
+// Close implements IView interface.
+func (v levelViewAdapter) Close() error {
+	v.Snapshot.Release()
+	return nil
+}
+
+// BeginView implements the Store interface.
+func (s *LevelDBStore) BeginView() (IView, error) {
+	sh, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snapshot: %w", err)
+	}
+	return levelViewAdapter{sh}, nil
+}
+
+// GetWithView implements the Store interface.
+func (s *LevelDBStore) GetWithView(view IView, key []byte) ([]byte, error) {
+	value, err := view.(levelViewAdapter).Get(key, nil)
 	if errors.Is(err, leveldb.ErrNotFound) {
 		err = ErrKeyNotFound
 	}
@@ -69,9 +89,9 @@ func (s *LevelDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]
 	return tx.Commit()
 }
 
-// Seek implements the Store interface.
-func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
-	iter := s.db.NewIterator(seekRangeToPrefixes(rng), nil)
+// SeekWithView implements the Store interface.
+func (s *LevelDBStore) SeekWithView(view IView, rng SeekRange, f func(k, v []byte) bool) {
+	iter := view.(levelViewAdapter).NewIterator(seekRangeToPrefixes(rng), nil)
 	s.seek(iter, rng.Backwards, f)
 }
 
