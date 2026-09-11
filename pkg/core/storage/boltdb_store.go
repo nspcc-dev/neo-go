@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/nspcc-dev/bbolt"
@@ -173,14 +174,18 @@ func boltSeek(txopener func(func(*bbolt.Tx) error) error, bucket []byte, rng See
 			next = c.Prev
 		}
 
+		start := slices.Concat(rng.Prefix, rng.Start)
 		for ; k != nil && bytes.HasPrefix(k, rng.Prefix) && (len(rang.Limit) == 0 || bytes.Compare(k, rang.Limit) <= 0); k, v = next() {
-			cont, err := f(c, k, v)
-			if err != nil {
-				return err
+			if rng.Start == nil || (!rng.Backwards && bytes.Compare(k, start) >= 0) || (rng.Backwards && bytes.Compare(k, start) <= 0) {
+				cont, err := f(c, k, v)
+				if err != nil {
+					return err
+				}
+				if !cont {
+					break
+				}
 			}
-			if !cont {
-				break
-			}
+			continue
 		}
 		return nil
 	})
