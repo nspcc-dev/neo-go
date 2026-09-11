@@ -511,6 +511,7 @@ func (s *service) OnPayload(cp *npayload.Extensible) error {
 	return nil
 }
 
+// OnTransaction implements the Service interface.
 func (s *service) OnTransaction(tx *transaction.Transaction) {
 	if s.dbft != nil && s.started.Load() {
 		s.transactions <- tx
