@@ -159,7 +159,8 @@ func boltSeek(txopener func(func(*bbolt.Tx) error) error, bucket []byte, rng See
 
 		c := tx.Bucket(bucket).Cursor()
 
-		if !rng.Backwards {
+		special := rng.Start != nil && len(rng.Start) == 0 && rng.Backwards // backwards iteration with an empty non-nil prefix.
+		if !rng.Backwards || special {
 			k, v = c.Seek(rang.Start)
 			next = c.Next
 		} else {
@@ -178,7 +179,7 @@ func boltSeek(txopener func(func(*bbolt.Tx) error) error, bucket []byte, rng See
 			if err != nil {
 				return err
 			}
-			if !cont {
+			if !cont || special {
 				break
 			}
 		}

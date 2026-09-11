@@ -72,7 +72,7 @@ func (s *LevelDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]
 // Seek implements the Store interface.
 func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	iter := s.db.NewIterator(seekRangeToPrefixes(rng), nil)
-	s.seek(iter, rng.Backwards, f)
+	s.seek(iter, rng, f)
 }
 
 // SeekGC implements the Store interface.
@@ -82,7 +82,7 @@ func (s *LevelDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, b
 		return err
 	}
 	iter := tx.NewIterator(seekRangeToPrefixes(rng), nil)
-	s.seek(iter, rng.Backwards, func(k, v []byte) bool {
+	s.seek(iter, rng, func(k, v []byte) bool {
 		keep, cont := keepCont(k, v)
 		if !keep {
 			err = tx.Delete(k, nil)
@@ -98,13 +98,14 @@ func (s *LevelDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, b
 	return tx.Commit()
 }
 
-func (s *LevelDBStore) seek(iter iterator.Iterator, backwards bool, f func(k, v []byte) bool) {
+func (s *LevelDBStore) seek(iter iterator.Iterator, rng SeekRange, f func(k, v []byte) bool) {
 	var (
 		next func() bool
 		ok   bool
 	)
 
-	if !backwards {
+	special := rng.Start != nil && len(rng.Start) == 0 && rng.Backwards // backwards iteration with an empty non-nil prefix.
+	if !rng.Backwards || special {
 		ok = iter.Next()
 		next = iter.Next
 	} else {
@@ -113,7 +114,7 @@ func (s *LevelDBStore) seek(iter iterator.Iterator, backwards bool, f func(k, v 
 	}
 
 	for ; ok; ok = next() {
-		if !f(iter.Key(), iter.Value()) {
+		if !f(iter.Key(), iter.Value()) || special { // TODO: break after first occurance or after first OK?
 			break
 		}
 	}
