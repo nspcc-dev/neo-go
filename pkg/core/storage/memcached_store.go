@@ -196,13 +196,12 @@ func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) (Store, []KeyValu
 	sPrefix := string(rng.Prefix)
 	lPrefix := len(sPrefix)
 	sStart := string(rng.Start)
-	lStart := len(sStart)
 	isKeyOK := func(key string) bool {
-		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || cmp.Compare(key[lPrefix:], sStart) >= 0)
+		return strings.HasPrefix(key, sPrefix) && (rng.Start == nil || cmp.Compare(key[lPrefix:], sStart) >= 0)
 	}
 	if rng.Backwards {
 		isKeyOK = func(key string) bool {
-			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || cmp.Compare(key[lPrefix:], sStart) <= 0)
+			return strings.HasPrefix(key, sPrefix) && (rng.Start == nil || cmp.Compare(key[lPrefix:], sStart) <= 0)
 		}
 	}
 	s.rlock()
