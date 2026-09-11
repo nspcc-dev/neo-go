@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,6 +70,27 @@ func TestConsensusPayload_Getters(t *testing.T) {
 	require.Equal(t, pl, p.GetRecoveryMessage())
 }
 
+// alwaysPrepareRequestExtensionEnabled is a
+// message.prepareRequestExtensionEnabled stub for tests that construct
+// Payload/message objects directly (bypassing *service), matching the
+// always-extended PrepareRequest built by randomPrepareRequest.
+func alwaysPrepareRequestExtensionEnabled(uint32) bool { return true }
+
+// scrubPrepareRequestExtensionEnabled nils out the transient decode-time
+// prepareRequestExtensionEnabled callback (on the message itself and, for a
+// RecoveryMessage, on both the RecoveryMessage and its embedded
+// PrepareRequest message) so that the result can be compared with
+// require.Equal: func values are never reflect.DeepEqual unless both nil.
+func scrubPrepareRequestExtensionEnabled(m *message) {
+	m.prepareRequestExtensionEnabled = nil
+	if rec, ok := m.payload.(*recoveryMessage); ok {
+		rec.prepareRequestExtensionEnabled = nil
+		if rec.prepareRequest != nil {
+			rec.prepareRequest.prepareRequestExtensionEnabled = nil
+		}
+	}
+}
+
 func TestConsensusPayload_Serializable(t *testing.T) {
 	for _, mt := range messageTypes {
 		p := randomPayload(t, mt)
@@ -78,7 +98,8 @@ func TestConsensusPayload_Serializable(t *testing.T) {
 		data, err := testserdes.EncodeBinary(p)
 		require.NoError(t, err)
 		require.NoError(t, testserdes.DecodeBinary(data, &actual.Extensible))
-		assert.NoError(t, actual.decodeData())
+		assert.NoError(t, actual.decodeData(alwaysPrepareRequestExtensionEnabled))
+		scrubPrepareRequestExtensionEnabled(&actual.message)
 		require.Equal(t, p, actual)
 	}
 }
@@ -104,18 +125,18 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	// valid payload
 	buf[typeIndex] = byte(prepareResponseType)
 	p := &Payload{Extensible: npayload.Extensible{Data: buf}}
-	require.NoError(t, p.decodeData())
+	require.NoError(t, p.decodeData(nil))
 	require.Equal(t, expected, p.message)
 
 	// invalid type
 	buf[typeIndex] = 0xFF
 	p = &Payload{Extensible: npayload.Extensible{Data: buf}}
-	require.Error(t, p.decodeData())
+	require.Error(t, p.decodeData(nil))
 
 	// invalid length
 	buf[typeIndex] = byte(prepareResponseType)
 	p = &Payload{Extensible: npayload.Extensible{Data: buf[:len(buf)-1]}}
-	require.Error(t, p.decodeData())
+	require.Error(t, p.decodeData(nil))
 }
 
 func TestCommit_Serializable(t *testing.T) {
@@ -130,7 +151,7 @@ func TestPrepareResponse_Serializable(t *testing.T) {
 
 func TestPrepareRequest_Serializable(t *testing.T) {
 	req := randomMessage(t, prepareRequestType)
-	testserdes.EncodeDecodeBinary(t, req, new(prepareRequest))
+	testserdes.EncodeDecodeBinary(t, req, &prepareRequest{extended: true})
 }
 
 func TestRecoveryRequest_Serializable(t *testing.T) {
@@ -140,7 +161,15 @@ func TestRecoveryRequest_Serializable(t *testing.T) {
 
 func TestRecoveryMessage_Serializable(t *testing.T) {
 	msg := randomMessage(t, recoveryMessageType)
-	testserdes.EncodeDecodeBinary(t, msg, new(recoveryMessage))
+	data, err := testserdes.EncodeBinary(msg)
+	require.NoError(t, err)
+	actual := &recoveryMessage{prepareRequestExtensionEnabled: alwaysPrepareRequestExtensionEnabled}
+	require.NoError(t, testserdes.DecodeBinary(data, actual))
+	actual.prepareRequestExtensionEnabled = nil
+	if actual.prepareRequest != nil {
+		actual.prepareRequest.prepareRequestExtensionEnabled = nil
+	}
+	require.Equal(t, msg, actual)
 }
 
 func randomPayload(t *testing.T, mt messageType) *Payload {
@@ -196,12 +225,18 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 	const txCount = 3
 
 	req := &prepareRequest{
-		timestamp:         rand.Uint64(),
-		transactionHashes: make([]util.Uint256, txCount),
+		timestamp:    rand.Uint64(),
+		extended:     true,
+		transactions: make([]*transaction.Transaction, txCount),
 	}
 
 	for i := range txCount {
-		req.transactionHashes[i] = random.Uint256()
+		tx := transaction.New([]byte{byte(opcode.PUSH1), byte(i)}, 0)
+		addSender(t, tx)
+		tx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
+		_ = tx.Hash() // Update hashes and serialized data.
+		_ = tx.Size()
+		req.transactions[i] = tx
 	}
 
 	return req

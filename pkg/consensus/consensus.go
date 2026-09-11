@@ -51,6 +51,7 @@ type Ledger interface {
 	UnsubscribeFromBlocks(ch chan *coreb.Block)
 	GetBaseExecFee() int64
 	CalculateAttributesFee(tx *transaction.Transaction) int64
+	IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
 	interop.Ledger
 	mempool.Feer
 }
@@ -197,6 +198,12 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithVerifyPrepareResponse[util.Uint256](srv.verifyResponse),
 		dbft.WithVerifyCommit[util.Uint256](srv.verifyCommit),
 	}
+	if h, ok := cfg.ProtocolConfiguration.Hardforks[config.HFHuyao.String()]; ok {
+		opts = append(opts,
+			dbft.WithPrepareRequestExtensionEnablingHeight[util.Uint256](int64(h)),
+			dbft.WithNewPrepareRequestExtended[util.Uint256](srv.newPrepareRequestExtended),
+		)
+	}
 	if srv.Chain.GetConfig().MaxTimePerBlock > 0 {
 		opts = append(opts,
 			dbft.WithMaxTimePerBlock[util.Uint256](srv.maxTimePerBlock),
@@ -248,12 +255,34 @@ func (s *service) newPayload(c *dbft.Context[util.Uint256], t dbft.MessageType, 
 	return cp
 }
 
-func (s *service) newPrepareRequest(ts uint64, nonce uint64, transactionsHashes []util.Uint256) dbft.PrepareRequest[util.Uint256] {
+// newPrepareRequest builds a PrepareRequest carrying transaction hashes only.
+func (s *service) newPrepareRequest(ts uint64, nonce uint64, transactionHashes []util.Uint256) dbft.PrepareRequest[util.Uint256] {
 	r := &prepareRequest{
 		timestamp:         ts / nsInMs,
 		nonce:             nonce,
-		transactionHashes: transactionsHashes,
+		transactionHashes: transactionHashes,
 	}
+	s.fillPrepareRequestStateRoot(r)
+	return r
+}
+
+// newPrepareRequestFull builds a PrepareRequest carrying full transactions.
+func (s *service) newPrepareRequestExtended(ts uint64, nonce uint64, transactions []dbft.Transaction[util.Uint256]) dbft.PrepareRequest[util.Uint256] {
+	txx := make([]*transaction.Transaction, len(transactions))
+	for i, tx := range transactions {
+		txx[i] = tx.(*transaction.Transaction)
+	}
+	r := &prepareRequest{
+		timestamp:    ts / nsInMs,
+		nonce:        nonce,
+		transactions: txx,
+		extended:     true,
+	}
+	s.fillPrepareRequestStateRoot(r)
+	return r
+}
+
+func (s *service) fillPrepareRequestStateRoot(r *prepareRequest) {
 	if s.ProtocolConfiguration.StateRootInHeader {
 		r.stateRootEnabled = true
 		if sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1); err == nil {
@@ -262,7 +291,11 @@ func (s *service) newPrepareRequest(ts uint64, nonce uint64, transactionsHashes 
 			panic(err)
 		}
 	}
-	return r
+}
+
+func (s *service) fullTransactionsEnabledAt(blockIndex uint32) bool {
+	hf := config.HFHuyao
+	return s.Chain.IsHardforkEnabled(&hf, blockIndex)
 }
 
 func (s *service) newPrepareResponse(preparationHash util.Uint256) dbft.PrepareResponse[util.Uint256] {
@@ -479,10 +512,14 @@ func (s *service) getKeyPair(pubs []dbft.PublicKey) (int, dbft.PrivateKey, dbft.
 }
 
 func (s *service) payloadFromExtensible(ep *npayload.Extensible) *Payload {
+	hf := config.HFHuyao
 	return &Payload{
 		Extensible: *ep,
 		message: message{
 			stateRootEnabled: s.ProtocolConfiguration.StateRootInHeader,
+			prepareRequestExtensionEnabled: func(blockIndex uint32) bool {
+				return s.Chain.IsHardforkEnabled(&hf, blockIndex)
+			},
 		},
 	}
 }
@@ -492,7 +529,7 @@ func (s *service) OnPayload(cp *npayload.Extensible) error {
 	log := s.log.With(zap.Stringer("hash", cp.Hash()))
 	p := s.payloadFromExtensible(cp)
 	// decode payload data into message
-	if err := p.decodeData(); err != nil {
+	if err := p.decodeData(s.fullTransactionsEnabledAt); err != nil {
 		log.Info("can't decode payload data", zap.Error(err))
 		return nil
 	}
@@ -511,6 +548,7 @@ func (s *service) OnPayload(cp *npayload.Extensible) error {
 	return nil
 }
 
+// OnTransaction implements the Service interface.
 func (s *service) OnTransaction(tx *transaction.Transaction) {
 	if s.dbft != nil && s.started.Load() {
 		s.transactions <- tx
@@ -625,11 +663,15 @@ func (s *service) verifyRequest(p dbft.ConsensusPayload[util.Uint256]) error {
 			return fmt.Errorf("%w: %s != %s", errInvalidStateRoot, sr.Root, req.stateRoot)
 		}
 	}
-	if len(req.TransactionHashes()) > int(s.ProtocolConfiguration.MaxTransactionsPerBlock) {
-		return fmt.Errorf("%w: max = %d, got %d", errInvalidTransactionsCount, s.ProtocolConfiguration.MaxTransactionsPerBlock, len(req.TransactionHashes()))
+	count := len(req.transactionHashes)
+	if req.extended {
+		count = len(req.transactions)
+	}
+	if count > int(s.ProtocolConfiguration.MaxTransactionsPerBlock) {
+		return fmt.Errorf("%w: max = %d, got %d", errInvalidTransactionsCount, s.ProtocolConfiguration.MaxTransactionsPerBlock, count)
 	}
 	// Save lastProposal for getVerified().
-	s.lastProposal = req.transactionHashes
+	s.lastProposal = req.txHashes()
 
 	return nil
 }
@@ -809,8 +851,18 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 	primaryIndex := byte(ctx.PrimaryIndex)
 	block.PrimaryIndex = primaryIndex
 
-	// it's OK to have ctx.TransactionsHashes == nil here
-	block.Block.MerkleRoot = hash.CalcMerkleRoot(slices.Clone(ctx.TransactionHashes))
+	var txHashes []util.Uint256
+	if ctx.PrepareRequestExtensionEnabled {
+		// It's OK to have ctx.TransactionList == nil here.
+		txHashes = make([]util.Uint256, len(ctx.TransactionList))
+		for i, tx := range ctx.TransactionList {
+			txHashes[i] = tx.Hash()
+		}
+	} else {
+		// it's OK to have ctx.TransactionHashes == nil here
+		txHashes = slices.Clone(ctx.TransactionHashes)
+	}
+	block.Block.MerkleRoot = hash.CalcMerkleRoot(txHashes)
 
 	return block
 }

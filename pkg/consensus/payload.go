@@ -24,6 +24,9 @@ type (
 		payload io.Serializable
 		// stateRootEnabled specifies if state root is exchanged during consensus.
 		stateRootEnabled bool
+
+		// prepareRequestExtensionEnabled specifies if PrepareRequest extension is enabled for this message.
+		prepareRequestExtensionEnabled func(blockIndex uint32) bool
 	}
 
 	// Payload is a type for consensus-related messages.
@@ -144,7 +147,7 @@ func (p *Payload) Hash() util.Uint256 {
 func (p *Payload) DecodeBinary(r *io.BinReader) {
 	p.Extensible.DecodeBinary(r)
 	if r.Err == nil {
-		r.Err = p.decodeData()
+		r.Err = p.decodeData(nil)
 	}
 }
 
@@ -171,9 +174,11 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 		cv.newViewNumber = m.ViewNumber + 1
 		m.payload = cv
 	case prepareRequestType:
-		r := new(prepareRequest)
-		if m.stateRootEnabled {
-			r.stateRootEnabled = true
+		r := &prepareRequest{
+			stateRootEnabled: m.stateRootEnabled,
+		}
+		if m.prepareRequestExtensionEnabled != nil {
+			r.extended = m.prepareRequestExtensionEnabled(m.BlockIndex)
 		}
 		m.payload = r
 	case prepareResponseType:
@@ -183,9 +188,9 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 	case recoveryRequestType:
 		m.payload = new(recoveryRequest)
 	case recoveryMessageType:
-		r := new(recoveryMessage)
-		if m.stateRootEnabled {
-			r.stateRootEnabled = true
+		r := &recoveryMessage{
+			prepareRequestExtensionEnabled: m.prepareRequestExtensionEnabled,
+			stateRootEnabled:               m.stateRootEnabled,
 		}
 		m.payload = r
 	default:
@@ -225,9 +230,13 @@ func (p *Payload) encodeData() {
 	}
 }
 
-// decode data of payload into its message.
-func (p *Payload) decodeData() error {
+// decode data of payload into its message. fullTxCheck, if not nil, is the
+// caller-provided behaviour switch consulted (with the decoded BlockIndex) to
+// decide whether a PrepareRequest carries full transactions instead of
+// transaction hashes; see message.prepareRequestExtensionEnabled.
+func (p *Payload) decodeData(fullTxCheck func(blockIndex uint32) bool) error {
 	br := io.NewBinReaderFromBuf(p.Data)
+	p.prepareRequestExtensionEnabled = fullTxCheck
 	p.message.DecodeBinary(br)
 	if br.Err != nil {
 		return fmt.Errorf("can't decode message: %w", br.Err)
