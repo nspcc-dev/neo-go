@@ -34,11 +34,13 @@ const (
 	SystemRuntimePlatform               = "System.Runtime.Platform"
 	SystemStorageDelete                 = "System.Storage.Delete"
 	SystemStorageFind                   = "System.Storage.Find"
+	SystemStorageFindWithStart          = "System.Storage.FindWithStart"
 	SystemStorageGet                    = "System.Storage.Get"
 	SystemStorageGetContext             = "System.Storage.GetContext"
 	SystemStorageGetReadOnlyContext     = "System.Storage.GetReadOnlyContext"
 	SystemStorageLocalDelete            = "System.Storage.Local.Delete"
 	SystemStorageLocalFind              = "System.Storage.Local.Find"
+	SystemStorageLocalFindWithStart     = "System.Storage.Local.FindWithStart"
 	SystemStorageLocalGet               = "System.Storage.Local.Get"
 	SystemStorageLocalPut               = "System.Storage.Local.Put"
 	SystemStoragePut                    = "System.Storage.Put"
@@ -75,11 +77,13 @@ var names = []string{
 	SystemRuntimePlatform,
 	SystemStorageDelete,
 	SystemStorageFind,
+	SystemStorageFindWithStart,
 	SystemStorageGet,
 	SystemStorageGetContext,
 	SystemStorageGetReadOnlyContext,
 	SystemStorageLocalGet,
 	SystemStorageLocalFind,
+	SystemStorageLocalFindWithStart,
 	SystemStorageLocalPut,
 	SystemStorageLocalDelete,
 	SystemStoragePut,

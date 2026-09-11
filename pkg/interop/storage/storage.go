@@ -115,7 +115,19 @@ func Find(ctx Context, key any, options FindFlags) iterator.Iterator {
 	return neogointernal.Syscall3("System.Storage.Find", ctx, key, options).(iterator.Iterator)
 }
 
+// FindWithStart is similar to Find, but starts iteration from the specified
+// suffix relative to the prefix. This function uses
+// `System.Storage.FindWithStart` syscall.
+func FindWithStart(ctx Context, key any, start []byte, options FindFlags) iterator.Iterator {
+	return neogointernal.Syscall4("System.Storage.FindWithStart", ctx, key, start, options).(iterator.Iterator)
+}
+
 // LocalFind is similar to Find, but does not require context.
 func LocalFind(key []byte, options FindFlags) iterator.Iterator {
 	return neogointernal.Syscall2("System.Storage.Local.Find", key, options).(iterator.Iterator)
+}
+
+// LocalFindWithStart is similar to FindWithStart, but does not require context.
+func LocalFindWithStart(key []byte, start []byte, options FindFlags) iterator.Iterator {
+	return neogointernal.Syscall3("System.Storage.Local.FindWithStart", key, start, options).(iterator.Iterator)
 }

@@ -90,8 +90,12 @@ func (s *Iterator) Value() stackitem.Item {
 	})
 }
 
-func findWithContext(ic *interop.Context, stc *Context, getID ...func(ic *interop.Context) (int32, error)) error {
+func findWithContext(ic *interop.Context, stc *Context, withStart bool, getID ...func(ic *interop.Context) (int32, error)) error {
 	prefix := ic.VM.Estack().Pop().Bytes()
+	var start []byte
+	if withStart {
+		start = ic.VM.Estack().Pop().Bytes()
+	}
 	opts := ic.VM.Estack().Pop().BigInt().Int64()
 	if len(getID) > 0 {
 		var err error
@@ -119,7 +123,16 @@ func findWithContext(ic *interop.Context, stc *Context, getID ...func(ic *intero
 	}
 	bkwrds := opts&FindBackwards != 0
 	ctx, cancel := context.WithCancel(context.Background())
-	seekres := ic.DAO.SeekAsync(ctx, stc.ID, storage.SeekRange{Prefix: prefix, Backwards: bkwrds})
+	var seekres chan storage.KeyValue
+	if withStart && bkwrds && len(start) == 0 {
+		seekres = make(chan storage.KeyValue, 1)
+		if si := ic.DAO.GetStorageItem(stc.ID, prefix); si != nil {
+			seekres <- storage.KeyValue{Key: []byte{}, Value: bytes.Clone(si)}
+		}
+		close(seekres)
+	} else {
+		seekres = ic.DAO.SeekAsync(ctx, stc.ID, storage.SeekRange{Prefix: prefix, Start: start, Backwards: bkwrds})
+	}
 	item := NewIterator(seekres, prefix, opts)
 	ic.VM.Estack().PushItem(stackitem.NewInterop(item))
 	ic.RegisterCancelFunc(func() {
@@ -141,12 +154,34 @@ func Find(ic *interop.Context) error {
 	if !ok {
 		return fmt.Errorf("%T is not a storage.Context", stcInterface)
 	}
-	return findWithContext(ic, stc)
+	return findWithContext(ic, stc, false)
+}
+
+// FindWithStart finds stored key-value pair starting from the specified suffix.
+func FindWithStart(ic *interop.Context) error {
+	stcInterface := ic.VM.Estack().Pop().Value()
+	stc, ok := stcInterface.(*Context)
+	if !ok {
+		return fmt.Errorf("%T is not a storage.Context", stcInterface)
+	}
+	return findWithContext(ic, stc, true)
 }
 
 // LocalFind is similar to Find, but does not require storage context.
 func LocalFind(ic *interop.Context) error {
-	return findWithContext(ic, &Context{ReadOnly: true}, func(ic *interop.Context) (int32, error) {
+	return findWithContext(ic, &Context{ReadOnly: true}, false, func(ic *interop.Context) (int32, error) {
+		contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
+		if err != nil {
+			return 0, fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
+		}
+
+		return contract.ID, nil
+	})
+}
+
+// LocalFindWithStart is similar to FindWithStart, but does not require storage context.
+func LocalFindWithStart(ic *interop.Context) error {
+	return findWithContext(ic, &Context{ReadOnly: true}, true, func(ic *interop.Context) (int32, error) {
 		contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 		if err != nil {
 			return 0, fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
