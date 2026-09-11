@@ -60,10 +60,12 @@ type SeekRange struct {
 	// Start denotes value appended to the Prefix to start Seek from.
 	// Seeking starting from some key includes this key to the result;
 	// if no matching key was found then next suitable key is picked up.
-	// Start may be empty. Empty Start means seeking through all keys in
-	// the DB with matching Prefix.
-	// Empty Prefix and empty Start can be combined, which means seeking
-	// through all keys in the DB, but see the Prefix's comment.
+	// Start may be empty or nil. Nil Start means seeking through all keys in
+	// the DB with matching Prefix. Empty Prefix and nil Start can be
+	// combined, which means seeking through all keys in the DB, but see the
+	// Prefix's comment. Empty Start means seeking through the items with
+	// matching Prefix sorted in an ascending using the cursor in the given
+	// direction.
 	Start []byte
 	// Backwards denotes whether Seek direction should be reversed, i.e.
 	// whether seeking should be performed in a descending way.

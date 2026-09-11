@@ -129,6 +129,9 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool, lock func(),
 	slices.SortFunc(memList, func(a, b KeyValue) int {
 		return cmpFunc(a.Key, b.Key)
 	})
+	if rng.Start != nil && len(rng.Start) == 0 && rng.Backwards && len(memList) > 0 {
+		memList = memList[len(memList)-1:]
+	}
 	for _, kv := range memList {
 		if !f(kv.Key, kv.Value) {
 			break

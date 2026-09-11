@@ -239,6 +239,9 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 	slices.SortFunc(memRes, func(a, b KeyValueExists) int {
 		return cmpFunc(a.Key, b.Key)
 	})
+	if rng.Start != nil && len(rng.Start) == 0 && rng.Backwards && len(memRes) > 0 {
+		memRes = memRes[len(memRes)-1:]
+	}
 
 	var (
 		done    bool
