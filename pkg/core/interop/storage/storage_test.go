@@ -310,6 +310,81 @@ func TestFind(t *testing.T) {
 	})
 }
 
+func TestFindWithStart(t *testing.T) {
+	v, contractState, context, _ := createVMAndContractState(t)
+
+	require.NoError(t, native.PutContractState(context.DAO, context.Chain.NativeManagementID(), contractState))
+
+	keys := [][]byte{
+		[]byte("@"),
+		[]byte("A_"),
+		[]byte("A_10"),
+		[]byte("A_23"),
+		[]byte("A_28"),
+		[]byte("A_34"),
+		[]byte("B"),
+	}
+	for _, ctrID := range []int32{contractState.ID, contractState.ID + 1} {
+		for _, key := range keys {
+			context.DAO.PutStorageItem(ctrID, key, []byte{1})
+		}
+	}
+
+	testFindWithStart := func(t *testing.T, start string, backwards bool, expected []string) {
+		opts := int64(istorage.FindKeysOnly | istorage.FindRemovePrefix)
+		if backwards {
+			opts |= istorage.FindBackwards
+		}
+		v.Estack().PushVal(opts)
+		v.Estack().PushVal([]byte(start))
+		v.Estack().PushVal([]byte("A_"))
+		v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: contractState.ID}))
+
+		require.NoError(t, istorage.FindWithStart(context))
+
+		var iter *stackitem.Interop
+		require.NotPanics(t, func() { iter = v.Estack().Pop().Interop() })
+
+		actual := make([]string, 0, len(expected))
+		for {
+			v.Estack().PushVal(iter)
+			require.NoError(t, iterator.Next(context))
+			if !v.Estack().Pop().Bool() {
+				break
+			}
+
+			v.Estack().PushVal(iter)
+			require.NoError(t, iterator.Value(context))
+			actual = append(actual, string(v.Estack().Pop().Bytes()))
+		}
+		require.Equal(t, expected, actual)
+	}
+
+	testCases := []struct {
+		name      string
+		start     string
+		backwards bool
+		expected  []string
+	}{
+		{name: "23 forward", start: "23", expected: []string{"23", "28", "34"}},
+		{name: "23 backward", start: "23", backwards: true, expected: []string{"23", "10", ""}},
+		{name: "27 forward", start: "27", expected: []string{"28", "34"}},
+		{name: "27 backward", start: "27", backwards: true, expected: []string{"23", "10", ""}},
+		{name: "00 forward", start: "00", expected: []string{"10", "23", "28", "34"}},
+		{name: "00 backward", start: "00", backwards: true, expected: []string{""}},
+		{name: "99 forward", start: "99", expected: []string{}},
+		{name: "99 backward", start: "99", backwards: true, expected: []string{"34", "28", "23", "10", ""}},
+		{name: "empty forward", start: "", expected: []string{"", "10", "23", "28", "34"}},
+		{name: "empty backward", start: "", backwards: true, expected: []string{""}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testFindWithStart(t, tc.start, tc.backwards, tc.expected)
+		})
+	}
+}
+
 // Helper functions to create VM, InteropContext, TX, Account, Contract.
 
 func createVM(t testing.TB) (*vm.VM, *interop.Context, *core.Blockchain) {
