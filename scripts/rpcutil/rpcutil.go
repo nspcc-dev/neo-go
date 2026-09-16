@@ -40,7 +40,7 @@ func PrintRPCInfo(c *rpcclient.Client, name string) error {
 	if err != nil {
 		return fmt.Errorf("RPC %s version: %w", name, err)
 	}
-	fmt.Printf("RPC %s:\n\tuser-agent: %s\n\tnonce: %d\n", name, v.UserAgent, v.Nonce)
+	fmt.Printf("RPC %s:\n\tuser-agent: %s\n\tmagic: %d\n\tnonce: %d\n", name, v.UserAgent, v.Protocol.Network, v.Nonce)
 	return nil
 }
 
