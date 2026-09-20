@@ -65,7 +65,9 @@ run:
 			}
 		}
 	}
-	c.client.Close()
+	if c.client != nil {
+		c.client.Close()
+	}
 drain:
 	for {
 		select {
