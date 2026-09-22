@@ -1,7 +1,9 @@
 package vm
 
 import (
+	"bytes"
 	"encoding/binary"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -9,6 +11,25 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
+
+func copyItem(item stackitem.Item) stackitem.Item {
+	switch it := item.(type) {
+	case *stackitem.Array:
+		return stackitem.NewArray(slices.Clone(it.Value().([]stackitem.Item)))
+	case *stackitem.Struct:
+		return stackitem.NewStruct(slices.Clone(it.Value().([]stackitem.Item)))
+	case *stackitem.Map:
+		m := stackitem.NewMap()
+		for _, e := range it.Value().([]stackitem.MapElement) {
+			m.Add(e.Key, e.Value)
+		}
+		return m
+	case *stackitem.Buffer:
+		return stackitem.NewBuffer(bytes.Clone(it.Value().([]byte)))
+	default:
+		return item
+	}
+}
 
 func benchOpcodeInt(t *testing.B, f func() *VM, fail bool) {
 	for t.Loop() {
@@ -64,7 +85,7 @@ func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, 
 		for i := range items {
 			item, ok := items[i].(stackitem.Item)
 			if ok {
-				item = stackitem.DeepCopy(item)
+				item = copyItem(item)
 			} else {
 				item = stackitem.Make(items[i])
 			}
