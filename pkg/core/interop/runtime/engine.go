@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -114,7 +115,7 @@ func Notify(ic *interop.Context) error {
 	if len(bytes) > MaxNotificationSize {
 		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
 	}
-	return ic.AddNotification(curHash, name, stackitem.DeepCopy(stackitem.NewArray(args)).(*stackitem.Array))
+	return ic.AddNotification(curHash, name, deepCopy(stackitem.NewArray(args)).(*stackitem.Array))
 }
 
 // LoadScript takes a script and arguments from the stack and loads it into the VM.
@@ -191,4 +192,61 @@ func CurrentSigners(ic *interop.Context) error {
 	}
 
 	return nil
+}
+
+// deepCopy returns a new deep copy of the provided item. Array, Struct and
+// Map are copied recursively along with their elements and marked as read-only.
+// Bool, ByteArray, BigInteger, Pointer and Interop are returned as is since
+// they're immutable. Buffer is copied into a new immutable ByteArray, and Null
+// is returned as a new instance. Unsupported item types result in a nil return.
+func deepCopy(item stackitem.Item) stackitem.Item {
+	seen := make(map[stackitem.Item]stackitem.Item, 4)
+	return deepCopyAux(item, seen)
+}
+
+func deepCopyAux(item stackitem.Item, seen map[stackitem.Item]stackitem.Item) stackitem.Item {
+	if it := seen[item]; it != nil {
+		return it
+	}
+	switch it := item.(type) {
+	case stackitem.Null:
+		return stackitem.Null{}
+	case *stackitem.Array:
+		src := it.Value().([]stackitem.Item)
+		arr := stackitem.NewArray(make([]stackitem.Item, len(src)))
+		seen[item] = arr
+		dst := arr.Value().([]stackitem.Item)
+		for i := range src {
+			dst[i] = deepCopyAux(src[i], seen)
+		}
+		arr.MarkAsReadOnly()
+		return arr
+	case *stackitem.Struct:
+		src := it.Value().([]stackitem.Item)
+		st := stackitem.NewStruct(make([]stackitem.Item, len(src)))
+		seen[item] = st
+		dst := st.Value().([]stackitem.Item)
+		for i := range src {
+			dst[i] = deepCopyAux(src[i], seen)
+		}
+		st.MarkAsReadOnly()
+		return st
+	case *stackitem.Map:
+		m := stackitem.NewMap()
+		seen[item] = m
+		for _, e := range it.Value().([]stackitem.MapElement) {
+			key := deepCopyAux(e.Key, seen)
+			value := deepCopyAux(e.Value, seen)
+			m.Add(key, value)
+		}
+		m.MarkAsReadOnly()
+		return m
+	case *stackitem.Buffer:
+		return stackitem.NewByteArray(bytes.Clone(it.Value().([]byte)))
+	case *stackitem.Pointer, *stackitem.Interop, stackitem.Bool,
+		*stackitem.ByteArray, *stackitem.BigInteger:
+		return item
+	default:
+		return nil
+	}
 }

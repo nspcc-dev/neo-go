@@ -171,3 +171,63 @@ func TestCurrentSigners(t *testing.T) {
 		}))
 	})
 }
+
+func TestDeepCopy(t *testing.T) {
+	t.Run("Buffer", func(t *testing.T) {
+		require.Equal(t, stackitem.NewByteArray([]byte{1, 2, 3}), deepCopy(stackitem.NewBuffer([]byte{1, 2, 3})))
+	})
+
+	t.Run("not deeply copied", func(t *testing.T) {
+		for _, item := range []stackitem.Item{
+			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewByteArray([]byte{1, 2, 3}),
+			stackitem.NewBool(true),
+			stackitem.NewPointer(1, []byte{1, 2, 3}),
+			stackitem.NewInterop(&[]byte{1, 2}),
+		} {
+			require.True(t, item == deepCopy(item))
+		}
+	})
+
+	t.Run("Null", func(t *testing.T) {
+		require.Equal(t, stackitem.Null{}, deepCopy(stackitem.Null{}))
+	})
+
+	t.Run("Array", func(t *testing.T) {
+		arr := stackitem.NewArray(make([]stackitem.Item, 2))
+		items := arr.Value().([]stackitem.Item)
+		items[0] = stackitem.NewBool(true)
+		items[1] = arr
+
+		actual := deepCopy(arr)
+		arr.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
+		require.Equal(t, arr, actual)
+		require.False(t, arr == actual)
+		require.True(t, actual == actual.Value().([]stackitem.Item)[1])
+	})
+
+	t.Run("Struct", func(t *testing.T) {
+		st := stackitem.NewStruct(make([]stackitem.Item, 2))
+		items := st.Value().([]stackitem.Item)
+		items[0] = stackitem.NewBool(true)
+		items[1] = st
+
+		actual := deepCopy(st)
+		st.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
+		require.Equal(t, st, actual)
+		require.False(t, st == actual)
+		require.True(t, actual == actual.Value().([]stackitem.Item)[1])
+	})
+
+	t.Run("Map", func(t *testing.T) {
+		m := stackitem.NewMap()
+		m.Add(stackitem.NewBool(true), m)
+		m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewByteArray([]byte{1, 2, 3}))
+
+		actual := deepCopy(m)
+		m.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
+		require.Equal(t, m, actual)
+		require.False(t, m == actual)
+		require.True(t, actual == actual.Value().([]stackitem.MapElement)[0].Value)
+	})
+}
