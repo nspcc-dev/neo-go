@@ -1163,15 +1163,17 @@ func (i *Buffer) Len() int {
 	return len(*i)
 }
 
-// DeepCopy returns a new deep copy of the provided item.
-// Values of Interop items are not deeply copied.
-// It does preserve duplicates only for non-primitive types.
-func DeepCopy(item Item, asImmutable bool) Item {
+// DeepCopy returns a new deep copy of the provided item. Array, Struct and
+// Map are copied recursively along with their elements and marked as read-only.
+// Bool, ByteArray, BigInteger, Pointer and Interop are returned as is since
+// they're immutable. Buffer is copied into a new immutable ByteArray, and Null
+// is returned as a new instance. Unsupported item types result in a nil return.
+func DeepCopy(item Item) Item {
 	seen := make(map[Item]Item, typicalNumOfItems)
-	return deepCopy(item, seen, asImmutable)
+	return deepCopy(item, seen)
 }
 
-func deepCopy(item Item, seen map[Item]Item, asImmutable bool) Item {
+func deepCopy(item Item, seen map[Item]Item) Item {
 	if it := seen[item]; it != nil {
 		return it
 	}
@@ -1182,7 +1184,7 @@ func deepCopy(item Item, seen map[Item]Item, asImmutable bool) Item {
 		arr := NewArray(make([]Item, len(it.value)))
 		seen[item] = arr
 		for i := range it.value {
-			arr.value[i] = deepCopy(it.value[i], seen, asImmutable)
+			arr.value[i] = deepCopy(it.value[i], seen)
 		}
 		arr.MarkAsReadOnly()
 		return arr
@@ -1190,7 +1192,7 @@ func deepCopy(item Item, seen map[Item]Item, asImmutable bool) Item {
 		arr := NewStruct(make([]Item, len(it.value)))
 		seen[item] = arr
 		for i := range it.value {
-			arr.value[i] = deepCopy(it.value[i], seen, asImmutable)
+			arr.value[i] = deepCopy(it.value[i], seen)
 		}
 		arr.MarkAsReadOnly()
 		return arr
@@ -1198,29 +1200,16 @@ func deepCopy(item Item, seen map[Item]Item, asImmutable bool) Item {
 		m := NewMap()
 		seen[item] = m
 		for i := range it.value {
-			key := deepCopy(it.value[i].Key, seen,
-				false) // Key is always primitive and not a Buffer.
-			value := deepCopy(it.value[i].Value, seen, asImmutable)
+			key := deepCopy(it.value[i].Key, seen)
+			value := deepCopy(it.value[i].Value, seen)
 			m.Add(key, value)
 		}
 		m.MarkAsReadOnly()
 		return m
-	case *BigInteger:
-		bi := new(big.Int).Set(it.Big())
-		return (*BigInteger)(bi)
-	case *ByteArray:
-		return NewByteArray(bytes.Clone(*it))
 	case *Buffer:
-		if asImmutable {
-			return NewByteArray(bytes.Clone(*it))
-		}
-		return NewBuffer(bytes.Clone(*it))
-	case Bool:
+		return NewByteArray(bytes.Clone(*it))
+	case *Pointer, *Interop, Bool, *ByteArray, *BigInteger:
 		return it
-	case *Pointer:
-		return NewPointerWithHash(it.pos, it.script, it.hash)
-	case *Interop:
-		return NewInterop(it.value)
 	default:
 		return nil
 	}

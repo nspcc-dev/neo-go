@@ -64,7 +64,7 @@ func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, 
 		for i := range items {
 			item, ok := items[i].(stackitem.Item)
 			if ok {
-				item = stackitem.DeepCopy(item, true)
+				item = stackitem.DeepCopy(item)
 			} else {
 				item = stackitem.Make(items[i])
 			}

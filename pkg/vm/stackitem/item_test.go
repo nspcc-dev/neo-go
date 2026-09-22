@@ -538,32 +538,24 @@ func TestStructClone(t *testing.T) {
 }
 
 func TestDeepCopy(t *testing.T) {
-	testCases := []struct {
-		name string
-		item Item
-	}{
-		{"Integer", NewBigInteger(big.NewInt(1))},
-		{"ByteArray", NewByteArray([]byte{1, 2, 3})},
-		{"Buffer", NewBuffer([]byte{1, 2, 3})},
-		{"Bool", NewBool(true)},
-		{"Pointer", NewPointer(1, []byte{1, 2, 3})},
-		{"Interop", NewInterop(&[]byte{1, 2})},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual := DeepCopy(tc.item, false)
-			if immut, ok := tc.item.(Immutable); ok {
-				immut.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
-			}
-			require.Equal(t, tc.item, actual)
-			if tc.item.Type() != BooleanT {
-				require.False(t, actual == tc.item)
-			}
-		})
-	}
+	t.Run("Buffer", func(t *testing.T) {
+		require.Equal(t, NewByteArray([]byte{1, 2, 3}), DeepCopy(NewBuffer([]byte{1, 2, 3})))
+	})
+
+	t.Run("not deeply copied", func(t *testing.T) {
+		for _, item := range []Item{
+			NewBigInteger(big.NewInt(1)),
+			NewByteArray([]byte{1, 2, 3}),
+			NewBool(true),
+			NewPointer(1, []byte{1, 2, 3}),
+			NewInterop(&[]byte{1, 2}),
+		} {
+			require.True(t, item == DeepCopy(item))
+		}
+	})
 
 	t.Run("Null", func(t *testing.T) {
-		require.Equal(t, Null{}, DeepCopy(Null{}, false))
+		require.Equal(t, Null{}, DeepCopy(Null{}))
 	})
 
 	t.Run("Array", func(t *testing.T) {
@@ -571,7 +563,7 @@ func TestDeepCopy(t *testing.T) {
 		arr.value[0] = NewBool(true)
 		arr.value[1] = arr
 
-		actual := DeepCopy(arr, false)
+		actual := DeepCopy(arr)
 		arr.isReadOnly = true // tiny hack for test to be able to compare object references.
 		require.Equal(t, arr, actual)
 		require.False(t, arr == actual)
@@ -583,7 +575,7 @@ func TestDeepCopy(t *testing.T) {
 		arr.value[0] = NewBool(true)
 		arr.value[1] = arr
 
-		actual := DeepCopy(arr, false)
+		actual := DeepCopy(arr)
 		arr.isReadOnly = true // tiny hack for test to be able to compare object references.
 		require.Equal(t, arr, actual)
 		require.False(t, arr == actual)
@@ -595,7 +587,7 @@ func TestDeepCopy(t *testing.T) {
 		m.Add(NewBool(true), m)
 		m.Add(NewBigInteger(big.NewInt(1)), NewByteArray([]byte{1, 2, 3}))
 
-		actual := DeepCopy(m, false)
+		actual := DeepCopy(m)
 		m.isReadOnly = true // tiny hack for test to be able to compare object references.
 		require.Equal(t, m, actual)
 		require.False(t, m == actual)

@@ -114,7 +114,7 @@ func Notify(ic *interop.Context) error {
 	if len(bytes) > MaxNotificationSize {
 		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
 	}
-	return ic.AddNotification(curHash, name, stackitem.DeepCopy(stackitem.NewArray(args), true).(*stackitem.Array))
+	return ic.AddNotification(curHash, name, stackitem.DeepCopy(stackitem.NewArray(args)).(*stackitem.Array))
 }
 
 // LoadScript takes a script and arguments from the stack and loads it into the VM.
