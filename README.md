@@ -13,7 +13,6 @@
 
 [![codecov](https://codecov.io/gh/nspcc-dev/neo-go/branch/master/graph/badge.svg)](https://codecov.io/gh/nspcc-dev/neo-go)
 [![GithubWorkflows Tests](https://github.com/nspcc-dev/neo-go/actions/workflows/tests.yml/badge.svg)](https://github.com/nspcc-dev/neo-go/actions/workflows/tests.yml)
-[![Report](https://goreportcard.com/badge/github.com/nspcc-dev/neo-go)](https://goreportcard.com/report/github.com/nspcc-dev/neo-go)
 [![GoDoc](https://godoc.org/github.com/nspcc-dev/neo-go?status.svg)](https://godoc.org/github.com/nspcc-dev/neo-go)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/nspcc-dev/neo-go?sort=semver)
 ![License](https://img.shields.io/github/license/nspcc-dev/neo-go.svg?style=popout)
