@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ func TestUnexpectedNonInterops(t *testing.T) {
 	}
 
 	// All of these functions expect an interop item on the stack.
-	funcs := []func(*interop.Context) error{
+	funcs := []func(*interop.Context) (*fee.InteropRunStats, error){
 		storage.ContextAsReadOnly,
 		storage.Delete,
 		storage.Find,
@@ -32,7 +33,8 @@ func TestUnexpectedNonInterops(t *testing.T) {
 			t.Run(k+"/"+fname, func(t *testing.T) {
 				vm, ic, _ := createVM(t)
 				vm.Estack().PushVal(v)
-				require.Error(t, f(ic))
+				_, err := f(ic)
+				require.Error(t, err)
 			})
 		}
 	}
