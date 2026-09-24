@@ -287,37 +287,20 @@ func TestService_ValidatePayload(t *testing.T) {
 func TestService_getTx(t *testing.T) {
 	srv := newTestService(t)
 
-	t.Run("transaction in mempool", func(t *testing.T) {
-		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-		tx.Nonce = 1234
-		tx.ValidUntilBlock = 1
-		addSender(t, tx)
-		signTx(t, srv.Chain, tx)
-		h := tx.Hash()
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx.Nonce = 1234
+	tx.ValidUntilBlock = 1
+	addSender(t, tx)
+	signTx(t, srv.Chain, tx)
+	h := tx.Hash()
 
-		require.Equal(t, nil, srv.getTx(h))
+	require.Equal(t, nil, srv.getTx(h))
 
-		require.NoError(t, srv.Chain.PoolTx(tx))
+	require.NoError(t, srv.Chain.PoolTx(tx))
 
-		got := srv.getTx(h)
-		require.NotNil(t, got)
-		require.Equal(t, h, got.Hash())
-	})
-
-	t.Run("transaction in local cache", func(t *testing.T) {
-		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-		tx.Nonce = 4321
-		tx.ValidUntilBlock = 1
-		h := tx.Hash()
-
-		require.Equal(t, nil, srv.getTx(h))
-
-		srv.txx.Add(tx)
-
-		got := srv.getTx(h)
-		require.NotNil(t, got)
-		require.Equal(t, h, got.Hash())
-	})
+	got := srv.getTx(h)
+	require.NotNil(t, got)
+	require.Equal(t, h, got.Hash())
 }
 
 func TestService_PrepareRequest(t *testing.T) {

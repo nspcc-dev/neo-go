@@ -29,10 +29,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// cacheMaxCapacity is the default cache capacity taken
-// from C# implementation https://github.com/neo-project/neo/blob/master/neo/Ledger/Blockchain.cs#L64
-const cacheMaxCapacity = 100
-
 // Number of nanoseconds in millisecond.
 const nsInMs = 1000000
 
@@ -82,9 +78,7 @@ type Service interface {
 type service struct {
 	Config
 
-	log *zap.Logger
-	// txx is a fifo cache which stores miner transactions.
-	txx  *relayCache
+	log  *zap.Logger
 	dbft *dbft.DBFT[util.Uint256]
 	// messages and transactions are channels needed to process
 	// everything in single thread.
@@ -143,7 +137,6 @@ func NewService(cfg Config) (Service, error) {
 		Config: cfg,
 
 		log:      cfg.Logger,
-		txx:      newFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
 
 		transactions: make(chan *transaction.Transaction, 100),
@@ -527,10 +520,6 @@ func (s *service) broadcast(p dbft.ConsensusPayload[util.Uint256]) {
 }
 
 func (s *service) getTx(h util.Uint256) dbft.Transaction[util.Uint256] {
-	if tx := s.txx.Get(h); tx != nil {
-		return tx.(*transaction.Transaction)
-	}
-
 	tx, _, _ := s.Chain.GetTransaction(h)
 
 	// this is needed because in case of absent tx dBFT expects to
