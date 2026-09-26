@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -72,7 +74,7 @@ func (s *LevelDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]
 // Seek implements the Store interface.
 func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	iter := s.db.NewIterator(seekRangeToPrefixes(rng), nil)
-	s.seek(iter, rng.Backwards, f)
+	s.seek(iter, rng, f)
 }
 
 // SeekGC implements the Store interface.
@@ -82,7 +84,7 @@ func (s *LevelDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, b
 		return err
 	}
 	iter := tx.NewIterator(seekRangeToPrefixes(rng), nil)
-	s.seek(iter, rng.Backwards, func(k, v []byte) bool {
+	s.seek(iter, rng, func(k, v []byte) bool {
 		keep, cont := keepCont(k, v)
 		if !keep {
 			err = tx.Delete(k, nil)
@@ -98,13 +100,13 @@ func (s *LevelDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, b
 	return tx.Commit()
 }
 
-func (s *LevelDBStore) seek(iter iterator.Iterator, backwards bool, f func(k, v []byte) bool) {
+func (s *LevelDBStore) seek(iter iterator.Iterator, rng SeekRange, f func(k, v []byte) bool) {
 	var (
 		next func() bool
 		ok   bool
 	)
 
-	if !backwards {
+	if !rng.Backwards {
 		ok = iter.Next()
 		next = iter.Next
 	} else {
@@ -112,10 +114,15 @@ func (s *LevelDBStore) seek(iter iterator.Iterator, backwards bool, f func(k, v 
 		next = iter.Prev
 	}
 
+	start := slices.Concat(rng.Prefix, rng.Start)
 	for ; ok; ok = next() {
-		if !f(iter.Key(), iter.Value()) {
-			break
+		k, v := iter.Key(), iter.Value()
+		if rng.Start == nil || (!rng.Backwards && bytes.Compare(k, start) >= 0) || (rng.Backwards && bytes.Compare(k, start) <= 0) {
+			if !f(k, v) {
+				break
+			}
 		}
+		continue
 	}
 	iter.Release()
 }
