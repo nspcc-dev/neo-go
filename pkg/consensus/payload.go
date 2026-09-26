@@ -24,6 +24,9 @@ type (
 		payload io.Serializable
 		// stateRootEnabled specifies if state root is exchanged during consensus.
 		stateRootEnabled bool
+
+		// prepareRequestExtensionEnabled specifies if PrepareRequest extension is enabled for this message.
+		prepareRequestExtensionEnabled func(blockIndex uint32) bool
 	}
 
 	// Payload is a type for consensus-related messages.
@@ -171,9 +174,9 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 		cv.newViewNumber = m.ViewNumber + 1
 		m.payload = cv
 	case prepareRequestType:
-		r := new(prepareRequest)
-		if m.stateRootEnabled {
-			r.stateRootEnabled = true
+		r := &prepareRequest{
+			stateRootEnabled: m.stateRootEnabled,
+			extended:         m.prepareRequestExtensionEnabled(m.BlockIndex),
 		}
 		m.payload = r
 	case prepareResponseType:
@@ -183,9 +186,9 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 	case recoveryRequestType:
 		m.payload = new(recoveryRequest)
 	case recoveryMessageType:
-		r := new(recoveryMessage)
-		if m.stateRootEnabled {
-			r.stateRootEnabled = true
+		r := &recoveryMessage{
+			prepareRequestExtensionEnabled: m.prepareRequestExtensionEnabled,
+			stateRootEnabled:               m.stateRootEnabled,
 		}
 		m.payload = r
 	default:

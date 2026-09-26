@@ -191,7 +191,10 @@ func TestService_NextConsensus(t *testing.T) {
 }
 
 func TestService_GetVerified(t *testing.T) {
-	srv := newTestService(t)
+	bc := newTestChainWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+		c.Hardforks[config.HFIara.String()] = 0
+	})
+	srv := newTestServiceWithChain(t, bc)
 	srv.dbft.Start(0)
 	var txs []*transaction.Transaction
 	for i := range 4 {
@@ -204,7 +207,7 @@ func TestService_GetVerified(t *testing.T) {
 	signTx(t, srv.Chain, txs...)
 	require.NoError(t, srv.Chain.PoolTx(txs[3]))
 
-	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
+	reqTxs := []*transaction.Transaction{txs[0], txs[1], txs[2]}
 
 	// Everyone sends a message.
 	for i := range 4 {
@@ -212,7 +215,7 @@ func TestService_GetVerified(t *testing.T) {
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
 			p.message.Type = messageType(dbft.PrepareRequestType)
-			p.payload = &prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), transactionHashes: hashes}
+			p.payload = &prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), extended: true, transactions: reqTxs}
 		} else {
 			p.message.Type = messageType(dbft.ChangeViewType)
 			p.payload = &changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)}
@@ -227,7 +230,11 @@ func TestService_GetVerified(t *testing.T) {
 		srv.dbft.OnReceive(p)
 	}
 	require.Equal(t, uint8(1), srv.dbft.ViewNumber)
-	require.Equal(t, hashes, srv.lastProposal)
+	reqHashes := make([]util.Uint256, len(reqTxs))
+	for i, tx := range reqTxs {
+		reqHashes[i] = tx.Hash()
+	}
+	require.Equal(t, reqHashes, srv.lastProposal)
 
 	t.Run("new transactions will be proposed in case of failure", func(t *testing.T) {
 		txx := srv.getVerifiedTx()
@@ -335,9 +342,10 @@ func TestService_PrepareRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	checkRequest(t, errInvalidTransactionsCount, &prepareRequest{stateRootEnabled: true,
-		prevHash:          prevHash,
-		stateRoot:         sr.Root,
-		transactionHashes: make([]util.Uint256, srv.ProtocolConfiguration.MaxTransactionsPerBlock+1),
+		prevHash:     prevHash,
+		stateRoot:    sr.Root,
+		extended:     true,
+		transactions: make([]*transaction.Transaction, srv.ProtocolConfiguration.MaxTransactionsPerBlock+1),
 	})
 
 	checkRequest(t, nil, &prepareRequest{
@@ -530,10 +538,12 @@ func newSingleTestChain(t *testing.T) *core.Blockchain {
 	return chain
 }
 
-func newTestChain(t *testing.T, stateRootInHeader bool) *core.Blockchain {
+func newTestChainWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) *core.Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", netmode.UnitTestNet)
 	require.NoError(t, err)
-	unitTestNetCfg.ProtocolConfiguration.StateRootInHeader = stateRootInHeader
+	if f != nil {
+		f(&unitTestNetCfg.ProtocolConfiguration)
+	}
 
 	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.Blockchain(), zaptest.NewLogger(t))
 	require.NoError(t, err)
@@ -541,6 +551,12 @@ func newTestChain(t *testing.T, stateRootInHeader bool) *core.Blockchain {
 	go chain.Run()
 	t.Cleanup(chain.Close)
 	return chain
+}
+
+func newTestChain(t *testing.T, stateRootInHeader bool) *core.Blockchain {
+	return newTestChainWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+		c.StateRootInHeader = stateRootInHeader
+	})
 }
 
 var neoOwner = testchain.MultisigScriptHash()

@@ -18,7 +18,10 @@ type (
 		commitPayloads      []*commitCompact
 		changeViewPayloads  []*changeViewCompact
 		stateRootEnabled    bool
-		prepareRequest      *message
+		// prepareRequestExtensionEnabled specifies if PrepareRequest
+		// extension is enabled for this recovery message.
+		prepareRequestExtensionEnabled func(blockIndex uint32) bool
+		prepareRequest                 *message
 	}
 
 	changeViewCompact struct {
@@ -49,7 +52,7 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 
 	var hasReq = r.ReadBool()
 	if hasReq {
-		m.prepareRequest = &message{stateRootEnabled: m.stateRootEnabled}
+		m.prepareRequest = &message{stateRootEnabled: m.stateRootEnabled, prepareRequestExtensionEnabled: m.prepareRequestExtensionEnabled}
 		m.prepareRequest.DecodeBinary(r)
 		if r.Err == nil && m.prepareRequest.Type != prepareRequestType {
 			r.Err = errors.New("recovery message PrepareRequest has wrong type")
