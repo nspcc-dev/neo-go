@@ -10,6 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// We don't create a new account here, because chain will
+// stop working after validator will change.
+func TestCreateExecutor(t *testing.T) {
+	var _ = testcli.NewExecutorWithConfig(t, true, false, func(cfg *config.Config) {
+		cfg.ProtocolConfiguration.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 0,
+		}
+	})
+}
+
 // Register standby validator and vote for it.
 // We don't create a new account here, because chain will
 // stop working after validator will change.
