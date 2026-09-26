@@ -23,6 +23,7 @@ func TestUnexpectedNonInterops(t *testing.T) {
 		storage.ContextAsReadOnly,
 		storage.Delete,
 		storage.Find,
+		storage.FindWithStart,
 		storage.Get,
 		storage.Put,
 	}

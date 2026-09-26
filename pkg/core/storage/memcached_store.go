@@ -233,12 +233,16 @@ func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) (Store, []KeyValu
 // seeking from some point is supported with corresponding `rng` field set.
 func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng SeekRange, cutPrefix bool, cont func(k, v []byte) bool) {
 	lPrefix := len(string(rng.Prefix))
-	var cmpFunc = getCmpFunc(rng.Backwards)
+	emptyStart := rng.Start != nil && len(rng.Start) == 0 && rng.Backwards // backwards iteration with an empty non-nil 'start'.
+	var cmpFunc = getCmpFunc(rng.Backwards, emptyStart)
 
 	// Sort memRes items for further comparison with ps items.
 	slices.SortFunc(memRes, func(a, b KeyValueExists) int {
 		return cmpFunc(a.Key, b.Key)
 	})
+	if emptyStart {
+		memRes = memRes[:min(1, len(memRes))]
+	}
 
 	var (
 		done    bool
@@ -273,7 +277,7 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 						if cutPrefix {
 							kvMem.Key = kvMem.Key[lPrefix:]
 						}
-						if !cont(kvMem.Key, kvMem.Value) {
+						if !cont(kvMem.Key, kvMem.Value) || emptyStart {
 							done = true
 							return false
 						}
@@ -290,7 +294,7 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 						if cutPrefix {
 							kvPs.Key = kvPs.Key[lPrefix:]
 						}
-						if !cont(kvPs.Key, kvPs.Value) {
+						if !cont(kvPs.Key, kvPs.Value) || emptyStart {
 							done = true
 							return false
 						}

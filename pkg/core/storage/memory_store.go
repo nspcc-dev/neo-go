@@ -113,7 +113,8 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool, lock func(),
 			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || cmp.Compare(key[lPrefix:], sStart) <= 0)
 		}
 	}
-	var cmpFunc = getCmpFunc(rng.Backwards)
+	emptyStart := rng.Start != nil && len(rng.Start) == 0 && rng.Backwards // backwards iteration with an empty non-nil 'start'.
+	var cmpFunc = getCmpFunc(rng.Backwards, emptyStart)
 
 	lock()
 	m := s.chooseMap(rng.Prefix)
@@ -129,6 +130,9 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool, lock func(),
 	slices.SortFunc(memList, func(a, b KeyValue) int {
 		return cmpFunc(a.Key, b.Key)
 	})
+	if emptyStart {
+		memList = memList[:min(1, len(memList))]
+	}
 	for _, kv := range memList {
 		if !f(kv.Key, kv.Value) {
 			break
@@ -136,8 +140,8 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool, lock func(),
 	}
 }
 
-func getCmpFunc(backwards bool) func(a, b []byte) int {
-	if !backwards {
+func getCmpFunc(backwards bool, emptyStart bool) func(a, b []byte) int {
+	if !backwards || emptyStart {
 		return bytes.Compare
 	}
 	return func(a, b []byte) int { return -bytes.Compare(a, b) }
