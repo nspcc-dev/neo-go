@@ -31,7 +31,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nspcc-dev/bbolt v0.0.0-20260404200350-24f70ceb2bd9 // indirect
 	github.com/nspcc-dev/hrw/v2 v2.0.4 // indirect
-	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.22 // indirect
+	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.23 // indirect
 	github.com/nspcc-dev/rfc6979 v0.2.4 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/prometheus/client_golang v1.24.1 // indirect

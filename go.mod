@@ -18,7 +18,7 @@ require (
 	github.com/nspcc-dev/dbft v0.4.0
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20260826165212-78b9a86d413c
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20260827144453-45263cbaf873
-	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.22
+	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.23
 	github.com/nspcc-dev/rfc6979 v0.2.4
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/prometheus/client_golang v1.24.1
