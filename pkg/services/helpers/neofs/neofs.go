@@ -213,22 +213,24 @@ func ObjectSearch(ctx context.Context, c Client, priv *keys.PrivateKey, containe
 // GetClient returns a NeoFS client configured with the specified address and context.
 // If timeout is 0, the default timeout will be used.
 func GetClient(ctx context.Context, addr string, timeout time.Duration) (*client.Client, error) {
-	var prmDial client.PrmDial
+	var (
+		prmInit client.PrmInit
+		cancel  func()
+	)
 	if addr == "" {
 		return nil, errors.New("address is empty")
 	}
-	prmDial.SetServerURI(addr)
-	prmDial.SetContext(ctx)
 	if timeout != 0 {
-		prmDial.SetTimeout(timeout)
-		prmDial.SetStreamTimeout(timeout)
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+		prmInit.SetStreamTimeout(timeout)
 	}
 	c, err := client.New(client.PrmInit{})
 	if err != nil {
 		return nil, fmt.Errorf("can't create NeoFS client: %w", err)
 	}
 
-	if err := c.Dial(prmDial); err != nil {
+	if err := c.DialEndpoint(ctx, addr); err != nil {
 		return nil, fmt.Errorf("can't init NeoFS client: %w", err)
 	}
 
