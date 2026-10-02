@@ -646,9 +646,13 @@ func TestStd_StrLen(t *testing.T) {
 	check(t, 1, "ã")
 	check(t, 1, "a")
 
-	bad := string(rune(0xff))
-	check(t, 1, bad)
-	check(t, 3, bad+"ab")
+	checkPanics := func(t *testing.T, str string) {
+		args := []stackitem.Item{stackitem.Make(str)}
+		require.Panics(t, func() { _ = s.strLen(ic, args) })
+	}
+	bad := "\xff"
+	checkPanics(t, bad)
+	checkPanics(t, bad+"ab")
 }
 
 func TestStd_HexEncodeDecode(t *testing.T) {
