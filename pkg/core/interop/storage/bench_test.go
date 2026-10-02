@@ -38,7 +38,7 @@ func BenchmarkStorageFind(b *testing.B) {
 				v.Estack().PushVal("abc")
 				v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: contractState.ID}))
 				b.StartTimer()
-				err := istorage.Find(context)
+				_, err := istorage.Find(context)
 				if err != nil {
 					b.FailNow()
 				}
@@ -80,7 +80,7 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 						v.Estack().PushVal("abc")
 						v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: contractState.ID}))
 						b.StartTimer()
-						err := istorage.Find(context)
+						_, err := istorage.Find(context)
 						b.StopTimer()
 						if err != nil {
 							b.FailNow()
@@ -89,13 +89,15 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 						for range last {
 							context.VM.Estack().PushVal(res)
 							b.StartTimer()
-							require.NoError(b, iterator.Next(context))
+							_, err := iterator.Next(context)
+							require.NoError(b, err)
 							b.StopTimer()
 							require.True(b, context.VM.Estack().Pop().Bool())
 						}
 
 						context.VM.Estack().PushVal(res)
-						require.NoError(b, iterator.Next(context))
+						_, err = iterator.Next(context)
+						require.NoError(b, err)
 						actual := context.VM.Estack().Pop().Bool()
 						if last == count {
 							require.False(b, actual)

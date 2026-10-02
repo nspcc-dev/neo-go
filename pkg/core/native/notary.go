@@ -276,7 +276,7 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 // lockDepositUntil updates the chain's height until which the deposit is locked.
 func (n *Notary) lockDepositUntil(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	addr := toUint160(args[0])
-	ok, err := runtime.CheckHashedWitness(ic, addr)
+	ok, _, err := runtime.CheckHashedWitness(ic, addr)
 	if err != nil {
 		panic(fmt.Errorf("failed to check witness for %s: %w", addr.StringBE(), err))
 	}
@@ -305,7 +305,7 @@ func (n *Notary) lockDepositUntil(ic *interop.Context, args []stackitem.Item) st
 // withdrawDeferrable sends all deposited GAS for "from" address to "to" address.
 func (n *Notary) withdrawDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
 	from := toUint160(args[0])
-	ok, err := runtime.CheckHashedWitness(ic, from)
+	ok, _, err := runtime.CheckHashedWitness(ic, from)
 	if err != nil {
 		panic(fmt.Errorf("failed to check witness for %s: %w", from.StringBE(), err))
 	}
