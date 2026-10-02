@@ -218,6 +218,24 @@ func TestCachedSeek(t *testing.T) {
 	}
 }
 
+func TestCachedSeekBackwardsEmptyStart(t *testing.T) {
+	ps := NewMemoryStore()
+	ts := NewMemCachedStore(ps)
+
+	require.NoError(t, ps.PutChangeSet(map[string][]byte{
+		"20": []byte("barb"),
+		"21": []byte("barc"),
+	}, nil))
+	ts.Put([]byte("22"), []byte("bard"))
+
+	var actual []KeyValue
+	ts.Seek(SeekRange{Prefix: []byte("2"), Start: []byte{}, Backwards: true}, func(k, v []byte) bool {
+		actual = append(actual, KeyValue{Key: bytes.Clone(k), Value: bytes.Clone(v)})
+		return true
+	})
+	require.ElementsMatch(t, []KeyValue{}, actual)
+}
+
 func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCount int) {
 	var (
 		searchPrefix      = []byte{1}
