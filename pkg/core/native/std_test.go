@@ -650,9 +650,12 @@ func TestStd_StrLen(t *testing.T) {
 		args := []stackitem.Item{stackitem.Make(str)}
 		require.Panics(t, func() { _ = s.strLen(ic, args) })
 	}
-	bad := "\xff"
-	checkPanics(t, bad)
-	checkPanics(t, bad+"ab")
+	checkPanics(t, "\xff")
+	checkPanics(t, "\xff ab")
+	checkPanics(t, "ab \xff")
+	checkPanics(t, "\xe2\x82")
+	checkPanics(t, "\xf0\x28\x8c\xbc")
+	checkPanics(t, "\x61\xff\x62")
 }
 
 func TestStd_HexEncodeDecode(t *testing.T) {
