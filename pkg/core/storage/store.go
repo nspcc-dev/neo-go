@@ -80,19 +80,30 @@ type SeekRange struct {
 // when a certain key is not found.
 var ErrKeyNotFound = errors.New("key not found")
 
+// IView represents a read-only transaction to the underlying DB.
+type IView interface {
+	// Close closes the transaction.
+	Close() error
+}
+
 type (
 	// Store is the underlying KV backend for the blockchain data, it's
 	// not intended to be used directly, you wrap it with some memory cache
 	// layer most of the time.
 	Store interface {
-		Get([]byte) ([]byte, error)
+		// BeginView opens a read-only transaction to the underlying DB. It
+		// holds read lock on the DB for the transaction lifetime. It's the
+		// caller's responsibility to close the view once done via IView.Close.
+		BeginView() (IView, error)
+		GetWithView(view IView, k []byte) ([]byte, error)
 		// PutChangeSet allows to push prepared changeset to the Store.
 		PutChangeSet(puts map[string][]byte, stor map[string][]byte) error
-		// Seek can guarantee that provided key (k) and value (v) are the only valid until the next call to f.
-		// Seek continues iteration until false is returned from f.
-		// Key and value slices should not be modified.
-		// Seek can guarantee that key-value items are sorted by key in ascending way.
-		Seek(rng SeekRange, f func(k, v []byte) bool)
+		// SeekWithView can guarantee that provided key (k) and value (v) are
+		// the only valid until the next call to f. Seek continues iteration
+		// until false is returned from f. Key and value slices should not be
+		// modified. Seek can guarantee that key-value items are sorted by key
+		// in an ascending way.
+		SeekWithView(view IView, rng SeekRange, f func(k, v []byte) bool)
 		// SeekGC is similar to Seek, but the function should return true if current
 		// KV pair should be kept and false if it's to be deleted; the second return
 		// value denotes whether to continue iteration. SeekGC only works with the
