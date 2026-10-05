@@ -33,19 +33,23 @@ func TestIterator(t *testing.T) {
 	ic.VM.Estack().PushVal(stackitem.NewInterop(&testIter{index: -1, arr: full}))
 
 	res := ic.VM.Estack().Pop().Item()
+	var err error
 	for i := range full {
 		ic.VM.Estack().PushVal(res)
-		require.NoError(t, Next(ic))
+		_, err = Next(ic)
+		require.NoError(t, err)
 		require.True(t, ic.VM.Estack().Pop().Bool())
 
 		ic.VM.Estack().PushVal(res)
-		require.NoError(t, Value(ic))
+		_, err = Value(ic)
+		require.NoError(t, err)
 
 		value := ic.VM.Estack().Pop().Item().Value()
 		require.Equal(t, big.NewInt(int64(full[i])), value)
 	}
 
 	ic.VM.Estack().PushVal(res)
-	require.NoError(t, Next(ic))
+	_, err = Next(ic)
+	require.NoError(t, err)
 	require.False(t, false, ic.VM.Estack().Pop().Bool())
 }
