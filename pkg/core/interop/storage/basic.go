@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -117,22 +118,38 @@ func putWithContext(ic *interop.Context, stc *Context, key []byte, value []byte)
 	if stc.ReadOnly {
 		return errors.New("storage.Context is read only")
 	}
-	si := ic.DAO.GetStorageItem(stc.ID, key)
-	sizeInc := len(value)
-	if si == nil {
-		sizeInc = len(key) + len(value)
-	} else if len(value) != 0 {
-		if len(value) <= len(si) {
-			sizeInc = (len(value)-1)/4 + 1
-		} else if len(si) != 0 {
-			sizeInc = (len(si)-1)/4 + 1 + len(value) - len(si)
-		}
-	}
-	if err := ic.VM.AddPicoGas(int64(sizeInc) * ic.BaseStorageFee()); err != nil {
+	if err := ic.VM.AddPicoGas(CalculatePrice(ic, stc.ID, key, value, nil)); err != nil {
 		return err
 	}
 	ic.DAO.PutStorageItem(stc.ID, key, value)
 	return nil
+}
+
+// CalculatePrice calculates the price (in picoGas) for storing the specified
+// key-value pair in the specified contract storage permanently.
+func CalculatePrice(ic *interop.Context, id int32, key, value []byte, isTraceable func(si state.StorageItem) (int, bool)) int64 {
+	si := ic.DAO.GetStorageItem(id, key)
+	sizeInc := len(value)
+	chargableValueSize := 0
+	missing := si == nil
+	if !missing {
+		chargableValueSize = len(si)
+		if isTraceable != nil {
+			var ok bool
+			chargableValueSize, ok = isTraceable(si)
+			missing = !ok
+		}
+	}
+	if missing {
+		sizeInc = len(key) + len(value)
+	} else if len(value) != 0 {
+		if len(value) <= chargableValueSize {
+			sizeInc = (len(value)-1)/4 + 1
+		} else if chargableValueSize != 0 {
+			sizeInc = (chargableValueSize-1)/4 + 1 + len(value) - chargableValueSize
+		}
+	}
+	return int64(sizeInc) * ic.BaseStorageFee()
 }
 
 // Put puts key-value pair into the storage.

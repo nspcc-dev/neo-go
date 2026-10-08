@@ -55,6 +55,9 @@ const (
 	maxMaxVUBIncrement = 86400
 	// the maximum value of maximum number of blocks reachable to contracts.
 	maxMaxTraceableBlocks = 2102400
+	// maxTmpStorageMaxTTL is the upper bound of maximum TTL value for storage items stored by native
+	// temporary storage contract. It is set to 365 days in milliseconds.
+	maxTmpStorageMaxTTL = uint64(365 * 24 * time.Hour / time.Millisecond)
 
 	// blockedAccountPrefix is a prefix used to store blocked account.
 	blockedAccountPrefix = 15
@@ -83,7 +86,13 @@ var (
 	maxVUBIncrementKey = []byte{22}
 	// MaxTraceableBlocksKey is a key used to store the maximum number of traceable blocks.
 	MaxTraceableBlocksKey = []byte{23}
+	// tempStorageMaxTTLKey is a key used to store the maximum TTL value for
+	// storage items stored by native TemporaryStorage contract.
+	tempStorageMaxTTLKey = []byte{24}
 )
+
+// maxTmpStorageMaxTTLBig is a big integer representation of maxTmpStorageMaxTTL.
+var maxTmpStorageMaxTTLBig = big.NewInt(int64(maxTmpStorageMaxTTL))
 
 // Policy represents Policy native contract.
 type Policy struct {
@@ -100,6 +109,7 @@ type PolicyCache struct {
 	msPerBlock           uint32
 	maxVUBIncrement      uint32
 	maxTraceableBlocks   uint32
+	tempStorageMaxTTL    uint64
 	attributeFee         map[transaction.AttrType]uint32
 	blockedAccounts      []util.Uint160
 	whitelistedContracts []whitelistedContract
@@ -296,6 +306,15 @@ func NewPolicy() *Policy {
 	eMD = NewEvent(eDesc, config.HFFaun)
 	p.AddEvent(eMD)
 
+	desc = NewDescriptor("getTemporaryStorageMaxTTL", smartcontract.IntegerType)
+	md = NewMethodAndPrice(p.getTempStorageMaxTTL, 1<<15, callflag.ReadStates, config.HFHuyao)
+	p.AddMethod(md, desc)
+
+	desc = NewDescriptor("setTemporaryStorageMaxTTL", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = NewMethodAndPrice(p.setTempStorageMaxTTL, 1<<15, callflag.States, config.HFHuyao)
+	p.AddMethod(md, desc)
+
 	return p
 }
 
@@ -353,6 +372,14 @@ func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 			key := makeBlockedAccountKey(acc)
 			ic.DAO.PutBigInt(p.ID, key, new(big.Int).SetUint64(currTime))
 		}
+	}
+
+	if hf != nil && *hf == config.HFHuyao {
+		cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+
+		ttl := ic.Chain.GetConfig().Genesis.TemporaryStorageMaxTTL.Milliseconds()
+		setIntWithKey(p.ID, ic.DAO, tempStorageMaxTTLKey, ttl)
+		cache.tempStorageMaxTTL = uint64(ttl)
 	}
 
 	return nil
@@ -440,6 +467,11 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple, isHardforkE
 		if fErr != nil {
 			return fmt.Errorf("failed to initialize whitelisted contracts: %w", fErr)
 		}
+	}
+
+	var huyao = config.HFHuyao
+	if isHardforkEnabled(&huyao, blockHeight) {
+		cache.tempStorageMaxTTL = uint64(getIntWithKey(p.ID, d, tempStorageMaxTTLKey))
 	}
 
 	return nil
@@ -822,6 +854,32 @@ func (p *Policy) setMaxTraceableBlocks(ic *interop.Context, args []stackitem.Ite
 	cache.maxTraceableBlocks = value
 
 	return stackitem.Null{}
+}
+
+// GetTemporaryStorageMaxTTLInternal returns the current TemporaryStorageMaxTTL value.
+func (p *Policy) GetTemporaryStorageMaxTTLInternal(d *dao.Simple) uint64 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	return cache.tempStorageMaxTTL
+}
+
+func (p *Policy) setTempStorageMaxTTL(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint64(args[0])
+	if value > maxTmpStorageMaxTTL {
+		panic(fmt.Errorf("TemporaryStorageMaxTTL should not be greater than %d, got %d", maxTmpStorageMaxTTL, value))
+	}
+	if !p.NEO.CheckCommittee(ic) {
+		panic("invalid committee signature")
+	}
+
+	setIntWithKey(p.ID, ic.DAO, tempStorageMaxTTLKey, int64(value))
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	cache.tempStorageMaxTTL = value
+
+	return stackitem.Null{}
+}
+
+func (p *Policy) getTempStorageMaxTTL(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(p.GetTemporaryStorageMaxTTLInternal(ic.DAO))))
 }
 
 // CheckPolicy checks whether a transaction conforms to the current policy restrictions,

@@ -1024,6 +1024,8 @@ func nativeHash(name string) (util.Uint160, error) {
 		return nativehashes.StdLib, nil
 	case strings.ToLower(nativenames.Treasury):
 		return nativehashes.Treasury, nil
+	case strings.ToLower(nativenames.TemporaryStorage), "tempstorage", "tmpstorage":
+		return nativehashes.TemporaryStorage, nil
 	default:
 		return util.Uint160{}, fmt.Errorf("unknown native contract: %s", name)
 	}

@@ -2,17 +2,18 @@ package nativenames
 
 // Names of all native contracts.
 const (
-	Management  = "ContractManagement"
-	Ledger      = "LedgerContract"
-	Neo         = "NeoToken"
-	Gas         = "GasToken"
-	Policy      = "PolicyContract"
-	Oracle      = "OracleContract"
-	Designation = "RoleManagement"
-	Notary      = "Notary"
-	CryptoLib   = "CryptoLib"
-	StdLib      = "StdLib"
-	Treasury    = "Treasury"
+	Management       = "ContractManagement"
+	Ledger           = "LedgerContract"
+	Neo              = "NeoToken"
+	Gas              = "GasToken"
+	Policy           = "PolicyContract"
+	Oracle           = "OracleContract"
+	Designation      = "RoleManagement"
+	Notary           = "Notary"
+	CryptoLib        = "CryptoLib"
+	StdLib           = "StdLib"
+	Treasury         = "Treasury"
+	TemporaryStorage = "TemporaryStorage"
 )
 
 // All contains the list of all native contract names ordered by the contract ID.
@@ -28,6 +29,7 @@ var All = []string{
 	Oracle,
 	Notary,
 	Treasury,
+	TemporaryStorage,
 }
 
 // IsValid checks if the name is a valid native contract's name.
@@ -42,5 +44,6 @@ func IsValid(name string) bool {
 		name == Notary ||
 		name == CryptoLib ||
 		name == StdLib ||
-		name == Treasury
+		name == Treasury ||
+		name == TemporaryStorage
 }
