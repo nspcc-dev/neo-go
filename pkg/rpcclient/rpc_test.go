@@ -833,28 +833,28 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			name: "positive by hash",
 			invoke: func(c *Client) (any, error) {
 				cHash, _ := util.Uint160DecodeStringLE("5c9e40a12055c6b9e3f72271c9779958c842135d")
-				return c.FindStorageByHash(cHash, []byte("aa"), new(1))
+				return c.FindStorageByHash(cHash, []byte("aa"), []byte("aa"))
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"truncated":true, "next": 1}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"truncated":true, "next": "YWExMA=="}}`,
 			result: func(c *Client) any {
 				return result.FindStorage{
 					Results:   []result.KeyValue{{Key: []byte("aa10"), Value: []byte("v2")}},
 					Truncated: true,
-					Next:      1,
+					Next:      []byte("aa10"),
 				}
 			},
 		},
 		{
 			name: "positive by ID",
 			invoke: func(c *Client) (any, error) {
-				return c.FindStorageByID(1, []byte("aa"), new(1))
+				return c.FindStorageByID(1, []byte("aa"), []byte("aa"))
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"truncated":true, "next": 1}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"truncated":true, "next": "YWExMA=="}}`,
 			result: func(c *Client) any {
 				return result.FindStorage{
 					Results:   []result.KeyValue{{Key: []byte("aa10"), Value: []byte("v2")}},
 					Truncated: true,
-					Next:      1,
+					Next:      []byte("aa10"),
 				}
 			},
 		},
@@ -865,14 +865,14 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (any, error) {
 				root, _ := util.Uint256DecodeStringLE("252e9d73d49c95c7618d40650da504e05183a1b2eed0685e42c360413c329170")
 				cHash, _ := util.Uint160DecodeStringLE("5c9e40a12055c6b9e3f72271c9779958c842135d")
-				return c.FindStorageByHashHistoric(root, cHash, []byte("aa"), new(1))
+				return c.FindStorageByHashHistoric(root, cHash, []byte("aa"), []byte("aa"))
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"truncated":true, "next": 1}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"truncated":true, "next": "YWExMA=="}}`,
 			result: func(c *Client) any {
 				return result.FindStorage{
 					Results:   []result.KeyValue{{Key: []byte("aa10"), Value: []byte("v2")}},
 					Truncated: true,
-					Next:      1,
+					Next:      []byte("aa10"),
 				}
 			},
 		},
@@ -880,14 +880,14 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			name: "positive by ID",
 			invoke: func(c *Client) (any, error) {
 				root, _ := util.Uint256DecodeStringLE("252e9d73d49c95c7618d40650da504e05183a1b2eed0685e42c360413c329170")
-				return c.FindStorageByIDHistoric(root, 1, []byte("aa"), new(1))
+				return c.FindStorageByIDHistoric(root, 1, []byte("aa"), []byte("aa"))
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"truncated":true, "next": 1}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"truncated":true, "next": "YWExMA=="}}`,
 			result: func(c *Client) any {
 				return result.FindStorage{
 					Results:   []result.KeyValue{{Key: []byte("aa10"), Value: []byte("v2")}},
 					Truncated: true,
-					Next:      1,
+					Next:      []byte("aa10"),
 				}
 			},
 		},

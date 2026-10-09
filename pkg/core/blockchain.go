@@ -242,7 +242,7 @@ type StateRoot interface {
 	CurrentLocalStateRoot() util.Uint256
 	CurrentValidatedHeight() uint32
 	FindStates(root util.Uint256, prefix, start []byte, maxNum int) ([]storage.KeyValue, error)
-	SeekStates(root util.Uint256, prefix []byte, f func(k, v []byte) bool)
+	SeekStates(root util.Uint256, prefix []byte, start []byte, f func(k, v []byte) bool)
 	GetState(root util.Uint256, key []byte) ([]byte, error)
 	GetStateProof(root util.Uint256, key []byte) ([][]byte, error)
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
@@ -2566,8 +2566,9 @@ func (bc *Blockchain) GetStorageItem(id int32, key []byte) state.StorageItem {
 }
 
 // SeekStorage performs seek operation over contract storage. Prefix is trimmed in the resulting pair's key.
-func (bc *Blockchain) SeekStorage(id int32, prefix []byte, cont func(k, v []byte) bool) {
-	bc.dao.Seek(id, storage.SeekRange{Prefix: prefix}, cont)
+// Start is a value appended to the prefix to start the seek from.
+func (bc *Blockchain) SeekStorage(id int32, prefix []byte, start []byte, cont func(k, v []byte) bool) {
+	bc.dao.Seek(id, storage.SeekRange{Prefix: prefix, Start: start}, cont)
 }
 
 // GetBlock returns a Block by the given hash.

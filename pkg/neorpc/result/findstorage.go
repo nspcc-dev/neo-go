@@ -3,8 +3,9 @@ package result
 // FindStorage represents the result of `findstorage` RPC handler.
 type FindStorage struct {
 	Results []KeyValue `json:"results"`
-	// Next contains the index of the next subsequent element of the contract storage
-	// that can be retrieved during the next iteration.
-	Next      int  `json:"next"`
-	Truncated bool `json:"truncated"`
+	// Next is an exclusive cursor for the next page. It holds the last returned
+	// key (or empty if there are no results). Pass it as `start` to the next
+	// call to `findstorage*` if Truncated is set.
+	Next      []byte `json:"next"`
+	Truncated bool   `json:"truncated"`
 }

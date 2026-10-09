@@ -187,7 +187,7 @@ loop:
 }
 
 func traverseMPT(root util.Uint256, stateModule core.StateRoot, writer *gio.BinWriter) error {
-	stateModule.SeekStates(root, []byte{}, func(k, v []byte) bool {
+	stateModule.SeekStates(root, []byte{}, nil, func(k, v []byte) bool {
 		writer.WriteVarBytes(k)
 		writer.WriteVarBytes(v)
 		return writer.Err == nil
