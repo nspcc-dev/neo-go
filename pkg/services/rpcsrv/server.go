@@ -1810,30 +1810,33 @@ func (s *Server) findStorage(reqParams params.Params) (any, *neorpc.Error) {
 	return s.findStorageInternal(id, prefix, start, take, s.chain)
 }
 
-func (s *Server) findStorageInternal(id int32, prefix []byte, start, take int, seeker ContractStorageSeeker) (any, *neorpc.Error) {
+func (s *Server) findStorageInternal(id int32, prefix []byte, start []byte, take int, seeker ContractStorageSeeker) (any, *neorpc.Error) {
 	var (
-		i   int
-		end = start + take
+		count int
 		// Result is an empty list if a contract state is not found as it is in C# implementation.
-		res = &result.FindStorage{Results: make([]result.KeyValue, 0)}
+		res = &result.FindStorage{Results: make([]result.KeyValue, 0), Next: []byte{}}
 	)
+	if len(start) > 0 {
+		res.Next = bytes.Clone(start)
+	}
 	seeker.SeekStorage(id, prefix, func(k, v []byte) bool {
-		if i < start {
-			i++
+		key := append(bytes.Clone(prefix), k...) // Don't strip prefix, as it is done in C#.
+		// Exclusive cursor: skip everything up to and including the start key.
+		if len(start) > 0 && bytes.Compare(key, start) <= 0 {
 			return true
 		}
-		if i < end {
-			res.Results = append(res.Results, result.KeyValue{
-				Key:   bytes.Clone(append(prefix, k...)), // Don't strip prefix, as it is done in C#.
-				Value: v,
-			})
-			i++
-			return true
+		if count == take {
+			res.Truncated = true
+			return false
 		}
-		res.Truncated = true
-		return false
+		res.Results = append(res.Results, result.KeyValue{
+			Key:   key,
+			Value: v,
+		})
+		res.Next = key
+		count++
+		return true
 	})
-	res.Next = i
 	return res, nil
 }
 
@@ -1867,28 +1870,31 @@ func (s mptStorageSeeker) SeekStorage(id int32, prefix []byte, cont func(k, v []
 	s.module.SeekStates(s.root, key, cont)
 }
 
-func (s *Server) getFindStorageParams(reqParams params.Params, root ...util.Uint256) (int32, []byte, int, int, *neorpc.Error) {
+func (s *Server) getFindStorageParams(reqParams params.Params, root ...util.Uint256) (int32, []byte, []byte, int, *neorpc.Error) {
 	if len(reqParams) < 2 {
-		return 0, nil, 0, 0, neorpc.ErrInvalidParams
+		return 0, nil, nil, 0, neorpc.ErrInvalidParams
 	}
 	id, respErr := s.contractIDFromParam(reqParams.Value(0), root...)
 	if respErr != nil {
-		return 0, nil, 0, 0, respErr
+		return 0, nil, nil, 0, respErr
 	}
 
 	prefix, err := reqParams.Value(1).GetBytesBase64()
 	if err != nil {
-		return 0, nil, 0, 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid prefix: %s", err))
+		return 0, nil, nil, 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid prefix: %s", err))
 	}
 
-	var skip int
+	var start []byte
 	if len(reqParams) > 2 {
-		skip, err = reqParams.Value(2).GetInt()
+		start, err = reqParams.Value(2).GetBytesBase64()
 		if err != nil {
-			return 0, nil, 0, 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid start: %s", err))
+			return 0, nil, nil, 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid start: %s", err))
+		}
+		if len(start) > 0 && !bytes.HasPrefix(start, prefix) {
+			return 0, nil, nil, 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "invalid start: must start with the given prefix")
 		}
 	}
-	return id, prefix, skip, s.config.MaxFindStorageResultItems, nil
+	return id, prefix, start, s.config.MaxFindStorageResultItems, nil
 }
 
 func (s *Server) getHistoricalContractState(root util.Uint256, csHash util.Uint160) (*state.Contract, *neorpc.Error) {

@@ -2497,7 +2497,7 @@ func TestClient_FindStorage(t *testing.T) {
 				Value: []byte("v2"),
 			},
 		},
-		Next:      2,
+		Next:      []byte("aa10"),
 		Truncated: true,
 	}
 
@@ -2512,7 +2512,7 @@ func TestClient_FindStorage(t *testing.T) {
 	require.Equal(t, expected, actual)
 
 	// Non-nil start.
-	actual, err = c.FindStorageByHash(h, prefix, new(1))
+	actual, err = c.FindStorageByHash(h, prefix, []byte("aa"))
 	require.NoError(t, err)
 	require.Equal(t, result.FindStorage{
 		Results: []result.KeyValue{
@@ -2525,7 +2525,7 @@ func TestClient_FindStorage(t *testing.T) {
 				Value: []byte("v3"),
 			},
 		},
-		Next:      3,
+		Next:      []byte("aa50"),
 		Truncated: false,
 	}, actual)
 
@@ -2534,7 +2534,7 @@ func TestClient_FindStorage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, result.FindStorage{
 		Results:   []result.KeyValue{},
-		Next:      0,
+		Next:      []byte{},
 		Truncated: false,
 	}, actual)
 }
@@ -2567,7 +2567,7 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 				Value: []byte("v2"),
 			},
 		},
-		Next:      2,
+		Next:      []byte("aa10"),
 		Truncated: true,
 	}
 
@@ -2582,7 +2582,7 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 	require.Equal(t, expected, actual)
 
 	// Non-nil start.
-	actual, err = c.FindStorageByHashHistoric(root, h, prefix, new(1))
+	actual, err = c.FindStorageByHashHistoric(root, h, prefix, []byte("aa"))
 	require.NoError(t, err)
 	require.Equal(t, result.FindStorage{
 		Results: []result.KeyValue{
@@ -2595,7 +2595,7 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 				Value: []byte("v3"),
 			},
 		},
-		Next:      3,
+		Next:      []byte("aa50"),
 		Truncated: false,
 	}, actual)
 
@@ -2606,7 +2606,7 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, result.FindStorage{
 		Results:   []result.KeyValue{},
-		Next:      0,
+		Next:      []byte{},
 		Truncated: false,
 	}, actual)
 }
