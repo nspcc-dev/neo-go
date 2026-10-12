@@ -235,9 +235,8 @@ func deepCopyAux(item stackitem.Item, seen map[stackitem.Item]stackitem.Item) st
 		m := stackitem.NewMap()
 		seen[item] = m
 		for _, e := range it.Value().([]stackitem.MapElement) {
-			key := deepCopyAux(e.Key, seen)
 			value := deepCopyAux(e.Value, seen)
-			m.Add(key, value)
+			m.Add(e.Key, value)
 		}
 		m.MarkAsReadOnly()
 		return m
