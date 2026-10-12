@@ -241,7 +241,9 @@ func deepCopyAux(item stackitem.Item, seen map[stackitem.Item]stackitem.Item) st
 		m.MarkAsReadOnly()
 		return m
 	case *stackitem.Buffer:
-		return stackitem.NewByteArray(bytes.Clone(it.Value().([]byte)))
+		b := stackitem.NewByteArray(bytes.Clone(it.Value().([]byte)))
+		seen[item] = b
+		return b
 	case *stackitem.Pointer, *stackitem.Interop, stackitem.Bool,
 		*stackitem.ByteArray, *stackitem.BigInteger:
 		return item

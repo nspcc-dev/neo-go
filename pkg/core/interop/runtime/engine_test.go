@@ -249,4 +249,15 @@ func TestDeepCopy(t *testing.T) {
 			require.True(t, key == elems[idx].Key)
 		}
 	})
+
+	t.Run("shared Buffer is copied once", func(t *testing.T) {
+		buf := stackitem.NewBuffer([]byte{1, 2, 3})
+		arr := stackitem.NewArray([]stackitem.Item{buf, buf, buf})
+		actual := deepCopy(arr).(*stackitem.Array)
+		elems := actual.Value().([]stackitem.Item)
+		require.Len(t, elems, 3)
+		require.Equal(t, stackitem.NewByteArray([]byte{1, 2, 3}), elems[0])
+		require.True(t, elems[0] == elems[1])
+		require.True(t, elems[1] == elems[2])
+	})
 }
