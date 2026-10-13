@@ -174,7 +174,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{}), "key-value pairs are empty")
 			require.NoError(t, module.InitContractStorageSync(state.MPTRoot{Index: stateSyncPoint, Root: sroot.Root}))
 			var batch []storage.KeyValue
-			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
+			sm.SeekStates(sroot.Root, nil, nil, func(k, v []byte) bool {
 				batch = append(batch, storage.KeyValue{Key: k, Value: v})
 				if len(batch) == 2 {
 					require.NoError(t, module.AddContractStorageItems(batch))
@@ -227,7 +227,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 			require.NoError(t, module.InitContractStorageSync(state.MPTRoot{Index: stateSyncPoint, Root: sroot.Root}))
 			require.Equal(t, lastKey, module.GetLastStoredKey())
 			var skip bool
-			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
+			sm.SeekStates(sroot.Root, nil, nil, func(k, v []byte) bool {
 				if skip {
 					if bytes.Equal(k, lastKey) {
 						skip = false
@@ -495,7 +495,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 				Root:  sroot.Root,
 			}))
 			var batch []storage.KeyValue
-			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
+			sm.SeekStates(sroot.Root, nil, nil, func(k, v []byte) bool {
 				batch = append(batch, storage.KeyValue{Key: k, Value: v})
 				if len(batch) >= 3 {
 					err = module.AddContractStorageItems(batch)
@@ -714,7 +714,7 @@ func TestStateSyncModule_SetOnStageChanged(t *testing.T) {
 				Root:  sroot.Root,
 			}))
 			var all []storage.KeyValue
-			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
+			sm.SeekStates(sroot.Root, nil, nil, func(k, v []byte) bool {
 				all = append(all, storage.KeyValue{Key: k, Value: v})
 				return true
 			})

@@ -609,29 +609,25 @@ func (c *Client) getStorageHistoric(params []any) ([]byte, error) {
 }
 
 // FindStorageByHash returns contract storage items by the given contract hash and prefix.
-// If `start` index is specified, items starting from `start` index are being returned
-// (including item located at the start index).
-func (c *Client) FindStorageByHash(contractHash util.Uint160, prefix []byte, start *int) (result.FindStorage, error) {
+// If `start` key is specified, items following it are being returned (the `start`
+// key itself is excluded). `start` is usually the Next field of the previous
+// result and must have the given prefix.
+func (c *Client) FindStorageByHash(contractHash util.Uint160, prefix []byte, start []byte) (result.FindStorage, error) {
 	var params = []any{contractHash.StringLE(), prefix}
 	if start != nil {
-		params = append(params, *start)
-	} else {
-		// C# node expects `start` parameter in any case.
-		params = append(params, 0)
+		params = append(params, start)
 	}
 	return c.findStorage(params)
 }
 
 // FindStorageByID returns contract storage items by the given contract ID and prefix.
-// If `start` index is specified, items starting from `start` index are being returned
-// (including item located at the start index).
-func (c *Client) FindStorageByID(contractID int32, prefix []byte, start *int) (result.FindStorage, error) {
+// If `start` key is specified, items following it are being returned (the `start`
+// key itself is excluded). `start` is usually the Next field of the previous
+// result and must have the given prefix.
+func (c *Client) FindStorageByID(contractID int32, prefix []byte, start []byte) (result.FindStorage, error) {
 	var params = []any{contractID, prefix}
 	if start != nil {
-		params = append(params, *start)
-	} else {
-		// C# node expects `start` parameter in any case.
-		params = append(params, 0)
+		params = append(params, start)
 	}
 	return c.findStorage(params)
 }
@@ -645,10 +641,10 @@ func (c *Client) findStorage(params []any) (result.FindStorage, error) {
 }
 
 // FindStorageByHashHistoric returns historical contract storage items by the given stateroot,
-// historical contract hash and historical prefix. If `start` index is specified, then items
-// starting from `start` index are being returned (including item located at the start index).
+// historical contract hash and historical prefix. If `start` key is specified, then items
+// following it are being returned (the `start` key itself is excluded).
 func (c *Client) FindStorageByHashHistoric(stateroot util.Uint256, historicalContractHash util.Uint160, historicalPrefix []byte,
-	start *int) (result.FindStorage, error) {
+	start []byte) (result.FindStorage, error) {
 	if historicalPrefix == nil {
 		historicalPrefix = []byte{}
 	}
@@ -660,10 +656,10 @@ func (c *Client) FindStorageByHashHistoric(stateroot util.Uint256, historicalCon
 }
 
 // FindStorageByIDHistoric returns historical contract storage items by the given stateroot,
-// historical contract ID and historical prefix. If `start` index is specified, then items
-// starting from `start` index are being returned (including item located at the start index).
+// historical contract ID and historical prefix. If `start` key is specified, then items
+// following it are being returned (the `start` key itself is excluded).
 func (c *Client) FindStorageByIDHistoric(stateroot util.Uint256, historicalContractID int32, historicalPrefix []byte,
-	start *int) (result.FindStorage, error) {
+	start []byte) (result.FindStorage, error) {
 	if historicalPrefix == nil {
 		historicalPrefix = []byte{}
 	}

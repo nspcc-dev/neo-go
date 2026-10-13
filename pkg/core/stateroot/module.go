@@ -95,13 +95,14 @@ func (s *Module) FindStates(root util.Uint256, prefix, start []byte, maxNum int)
 
 // SeekStates traverses over contract storage with the state based on the
 // specified root. `prefix` is expected to consist of contract ID and the desired
-// storage items prefix. `cont` is called for every matching key-value pair;
-// the resulting key does not include contract ID and the desired storage item
-// prefix (they are stripped to match the Blockchain's SeekStorage behaviour.
-// The result includes item with the key that equals to the `prefix` (if
-// such item is found in the storage). Traversal process is stopped when `false`
-// is returned from `cont`.
-func (s *Module) SeekStates(root util.Uint256, prefix []byte, cont func(k, v []byte) bool) {
+// storage items prefix. `start` doesn't include `prefix` and may be nil if no
+// initial iterator positioning is required. `cont` is called for every matching
+// key-value pair; the resulting key does not include contract ID and the desired
+// storage item prefix (they are stripped to match the Blockchain's SeekStorage
+// behaviour). The result includes item with the key that equals to the `prefix`
+// and starting from the `start` (if specified and if such item is found in the
+// storage). Traversal process is stopped when `false` is returned from `cont`.
+func (s *Module) SeekStates(root util.Uint256, prefix []byte, start []byte, cont func(k, v []byte) bool) {
 	// Allow accessing old values, it's RO thing.
 	store := mpt.NewTrieStore(root, s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))
 
@@ -113,7 +114,7 @@ func (s *Module) SeekStates(root util.Uint256, prefix []byte, cont func(k, v []b
 	key[0] = byte(storage.STStorage)
 	copy(key[1:], prefix)
 
-	store.Seek(storage.SeekRange{Prefix: key}, func(k, v []byte) bool {
+	store.Seek(storage.SeekRange{Prefix: key, Start: start}, func(k, v []byte) bool {
 		// Cut the prefix to match the Blockchain's SeekStorage behaviour.
 		return cont(k[len(key):], v)
 	})

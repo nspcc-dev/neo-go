@@ -803,7 +803,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Value: []byte("v2"),
 						},
 					},
-					Next:      1,
+					Next:      []byte("aa10"),
 					Truncated: false,
 				}
 				require.Equal(t, expected, actual)
@@ -828,7 +828,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Value: []byte("v2"),
 						},
 					},
-					Next:      2,
+					Next:      []byte("aa10"),
 					Truncated: true,
 				}
 				require.Equal(t, expected, actual)
@@ -836,7 +836,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "truncated second page",
-			params: fmt.Sprintf(`["%s", "%s", 2]`, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")), base64.StdEncoding.EncodeToString([]byte("aa10"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -849,7 +849,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Value: []byte("v3"),
 						},
 					},
-					Next:      3,
+					Next:      []byte("aa50"),
 					Truncated: false,
 				}
 				require.Equal(t, expected, actual)
@@ -874,7 +874,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Value: []byte{0x01},
 						},
 					},
-					Next:      2,
+					Next:      []byte{0x01, 0x01},
 					Truncated: true,
 				}
 				require.Equal(t, expected, actual)
@@ -890,7 +890,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 
 				expected := &result.FindStorage{
 					Results:   []result.KeyValue{},
-					Next:      0,
+					Next:      []byte{},
 					Truncated: false,
 				}
 				require.Equal(t, expected, actual)
@@ -926,6 +926,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
+		{
+			name:    "start without prefix",
+			params:  fmt.Sprintf(`["%s", "%s", "%s"]`, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")), base64.StdEncoding.EncodeToString([]byte("bb"))),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
 	},
 	"findstoragehistoric": {
 		{
@@ -943,7 +949,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Value: []byte("v2"),
 						},
 					},
-					Next:      1,
+					Next:      []byte("aa10"),
 					Truncated: false,
 				}
 				require.Equal(t, expected, actual)
@@ -968,7 +974,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Value: []byte("v2"),
 						},
 					},
-					Next:      2,
+					Next:      []byte("aa10"),
 					Truncated: true,
 				}
 				require.Equal(t, expected, actual)
@@ -976,7 +982,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "truncated second page",
-			params: fmt.Sprintf(`["%s","%s", "%s", 2]`, block20StateRootLE, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			params: fmt.Sprintf(`["%s","%s", "%s", "%s"]`, block20StateRootLE, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")), base64.StdEncoding.EncodeToString([]byte("aa10"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -989,7 +995,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Value: []byte("v3"),
 						},
 					},
-					Next:      3,
+					Next:      []byte("aa50"),
 					Truncated: false,
 				}
 				require.Equal(t, expected, actual)
@@ -1014,7 +1020,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Value: []byte{0x01},
 						},
 					},
-					Next:      2,
+					Next:      append([]byte{0x01}, testchain.PrivateKeyByID(0).GetScriptHash().BytesBE()...),
 					Truncated: true,
 				}
 				require.Equal(t, expected, actual)
@@ -1030,7 +1036,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 
 				expected := &result.FindStorage{
 					Results:   []result.KeyValue{},
-					Next:      0,
+					Next:      []byte{},
 					Truncated: false,
 				}
 				require.Equal(t, expected, actual)
