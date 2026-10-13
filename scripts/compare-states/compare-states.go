@@ -73,7 +73,7 @@ func cliMain(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	err = rpcutil.PrintRPCInfo(ca, "A")
+	err = rpcutil.PrintRPCInfo(ca, ha, "A")
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func cliMain(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	err = rpcutil.PrintRPCInfo(cb, "B")
+	err = rpcutil.PrintRPCInfo(cb, hb, "B")
 	if err != nil {
 		return err
 	}

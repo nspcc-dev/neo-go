@@ -35,12 +35,12 @@ func InitClient(addr string, name string) (*rpcclient.Client, uint32, error) {
 }
 
 // PrintRPCInfo prints RPC server user-agent and nonce.
-func PrintRPCInfo(c *rpcclient.Client, name string) error {
+func PrintRPCInfo(c *rpcclient.Client, blockCount uint32, name string) error {
 	v, err := c.GetVersion()
 	if err != nil {
 		return fmt.Errorf("RPC %s version: %w", name, err)
 	}
-	fmt.Printf("RPC %s:\n\tuser-agent: %s\n\tmagic: %d\n\tnonce: %d\n", name, v.UserAgent, v.Protocol.Network, v.Nonce)
+	fmt.Printf("RPC %s:\n\tuser-agent: %s\n\tmagic: %d\n\tnonce: %d\n\tblock count: %d\n", name, v.UserAgent, v.Protocol.Network, v.Nonce, blockCount)
 	return nil
 }
 
