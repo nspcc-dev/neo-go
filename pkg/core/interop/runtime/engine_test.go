@@ -230,4 +230,34 @@ func TestDeepCopy(t *testing.T) {
 		require.False(t, m == actual)
 		require.True(t, actual == actual.Value().([]stackitem.MapElement)[0].Value)
 	})
+
+	t.Run("Map keys are not copied", func(t *testing.T) {
+		keys := []stackitem.Item{
+			stackitem.NewBool(true),
+			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewByteArray([]byte{1, 2, 3}),
+		}
+		m := stackitem.NewMap()
+		for _, k := range keys {
+			m.Add(k, stackitem.Null{})
+		}
+		actual := deepCopy(m).(*stackitem.Map)
+		elems := actual.Value().([]stackitem.MapElement)
+		require.Len(t, elems, len(keys))
+		for _, key := range keys {
+			idx := actual.Index(key)
+			require.True(t, key == elems[idx].Key)
+		}
+	})
+
+	t.Run("shared Buffer is copied once", func(t *testing.T) {
+		buf := stackitem.NewBuffer([]byte{1, 2, 3})
+		arr := stackitem.NewArray([]stackitem.Item{buf, buf, buf})
+		actual := deepCopy(arr).(*stackitem.Array)
+		elems := actual.Value().([]stackitem.Item)
+		require.Len(t, elems, 3)
+		require.Equal(t, stackitem.NewByteArray([]byte{1, 2, 3}), elems[0])
+		require.True(t, elems[0] == elems[1])
+		require.True(t, elems[1] == elems[2])
+	})
 }
