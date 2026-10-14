@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -214,4 +216,25 @@ func BenchmarkScriptNewArrayT(t *testing.B) {
 		byte(opcode.JMPIF), 0xf6,
 	}
 	benchScript(t, script)
+}
+
+// A port of https://github.com/neo-project/neo-vm/pull/471 and https://github.com/neo-project/neo-vm/pull/604.
+func BenchmarkScriptNEWBUFFER(t *testing.B) {
+	t.Run("max size", func(b *testing.B) {
+		script := io.NewBufBinWriter()
+		emit.Opcodes(script.BinWriter, opcode.INITSSLOT, 1)
+		emit.Int(script.BinWriter, 130000)
+		emit.Opcodes(script.BinWriter, opcode.STSFLD0)
+		emit.Int(script.BinWriter, stackitem.MaxSize) // JMPIF target.
+		emit.Opcodes(script.BinWriter,
+			opcode.NEWBUFFER,
+			opcode.DROP,
+			opcode.LDSFLD0,
+			opcode.DEC,
+			opcode.DUP,
+			opcode.STSFLD0,
+			opcode.JMPIF, 0xf5)
+
+		benchScript(t, script.Bytes())
+	})
 }
