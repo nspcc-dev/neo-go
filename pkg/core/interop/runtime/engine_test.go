@@ -273,3 +273,56 @@ func TestDeepCopy(t *testing.T) {
 		require.True(t, elems[1] == elems[2])
 	})
 }
+
+// Test compatibility with C# implementation.
+// https://github.com/neo-project/neo-vm/blob/c635525b651efa863ae6718060e567c795ea53f0/tests/Neo.VM.Tests/UT_StackItem.cs#L264.
+func TestDeepCopyCount_Compat(t *testing.T) {
+	deepCopyCount := func(item stackitem.Item) int {
+		_, n := deepCopy(item)
+		return n
+	}
+
+	// Primitive and Null items are visited once.
+	require.Equal(t, 1, deepCopyCount(stackitem.Make(1)))
+	require.Equal(t, 1, deepCopyCount(stackitem.Null{}))
+	require.Equal(t, 1, deepCopyCount(stackitem.NewBuffer([]byte{1})))
+
+	// Repeated references are counted, but not traversed again.
+	b := stackitem.NewArray([]stackitem.Item{stackitem.Make(2)})
+	a := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), b, b})
+	require.Equal(t, 5, deepCopyCount(a))
+
+	// Self-reference.
+	cyclic := stackitem.NewArray(nil)
+	cyclic.Append(cyclic)
+	require.Equal(t, 2, deepCopyCount(cyclic))
+
+	// Only map values are counted, keys are not.
+	require.Equal(t, 3, deepCopyCount(stackitem.NewMapWithValue(
+		[]stackitem.MapElement{
+			{Key: stackitem.Make(1), Value: stackitem.Make(2)},
+			{Key: stackitem.Make(3), Value: stackitem.Make(4)},
+		},
+	)))
+
+	// Repeated Buffer is counted on every occurrence.
+	buf := stackitem.NewBuffer([]byte{1})
+	require.Equal(t, 3, deepCopyCount(stackitem.NewMapWithValue(
+		[]stackitem.MapElement{
+			{Key: stackitem.Make(1), Value: buf},
+			{Key: stackitem.Make(2), Value: buf},
+		},
+	)))
+
+	// Nested compound items: map(1) + array(1) + struct(1 + 1) + repeated struct(1).
+	s := stackitem.NewStruct([]stackitem.Item{stackitem.Make(1)})
+	require.Equal(t, 5, deepCopyCount(stackitem.NewMapWithValue(
+		[]stackitem.MapElement{
+			{Key: stackitem.Make(1), Value: stackitem.NewArray([]stackitem.Item{s, s})},
+		},
+	)))
+
+	// Empty containers.
+	require.Equal(t, 1, deepCopyCount(stackitem.NewArray(nil)))
+	require.Equal(t, 1, deepCopyCount(stackitem.NewMap()))
+}
