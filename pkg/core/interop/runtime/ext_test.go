@@ -631,6 +631,63 @@ func TestGetRandomCompatibility(t *testing.T) {
 	require.Equal(t, "247152297361212656635216876565962360375", ic.VM.Estack().Pop().BigInt().String())
 }
 
+func TestGetRandomVerificationPrice(t *testing.T) {
+	w := io.NewBufBinWriter()
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetRandom)
+	emit.Opcodes(w.BinWriter, opcode.DROP)
+	require.NoError(t, w.Err)
+	script := w.Bytes()
+
+	getFee := func(huyaoHeight uint32) int64 {
+		bc, _ := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = map[string]uint32{config.HFHuyao.String(): huyaoHeight}
+		})
+		ic, err := bc.GetTestVM(trigger.Verification, nil, nil)
+		require.NoError(t, err)
+		ic.Block = nil
+		ic.VM.LoadScriptWithFlags(script, callflag.ReadOnly)
+		require.NoError(t, ic.VM.Run())
+		return ic.VM.GasConsumed()
+	}
+
+	// GetRandom in-handler fee (1 << 13) + DROP (1 << 1), multiplied by the default
+	// ExecFeeFactor (30) = 245820 datoshi.
+	require.Equal(t, int64(245820), getFee(100))
+	// GetRandom (15833) + DROP (99 * 1 + 1486), multiplied by 1e-11 GAS * the default
+	// ExecFeeFactor (30) = 522.54 datoshi since Huyao, rounded up.
+	require.Equal(t, int64(523), getFee(0))
+}
+
+func TestLogPriceSinceHuyao(t *testing.T) {
+	w := io.NewBufBinWriter()
+	emit.String(w.BinWriter, "a")
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeLog)
+	require.NoError(t, w.Err)
+	script := w.Bytes()
+
+	getFee := func(hf config.Hardfork) int64 {
+		bc, _ := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = map[string]uint32{hf.String(): 0}
+		})
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
+		ic.VM.LoadScriptWithFlags(script, callflag.All)
+		require.NoError(t, ic.VM.Run())
+		return ic.VM.GasConsumed()
+	}
+
+	feeBefore := getFee(config.HFGorgon)
+	feeAfter := getFee(config.HFHuyao)
+
+	// PUSHDATA1 (1 << 3) + Log (1 << 15), multiplied by ExecFeeFactor = 983280
+	// datoshi before Huyao.
+	require.Equal(t, int64(983280), feeBefore)
+	// PUSHDATA1 (1685) + Log (31767), multiplied by 1e-11 GAS * ExecFeeFactor =
+	// 1003.56 datoshi since Huyao, rounded up.
+	require.Equal(t, int64(1004), feeAfter)
+	require.Less(t, feeAfter, feeBefore)
+}
+
 func TestNotify(t *testing.T) {
 	caller := random.Uint160()
 	newIC := func(name string, args any) *interop.Context {
