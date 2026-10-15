@@ -990,10 +990,16 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	return nil
 }
 
+// maxNativeTempStorageKeyLen is the maximum length of the key used by native
+// TemporaryStorage contract to store expiration of the user storage entry:
+// prefixValidTill + validTillTimestamp (8 bytes of uint64 BE) + contract ID (4 bytes of int32 LE) + key bytes.
+// The rest of native or user's contract keys fit within this limit.
+const maxNativeTempStorageKeyLen = 1 + 8 + 4 + limits.MaxStorageKeyLen
+
 func (dao *Simple) getKeyBuf(l int) []byte {
 	if dao.private {
 		if dao.keyBuf == nil {
-			dao.keyBuf = make([]byte, 0, 1+4+limits.MaxStorageKeyLen) // Prefix, uint32, key.
+			dao.keyBuf = make([]byte, 0, 1+4+maxNativeTempStorageKeyLen) // Prefix, uint32, key.
 		}
 		return dao.keyBuf[:l] // Should have enough capacity.
 	}
