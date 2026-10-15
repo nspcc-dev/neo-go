@@ -648,6 +648,13 @@ func TestStd_StrLen(t *testing.T) {
 	check(t, 1, "ã")
 	check(t, 1, "a")
 
+	// Count Unicode codepoints instead of grapheme clusters, compat with https://github.com/neo-project/neo/pull/4772.
+	check(t, 2, string([]byte{0x61, 0xCC, 0x83}))                                                                                                                                     // a + combining tilde.
+	check(t, 2, string([]byte{0xF0, 0x9F, 0x91, 0x8D, 0xF0, 0x9F, 0x8F, 0xBD}))                                                                                                       // thumbsup + skin tone.
+	check(t, 7, string([]byte{0xF0, 0x9F, 0x91, 0xA8, 0xE2, 0x80, 0x8D, 0xF0, 0x9F, 0x91, 0xA9, 0xE2, 0x80, 0x8D, 0xF0, 0x9F, 0x91, 0xA7, 0xE2, 0x80, 0x8D, 0xF0, 0x9F, 0x91, 0xA6})) // family ZWJ.
+	check(t, 2, string([]byte{0xF0, 0x9F, 0x87, 0xBA, 0xF0, 0x9F, 0x87, 0xB8}))                                                                                                       // flag US.
+	check(t, 3, string([]byte{0x65, 0xCC, 0x81, 0xCC, 0x82}))                                                                                                                         // e + two combining marks.
+
 	checkPanics := func(t *testing.T, str string) {
 		args := []stackitem.Item{stackitem.Make(str)}
 		require.Panics(t, func() { _ = s.strLen(ic, args) })
