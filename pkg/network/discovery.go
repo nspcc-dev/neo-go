@@ -216,10 +216,10 @@ func (d *DefaultDiscovery) BadPeers() []string {
 func (d *DefaultDiscovery) GoodPeers() []AddressWithCapabilities {
 	d.lock.RLock()
 	addrs := make([]AddressWithCapabilities, 0, len(d.goodAddrs))
-	for addr, cap := range d.goodAddrs {
+	for addr, cpb := range d.goodAddrs {
 		addrs = append(addrs, AddressWithCapabilities{
 			Address:      addr,
-			Capabilities: cap,
+			Capabilities: cpb,
 		})
 	}
 	d.lock.RUnlock()

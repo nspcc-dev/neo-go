@@ -52,9 +52,9 @@ func (p *AddressAndTime) GetTCPAddress() (string, error) {
 
 	copy(netip, p.IP[:])
 	port := -1
-	for _, cap := range p.Capabilities {
-		if cap.Type == capability.TCPServer {
-			port = int(cap.Data.(*capability.Server).Port)
+	for _, cpb := range p.Capabilities {
+		if cpb.Type == capability.TCPServer {
+			port = int(cpb.Data.(*capability.Server).Port)
 			break
 		}
 	}
