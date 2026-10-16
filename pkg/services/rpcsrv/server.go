@@ -2346,7 +2346,7 @@ func (s *Server) fakeBlockFromParam(p *params.Param) (*block.Block, *neorpc.Erro
 		return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to mock block execution container: %s", err))
 	}
 	if p != nil && !p.IsNull() {
-		h, err := p.GetFakeHeader()
+		h, err := p.GetFakeHeader(base.StateRootEnabled)
 		if err != nil {
 			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("failed to unmarshal fake block: %s", err))
 		}

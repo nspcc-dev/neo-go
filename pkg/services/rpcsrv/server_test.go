@@ -4522,3 +4522,23 @@ func TestErrorResponseContentType(t *testing.T) {
 	contentType := resp.Header.Get("Content-Type")
 	require.Equal(t, expectedContentType, contentType)
 }
+
+func TestFakeBlockFromParam(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("state root enabled: %t", enabled), func(t *testing.T) {
+			_, srv, _ := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
+				cfg.ProtocolConfiguration.StateRootInHeader = enabled
+			})
+			h := &block.Header{StateRootEnabled: enabled}
+			if enabled {
+				h.PrevStateRoot = util.Uint256{1, 2, 3}
+			}
+			data, err := json.Marshal(h)
+			require.NoError(t, err)
+			b, rpcErr := srv.fakeBlockFromParam(&params.Param{RawMessage: data})
+			require.Nil(t, rpcErr)
+			require.Equal(t, enabled, b.StateRootEnabled)
+			require.Equal(t, h.PrevStateRoot, b.PrevStateRoot)
+		})
+	}
+}

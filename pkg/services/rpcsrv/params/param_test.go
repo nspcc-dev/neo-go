@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
@@ -573,4 +574,40 @@ func TestParamGetUUID(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, id.String(), expected)
 	})
+}
+
+func TestParamGetFakeHeader(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("state root enabled: %t", enabled), func(t *testing.T) {
+			h := &block.Header{StateRootEnabled: enabled}
+			if enabled {
+				h.PrevStateRoot = util.Uint256{1, 2, 3}
+			}
+			data, err := json.Marshal(h)
+			require.NoError(t, err)
+			var fields map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(data, &fields))
+			// A supplied state root must be ignored when the setting is disabled.
+			fields["previousstateroot"], err = json.Marshal(util.Uint256{1, 2, 3})
+			require.NoError(t, err)
+			data, err = json.Marshal(fields)
+			require.NoError(t, err)
+			p := &Param{RawMessage: data}
+			actual, err := p.GetFakeHeader(enabled)
+			require.NoError(t, err)
+			require.Equal(t, enabled, actual.StateRootEnabled)
+			require.Equal(t, h.PrevStateRoot, actual.PrevStateRoot)
+			require.Equal(t, h.Hash(), actual.Hash())
+
+			delete(fields, "previousstateroot")
+			p.RawMessage, err = json.Marshal(fields)
+			require.NoError(t, err)
+			_, err = p.GetFakeHeader(enabled)
+			if enabled {
+				require.ErrorContains(t, err, "'previousstateroot' is empty")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

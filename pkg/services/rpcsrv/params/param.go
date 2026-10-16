@@ -489,17 +489,15 @@ func (p *Param) GetFakeTx() (*transaction.Transaction, error) {
 	return tx, nil
 }
 
-// GetFakeHeader returns [block.Header] from parameter. The resulting header
-// always has StateRoot filled irrespectively of StateRootEnabled setting
-// (if provided).
-func (p *Param) GetFakeHeader() (*block.Header, error) {
+// GetFakeHeader returns [block.Header] from parameter.
+func (p *Param) GetFakeHeader(stateRootEnabled bool) (*block.Header, error) {
 	if p == nil {
 		return nil, errMissingParameter
 	}
 	if p.IsNull() {
 		return nil, errNullParameter
 	}
-	var b = new(block.Header)
+	var b = &block.Header{StateRootEnabled: stateRootEnabled}
 	err := b.UnmarshalJSON(p.RawMessage) // this field is accessed only once, hence doesn't need to be cached.
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal fake header: %w", err)
