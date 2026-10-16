@@ -385,11 +385,11 @@ func (p *TCPPeer) HandleVersion(version *payload.Version) error {
 	}
 	p.version = version
 	p.isCompressionDisabled = false
-	for _, cap := range version.Capabilities {
-		switch cap.Type {
+	for _, cpb := range version.Capabilities {
+		switch cpb.Type {
 		case capability.FullNode:
 			p.isFullNode = true
-			p.lastBlockIndex = cap.Data.(*capability.Node).StartHeight
+			p.lastBlockIndex = cpb.Data.(*capability.Node).StartHeight
 		case capability.DisableCompressionNode:
 			p.isCompressionDisabled = true
 		default:
@@ -464,9 +464,9 @@ func (p *TCPPeer) PeerAddr() net.Addr {
 		return p.RemoteAddr()
 	}
 	var port uint16
-	for _, cap := range p.version.Capabilities {
-		if cap.Type == capability.TCPServer {
-			port = cap.Data.(*capability.Server).Port
+	for _, cpb := range p.version.Capabilities {
+		if cpb.Type == capability.TCPServer {
+			port = cpb.Data.(*capability.Server).Port
 		}
 	}
 	if port == 0 {

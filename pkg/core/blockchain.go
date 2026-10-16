@@ -2030,7 +2030,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
-		<-aerdone
+		var _ = <-aerdone
 		return fmt.Errorf("onPersist failed: %w", err)
 	}
 	appExecResults = append(appExecResults, aer)
@@ -2049,7 +2049,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			if err != nil {
 				// Release goroutines, don't care about errors, we already have one.
 				close(aerchan)
-				<-aerdone
+				var _ = <-aerdone
 				return fmt.Errorf("failed to persist invocation results: %w", err)
 			}
 		} else {
@@ -2079,7 +2079,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
-		<-aerdone
+		var _ = <-aerdone
 		return fmt.Errorf("postPersist failed: %w", err)
 	}
 	appExecResults = append(appExecResults, aer)
@@ -2089,7 +2089,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, cache.Store)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
-		<-aerdone
+		var _ = <-aerdone
 		// Here MPT can be left in a half-applied state.
 		// However if this error occurs, this is a bug somewhere in code
 		// because changes applied are the ones from HALTed transactions.
@@ -2104,7 +2104,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 		if err != nil {
 			// Release goroutines, don't care about errors, we already have one.
-			<-aerdone
+			var _ = <-aerdone
 			return err
 		}
 	}

@@ -44,8 +44,8 @@ func (cs *Capabilities) EncodeBinary(br *io.BinWriter) {
 func (cs Capabilities) checkUniqueCapabilities() error {
 	err := errors.New("capabilities with the same type are not allowed")
 	var isFullNode, isArchived, isTCP, isWS, isDisabledCompression bool
-	for _, cap := range cs {
-		switch cap.Type {
+	for _, cpb := range cs {
+		switch cpb.Type {
 		case ArchivalNode:
 			if isArchived {
 				return err
