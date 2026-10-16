@@ -25,6 +25,7 @@ var (
 	isTypeW                   = []int64{97, 1154}
 	keysW                     = []int64{96, 167, 2039}
 	memCpyW                   = []int64{1, 3514}
+	modPowW                   = []int64{42724, 494077}
 	newArrayAnyW              = []int64{126, 2718}
 	newArrayByteOrIntW        = []int64{134, 2718}
 	newBufferW                = []int64{6, 2507}
@@ -363,6 +364,7 @@ var staticCoefficients = [256]int64{
 	opcode.OR:          3044,
 	opcode.XOR:         3120,
 	opcode.EQUAL:       1610,
+	opcode.MODPOW:      12300,
 	opcode.NOTEQUAL:    1610,
 	opcode.SIGN:        2520,
 	opcode.ABS:         2745,
@@ -377,7 +379,6 @@ var staticCoefficients = [256]int64{
 	opcode.POW:         8277,
 	opcode.SQRT:        33802,
 	opcode.MODMUL:      8136,
-	opcode.MODPOW:      12300,
 	opcode.SHL:         3711,
 	opcode.SHR:         4315,
 	opcode.NOT:         1262,
@@ -399,23 +400,24 @@ var staticCoefficients = [256]int64{
 }
 
 var dynamicCoefficients = [256]func(params *vm.OpcodePriceParams) int64{
-	opcode.APPEND:       appendGas,
-	opcode.ASSERT:       assertGas,
-	opcode.ASSERTMSG:    assertGas,
-	opcode.CAT:          catGas,
-	opcode.CLEAR:        clearGas,
-	opcode.CLEARITEMS:   clearItemsGas,
-	opcode.CONVERT:      convertGas,
-	opcode.DROP:         dropGas,
-	opcode.ENDFINALLY:   endFinallyGas,
-	opcode.HASKEY:       hasKeyGas,
-	opcode.INITSLOT:     initSlotGas,
-	opcode.INITSSLOT:    initSlotGas,
-	opcode.ISNULL:       isNullGas,
-	opcode.ISTYPE:       isTypeGas,
-	opcode.KEYS:         keysGas,
-	opcode.LEFT:         substrGas,
-	opcode.MEMCPY:       memCpyGas,
+	opcode.APPEND:     appendGas,
+	opcode.ASSERT:     assertGas,
+	opcode.ASSERTMSG:  assertGas,
+	opcode.CAT:        catGas,
+	opcode.CLEAR:      clearGas,
+	opcode.CLEARITEMS: clearItemsGas,
+	opcode.CONVERT:    convertGas,
+	opcode.DROP:       dropGas,
+	opcode.ENDFINALLY: endFinallyGas,
+	opcode.HASKEY:     hasKeyGas,
+	opcode.INITSLOT:   initSlotGas,
+	opcode.INITSSLOT:  initSlotGas,
+	opcode.ISNULL:     isNullGas,
+	opcode.ISTYPE:     isTypeGas,
+	opcode.KEYS:       keysGas,
+	opcode.LEFT:       substrGas,
+	opcode.MEMCPY:     memCpyGas,
+	//opcode.MODPOW:       modPowGas,
 	opcode.NEWARRAY:     newArrayGas,
 	opcode.NEWARRAYT:    newArrayGas,
 	opcode.NEWBUFFER:    newBufferGas,
@@ -530,6 +532,10 @@ func keysGas(params *vm.OpcodePriceParams) int64 {
 
 func memCpyGas(params *vm.OpcodePriceParams) int64 {
 	return memCpyW[0]*int64(params.Length) + memCpyW[1]
+}
+
+func modPowGas(params *vm.OpcodePriceParams) int64 {
+	return modPowW[0]*int64(params.Length) + modPowW[1]
 }
 
 func newArrayGas(params *vm.OpcodePriceParams) int64 {

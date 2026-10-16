@@ -104,7 +104,8 @@ type OpcodePriceParams struct {
 	//  - the number of elements in the compound type (i.e. the length of Array or Struct, the number of key-value pairs in Map);
 	//  - the length of Buffer or ByteArray;
 	//  - the number of VM slot cells or stack elements involved into opcode handling.
-	//  - the number of stack elements that opcode processes.
+	//  - the number of stack elements that opcode processes;
+	//  - the length of the modulus in bytes (MODPOW).
 	Length int
 	// RefsDelta is total change of refCounter value performed by opcode.
 	RefsDelta int
@@ -1322,6 +1323,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (pricePar
 		}
 
 		v.estack.PushItem(stackitem.NewBigInteger(res))
+		priceParams = &OpcodePriceParams{Length: modulus.BitLen()/8 + 1}
 
 	case opcode.SHL, opcode.SHR:
 		b := toInt(v.estack.Pop().BigInt())
