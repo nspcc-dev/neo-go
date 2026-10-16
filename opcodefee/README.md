@@ -27,7 +27,7 @@ Not every parameter is used for every `type`; the notebook drops the unused colu
 
 ### Measurements
 
-Every value was obtained by executing a script in the VM CLI:
+Every value (except `MODPOW` ones) was obtained by executing a script in the VM CLI:
 
 1. For every data point, compose a script that executes the opcode with known parameters (`refsdelta`, `length`, etc.) many times for better precision: the script prepares the operands, executes the opcode and jumps back.
 2. Execute the script with a gas limit in the VM CLI:
@@ -42,3 +42,11 @@ Every value was obtained by executing a script in the VM CLI:
 ### Models
 
 Install the dependencies and run the notebook from this directory. For every opcode, the notebook prints the fitted weights multiplied by `vm.OpcodePriceMultiplier`. The weights are listed in the order of the CSV parameter columns, and the last one is the intercept. They are used as is in `pkg/core/fee/opcode.go`, except that `NEWARRAY` and `NEWARRAYT` models must have the same intercept.
+
+### MODPOW
+
+`MODPOW` time is measured by `TestGenerateOpcodePriceCSV` from `pkg/vm/bench_opcode_test.go` with Go benchmarks. To regenerate the data, set `generatePrices` to `true` and run:
+```
+go test ./pkg/vm -run TestGenerateOpcodePriceCSV
+```
+The result is written to `pkg/vm/testdata/prices/MODPOW.csv`.

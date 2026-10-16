@@ -32,6 +32,9 @@ func copyItem(item stackitem.Item) stackitem.Item {
 	}
 }
 
+// countPoints is the number of equal steps a parameter range is split into.
+const countPoints = 8
+
 type benchCase struct {
 	name   string
 	op     opcode.Opcode
@@ -88,8 +91,6 @@ func exceptParamPushVM(op opcode.Opcode, param []byte, items ...any) func() *VM 
 		return v
 	}
 }
-
-const countPoints = 8
 
 func getBigInts(minBits, maxBits, num uint) []*big.Int {
 	var (
