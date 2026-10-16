@@ -165,6 +165,15 @@ func TestStdLibJSON(t *testing.T) {
 
 			actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("9007199254740993")})
 			require.Equal(t, stackitem.Make(9007199254740992), actual)
+
+			actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make(append(append([]byte("\""), []byte("\xed\xa0\x80")...), []byte("\"")...))}) // \ud800 -- high surrogate.
+			require.Equal(t, []byte{0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd}, actual.Value().([]byte))                                    // high surrogate parts are replaced by 0xEF 0xBF 0xBD sequence by the JSON library.
+
+			actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make(append(append([]byte("\""), []byte("\xed\xb0\x80")...), []byte("\"")...))}) // \udc00 -- low surrogate.
+			require.Equal(t, []byte{0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd}, actual.Value().([]byte))
+
+			actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make(append(append([]byte("\""), []byte("\xed\xa0\xbd\xed\xb8\x80")...), []byte("\"")...))}) // \ud83d\ude00 -- a complete UTF-16 surrogate pair.
+			require.Equal(t, []byte{0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd}, actual.Value().([]byte))
 		})
 		t.Run("Bad", func(t *testing.T) {
 			require.Panics(t, func() {
