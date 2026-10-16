@@ -377,7 +377,7 @@ var staticCoefficients = [256]int64{
 	opcode.POW:         8277,
 	opcode.SQRT:        33802,
 	opcode.MODMUL:      8136,
-	opcode.MODPOW:      12300,
+	opcode.MODPOW:      1648443,
 	opcode.SHL:         3711,
 	opcode.SHR:         4315,
 	opcode.NOT:         1262,
