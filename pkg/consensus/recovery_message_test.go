@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
+	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -133,6 +134,26 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 		ps0 := ps[0].(*Payload)
 		require.True(t, srv.validatePayload(ps0))
 	})
+}
+
+func TestRecoveryMessage_ExtendedPrepareRequest(t *testing.T) {
+	const msgHeight = 10
+
+	req := randomPrepareRequest(t)
+	p := NewPayload(netmode.UnitTestNet, false)
+	p.message.Type = prepareRequestType
+	p.BlockIndex = msgHeight
+	p.payload = req
+
+	r := new(recoveryMessage)
+	r.AddPayload(p)
+
+	data, err := testserdes.EncodeBinary(r)
+	require.NoError(t, err)
+
+	actual := &recoveryMessage{prepareRequestExtensionEnabled: func(h uint32) bool { return h >= msgHeight }}
+	require.NoError(t, testserdes.DecodeBinary(data, actual))
+	require.Equal(t, req.txHashes(), actual.prepareRequest.payload.(*prepareRequest).txHashes())
 }
 
 /*
