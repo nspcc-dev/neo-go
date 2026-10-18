@@ -1034,8 +1034,8 @@ func (n *NEO) RevokeVotesDeferrable(ic *interop.Context, h util.Uint160, continu
 	return n.voteInternalUncheckedDeferrable(ic, h, nil, continuation)
 }
 
-// VoteInternalUnchecked it's an internal representation of VoteInternalDeferrable that
-// votes of the specified account without checking the voter's signature.
+// voteInternalUncheckedDeferrable is an internal representation of voteDeferrable that
+// casts the vote of the specified account without checking the voter's signature.
 // It returns a boolean value denoting whether continuation call was scheduled
 // and an error.
 func (n *NEO) voteInternalUncheckedDeferrable(ic *interop.Context, h util.Uint160, pub *keys.PublicKey, continuation func()) (bool, error) {
