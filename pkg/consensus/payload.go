@@ -183,7 +183,7 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 	case recoveryRequestType:
 		m.payload = new(recoveryRequest)
 	case recoveryMessageType:
-		r := new(recoveryMessage)
+		r := &recoveryMessage{blockIndex: m.BlockIndex}
 		if m.stateRootEnabled {
 			r.stateRootEnabled = true
 		}

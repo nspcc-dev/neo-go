@@ -19,6 +19,8 @@ type (
 		changeViewPayloads  []*changeViewCompact
 		stateRootEnabled    bool
 		prepareRequest      *message
+		// blockIndex is the index of the message carrying this RecoveryMessage.
+		blockIndex uint32
 	}
 
 	changeViewCompact struct {
@@ -53,6 +55,10 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 		m.prepareRequest.DecodeBinary(r)
 		if r.Err == nil && m.prepareRequest.Type != prepareRequestType {
 			r.Err = errors.New("recovery message PrepareRequest has wrong type")
+			return
+		}
+		if r.Err == nil && m.prepareRequest.BlockIndex != m.blockIndex {
+			r.Err = errors.New("recovery message PrepareRequest has wrong block index")
 			return
 		}
 	} else {
@@ -146,6 +152,7 @@ func (m *recoveryMessage) AddPayload(p dbft.ConsensusPayload[util.Uint256]) {
 	case dbft.PrepareRequestType:
 		m.prepareRequest = &message{
 			Type:             prepareRequestType,
+			BlockIndex:       p.Height(),
 			ViewNumber:       p.ViewNumber(),
 			payload:          p.GetPrepareRequest().(*prepareRequest),
 			stateRootEnabled: m.stateRootEnabled,

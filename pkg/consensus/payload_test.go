@@ -164,6 +164,10 @@ func randomPayload(t *testing.T, mt messageType) *Payload {
 	if mt == changeViewType {
 		p.payload.(*changeView).newViewNumber = p.ViewNumber() + 1
 	}
+	if mt == recoveryMessageType {
+		p.payload.(*recoveryMessage).blockIndex = p.BlockIndex
+		p.payload.(*recoveryMessage).prepareRequest.BlockIndex = p.BlockIndex
+	}
 
 	return p
 }
