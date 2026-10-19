@@ -160,6 +160,7 @@ func (m *recoveryMessage) AddPayload(p dbft.ConsensusPayload[util.Uint256]) {
 	case dbft.PrepareRequestType:
 		m.prepareRequest = &message{
 			Type:             prepareRequestType,
+			BlockIndex:       p.Height(),
 			ValidatorIndex:   validator,
 			ViewNumber:       p.ViewNumber(),
 			payload:          p.GetPrepareRequest().(*prepareRequest),

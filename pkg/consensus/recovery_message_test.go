@@ -166,9 +166,11 @@ func TestRecoveryMessageCompactEmptyInvocation(t *testing.T) {
 
 func TestRecoveryMessage_EncodeDecodeBinary_PrepareRequest(t *testing.T) {
 	const primary = 1
+	const height = 10
 
 	p := NewPayload(netmode.UnitTestNet, false)
 	p.message.Type = prepareRequestType
+	p.BlockIndex = height
 	p.message.ValidatorIndex = primary
 	p.payload = randomMessage(t, prepareRequestType)
 	priv, _ := getTestValidator(primary)

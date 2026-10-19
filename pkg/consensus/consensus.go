@@ -443,6 +443,13 @@ func (s *service) validatePayload(p *Payload) bool {
 		return false
 	}
 
+	if p.message.Type == recoveryMessageType {
+		rec := p.payload.(*recoveryMessage)
+		if rec.prepareRequest != nil && rec.prepareRequest.BlockIndex != p.BlockIndex {
+			return false
+		}
+	}
+
 	pub := validators[p.message.ValidatorIndex]
 	h := pub.(*keys.PublicKey).GetScriptHash()
 	return p.Sender == h

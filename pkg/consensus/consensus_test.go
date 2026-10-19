@@ -282,6 +282,27 @@ func TestService_ValidatePayload(t *testing.T) {
 		require.NoError(t, p.Sign(priv))
 		require.True(t, srv.validatePayload(p))
 	})
+
+	t.Run("recovery message", func(t *testing.T) {
+		const height = 10
+
+		req := &message{
+			Type:       prepareRequestType,
+			BlockIndex: height,
+			payload:    &prepareRequest{},
+		}
+		p.message.Type = recoveryMessageType
+		p.BlockIndex = height
+		p.payload = &recoveryMessage{prepareRequest: req}
+		require.NoError(t, p.Sign(priv))
+		require.True(t, srv.validatePayload(p))
+
+		t.Run("wrong PrepareRequest index", func(t *testing.T) {
+			req.BlockIndex = height + 1
+			require.NoError(t, p.Sign(priv))
+			require.False(t, srv.validatePayload(p))
+		})
+	})
 }
 
 func TestService_getTx(t *testing.T) {
