@@ -678,7 +678,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	return stackitem.Null{}
 }
 
-// blockAccount is a Policy contract method that adds the given account hash to the list
+// blockAccountDeferrable is a Policy contract method that adds the given account hash to the list
 // of blocked accounts.
 func (p *Policy) blockAccountDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
 	if !p.NEO.CheckCommittee(ic) {
