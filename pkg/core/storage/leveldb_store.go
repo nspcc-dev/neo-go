@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -16,6 +17,9 @@ import (
 type LevelDBStore struct {
 	db   *leveldb.DB
 	path string
+
+	viewLock sync.RWMutex
+	view     *leveldb.Snapshot
 }
 
 // NewLevelDBStore returns a new LevelDBStore object that will
@@ -32,15 +36,30 @@ func NewLevelDBStore(cfg dbconfig.LevelDBOptions) (*LevelDBStore, error) {
 		return nil, fmt.Errorf("failed to open LevelDB instance: %w", err)
 	}
 
-	return &LevelDBStore{
+	s := &LevelDBStore{
 		path: cfg.DataDirectoryPath,
 		db:   db,
-	}, nil
+	}
+	s.view, err = s.beginView()
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
-// Get implements the Store interface.
-func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
-	value, err := s.db.Get(key, nil)
+func (s *LevelDBStore) beginView() (*leveldb.Snapshot, error) {
+	sh, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snapshot: %w", err)
+	}
+	return sh, nil
+}
+
+// GetWithView implements the Store interface.
+func (s *LevelDBStore) GetWithView(key []byte) ([]byte, error) {
+	s.viewLock.RLock()
+	defer s.viewLock.RUnlock()
+	value, err := s.view.Get(key, nil)
 	if errors.Is(err, leveldb.ErrNotFound) {
 		err = ErrKeyNotFound
 	}
@@ -49,6 +68,12 @@ func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
 
 // PutChangeSet implements the Store interface.
 func (s *LevelDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
+	s.viewLock.Lock()
+	s.view.Release()
+	defer func() {
+		s.view, _ = s.beginView() // TODO: err
+		s.viewLock.Unlock()
+	}()
 	tx, err := s.db.OpenTransaction()
 	if err != nil {
 		return err
@@ -69,14 +94,22 @@ func (s *LevelDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]
 	return tx.Commit()
 }
 
-// Seek implements the Store interface.
-func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
-	iter := s.db.NewIterator(seekRangeToPrefixes(rng), nil)
+// SeekWithView implements the Store interface.
+func (s *LevelDBStore) SeekWithView(rng SeekRange, f func(k []byte, v []byte) bool) {
+	s.viewLock.RLock()
+	defer s.viewLock.RUnlock()
+	iter := s.view.NewIterator(seekRangeToPrefixes(rng), nil)
 	s.seek(iter, rng.Backwards, f)
 }
 
 // SeekGC implements the Store interface.
 func (s *LevelDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
+	s.viewLock.Lock()
+	s.view.Release()
+	defer func() {
+		s.view, _ = s.beginView() // TODO: err
+		s.viewLock.Unlock()
+	}()
 	tx, err := s.db.OpenTransaction()
 	if err != nil {
 		return err
@@ -122,5 +155,8 @@ func (s *LevelDBStore) seek(iter iterator.Iterator, backwards bool, f func(k, v 
 
 // Close implements the Store interface.
 func (s *LevelDBStore) Close() error {
+	s.viewLock.Lock()
+	s.view.Release()
+	s.viewLock.Unlock() // TODO: unlock/db.Close order ?
 	return s.db.Close()
 }

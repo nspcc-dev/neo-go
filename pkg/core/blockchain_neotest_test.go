@@ -2811,7 +2811,7 @@ func TestBlockchain_ResetState(t *testing.T) {
 	rublesValue := bc.GetStorageItem(basicchain.RublesContractID, rublesKey)
 	require.Equal(t, []byte(basicchain.RublesOldTestvalue), []byte(rublesValue))   // the one with historic state
 	require.Nil(t, bc.GetStorageItem(basicchain.RublesContractID, rublesStaleKey)) // the one that was added after target reset block
-	db.Seek(storage.SeekRange{
+	db.SeekWithView(storage.SeekRange{
 		Prefix: []byte{byte(storage.STStorage)}, // no items with old prefix
 	}, func(k, v []byte) bool {
 		t.Fatal("no stale items must be left in storage")

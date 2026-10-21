@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/nspcc-dev/bbolt"
@@ -20,6 +21,9 @@ var Bucket = []byte("DB")
 type BoltDBStore struct {
 	db  *bbolt.DB
 	bkt []byte
+
+	viewLock sync.RWMutex
+	view     *bbolt.Tx
 }
 
 // defaultOpenTimeout is the default timeout for performing flock on a bbolt database.
@@ -87,17 +91,23 @@ func NewBoltDBStoreFromBucket(db *bbolt.DB, bucket []byte) (*BoltDBStore, error)
 	if err != nil {
 		return nil, err
 	}
-	return &BoltDBStore{db: db, bkt: bucket}, nil
+
+	s := &BoltDBStore{db: db, bkt: bucket}
+	s.view, err = s.beginView()
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
-// Get implements the Store interface.
-func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
-	err = s.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(s.bkt)
-		// Value from Get is only valid for the lifetime of transaction, #1482
-		val = bytes.Clone(b.Get(key))
-		return nil
-	})
+// GetWithView implements the Store interface.
+func (s *BoltDBStore) GetWithView(key []byte) (val []byte, err error) {
+	s.viewLock.RLock()
+	defer s.viewLock.RUnlock()
+	b := s.view.Bucket(s.bkt)
+	// Value from Get is only valid for the lifetime of transaction, #1482
+	val = bytes.Clone(b.Get(key))
 	if val == nil {
 		err = ErrKeyNotFound
 	}
@@ -107,6 +117,12 @@ func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 // PutChangeSet implements the Store interface.
 func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
 	var err error
+	s.viewLock.Lock()
+	_ = s.view.Rollback() // TODO: err
+	defer func() {
+		s.view, _ = s.beginView() // TODO: err
+		s.viewLock.Unlock()
+	}()
 
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(s.bkt)
@@ -128,6 +144,12 @@ func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]b
 
 // SeekGC implements the Store interface.
 func (s *BoltDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
+	s.viewLock.Lock()
+	_ = s.view.Rollback() // TODO: err
+	defer func() {
+		s.view, _ = s.beginView() // TODO: err
+		s.viewLock.Unlock()
+	}()
 	return boltSeek(s.db.Update, s.bkt, rng, func(c *bbolt.Cursor, k, v []byte) (bool, error) {
 		keep, cont := keepCont(k, v)
 		if !keep {
@@ -139,9 +161,21 @@ func (s *BoltDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bo
 	})
 }
 
-// Seek implements the Store interface.
-func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
-	err := boltSeek(s.db.View, s.bkt, rng, func(_ *bbolt.Cursor, k, v []byte) (bool, error) {
+func (s *BoltDBStore) beginView() (*bbolt.Tx, error) {
+	tx, err := s.db.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
+
+// SeekWithView implements the Store interface.
+func (s *BoltDBStore) SeekWithView(rng SeekRange, f func(k []byte, v []byte) bool) {
+	s.viewLock.RLock()
+	defer s.viewLock.RUnlock()
+	err := boltSeek(func(f func(*bbolt.Tx) error) error {
+		return f(s.view)
+	}, s.bkt, rng, func(_ *bbolt.Cursor, k, v []byte) (bool, error) {
 		return f(k, v), nil
 	})
 	if err != nil {
@@ -188,5 +222,10 @@ func boltSeek(txopener func(func(*bbolt.Tx) error) error, bucket []byte, rng See
 
 // Close releases all db resources.
 func (s *BoltDBStore) Close() error {
+	s.viewLock.Lock()
+	_ = s.view.Rollback() // TODO: err
+	defer func() {
+		s.viewLock.Unlock()
+	}()
 	return s.db.Close()
 }
