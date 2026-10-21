@@ -17,23 +17,23 @@ func TestTrieStore_TestTrieOperations(t *testing.T) {
 
 	t.Run("forbidden operations", func(t *testing.T) {
 		require.ErrorIs(t, st.SeekGC(storage.SeekRange{}, nil), errors.ErrUnsupported)
-		_, err := st.Get([]byte{byte(storage.STTokenTransferInfo)})
+		_, err := st.GetWithView(noOpView{}, []byte{byte(storage.STTokenTransferInfo)})
 		require.ErrorIs(t, err, errors.ErrUnsupported)
 		require.ErrorIs(t, st.PutChangeSet(nil, nil), errors.ErrUnsupported)
 	})
 
 	t.Run("Get", func(t *testing.T) {
 		t.Run("good", func(t *testing.T) {
-			res, err := st.Get(append([]byte{byte(storage.STStorage)}, 0xAC, 0xae)) // leaf `hello`
+			res, err := st.GetWithView(noOpView{}, append([]byte{byte(storage.STStorage)}, 0xAC, 0xae)) // leaf `hello`
 			require.NoError(t, err)
 			require.Equal(t, []byte("hello"), res)
 		})
 		t.Run("bad path", func(t *testing.T) {
-			_, err := st.Get(append([]byte{byte(storage.STStorage)}, 0xAC, 0xa0)) // bad path
+			_, err := st.GetWithView(noOpView{}, append([]byte{byte(storage.STStorage)}, 0xAC, 0xa0)) // bad path
 			require.ErrorIs(t, err, storage.ErrKeyNotFound)
 		})
 		t.Run("path to not-a-leaf", func(t *testing.T) {
-			_, err := st.Get(append([]byte{byte(storage.STStorage)}, 0xAC)) // path to extension
+			_, err := st.GetWithView(noOpView{}, append([]byte{byte(storage.STStorage)}, 0xAC)) // path to extension
 			require.ErrorIs(t, err, storage.ErrKeyNotFound)
 		})
 	})
