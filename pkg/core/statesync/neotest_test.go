@@ -599,7 +599,9 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		// compare storage states
 		fetchStorage := func(ps storage.Store, storagePrefix byte) []storage.KeyValue {
 			var kv []storage.KeyValue
-			ps.Seek(storage.SeekRange{Prefix: []byte{storagePrefix}}, func(k, v []byte) bool {
+			view, err := ps.BeginView()
+			require.NoError(t, err)
+			ps.SeekWithView(view, storage.SeekRange{Prefix: []byte{storagePrefix}}, func(k, v []byte) bool {
 				key := bytes.Clone(k)
 				value := bytes.Clone(v)
 				if key[0] == byte(storage.STTempStorage) {
@@ -611,6 +613,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 				})
 				return true
 			})
+			require.NoError(t, view.Close())
 			return kv
 		}
 		// Both blockchains are running, so we need to wait until recent changes will be persisted
@@ -623,7 +626,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 
 		// no temp items should be left
 		var haveItems bool
-		bcBoltStore.Seek(storage.SeekRange{Prefix: []byte{byte(storage.STStorage)}}, func(_, _ []byte) bool {
+		bcBoltStore.SeekWithView(nil, storage.SeekRange{Prefix: []byte{byte(storage.STStorage)}}, func(_, _ []byte) bool {
 			haveItems = true
 			return false
 		})

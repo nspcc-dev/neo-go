@@ -2013,11 +2013,10 @@ func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
 // This is the only way to change Blockchain state.
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	var (
-		cache          = bc.dao.GetPrivate()
-		aerCache       = bc.dao.GetPrivate()
-		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
-		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
-		aerdone        = make(chan error)
+		cache, aerCache = bc.dao.GetPrivates()
+		appExecResults  = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
+		aerchan         = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
+		aerdone         = make(chan error)
 	)
 	go func() {
 		var (
@@ -2177,6 +2176,11 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 
 	aererr := <-aerdone
+	// TODO: ?
+	// The view must be released before waiting for persistence below, otherwise
+	// the persisting routine can't take the DB write lock.
+	//_ = cache.Store.Finalize()
+	//aerCache.Store.View = nil // TODO: @roman-khimov, hide this finalization under DAO-bound methods?
 	if aererr != nil {
 		return aererr
 	}
@@ -2190,6 +2194,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.persistCond.Wait()
 	}
 
+	// No finalization is needed since it's performed by PersistPrivate.
 	_ = bc.dao.PersistPrivate(aerCache, cache)
 
 	mpt.Store = bc.dao.Store
@@ -2558,19 +2563,19 @@ func (bc *Blockchain) persist() (time.Duration, error) {
 
 	persisted, err = bc.dao.Persist()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to persist dao: %w", err)
 	}
 	if persisted > 0 {
 		bHeight, err := bc.persistent.GetCurrentBlockHeight()
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("failed to get current block height: %w", err)
 		}
 		oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
 		diff := bHeight - oldHeight
 
 		storedHeaderHeight, _, err := bc.persistent.GetCurrentHeaderHeight()
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("failed to get current header height: %w", err)
 		}
 		duration = time.Since(start)
 		// Low number of keys is not representative and duration _can_
@@ -3326,7 +3331,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve stateroot for height %d: %w", b.Index, err)
 	}
-	s := mpt.NewTrieStore(sr.Root, mode, storage.NewPrivateMemCachedStore(bc.dao.Store))
+	s := mpt.NewTrieStore(sr.Root, mode, storage.NewPrivateMemCachedStore(bc.dao.Store)) // TODO: @roman-khimov, use WithView and finalize this view on IC finalization?
 	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader)
 	dTrie.Version = bc.dao.Version
 	// Initialize native cache before passing DAO to interop context constructor, because

@@ -23,7 +23,7 @@ type dbTestFunction func(*testing.T, storage.Store)
 func testStoreGetNonExistent(t *testing.T, s storage.Store) {
 	key := []byte("sparse")
 
-	_, err := s.Get(key)
+	_, err := getFromStore(t, s, key)
 	assert.Equal(t, err, storage.ErrKeyNotFound)
 }
 
@@ -76,7 +76,9 @@ func testStoreSeek(t *testing.T, s storage.Store) {
 			rng.Backwards = true
 		}
 		actual := make([]storage.KeyValue, 0, len(goodkvs))
-		s.Seek(rng, func(k, v []byte) bool {
+		view, err := s.BeginView()
+		require.NoError(t, err)
+		s.SeekWithView(view, rng, func(k, v []byte) bool {
 			actual = append(actual, storage.KeyValue{
 				Key:   bytes.Clone(k),
 				Value: bytes.Clone(v),
@@ -86,6 +88,7 @@ func testStoreSeek(t *testing.T, s storage.Store) {
 			}
 			return cont(k, v)
 		})
+		require.NoError(t, view.Close())
 		assert.Equal(t, goodkvs, actual)
 	}
 
@@ -273,7 +276,7 @@ func testStoreSeekGC(t *testing.T, s storage.Store) {
 	})
 	require.NoError(t, err)
 	for i := range kvs {
-		_, err = s.Get(kvs[i].Key)
+		_, err = getFromStore(t, s, kvs[i].Key)
 		require.NoError(t, err)
 	}
 	err = s.SeekGC(storage.SeekRange{Prefix: []byte("3")}, func(k, v []byte) (bool, bool) {
@@ -281,19 +284,19 @@ func testStoreSeekGC(t *testing.T, s storage.Store) {
 	})
 	require.NoError(t, err)
 	for i := range kvs[:5] {
-		_, err = s.Get(kvs[i].Key)
+		_, err = getFromStore(t, s, kvs[i].Key)
 		require.NoError(t, err)
 	}
 	for _, kv := range kvs[:5] {
-		_, err = s.Get(kv.Key)
+		_, err = getFromStore(t, s, kv.Key)
 		require.NoError(t, err)
 	}
 	for _, kv := range kvs[5:7] {
-		_, err = s.Get(kv.Key)
+		_, err = getFromStore(t, s, kv.Key)
 		require.Error(t, err)
 	}
 	for _, kv := range kvs[7:] {
-		_, err = s.Get(kv.Key)
+		_, err = getFromStore(t, s, kv.Key)
 		require.NoError(t, err)
 	}
 }

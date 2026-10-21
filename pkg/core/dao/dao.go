@@ -103,13 +103,37 @@ func (dao *Simple) GetWrapped() *Simple {
 // GetPrivate returns a new DAO instance with another layer of private
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetPrivate() *Simple {
+	return dao.getPrivate(storage.NewPrivateMemCachedStore(dao.Store))
+}
+
+// GetPrivateWithView is similar to GetPrivate, but the returned DAO opens a
+// read-only view of the persistent store and uses it for all read operations.
+// This prevents a situation when concurrent read requests to this DAO are
+// blocked by some pending DB write. It's the user's responsibility to finalize
+// the opened view via Store.Finalize once this instance of DAO is no longer
+// needed.
+func (dao *Simple) GetPrivateWithView() *Simple {
+	return dao.getPrivate(storage.NewPrivateMemCachedStoreWithView(dao.Store))
+}
+
+// GetPrivates returns two brand new DAO instances both with another layer of
+// private MemCachedStore around the current DAO Store. They share the same
+// view to the underlying DB.
+func (dao *Simple) GetPrivates() (*Simple, *Simple) {
+	p1 := dao.getPrivate(storage.NewPrivateMemCachedStoreWithView(dao.Store))
+	p2 := dao.getPrivate(storage.NewPrivateMemCachedStore(dao.Store))
+	p2.Store.View = p1.Store.View
+	return p1, p2
+}
+
+func (dao *Simple) getPrivate(st *storage.MemCachedStore) *Simple {
 	d := &Simple{
 		Version: dao.Version,
 		keyBuf:  dao.keyBuf,
 		dataBuf: dao.dataBuf,
 		serCtx:  dao.serCtx,
 	} // Inherit everything...
-	d.Store = storage.NewPrivateMemCachedStore(dao.Store) // except storage, wrap another layer.
+	d.Store = st // except storage, wrap another layer.
 	d.private = true
 	d.nativeCachePS = dao
 	// Do not inherit cache from nativeCachePS; instead should create clear map:
