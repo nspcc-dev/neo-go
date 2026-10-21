@@ -2038,7 +2038,9 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 	for _, tx := range block.Transactions {
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
-		systemInterop.ReuseVM(v)
+		systemInterop.ReuseVM(v, func(executingH util.Uint160) {
+			bc.onModPow(trigger.Application, tx.Hash(), executingH)
+		})
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
 		v.SetGasLimit(tx.SystemFee)
 
@@ -2207,12 +2209,24 @@ func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 	return ok
 }
 
+func (bc *Blockchain) onModPow(trig trigger.Type, h util.Uint256, executingH util.Uint160) {
+	bc.log.Info("MODPOW",
+		zap.String("trigger", trig.String()),
+		zap.String("container", h.StringLE()),
+		zap.String("executingH", executingH.StringLE()),
+	)
+}
+
 func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type, v *vm.VM) (*state.AppExecResult, *vm.VM, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	if v == nil {
-		v = systemInterop.SpawnVM()
+		v = systemInterop.SpawnVM(func(executingH util.Uint160) {
+			bc.onModPow(trig, block.Hash(), executingH)
+		})
 	} else {
-		systemInterop.ReuseVM(v)
+		systemInterop.ReuseVM(v, func(executingH util.Uint160) {
+			bc.onModPow(trig, block.Hash(), executingH)
+		})
 	}
 	v.LoadScriptWithFlags(script, callflag.All)
 	if err := systemInterop.Exec(); err != nil {

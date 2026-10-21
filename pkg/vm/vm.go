@@ -114,7 +114,8 @@ type OpcodePriceParams struct {
 
 // VM represents the virtual machine.
 type VM struct {
-	state vmstate.State
+	onModPOW func(executingHash util.Uint160)
+	state    vmstate.State
 
 	// callback to get interop price in femtoGAS units.
 	getPrice          func(opcode.Opcode, *OpcodePriceParams) int64
@@ -163,7 +164,7 @@ func New() *VM {
 }
 
 // NewWithTrigger returns a new VM for executions triggered by t.
-func NewWithTrigger(t trigger.Type) *VM {
+func NewWithTrigger(t trigger.Type, onModPow ...func(executingHash util.Uint160)) *VM {
 	vm := &VM{
 		gasConsumed:       uint256.NewInt(0),
 		state:             vmstate.None,
@@ -174,6 +175,9 @@ func NewWithTrigger(t trigger.Type) *VM {
 
 	vm.istack = make([]*Context, 0, 8) // Most of invocations use one-two contracts, but they're likely to have internal calls.
 	vm.estack = newStack("evaluation", &vm.refs)
+	if onModPow != nil {
+		vm.onModPOW = onModPow[0]
+	}
 	return vm
 }
 
@@ -229,7 +233,7 @@ func (v *VM) GasLimit() int64 {
 // Reset allows to reuse existing VM for subsequent executions making them somewhat
 // more efficient. It reuses invocation and evaluation stacks as well as VM structure
 // itself.
-func (v *VM) Reset(t trigger.Type) {
+func (v *VM) Reset(t trigger.Type, onModPow ...func(util.Uint160)) {
 	v.state = vmstate.None
 	v.getPrice = nil
 	v.istack = v.istack[:0]
@@ -242,6 +246,9 @@ func (v *VM) Reset(t trigger.Type) {
 	v.LoadToken = nil
 	v.trigger = t
 	v.invTree = nil
+	if onModPow != nil {
+		v.onModPOW = onModPow[0]
+	}
 }
 
 // ExecFeeFactorMultiplier is a multiplier applied to ExecFeeFactor starting
@@ -1291,6 +1298,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (pricePar
 		v.estack.PushItem(stackitem.NewBigInteger(res.Rem(res, modulus)))
 
 	case opcode.MODPOW:
+		v.onModPOW(v.GetCurrentScriptHash())
 		modulus := v.estack.Pop().BigInt()
 		exponent := v.estack.Pop().BigInt()
 		base := v.estack.Pop().BigInt()

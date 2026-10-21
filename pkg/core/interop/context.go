@@ -537,8 +537,8 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 }
 
 // SpawnVM spawns a new VM with the specified gas limit and set context.VM field.
-func (ic *Context) SpawnVM() *vm.VM {
-	v := vm.NewWithTrigger(ic.Trigger)
+func (ic *Context) SpawnVM(onModPow ...func(executingHash util.Uint160)) *vm.VM {
+	v := vm.NewWithTrigger(ic.Trigger, onModPow...)
 	ic.initVM(v)
 	return v
 }
@@ -559,8 +559,8 @@ func (ic *Context) initVM(v *vm.VM) {
 }
 
 // ReuseVM resets given VM and allows to reuse it in the current context.
-func (ic *Context) ReuseVM(v *vm.VM) {
-	v.Reset(ic.Trigger)
+func (ic *Context) ReuseVM(v *vm.VM, onModPow ...func(util.Uint160)) {
+	v.Reset(ic.Trigger, onModPow...)
 	ic.initVM(v)
 }
 

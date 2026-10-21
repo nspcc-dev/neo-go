@@ -49,9 +49,9 @@ ProtocolConfiguration:
     Gorgon: 12020000
 
 ApplicationConfiguration:
-  SkipBlockVerification: false
+  SkipBlockVerification: true
   # LogPath could be set up in case you need stdout logs to some proper file.
-  # LogPath: "./log/neogo.log"
+  LogPath: "./log/neogo-mainnet.log"
   DBConfiguration:
     Type: "leveldb" #other options: 'inmemory','boltdb'
     # DB type options. Uncomment those you need in case you want to switch DB type.
@@ -107,7 +107,7 @@ ApplicationConfiguration:
     Addresses:
       - ":1113"
   NeoFSBlockFetcher:
-    Enabled: true
+    Enabled: false
     Addresses:
       - st1.storage.fs.neo.org:8080
       - st2.storage.fs.neo.org:8080
