@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
+	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -132,6 +133,32 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 		ps0 := ps[0].(*Payload)
 		require.True(t, srv.validatePayload(ps0))
+	})
+}
+
+func TestRecoveryMessage_PrepareRequestBlockIndex(t *testing.T) {
+	const msgHeight = 10
+
+	p := NewPayload(netmode.UnitTestNet, false)
+	p.message.Type = prepareRequestType
+	p.BlockIndex = msgHeight
+	req := randomPrepareRequest(t)
+	p.payload = req
+
+	r := new(recoveryMessage)
+	r.AddPayload(p)
+
+	data, err := testserdes.EncodeBinary(r)
+	require.NoError(t, err)
+
+	extensionEnabled := func(h uint32) bool { return h >= msgHeight }
+	actual := &recoveryMessage{blockIndex: msgHeight, prepareRequestExtensionEnabled: extensionEnabled}
+	require.NoError(t, testserdes.DecodeBinary(data, actual))
+	require.EqualValues(t, msgHeight, actual.prepareRequest.BlockIndex)
+	require.Equal(t, req.txHashes(), actual.prepareRequest.payload.(*prepareRequest).txHashes())
+
+	t.Run("wrong index", func(t *testing.T) {
+		require.Error(t, testserdes.DecodeBinary(data, &recoveryMessage{blockIndex: msgHeight + 1, prepareRequestExtensionEnabled: extensionEnabled}))
 	})
 }
 
