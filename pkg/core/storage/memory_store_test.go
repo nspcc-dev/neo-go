@@ -30,7 +30,7 @@ func BenchmarkMemorySeek(t *testing.B) {
 
 			t.ReportAllocs()
 			for t.Loop() {
-				ms.Seek(SeekRange{Prefix: searchPrefix}, func(k, v []byte) bool { return false })
+				ms.SeekWithView(nil, SeekRange{Prefix: searchPrefix}, func(k, v []byte) bool { return false })
 			}
 		})
 	}
