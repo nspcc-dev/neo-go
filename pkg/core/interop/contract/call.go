@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -17,6 +18,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
+
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const contractCallPrice = 2205000
 
 // LoadToken calls method specified by the token id.
 func LoadToken(ic *interop.Context, id int32) error {
@@ -64,6 +68,15 @@ func Call(ic *interop.Context) error {
 	}
 	args := ic.VM.Estack().Pop().Array()
 	cs, err := ic.GetContract(u)
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		price := int64(contractCallPrice)
+		if err != nil || cs.ID >= 0 { // non-native contracts may be read from disk
+			price += fee.ReadFromDiskPrice
+		}
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("called contract %s not found: %w", u.StringLE(), err)
 	}
