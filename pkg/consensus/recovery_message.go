@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -105,7 +106,7 @@ func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 	p.Timestamp = r.ReadU64LE()
 	p.InvocationScript = r.ReadVarBytes(1024)
 	if r.Err == nil && len(p.InvocationScript) == 0 {
-		r.Err = errEmptyInvocation
+		r.Err = fmt.Errorf("%w in compact ChangeView payload", errEmptyInvocation)
 	}
 }
 
@@ -124,7 +125,7 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(p.Signature[:])
 	p.InvocationScript = r.ReadVarBytes(1024)
 	if r.Err == nil && len(p.InvocationScript) == 0 {
-		r.Err = errEmptyInvocation
+		r.Err = fmt.Errorf("%w in compact Commit payload", errEmptyInvocation)
 	}
 }
 
@@ -141,7 +142,7 @@ func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
 	p.ValidatorIndex = r.ReadB()
 	p.InvocationScript = r.ReadVarBytes(1024)
 	if r.Err == nil && len(p.InvocationScript) == 0 {
-		r.Err = errEmptyInvocation
+		r.Err = fmt.Errorf("%w in compact preparation payload", errEmptyInvocation)
 	}
 }
 
