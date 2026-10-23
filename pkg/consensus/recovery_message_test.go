@@ -5,8 +5,10 @@ import (
 
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
+	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -133,6 +135,38 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 		ps0 := ps[0].(*Payload)
 		require.True(t, srv.validatePayload(ps0))
 	})
+}
+
+func TestRecoveryMessageCompactEmptyInvocation(t *testing.T) {
+	testCases := map[string]struct {
+		valid, empty io.Serializable
+		decoded      func() io.Serializable
+	}{
+		"changeView": {
+			valid:   &changeViewCompact{ValidatorIndex: 1, OriginalViewNumber: 2, Timestamp: 3, InvocationScript: []byte{1, 2, 3}},
+			empty:   &changeViewCompact{ValidatorIndex: 1, OriginalViewNumber: 2, Timestamp: 3},
+			decoded: func() io.Serializable { return new(changeViewCompact) },
+		},
+		"commit": {
+			valid:   &commitCompact{ViewNumber: 1, ValidatorIndex: 2, Signature: [64]byte{1}, InvocationScript: []byte{1, 2, 3}},
+			empty:   &commitCompact{ViewNumber: 1, ValidatorIndex: 2, Signature: [64]byte{1}},
+			decoded: func() io.Serializable { return new(commitCompact) },
+		},
+		"preparation": {
+			valid:   &preparationCompact{ValidatorIndex: 1, InvocationScript: []byte{1, 2, 3}},
+			empty:   &preparationCompact{ValidatorIndex: 1},
+			decoded: func() io.Serializable { return new(preparationCompact) },
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			testserdes.EncodeDecodeBinary(t, tc.valid, tc.decoded())
+
+			data, err := testserdes.EncodeBinary(tc.empty)
+			require.NoError(t, err)
+			require.ErrorIs(t, testserdes.DecodeBinary(data, tc.decoded()), errEmptyInvocation)
+		})
+	}
 }
 
 /*
