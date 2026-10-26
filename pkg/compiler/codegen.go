@@ -9,6 +9,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"maps"
 	"math"
 	"math/big"
 	"slices"
@@ -659,12 +660,14 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 
 	f.rng.End = uint16(c.prog.Len() - 1)
 
-	for _, f := range c.lambda {
+	for _, name := range slices.Sorted(maps.Keys(c.lambda)) {
+		f := c.lambda[name]
 		if f.compiled {
 			continue
 		}
-		if _, ok := c.lambda[c.getIdentName("", f.decl.Name.Name)]; !ok {
-			panic("ICE: lambda name doesn't match map key")
+		ident := c.getIdentName("", f.decl.Name.Name)
+		if name != ident {
+			panic(fmt.Errorf("ICE: lambda name doesn't match map key: %s vs %s", ident, name))
 		}
 		f.compiled = true
 		c.convertFuncDecl(file, f.decl, pkg)
