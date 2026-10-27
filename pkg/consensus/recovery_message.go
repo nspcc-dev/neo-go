@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -42,6 +43,10 @@ type (
 )
 
 var _ dbft.RecoveryMessage[util.Uint256] = (*recoveryMessage)(nil)
+
+// errEmptyInvocation is returned on attempt to decode compact recovery message
+// content with empty invocation script.
+var errEmptyInvocation = errors.New("empty invocation script")
 
 // DecodeBinary implements the io.Serializable interface.
 func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
@@ -100,6 +105,9 @@ func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 	p.OriginalViewNumber = r.ReadB()
 	p.Timestamp = r.ReadU64LE()
 	p.InvocationScript = r.ReadVarBytes(1024)
+	if r.Err == nil && len(p.InvocationScript) == 0 {
+		r.Err = fmt.Errorf("%w in compact ChangeView payload", errEmptyInvocation)
+	}
 }
 
 // EncodeBinary implements the io.Serializable interface.
@@ -116,6 +124,9 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 	p.ValidatorIndex = r.ReadB()
 	r.ReadBytes(p.Signature[:])
 	p.InvocationScript = r.ReadVarBytes(1024)
+	if r.Err == nil && len(p.InvocationScript) == 0 {
+		r.Err = fmt.Errorf("%w in compact Commit payload", errEmptyInvocation)
+	}
 }
 
 // EncodeBinary implements the io.Serializable interface.
@@ -130,6 +141,9 @@ func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
 	p.ValidatorIndex = r.ReadB()
 	p.InvocationScript = r.ReadVarBytes(1024)
+	if r.Err == nil && len(p.InvocationScript) == 0 {
+		r.Err = fmt.Errorf("%w in compact preparation payload", errEmptyInvocation)
+	}
 }
 
 // EncodeBinary implements the io.Serializable interface.
