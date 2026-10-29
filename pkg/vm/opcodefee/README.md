@@ -42,7 +42,10 @@ columns for such subsets (see `drop_columns` arguments).
 
 ### Evaluation
 
-Every value was obtained by executing a script in the VM CLI:
+There are two ways to measure the opcode execution time. Both of them express
+the result in `NOP` execution times.
+
+#### VM CLI script
 
 1. Instrument the VM to accumulate the execution time and the number of
    executions of every opcode (e.g. measure the time of every `VM.execute`
@@ -67,6 +70,28 @@ Every iteration creates an array of 255 elements and drops it, which changes
 the reference counter by 256 (the array itself and its elements). The average
 `DROP` execution time divided by the average `NOP` execution time gives
 `26.458070`.
+
+#### Go benchmark
+
+1. Measure the opcode execution time with a Go benchmark that executes only the
+   opcode itself on the same VM: operands are pushed to the stack and removed
+   from it while the benchmark timer is stopped.
+2. Measure the `NOP` execution time with a Go benchmark and divide the opcode
+   time by it.
+
+This method is implemented by `TestGenerateOpcodePriceCSV` from
+`pkg/vm/pricegen_test.go`. It writes the results to `<OPCODE>.csv` files in the
+`genOutDir` directory. To regenerate them, set `generatePrices` to `true` and
+run:
+```
+go test ./pkg/vm -run TestGenerateOpcodePriceCSV
+```
+
+This method was introduced after all other opcodes had been measured with the
+VM CLI script method, that's why it's used for `MODPOW` only. However, nothing
+prevents using it for other opcodes. Note that the benchmark must reuse the same
+VM for all opcode executions (like it happens for real scripts): recreating the
+VM for every execution gives imprecise results.
 
 ### Models
 
