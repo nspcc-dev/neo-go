@@ -1585,6 +1585,17 @@ func TestSETITEMBuffer(t *testing.T) {
 		t.Run("very big index", getTestFuncForVM(tryProg,
 			nil, stackitem.NewBuffer([]byte{0, 1, 2}), int64(math.MaxInt32)+1, 0))
 	})
+	t.Run("byte overflow", func(t *testing.T) {
+		for _, negByte := range []int64{-1, -128} {
+			buf := io.NewBufBinWriter()
+			emit.Int(buf.BinWriter, 1)
+			emit.Opcodes(buf.BinWriter, opcode.NEWBUFFER, opcode.DUP, opcode.PUSH0)
+			emit.Int(buf.BinWriter, 0)
+			emit.Int(buf.BinWriter, negByte)
+			emit.Opcodes(buf.BinWriter, opcode.SETITEM)
+			getCustomTestFuncForVM(prog, func(t *testing.T, v *VM) { require.Zero(t, v.estack.Len()) })
+		}
+	})
 }
 
 func TestSETITEMArray(t *testing.T) {
