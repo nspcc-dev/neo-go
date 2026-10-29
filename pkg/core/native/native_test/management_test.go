@@ -87,7 +87,8 @@ var (
 		nativenames.Policy:           `{"id":-7,"hash":"0xcc5e4edd9f5f8dba8bb65734541df7a1c081c67b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":2426471238},"manifest":{"name":"PolicyContract","abi":{"methods":[{"name":"blockAccount","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false},{"name":"getAttributeFee","offset":7,"parameters":[{"name":"attributeType","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"getBlockedAccounts","offset":14,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"getExecFeeFactor","offset":21,"parameters":[],"returntype":"Integer","safe":true},{"name":"getExecPicoFeeFactor","offset":28,"parameters":[],"returntype":"Integer","safe":true},{"name":"getFeePerByte","offset":35,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxTraceableBlocks","offset":42,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxValidUntilBlockIncrement","offset":49,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMillisecondsPerBlock","offset":56,"parameters":[],"returntype":"Integer","safe":true},{"name":"getStoragePrice","offset":63,"parameters":[],"returntype":"Integer","safe":true},{"name":"getTemporaryStorageMaxTTL","offset":70,"parameters":[],"returntype":"Integer","safe":true},{"name":"getWhitelistFeeContracts","offset":77,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"isBlocked","offset":84,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"recoverFund","offset":91,"parameters":[{"name":"account","type":"Hash160"},{"name":"token","type":"Hash160"}],"returntype":"Boolean","safe":false},{"name":"removeWhitelistFeeContract","offset":98,"parameters":[{"name":"contractHash","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setAttributeFee","offset":105,"parameters":[{"name":"attributeType","type":"Integer"},{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setExecFeeFactor","offset":112,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setFeePerByte","offset":119,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxTraceableBlocks","offset":126,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxValidUntilBlockIncrement","offset":133,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMillisecondsPerBlock","offset":140,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setStoragePrice","offset":147,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setTemporaryStorageMaxTTL","offset":154,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setWhitelistFeeContract","offset":161,"parameters":[{"name":"contractHash","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"},{"name":"fixedFee","type":"Integer"}],"returntype":"Void","safe":false},{"name":"unblockAccount","offset":168,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[{"name":"MillisecondsPerBlockChanged","parameters":[{"name":"old","type":"Integer"},{"name":"new","type":"Integer"}]},{"name":"WhitelistFeeChanged","parameters":[{"name":"contract","type":"Hash160"},{"name":"method","type":"String"},{"name":"argCount","type":"Integer"},{"name":"fee","type":"Any"}]},{"name":"RecoveredFund","parameters":[{"name":"account","type":"Hash160"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.TemporaryStorage: `{"id":-12,"hash":"0x93463501fc72d6a55ba38ead9c8b1ae91b15c2bb","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":3443651689},"manifest":{"name":"TemporaryStorage","abi":{"methods":[{"name":"delete","offset":0,"parameters":[{"name":"key","type":"ByteArray"}],"returntype":"Void","safe":false},{"name":"find","offset":7,"parameters":[{"name":"prefix","type":"ByteArray"},{"name":"options","type":"Integer"}],"returntype":"InteropInterface","safe":true},{"name":"find","offset":14,"parameters":[{"name":"hash","type":"Hash160"},{"name":"prefix","type":"ByteArray"},{"name":"options","type":"Integer"}],"returntype":"InteropInterface","safe":true},{"name":"get","offset":21,"parameters":[{"name":"key","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"get","offset":28,"parameters":[{"name":"hash","type":"Hash160"},{"name":"key","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"getExpiration","offset":35,"parameters":[{"name":"key","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"getExpiration","offset":42,"parameters":[{"name":"hash","type":"Hash160"},{"name":"key","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"put","offset":49,"parameters":[{"name":"key","type":"ByteArray"},{"name":"value","type":"ByteArray"},{"name":"validTill","type":"Integer"}],"returntype":"Void","safe":false},{"name":"renew","offset":56,"parameters":[{"name":"key","type":"ByteArray"},{"name":"validTill","type":"Integer"}],"returntype":"Void","safe":false}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
-	iaraCSS = map[string]string{}
+	iaraCSS      = map[string]string{}
+	jackalopeCSS = map[string]string{}
 )
 
 func init() {
@@ -119,6 +120,11 @@ func init() {
 	for k, v := range huyaoCSS {
 		if _, ok := iaraCSS[k]; !ok {
 			iaraCSS[k] = v
+		}
+	}
+	for k, v := range iaraCSS {
+		if _, ok := jackalopeCSS[k]; !ok {
+			jackalopeCSS[k] = v
 		}
 	}
 }
@@ -180,6 +186,7 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 				config.HFGorgon.String():        100500,
 				config.HFHuyao.String():         100500,
 				config.HFIara.String():          100500,
+				config.HFJackalope.String():     100500,
 			}
 		})
 		check(t, mgmt, defaultCSS)
@@ -293,6 +300,23 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 		})
 		check(t, mgmt, iaraCSS)
 	})
+	t.Run("Jackalope enabled", func(t *testing.T) {
+		mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       0,
+				config.HFEchidna.String():       0,
+				config.HFFaun.String():          0,
+				config.HFGorgon.String():        0,
+				config.HFHuyao.String():         0,
+				config.HFIara.String():          0,
+				config.HFJackalope.String():     0,
+			}
+		})
+		check(t, mgmt, jackalopeCSS)
+	})
 }
 
 func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
@@ -304,6 +328,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 		gorgonHeight     = 7
 		huyaoHeight      = 8
 		iaraHeight       = 9
+		jackalopeHeight  = 10
 	)
 	mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
@@ -316,10 +341,11 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 			config.HFGorgon.String():        gorgonHeight,
 			config.HFHuyao.String():         huyaoHeight,
 			config.HFIara.String():          iaraHeight,
+			config.HFJackalope.String():     jackalopeHeight,
 		}
 	})
 	e := mgmt.Executor
-	mgmt.GenerateNewBlocks(t, iaraHeight)
+	mgmt.GenerateNewBlocks(t, jackalopeHeight)
 
 	// Check Deploy notifications.
 	aer, err := mgmt.Chain.GetAppExecResults(e.GetBlockByIndex(t, 0).Hash(), trigger.OnPersist)
@@ -471,6 +497,13 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 
 	// Check notifications for Iara hardfork.
 	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(iaraHeight), trigger.OnPersist)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
+	expected = expected[:0]
+	require.Equal(t, expected, aer[0].Events)
+
+	// Check notifications for Jackalope hardfork.
+	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(jackalopeHeight), trigger.OnPersist)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
 	expected = expected[:0]

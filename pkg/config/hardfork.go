@@ -70,6 +70,9 @@ const (
 	// HFIara represents hard-fork introduced in #4410 (ported from
 	// https://github.com/neo-project/neo/pull/4717).
 	HFIara // Iara
+	// HFJackalope represents hard-fork introduced in #4446 (ported from
+	// https://github.com/neo-project/neo/pull/4791).
+	HFJackalope // Jackalope
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
 	hfLast
