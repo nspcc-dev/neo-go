@@ -18,12 +18,13 @@ func _() {
 	_ = x[HFGorgon-7]
 	_ = x[HFHuyao-8]
 	_ = x[HFIara-9]
-	_ = x[hfLast-10]
+	_ = x[HFJackalope-10]
+	_ = x[hfLast-11]
 }
 
-const _Hardfork_name = "DefaultAspidocheloneBasiliskCockatriceDomovoiEchidnaFaunGorgonHuyaoIarahfLast"
+const _Hardfork_name = "DefaultAspidocheloneBasiliskCockatriceDomovoiEchidnaFaunGorgonHuyaoIaraJackalopehfLast"
 
-var _Hardfork_index = [...]uint8{0, 7, 20, 28, 38, 45, 52, 56, 62, 67, 71, 77}
+var _Hardfork_index = [...]uint8{0, 7, 20, 28, 38, 45, 52, 56, 62, 67, 71, 80, 86}
 
 func (i Hardfork) String() string {
 	idx := int(i) - 0
