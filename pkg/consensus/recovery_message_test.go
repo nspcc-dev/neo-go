@@ -166,11 +166,13 @@ func TestRecoveryMessageCompactEmptyInvocation(t *testing.T) {
 
 func TestRecoveryMessage_EncodeDecodeBinary_PrepareRequest(t *testing.T) {
 	const primary = 1
+	const height = 10
 
 	p := NewPayload(netmode.UnitTestNet, false)
 	p.message.Type = prepareRequestType
+	p.BlockIndex = height
 	p.message.ValidatorIndex = primary
-	p.payload = randomMessage(t, prepareRequestType)
+	p.payload = randomPrepareRequest(t)
 	priv, _ := getTestValidator(primary)
 	require.NoError(t, p.Sign(priv))
 
@@ -180,8 +182,10 @@ func TestRecoveryMessage_EncodeDecodeBinary_PrepareRequest(t *testing.T) {
 	data, err := testserdes.EncodeBinary(r)
 	require.NoError(t, err)
 
-	actual := new(recoveryMessage)
+	extensionEnabled := func(h uint32) bool { return h >= height }
+	actual := &recoveryMessage{prepareRequestExtensionEnabled: extensionEnabled}
 	require.NoError(t, testserdes.DecodeBinary(data, actual))
+	actual.prepareRequest.prepareRequestExtensionEnabled = nil // functions can't be compared
 	require.Equal(t, &p.message, actual.prepareRequest)
 }
 
