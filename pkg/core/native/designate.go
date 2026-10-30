@@ -420,7 +420,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 
 	if ic.Trigger != trigger.OnPersist {
 		h := s.NEO.GetCommitteeAddress(ic.DAO)
-		if ok, err := runtime.CheckHashedWitness(ic, h); err != nil || !ok {
+		if ok, _, err := runtime.CheckHashedWitness(ic, h); err != nil || !ok {
 			return ErrInvalidWitness
 		}
 	}

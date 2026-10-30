@@ -46,6 +46,7 @@ type deserContext struct {
 	*io.BinReader
 	allowInvalid bool
 	limit        int
+	bytesRead    int
 }
 
 // Serialize encodes the given Item into a byte slice.
@@ -258,6 +259,21 @@ func Deserialize(data []byte) (Item, error) {
 	return item, nil
 }
 
+// DeserializeCounted is like Deserialize, but also returns the total number
+// of ByteArray/Buffer bytes read while decoding.
+func DeserializeCounted(data []byte) (Item, int, error) {
+	r := io.NewBinReaderFromBuf(data)
+	dc := deserContext{
+		BinReader: r,
+		limit:     MaxDeserialized,
+	}
+	item := dc.decodeBinary()
+	if r.Err != nil {
+		return nil, 0, r.Err
+	}
+	return item, dc.bytesRead, nil
+}
+
 // DeserializeLimited returns Item deserialized from the given byte slice. limit
 // restricts the maximum number of items deserialized item can contain (including
 // itself). The default limit of MaxDeserialized is used if non-positive limit is
@@ -317,6 +333,7 @@ func (r *deserContext) decodeBinary() Item {
 	switch t {
 	case ByteArrayT, BufferT:
 		data := r.ReadVarBytes(MaxSize)
+		r.bytesRead += len(data)
 		if t == ByteArrayT {
 			return NewByteArray(data)
 		}
