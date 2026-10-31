@@ -418,7 +418,7 @@ func (s *Module) getLatestSavedBlock(p uint32) uint32 {
 		result uint32
 		mtb    = s.bc.GetConfig().MaxTraceableBlocks
 	)
-	if s.bc.IsHardforkEnabled(new(config.HFEchidna), p) {
+	if s.bc.IsHardforkEnabled(new(config.HFEchidna), p) { // can use IsHardforkEnabled here since Echidna is manageb by the node config, not via Policy storage.
 		// Retrieve MaxTraceableBlocks from DAO directly using temporary storage prefix.
 		key := make([]byte, 1+4+1)
 		key[0] = byte(TemporaryPrefix(s.dao.Version.StoragePrefix))

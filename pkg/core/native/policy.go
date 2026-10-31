@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"maps"
 	"math/big"
@@ -66,12 +67,20 @@ const (
 	whitelistedFeeContractPrefix = 16
 	// attributeFeePrefix is a prefix used to store attribute fee.
 	attributeFeePrefix = 20
+	// activeHardforksPrefix is a prefix used to store a mapping from hardfork
+	// to its activation height.
+	activeHardforksPrefix = byte(24)
 
 	// recoverFundsLockPeriod is the period of time (in milliseconds) after
 	// which it's possible to recover funds from the blocked account. It's set
 	// to 1 year.
 	recoverFundsLockPeriod = 365 * 24 * 60 * 60 * 1000
 )
+
+// ErrUnknownHardfork is returned iff a committee-signed transaction tries to
+// activate an unknown hardfork. Use this error to detect this case and stop the
+// node.
+var ErrUnknownHardfork = errors.New("unknown hardfork")
 
 var (
 	// execFeeFactorKey is a key used to store execution fee factor.
@@ -114,6 +123,9 @@ type PolicyCache struct {
 	attributeFee         map[transaction.AttrType]uint32
 	blockedAccounts      []util.Uint160
 	whitelistedContracts []whitelistedContract
+	// activeHardforks holds the map of hardforks activated by Policy contract
+	// and does not include configured ones.
+	activeHardforks map[config.Hardfork]uint32
 }
 
 // whitelistedContract is a structure representing a whitelisted contract cache
@@ -149,6 +161,7 @@ func copyPolicyCache(src, dst *PolicyCache) {
 	dst.attributeFee = maps.Clone(src.attributeFee)
 	dst.blockedAccounts = slices.Clone(src.blockedAccounts)
 	dst.whitelistedContracts = slices.Clone(src.whitelistedContracts)
+	dst.activeHardforks = maps.Clone(src.activeHardforks)
 }
 
 // NewPolicy returns Policy native contract.
@@ -316,6 +329,24 @@ func NewPolicy() *Policy {
 	md = NewMethodAndPrice(p.setTempStorageMaxTTL, 1<<15, callflag.States, config.HFHuyao)
 	p.AddMethod(md, desc)
 
+	desc = NewDescriptor("activateHardfork", smartcontract.VoidType,
+		manifest.NewParameter("hardfork", smartcontract.StringType),
+		manifest.NewParameter("activationDelay", smartcontract.IntegerType))
+	md = NewMethodAndPrice(p.activateHardfork, 1<<15, callflag.States|callflag.AllowNotify, config.HFHuyao)
+	p.AddMethod(md, desc)
+
+	desc = NewDescriptor("getHardforkActivationHeight", smartcontract.IntegerType,
+		manifest.NewParameter("hardfork", smartcontract.ByteArrayType))
+	md = NewMethodAndPrice(p.getHardforkActivationHeight, 1<<15, callflag.ReadStates, config.HFHuyao)
+	p.AddMethod(md, desc)
+
+	eDesc = NewEventDescriptor("HardforkActivationScheduled",
+		manifest.NewParameter("hardfork", smartcontract.StringType),
+		manifest.NewParameter("activationHeight", smartcontract.IntegerType),
+	)
+	eMD = NewEvent(eDesc, config.HFHuyao)
+	p.AddEvent(eMD)
+
 	return p
 }
 
@@ -339,6 +370,7 @@ func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 			attributeFee:         map[transaction.AttrType]uint32{},
 			blockedAccounts:      make([]util.Uint160, 0),
 			whitelistedContracts: make([]whitelistedContract, 0),
+			activeHardforks:      make(map[config.Hardfork]uint32),
 		}
 		ic.DAO.SetCache(p.ID, cache)
 	}
@@ -380,6 +412,12 @@ func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 
 		setIntWithKey(p.ID, ic.DAO, tempStorageMaxTTLKey, int64(maxTmpStorageMaxTTL))
 		cache.tempStorageMaxTTL = maxTmpStorageMaxTTL
+
+		for f, h := range ic.Chain.GetConfig().Hardforks {
+			cfgHF, _ := config.ParseHardfork(f) // validated, can't error.
+			setIntWithKey(p.ID, ic.DAO, makeHardforkKey(cfgHF), int64(h))
+			cache.activeHardforks[cfgHF] = h
+		}
 	}
 
 	return nil
@@ -469,9 +507,22 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple, isHardforkE
 		}
 	}
 
+	cache.activeHardforks = make(map[config.Hardfork]uint32)
 	var huyao = config.HFHuyao
 	if isHardforkEnabled(&huyao, blockHeight) {
 		cache.tempStorageMaxTTL = uint64(getIntWithKey(p.ID, d, tempStorageMaxTTLKey))
+		d.Seek(p.ID, storage.SeekRange{Prefix: []byte{activeHardforksPrefix}}, func(k, v []byte) bool {
+			hf, ok := config.ParseHardfork(string(k))
+			if !ok {
+				fErr = fmt.Errorf("unknown active hardfork: %s", string(k))
+				return false
+			}
+			cache.activeHardforks[hf] = binary.BigEndian.Uint32(v)
+			return true
+		})
+		if fErr != nil {
+			return fmt.Errorf("failed to initialize active hardforks: %w", fErr)
+		}
 	}
 
 	return nil
@@ -1099,6 +1150,99 @@ func (p *Policy) recoverFundDeferrable(ic *interop.Context, args []stackitem.Ite
 	}
 }
 
+func (p *Policy) activateHardfork(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	hf := toString(args[0])
+	delay := toUint32(args[1])
+
+	if delay < 1 {
+		panic("hardfork activation delay must be positive")
+	}
+
+	// Check committee prior to hardfork parsing since the node will be stopped
+	// in case of unknown hardfork.
+	if !p.NEO.CheckCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	f, ok := config.ParseHardfork(hf)
+	if !ok {
+		panic(fmt.Errorf("%w: %s", ErrUnknownHardfork, hf))
+	}
+
+	if f.Cmp(config.HFLastConfigManaged) <= 0 {
+		panic(fmt.Errorf("hardfork %s is configuration-managed", f))
+	}
+
+	activationHeight := ic.Block.Index + delay
+	cache := ic.DAO.GetROCache(p.ID).(*PolicyCache)
+	existingHeight, ok := cache.activeHardforks[f]
+	if ok && (existingHeight <= ic.Block.Index || existingHeight == activationHeight) {
+		panic(fmt.Errorf("hardfork %s activation height is already scheduled at %d", hf, existingHeight))
+	}
+
+	// Ensure continuity and require previous hardforks to be scheduled.
+	var ancesterScheduled bool
+	for other, otherHeight := range cache.activeHardforks {
+		cmp := other.Cmp(f)
+		if (cmp < 0 && otherHeight > activationHeight) ||
+			(cmp > 0 && otherHeight < activationHeight) {
+			panic(fmt.Errorf("hardfork %s scheduled at %d conflicts with hardfork %s scheduled at %d", other, otherHeight, hf, activationHeight))
+		}
+
+		if other == f.Prev() {
+			ancesterScheduled = true
+		}
+	}
+	if !ancesterScheduled {
+		panic("hardfork-ancestor is not scheduled yet")
+	}
+
+	setIntWithKey(p.ID, ic.DAO, makeHardforkKey(f), int64(activationHeight))
+	cache = ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	cache.activeHardforks[f] = activationHeight
+
+	err := ic.AddNotification(p.Hash, "HardforkActivationScheduled", stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray([]byte(hf)),
+		stackitem.NewBigInteger(big.NewInt(int64(activationHeight))),
+	}))
+	if err != nil {
+		panic(err)
+	}
+
+	return stackitem.Null{}
+}
+
+// getHardforkActivationHeight returns the enabling height for the specified hardfork
+// or stackitem.Null in case if it's not found. It uses native cache. It manages both
+// config-managed and Policy-managed hardforks.
+func (p *Policy) getHardforkActivationHeight(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	hf := toString(args[0])
+	f, ok := config.ParseHardfork(hf)
+	if !ok {
+		return stackitem.Null{} // either unknown hardfork or the outdated node.
+	}
+	height, ok := p.GetHardforkActivationHeight(f, ic.DAO, true)
+	if ok {
+		return stackitem.NewBigInteger(big.NewInt(int64(height)))
+	}
+	return stackitem.Null{}
+}
+
+// GetHardforkActivationHeight returns the enabling height for the specified
+// hardfork and boolean value denoting whether the hardfork is ever configured
+// via native Policy.
+func (p *Policy) GetHardforkActivationHeight(hf config.Hardfork, d *dao.Simple, useCache bool) (uint32, bool) {
+	if useCache {
+		cache := d.GetROCache(p.ID).(*PolicyCache)
+		h, ok := cache.activeHardforks[hf]
+		return h, ok
+	}
+	res, err := d.GetInt(p.ID, makeHardforkKey(hf))
+	if err != nil {
+		return 0, false
+	}
+	return uint32(res), true
+}
+
 func makeBlockedAccountKey(acc util.Uint160) []byte {
 	return append([]byte{blockedAccountPrefix}, acc.BytesBE()...)
 }
@@ -1108,6 +1252,14 @@ func makeWhitelistedKey(h util.Uint160, offset uint32) []byte {
 	k[0] = whitelistedFeeContractPrefix
 	copy(k[1:], h.BytesBE())
 	binary.BigEndian.PutUint32(k[1+util.Uint160Size:], uint32(offset))
+	return k
+}
+
+func makeHardforkKey(hf config.Hardfork) []byte {
+	hfStr := hf.String()
+	k := make([]byte, 1+len(hfStr))
+	k[0] = activeHardforksPrefix
+	copy(k[1:], hfStr)
 	return k
 }
 
