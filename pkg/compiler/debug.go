@@ -377,7 +377,7 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 		}
 	}
 	if isNamed {
-		if isInteropPath(named.String()) {
+		if _, isInterop := cutInteropPathPrefix(named.String()); isInterop {
 			st, vt, over, et := scAndVMInteropTypeFromExpr(named, isPtr)
 			if et != nil && et.Base == smartcontract.ArrayType && exts != nil && exts[et.Name].Name != et.Name {
 				_ = c.genStructExtended(named.Underlying().(*types.Struct), et.Name, exts)
