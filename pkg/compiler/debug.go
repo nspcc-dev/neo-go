@@ -321,20 +321,26 @@ func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontra
 	pkgPath := named.Obj().Pkg().Path()
 	interopSuffix, _ := cutInteropPathPrefix(pkgPath)
 	if interopSuffix == "/native" || strings.HasPrefix(interopSuffix, "/native/") { // filter out native wrappers.
-		switch name {
-		case "ParameterType", "SignerScope", "WitnessAction", "WitnessConditionType", "VMState", "AttributeType":
-			return smartcontract.IntegerType, stackitem.IntegerT, binding.Override{TypeName: "int"}, nil
+		switch t := named.Underlying().(type) {
+		case *types.Struct:
+			// Native contract structures are represented as arrays.
+			typeName := pkg + "." + name
+			et := &binding.ExtendedType{Base: smartcontract.ArrayType, Name: typeName}
+			if isPointer {
+				typeName = "*" + typeName
+			}
+			return smartcontract.ArrayType, stackitem.ArrayT, binding.Override{
+				Package:  pkgPath,
+				TypeName: typeName,
+			}, et
+		case *types.Basic:
+			return scAndVMTypeFromBasic(t)
+		case *types.Interface:
+			return smartcontract.InteropInterfaceType, stackitem.InteropT,
+				binding.Override{TypeName: "any"}, nil
+		default:
+			return smartcontract.AnyType, stackitem.AnyT, binding.Override{TypeName: "any"}, nil
 		}
-		// Block, Transaction, Contract, AccountState, Candidate, WhitelistFeeContract.
-		typeName := pkg + "." + name
-		et := &binding.ExtendedType{Base: smartcontract.ArrayType, Name: typeName}
-		if isPointer {
-			typeName = "*" + typeName
-		}
-		return smartcontract.ArrayType, stackitem.ArrayT, binding.Override{
-			Package:  pkgPath,
-			TypeName: typeName,
-		}, et
 	}
 	if pkg == "interop" {
 		if name != "Interface" {
@@ -393,21 +399,7 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 	var over binding.Override
 	switch t := t.Underlying().(type) {
 	case *types.Basic:
-		info := t.Info()
-		switch {
-		case info&types.IsInteger != 0:
-			over.TypeName = "int"
-			return smartcontract.IntegerType, stackitem.IntegerT, over, nil
-		case info&types.IsBoolean != 0:
-			over.TypeName = "bool"
-			return smartcontract.BoolType, stackitem.BooleanT, over, nil
-		case info&types.IsString != 0:
-			over.TypeName = "string"
-			return smartcontract.StringType, stackitem.ByteArrayT, over, nil
-		default:
-			over.TypeName = "any"
-			return smartcontract.AnyType, stackitem.AnyT, over, nil
-		}
+		return scAndVMTypeFromBasic(t)
 	case *types.Map:
 		et := &binding.ExtendedType{
 			Base: smartcontract.MapType,
@@ -467,6 +459,20 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 	default:
 		over.TypeName = "any"
 		return smartcontract.AnyType, stackitem.AnyT, over, nil
+	}
+}
+
+func scAndVMTypeFromBasic(t *types.Basic) (smartcontract.ParamType, stackitem.Type, binding.Override, *binding.ExtendedType) {
+	info := t.Info()
+	switch {
+	case info&types.IsInteger != 0:
+		return smartcontract.IntegerType, stackitem.IntegerT, binding.Override{TypeName: "int"}, nil
+	case info&types.IsBoolean != 0:
+		return smartcontract.BoolType, stackitem.BooleanT, binding.Override{TypeName: "bool"}, nil
+	case info&types.IsString != 0:
+		return smartcontract.StringType, stackitem.ByteArrayT, binding.Override{TypeName: "string"}, nil
+	default:
+		return smartcontract.AnyType, stackitem.AnyT, binding.Override{TypeName: "any"}, nil
 	}
 }
 
