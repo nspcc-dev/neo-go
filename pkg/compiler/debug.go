@@ -318,8 +318,9 @@ func (c *codegen) scAndVMReturnTypeFromScope(scope *funcScope, exts map[string]b
 func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontract.ParamType, stackitem.Type, binding.Override, *binding.ExtendedType) {
 	name := named.Obj().Name()
 	pkg := named.Obj().Pkg().Name()
-	switch pkg {
-	case "ledger", "management", "neo", "policy":
+	pkgPath := named.Obj().Pkg().Path()
+	interopSuffix, _ := cutInteropPathPrefix(pkgPath)
+	if interopSuffix == "/native" || strings.HasPrefix(interopSuffix, "/native/") { // filter out native wrappers.
 		switch name {
 		case "ParameterType", "SignerScope", "WitnessAction", "WitnessConditionType", "VMState", "AttributeType":
 			return smartcontract.IntegerType, stackitem.IntegerT, binding.Override{TypeName: "int"}, nil
@@ -331,10 +332,11 @@ func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontra
 			typeName = "*" + typeName
 		}
 		return smartcontract.ArrayType, stackitem.ArrayT, binding.Override{
-			Package:  named.Obj().Pkg().Path(),
+			Package:  pkgPath,
 			TypeName: typeName,
 		}, et
-	case "interop":
+	}
+	if pkg == "interop" {
 		if name != "Interface" {
 			over := binding.Override{
 				Package:  interopPrefix,
