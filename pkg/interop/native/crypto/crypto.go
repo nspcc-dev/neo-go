@@ -68,7 +68,7 @@ func RecoverSecp256K1(msgHash []byte, sig []byte) []byte {
 // Bls12381Deserialize, Bls12381Add, Bls12381Mul or Bls12381Pairing. The only
 // way to expose the Bls12381Point out of the runtime to the outside world is by
 // serializing it with Bls12381Serialize method call.
-type Bls12381Point struct{}
+type Bls12381Point interop.Interface
 
 // Bls12381Serialize calls `bls12381Serialize` method of native CryptoLib contract
 // and serializes given BLS12-381 point into byte array.
