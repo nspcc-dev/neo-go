@@ -174,6 +174,78 @@ func TestNativeExtendedTypes(t *testing.T) {
 	}
 }
 
+func TestNativeNamedBasicTypes(t *testing.T) {
+	src := `package foo
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
+			interoptest "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/interop/native"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
+		)
+		func UseHardfork(hf interoptest.Hardfork) {}
+		func UseSpecialByte(value interoptest.SpecialByte) {}
+		func UseParameterType(value management.ParameterType) {}
+		func UseSignerScope(value ledger.SignerScope) {}
+		func UseWitnessAction(value ledger.WitnessAction) {}
+		func UseWitnessConditionType(value ledger.WitnessConditionType) {}
+		func UseVMState(value ledger.VMState) {}
+		func UseAttributeType(value policy.AttributeType) {}
+		func UseNamedCurveHash(value crypto.NamedCurveHash) {}
+		func UseRole(value roles.Role) {}
+		func UseBls12381Point(value crypto.Bls12381Point) {}
+	`
+	_, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(src), nil)
+	require.NoError(t, err)
+
+	methodByID := func(id string) *compiler.MethodDebugInfo {
+		for i := range di.Methods {
+			if di.Methods[i].ID == id {
+				return &di.Methods[i]
+			}
+		}
+		return nil
+	}
+
+	hardfork := methodByID("UseHardfork")
+	require.NotNil(t, hardfork)
+	require.Len(t, hardfork.Parameters, 1)
+	require.Equal(t, smartcontract.StringType, hardfork.Parameters[0].TypeSC)
+	require.Equal(t, "string", hardfork.Parameters[0].RealType.TypeName)
+	require.Nil(t, hardfork.Parameters[0].ExtendedType)
+
+	specialByte := methodByID("UseSpecialByte")
+	require.NotNil(t, specialByte)
+	require.Len(t, specialByte.Parameters, 1)
+	require.Equal(t, smartcontract.IntegerType, specialByte.Parameters[0].TypeSC)
+	require.Equal(t, "int", specialByte.Parameters[0].RealType.TypeName)
+	require.Nil(t, specialByte.Parameters[0].ExtendedType)
+
+	for _, id := range []string{
+		"UseParameterType",
+		"UseSignerScope",
+		"UseWitnessAction",
+		"UseWitnessConditionType",
+		"UseVMState",
+		"UseAttributeType",
+		"UseNamedCurveHash",
+		"UseRole",
+	} {
+		method := methodByID(id)
+		require.NotNil(t, method, id)
+		require.Len(t, method.Parameters, 1, id)
+		require.Equal(t, smartcontract.IntegerType, method.Parameters[0].TypeSC, id)
+		require.Equal(t, "int", method.Parameters[0].RealType.TypeName, id)
+		require.Nil(t, method.Parameters[0].ExtendedType, id)
+	}
+
+	blsPoint := methodByID("UseBls12381Point")
+	require.NotNil(t, blsPoint)
+	require.Len(t, blsPoint.Parameters, 1)
+	require.Equal(t, smartcontract.InteropInterfaceType, blsPoint.Parameters[0].TypeSC)
+}
+
 type nativeTestCase struct {
 	method string
 	params []string

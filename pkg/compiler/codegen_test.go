@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConvertToken(t *testing.T) {
@@ -89,4 +90,25 @@ func eval(t *testing.T, token token.Token, opcode opcode.Opcode, typ types.Type)
 	op, err := convertToken(token, typ)
 	assert.NoError(t, err)
 	assert.Equal(t, opcode, op)
+}
+
+func TestCutInteropPathPrefix(t *testing.T) {
+	for _, tc := range []struct {
+		path           string
+		expectedSuffix string
+		expectedRes    bool
+	}{
+		{"github.com/nspcc-dev/neo-go/pkg/interop", "", true},
+		{"github.com/nspcc-dev/neo-go/pkg/interop/native/policy", "/native/policy", true},
+		{"github.com/nspcc-dev/neo-go/pkg/compiler/testdata/interop", "", true},
+		{"github.com/nspcc-dev/neo-go/pkg/compiler/testdata/interop/native/policy", "/native/policy", true},
+		{"github.com/nspcc-dev/neo-go/pkg/compiler/testdata/notinterop", "", false},
+		{"example.com/some-project/interop", "", false},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			suffix, res := cutInteropPathPrefix(tc.path)
+			require.Equal(t, tc.expectedSuffix, suffix)
+			require.Equal(t, tc.expectedRes, res)
+		})
+	}
 }
