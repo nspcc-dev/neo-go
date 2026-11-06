@@ -17,7 +17,7 @@ require (
 	github.com/nspcc-dev/bbolt v0.0.0-20260404200350-24f70ceb2bd9
 	github.com/nspcc-dev/dbft v0.4.1-0.20261027113520-3baff19bed01
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20260826165212-78b9a86d413c
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20261015090518-76f25afe8861
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20261106090047-e5792a8be796
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.24
 	github.com/nspcc-dev/rfc6979 v0.2.4
 	github.com/pierrec/lz4 v2.6.1+incompatible

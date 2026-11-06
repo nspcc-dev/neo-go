@@ -2,4 +2,4 @@ module github.com/nspcc-dev/neo-go/examples/neofs
 
 go 1.26
 
-require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20261015090518-76f25afe8861
+require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20261106090047-e5792a8be796
