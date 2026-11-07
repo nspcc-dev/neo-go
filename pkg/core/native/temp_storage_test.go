@@ -56,7 +56,7 @@ func TestTempStorage_CalculateStoragePrice_Compat(t *testing.T) {
 		{"TTL: max, size: max", make([]byte, 1+4+limits.MaxStorageKeyLen), make([]byte, 8+limits.MaxStorageValueLen), math.MaxInt64, 6_561_200_000},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := s.CalculateStoragePrice(ic, nil, tc.k, tc.v, tc.lifetime)
+			actual := s.CalculateStoragePrice(ic, nil, tc.k, tc.v, 0, tc.lifetime)
 			require.Equal(t, tc.expectedDatoshi*vm.ExecFeeFactorMultiplier /* NeoGo scaling */, actual)
 		})
 	}

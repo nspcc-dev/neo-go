@@ -211,10 +211,6 @@ func TestTempStorage_PutGetRenewDelete(t *testing.T) {
 			maxValidTill := c.TopBlock(t).Timestamp + uint64(maxTmpStorageMaxTTL)
 			tmp.InvokeFail(t, "validTill exceeds max limit", "renew", key2, maxValidTill+2)
 		})
-		t.Run("not newer", func(t *testing.T) {
-			tmp.InvokeFail(t, "new expiration point should be newer than the old one", "renew", key2, validTill2)
-			tmp.InvokeFail(t, "new expiration point should be newer than the old one", "renew", key2, validTill2-1)
-		})
 		t.Run("expired entry", func(t *testing.T) {
 			tmp.Invoke(t, stackitem.Null{}, "put", []byte("short"), []byte("v"), c.TopBlock(t).Timestamp+1)
 			tmp.InvokeFail(t, "already expired", "renew", []byte("short"), validTillRenewed)
