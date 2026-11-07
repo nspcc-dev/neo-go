@@ -1,6 +1,7 @@
 package iterator
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -8,6 +9,10 @@ import (
 type iterator interface {
 	Next() bool
 	Value() stackitem.Item
+}
+
+type deserializer interface {
+	DeserializedLen() int
 }
 
 // Next advances the iterator, pushes true on success and false otherwise.
@@ -19,14 +24,32 @@ func Next(ic *interop.Context) error {
 	return nil
 }
 
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const (
+	iteratorValuePricePerRef  = 727
+	iteratorValuePricePerByte = 8
+	iteratorValueBasePrice    = 19173
+)
+
 // Value returns current iterator value and depends on iterator type:
 // For slices the result is just value.
 // For maps the result is key-value pair packed in a struct.
 func Value(ic *interop.Context) error {
 	iop := ic.VM.Estack().Pop().Interop()
 	arr := iop.Value().(iterator)
-	ic.VM.Estack().PushItem(arr.Value())
-
+	v := arr.Value()
+	r := ic.VM.RefCount()
+	ic.VM.Estack().PushItem(v)
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		var numBytes int
+		if deser, ok := arr.(deserializer); ok {
+			numBytes = deser.DeserializedLen()
+		}
+		price := iteratorValuePricePerRef*int64(ic.VM.RefCount()-r) + iteratorValuePricePerByte*int64(numBytes) + iteratorValueBasePrice
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

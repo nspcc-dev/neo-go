@@ -25,7 +25,11 @@ func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
 	if err != nil {
 		return fmt.Errorf("wrong signature parameters: %w", err)
 	}
-	if err := ic.VM.AddPicoGas(ic.BaseExecFee() * fee.ECDSAVerifyPrice * int64(len(pkeys))); err != nil {
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * fee.ECDSAVerifyPriceAfterHuyao * int64(len(pkeys))); err != nil {
+			return err
+		}
+	} else if err := ic.VM.AddPicoGas(ic.BaseExecFee() * fee.ECDSAVerifyPrice * int64(len(pkeys))); err != nil {
 		return err
 	}
 	// It's ok to have more keys than there are signatures (it would
@@ -49,6 +53,11 @@ func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
 func ECDSASecp256r1CheckSig(ic *interop.Context) error {
 	keyb := ic.VM.Estack().Pop().Bytes()
 	signature := ic.VM.Estack().Pop().Bytes()
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * fee.ECDSAVerifyPriceAfterHuyao); err != nil {
+			return err
+		}
+	}
 	pkey, err := keys.NewPublicKeyFromBytes(keyb, elliptic.P256())
 	if err != nil {
 		return err
