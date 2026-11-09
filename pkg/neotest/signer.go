@@ -217,7 +217,7 @@ func (s *contractSigner) ScriptHash() util.Uint160 {
 	return s.Account().ScriptHash()
 }
 
-// ScriptHash implements ContractSigner.
+// Account returns the wallet account used by this contract signer.
 func (s *contractSigner) Account() *wallet.Account {
 	return (*wallet.Account)(s)
 }
