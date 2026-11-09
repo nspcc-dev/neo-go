@@ -1092,19 +1092,23 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			c.convertStruct(n, true)
 		default:
-			if tn, ok := t.(*types.Named); ok && isInteropPath(tn.String()) {
-				st, _, _, _ := scAndVMInteropTypeFromExpr(tn, false)
-				expectedLen := -1
-				switch st {
-				case smartcontract.Hash160Type:
-					expectedLen = 20
-				case smartcontract.Hash256Type:
-					expectedLen = 32
-				default:
-				}
-				if expectedLen != -1 && expectedLen != len(n.Elts) {
-					c.prog.Err = fmt.Errorf("%s type must have size %d", tn.Obj().Name(), expectedLen)
-					return nil
+			tn, ok := t.(*types.Named)
+			if ok {
+				_, isInterop := cutInteropPathPrefix(tn.String())
+				if isInterop {
+					st, _, _, _ := scAndVMInteropTypeFromExpr(tn, false)
+					expectedLen := -1
+					switch st {
+					case smartcontract.Hash160Type:
+						expectedLen = 20
+					case smartcontract.Hash256Type:
+						expectedLen = 32
+					default:
+					}
+					if expectedLen != -1 && expectedLen != len(n.Elts) {
+						c.prog.Err = fmt.Errorf("%s type must have size %d", tn.Obj().Name(), expectedLen)
+						return nil
+					}
 				}
 			}
 			var (
@@ -1263,10 +1267,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, arg := range args {
 			ast.Walk(c, arg)
 			typ := c.typeOf(arg)
-			_, ok := typ.Underlying().(*types.Struct)
-			if ok && !isInteropPath(typ.String()) {
-				// Structs are passed by value in Go.
-				c.emitCloneContainer()
+			if _, ok := typ.Underlying().(*types.Struct); ok {
+				if _, isInterop := cutInteropPathPrefix(typ.String()); !isInterop {
+					// Structs are passed by value in Go.
+					c.emitCloneContainer()
+				}
 			}
 			c.emitCloneIfArray(typ)
 		}
@@ -1755,7 +1760,7 @@ func (c *codegen) processDefers() {
 //  3. Rules for types which are not string/[]byte should already
 //     be enforced by go parser.
 func (c *codegen) emitExplicitConvert(from, to types.Type) {
-	if isInteropPath(to.String()) {
+	if _, isInterop := cutInteropPathPrefix(to.String()); isInterop {
 		if isByteSliceOrArray(from) && !isString(from) {
 			c.emitConvert(stackitem.ByteArrayT)
 		}
@@ -2745,8 +2750,9 @@ func (c *codegen) compile(info *buildInfo, pkg *packages.Package) error {
 					pkgPath = pkg.Path()
 				}
 				name := c.getFuncNameFromDecl(pkgPath, n)
+				_, isInterop := cutInteropPathPrefix(pkg.Path())
 				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) &&
-					(!isInteropPath(pkg.Path()) && !canInline(pkg.Path(), n.Name.Name, false)) {
+					(!isInterop && !canInline(pkg.Path(), n.Name.Name, false)) {
 					c.convertFuncDecl(f, n, pkg)
 				}
 			}

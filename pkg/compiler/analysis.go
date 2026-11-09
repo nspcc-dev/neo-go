@@ -715,7 +715,7 @@ func isGoBuiltin(name string) bool {
 }
 
 func isPotentialCustomBuiltin(f *funcScope, expr ast.Expr) bool {
-	if !isInteropPath(f.pkg.Path()) {
+	if _, isInterop := cutInteropPathPrefix(f.pkg.Path()); !isInterop {
 		return false
 	}
 	for name, isBuiltin := range potentialCustomBuiltins {
@@ -727,17 +727,30 @@ func isPotentialCustomBuiltin(f *funcScope, expr ast.Expr) bool {
 }
 
 func isSyscall(fun *funcScope) bool {
-	if fun.selector == nil || fun.pkg == nil || !isInteropPath(fun.pkg.Path()) {
+	if fun.selector == nil || fun.pkg == nil {
+		return false
+	}
+	if _, isInterop := cutInteropPathPrefix(fun.pkg.Path()); !isInterop {
 		return false
 	}
 	return fun.pkg.Name() == "neogointernal" && (strings.HasPrefix(fun.name, "Syscall") ||
 		strings.HasPrefix(fun.name, "Opcode") || strings.HasPrefix(fun.name, "CallWithToken"))
 }
 
-const interopPrefix = "github.com/nspcc-dev/neo-go/pkg/interop"
+const (
+	interopPrefix         = "github.com/nspcc-dev/neo-go/pkg/interop"
+	interopTestdataPrefix = "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/interop"
+)
 
-func isInteropPath(s string) bool {
-	return strings.HasPrefix(s, interopPrefix)
+// cutInteropPathPrefix reports whether s is an interop path. If it is, it returns
+// the part of s following the interop path prefix.
+func cutInteropPathPrefix(s string) (string, bool) {
+	for _, prefix := range []string{interopPrefix, interopTestdataPrefix} {
+		if suffix, ok := strings.CutPrefix(s, prefix); ok {
+			return suffix, true
+		}
+	}
+	return "", false
 }
 
 // canConvert returns true if type doesn't need to be converted on type assertion.
@@ -745,8 +758,8 @@ func canConvert(s string) bool {
 	if len(s) != 0 && s[0] == '*' {
 		s = s[1:]
 	}
-	if isInteropPath(s) {
-		s = s[len(interopPrefix):]
+	s, isInteropPath := cutInteropPathPrefix(s)
+	if isInteropPath {
 		return s != "/iterator.Iterator" && s != "/storage.Context" &&
 			s != "/native/ledger.Block" && s != "/native/ledger.Transaction" &&
 			s != "/native/management.Contract" && s != "/native/neo.AccountState" &&
@@ -764,10 +777,11 @@ func canInline(s string, name string, isBuiltin bool) bool {
 	if strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline") {
 		return true
 	}
-	if !isInteropPath(s) {
+	interopPath, isInterop := cutInteropPathPrefix(s)
+	if !isInterop {
 		return false
 	}
-	return !strings.HasPrefix(s[len(interopPrefix):], "/neogointernal") &&
-		!(strings.HasPrefix(s[len(interopPrefix):], "/util") && name == "FromAddress") &&
-		!(strings.HasPrefix(s[len(interopPrefix):], "/lib/address") && name == "ToHash160" && isBuiltin)
+	return !strings.HasPrefix(interopPath, "/neogointernal") &&
+		!(strings.HasPrefix(interopPath, "/util") && name == "FromAddress") &&
+		!(strings.HasPrefix(interopPath, "/lib/address") && name == "ToHash160" && isBuiltin)
 }
