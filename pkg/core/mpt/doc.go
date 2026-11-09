@@ -35,7 +35,7 @@ There are 3 invariants that this implementation has:
 - Extension node cannot have another Extension node in its next field
 
 Thanks to these restrictions, there is a single root hash for every set of key-value pairs
-irregardless of the order they were added/removed in.
+regardless of the order they were added/removed in.
 The actual trie structure can vary because of node -> HashNode compressing.
 
 There is also one optimization which cost us almost nothing in terms of complexity but is quite beneficial:
