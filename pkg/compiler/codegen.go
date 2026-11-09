@@ -1699,11 +1699,11 @@ func (c *codegen) isCallExprSyscall(e ast.Expr) bool {
 //  2. FINALLY block is always executed, but after catch block.
 //
 // Go `defer` statements are a bit different:
-//  1. `defer` is always executed irregardless of whether an exception has occurred.
+//  1. `defer` is always executed regardless of whether an exception has occurred.
 //  2. `recover` can or can not handle a possible exception.
 //
 // Thus, we use the following approach:
-//  1. Throwed exception is saved in a static field X, static fields Y and it is set to true.
+//  1. Thrown exception is saved in a static field X, static fields Y and it is set to true.
 //  2. For each defer local there is a dedicated local variable which is set to 1 if `defer` statement
 //     is encountered during an actual execution.
 //  3. CATCH and FINALLY blocks are the same, and both contain the same CALLs.
