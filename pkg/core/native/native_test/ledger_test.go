@@ -21,6 +21,9 @@ import (
 
 func newLedgerClient(t *testing.T) *neotest.ContractInvoker {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFHuyao.String(): 0, // enables proper getTransactionVMState behaviour.
+		}
 		cfg.MaxTraceableBlocks = 10 // reduce number of traceable blocks for Ledger tests
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -72,6 +75,17 @@ func TestLedger_GetTransactionState(t *testing.T) {
 	t.Run("good: FAULT", func(t *testing.T) {
 		faultedH := e.InvokeScript(t, []byte{byte(opcode.ABORT)}, []neotest.Signer{c.Committee})
 		ledgerInvoker.Invoke(t, vmstate.Fault, "getTransactionVMState", faultedH)
+	})
+	t.Run("pre-Huyao", func(t *testing.T) {
+		bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFGorgon.String(): 0,
+			}
+		})
+		e := neotest.NewExecutor(t, bc, acc, acc)
+		c := e.CommitteeInvoker(e.NativeHash(t, nativenames.Ledger))
+		hash := e.InvokeScript(t, []byte{byte(opcode.RET)}, []neotest.Signer{c.Committee})
+		ledgerInvoker.Invoke(t, vmstate.None, "getTransactionVMState", hash)
 	})
 }
 

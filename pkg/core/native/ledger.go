@@ -188,7 +188,10 @@ func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.I
 	if err != nil || !l.isTraceableBlock(ic, h) {
 		return stackitem.Make(vmstate.None)
 	}
-	return stackitem.Make(aer.VMState)
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		return stackitem.Make(aer.VMState)
+	}
+	return stackitem.Make(vmstate.None)
 }
 
 // isTraceableBlock defines whether we're able to give information about
