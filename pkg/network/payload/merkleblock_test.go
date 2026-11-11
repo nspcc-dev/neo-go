@@ -1,6 +1,7 @@
 package payload
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -67,4 +68,23 @@ func TestMerkleBlock_EncodeDecodeBinary(t *testing.T) {
 		require.NoError(t, err)
 		require.Error(t, testserdes.DecodeBinary(data, new(MerkleBlock)))
 	})
+}
+
+func TestRoundToNextPowerOfTwo(t *testing.T) {
+	for _, tc := range []struct {
+		in       uint
+		expected uint
+	}{
+		{in: 0, expected: 0},
+		{in: 1, expected: 1},
+		{in: 2, expected: 2},
+		{in: 3, expected: 4},
+		{in: 4, expected: 4},
+		{in: 5, expected: 8},
+		{in: MaxHashesCount, expected: 512},
+	} {
+		t.Run(strconv.Itoa(int(tc.in)), func(t *testing.T) {
+			require.Equal(t, tc.expected, roundToNextPowerOfTwo(tc.in))
+		})
+	}
 }
