@@ -78,6 +78,10 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 	}
 
 	if old, ok := seen[item]; ok {
+		if old.end == 0 {
+			// Compound item marshaling which has not yet finished.
+			return nil, ErrRecursive
+		}
 		if len(data)+old.end-old.start > MaxSize {
 			return nil, errTooBigSize
 		}
@@ -89,6 +93,7 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 
 	switch it := item.(type) {
 	case *Array, *Struct:
+		seen[item] = sliceNoPointer{}
 		var items []Item
 		if a, ok := it.(*Array); ok {
 			items = a.value
@@ -109,6 +114,7 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 		data = append(data, ']')
 		seen[item] = sliceNoPointer{start: start, end: len(data)}
 	case *Map:
+		seen[item] = sliceNoPointer{}
 		data = append(data, '{')
 		for i := range it.value {
 			// map key can always be converted to []byte

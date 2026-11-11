@@ -229,7 +229,7 @@ func TestToJSONCornerCases(t *testing.T) {
 
 		// With circular reference, error expected.
 		m.Add(Make("two"), arr)
-		testToJSON(t, ErrTooBig, arr)
+		testToJSON(t, ErrRecursive, arr)
 	})
 }
 
