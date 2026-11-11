@@ -274,11 +274,19 @@ func TestEncodeDecodeMerkleBlock(t *testing.T) {
 			Flags:   []byte{0},
 		})
 	})
+	t.Run("good, TxCount differs from Hashes count", func(t *testing.T) {
+		testEncodeDecode(t, CMDMerkleBlock, &payload.MerkleBlock{
+			Header:  base,
+			TxCount: 2,
+			Hashes:  []util.Uint256{random.Uint256()},
+			Flags:   []byte{0},
+		})
+	})
 	t.Run("bad, invalid TxCount", func(t *testing.T) {
 		testEncodeDecodeFail(t, CMDMerkleBlock, &payload.MerkleBlock{
 			Header:  base,
 			TxCount: 2,
-			Hashes:  []util.Uint256{random.Uint256()},
+			Hashes:  []util.Uint256{random.Uint256(), random.Uint256(), random.Uint256()},
 			Flags:   []byte{0},
 		})
 	})
