@@ -8,8 +8,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -109,4 +113,23 @@ func TestStd_JSONDeserializeCompat(t *testing.T) {
 	std.InvokeAndCheck(t, func(t testing.TB, stack []stackitem.Item) {
 		require.Equal(t, "90071992547409930000000000000000000000000000000000", stack[0].Value().(*big.Int).String())
 	}, "jsonDeserialize", stackitem.Make("9007199254740993e+34"))
+}
+
+// Ref. https://github.com/neo-project/neo/pull/4809.
+func TestStd_JSONSerialize_CircularReference_Compat(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	t.Run("array", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		emit.Opcodes(buf.BinWriter, opcode.NEWARRAY0, opcode.DUP, opcode.DUP, opcode.APPEND, opcode.PUSH1, opcode.PACK)
+		emit.AppCallNoArgs(buf.BinWriter, nativehashes.StdLib, "jsonSerialize", callflag.All)
+		e.InvokeScriptCheckFAULT(t, buf.Bytes(), []neotest.Signer{acc}, "recursive item")
+	})
+	t.Run("map", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		emit.Opcodes(buf.BinWriter, opcode.NEWMAP, opcode.DUP, opcode.DUP, opcode.PUSH1, opcode.SWAP, opcode.SETITEM, opcode.PUSH1, opcode.PACK)
+		emit.AppCallNoArgs(buf.BinWriter, nativehashes.StdLib, "jsonSerialize", callflag.All)
+		e.InvokeScriptCheckFAULT(t, buf.Bytes(), []neotest.Signer{acc}, "recursive item")
+	})
 }
