@@ -58,6 +58,9 @@ func Call(ic *interop.Context) error {
 		return errors.New("invalid contract hash")
 	}
 	method := ic.VM.Estack().Pop().String()
+	if strings.HasPrefix(method, "_") {
+		return errors.New("invalid method name (starts with '_')")
+	}
 	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
 	if fs&^callflag.All != 0 {
 		return errors.New("call flags out of range")
@@ -66,9 +69,6 @@ func Call(ic *interop.Context) error {
 	cs, err := ic.GetContract(u)
 	if err != nil {
 		return fmt.Errorf("called contract %s not found: %w", u.StringLE(), err)
-	}
-	if strings.HasPrefix(method, "_") {
-		return errors.New("invalid method name (starts with '_')")
 	}
 	md := cs.Manifest.ABI.GetMethod(method, len(args))
 	if md == nil {
