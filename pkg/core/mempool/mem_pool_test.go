@@ -486,6 +486,64 @@ func TestConflictsPayerSecondaryIgnored(t *testing.T) {
 	require.ErrorContains(t, mp.Add(txA1, fs), "insufficient funds for all pooled tx")
 }
 
+func TestConflictsExistingSharesSigner(t *testing.T) {
+	const fee = 100
+	sender := util.Uint160{1}
+	secondary := util.Uint160{2}
+	otherPayer := util.Uint160{3}
+	fs := &FeerStub{balance: 10 * fee, notaryBalance: 10 * fee}
+
+	newTx := func(netFee int64, signers ...util.Uint160) *transaction.Transaction {
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+		tx.NetworkFee = netFee
+		for _, s := range signers {
+			tx.Signers = append(tx.Signers, transaction.Signer{Account: s})
+		}
+		return tx
+	}
+	conflictsWith := func(tx *transaction.Transaction, h util.Uint256) {
+		tx.Attributes = []transaction.Attribute{{
+			Type:  transaction.ConflictsT,
+			Value: &transaction.Conflicts{Hash: h},
+		}}
+	}
+
+	for name, signers := range map[string]struct{ original, existing []util.Uint160 }{
+		"secondary signer": {
+			original: []util.Uint160{sender, secondary},
+			existing: []util.Uint160{secondary},
+		},
+		"notary signer": {
+			original: []util.Uint160{nativehashes.Notary, sender},
+			existing: []util.Uint160{nativehashes.Notary, otherPayer},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, tc := range []struct {
+				fee      int64
+				accepted bool
+			}{{fee, false}, {2 * fee, false}, {2*fee + 1, true}} {
+				t.Run(fmt.Sprint(tc.fee), func(t *testing.T) {
+					mp := New(10, false, nil)
+					original := newTx(tc.fee, signers.original...)
+					existing := newTx(2*fee, signers.existing...)
+					conflictsWith(existing, original.Hash())
+					require.NoError(t, mp.Add(existing, fs))
+
+					err := mp.Add(original, fs)
+					if tc.accepted {
+						require.NoError(t, err)
+					} else {
+						require.ErrorIs(t, err, ErrConflictsAttribute)
+					}
+					require.Equal(t, tc.accepted, mp.ContainsKey(original.Hash()))
+					require.Equal(t, !tc.accepted, mp.ContainsKey(existing.Hash()))
+				})
+			}
+		})
+	}
+}
+
 func TestMempoolItemsOrder(t *testing.T) {
 	sender0 := util.Uint160{1, 2, 3}
 	balance := big.NewInt(10000000)
