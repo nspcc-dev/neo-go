@@ -48,7 +48,12 @@ func toBigInt(s stackitem.Item) *big.Int {
 	return bi
 }
 
-func toUint160(s stackitem.Item) util.Uint160 {
+func toUint160(s stackitem.Item, allowNull ...bool) util.Uint160 {
+	if allowNull != nil && allowNull[0] {
+		if _, ok := s.(stackitem.Null); ok {
+			return util.Uint160{}
+		}
+	}
 	u, err := stackitem.ToUint160(s)
 	if err != nil {
 		panic(err)
