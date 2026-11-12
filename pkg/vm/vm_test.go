@@ -215,6 +215,17 @@ func TestAddGas(t *testing.T) {
 		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
 		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
 		require.ErrorIs(t, v.AddPicoGas(1), ErrGASLimitExceeded)
+
+		// Ignore whitelisting.
+		v.gasConsumed = uint256.NewInt(0)
+		v.LoadScript([]byte{byte(opcode.RET)})
+		v.Context().sc.whitelisted = true
+		require.NoError(t, v.AddPicoGas(10*ExecFeeFactorMultiplier))
+		require.Equal(t, int64(0), v.GasConsumed())
+		require.NoError(t, v.AddPicoGas(10*ExecFeeFactorMultiplier, true))
+		require.Equal(t, int64(10), v.GasConsumed())
+		require.NoError(t, v.AddPicoGas(1))
+		require.ErrorIs(t, v.AddPicoGas(1, true), ErrGASLimitExceeded)
 	})
 }
 
