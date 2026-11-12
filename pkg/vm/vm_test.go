@@ -216,6 +216,18 @@ func TestAddGas(t *testing.T) {
 		require.NoError(t, v.AddPicoGas(5*ExecFeeFactorMultiplier))
 		require.ErrorIs(t, v.AddPicoGas(1), ErrGASLimitExceeded)
 	})
+
+	t.Run("AddDatoshiUnconditionally", func(t *testing.T) {
+		v := newTestVM()
+		v.SetGasLimit(10)
+		v.LoadScript([]byte{byte(opcode.RET)})
+		v.Context().sc.whitelisted = true
+		require.NoError(t, v.AddDatoshi(10))
+		require.NoError(t, v.AddDatoshiUnconditionally(10))
+		require.Equal(t, int64(10), v.GasConsumed())
+		require.ErrorIs(t, v.AddDatoshiUnconditionally(1), ErrGASLimitExceeded)
+		require.ErrorIs(t, v.AddDatoshiUnconditionally(math.MaxInt64), ErrGASLimitExceeded)
+	})
 }
 
 func TestGasConsumed(t *testing.T) {

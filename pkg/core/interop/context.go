@@ -56,7 +56,7 @@ type PolicyChecker interface {
 	IsBlocked(d *dao.Simple, hash util.Uint160) bool
 	// WhitelistedFee returns whether the specified contract method is whitelisted.
 	// Non-negative return value defines the execution fee of a whitelisted method
-	// call in picoGAS units.
+	// call in Datoshi units.
 	WhitelistedFee(d *dao.Simple, hash util.Uint160, offset int) int64
 }
 
