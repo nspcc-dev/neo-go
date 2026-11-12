@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -74,6 +75,7 @@ type ActorOptions struct {
 	// MainAttributes are additional attributes to be added into main
 	// transaction by an appropriate actor. Irrespective of this setting
 	// (which defaults to nil) NotaryAssisted attribute is always added.
+	// Conflicts attribute is not allowed here.
 	MainAttributes []transaction.Attribute
 	// MainCheckerModifier will be used by the main Actor when creating
 	// transactions. It defaults to using [actor.DefaultCheckerModifier]
@@ -192,6 +194,11 @@ func newTunedActor(c RPCActor, signers []actor.SignerAccount, simpleAcc *wallet.
 	if opts == nil {
 		defOpts := NewDefaultActorOptions(reader, simpleAcc)
 		opts = defOpts
+	}
+	if slices.ContainsFunc(opts.MainAttributes, func(a transaction.Attribute) bool {
+		return a.Type == transaction.ConflictsT
+	}) {
+		return nil, errors.New("main transaction can't have Conflicts attribute")
 	}
 	var notarySA = actor.SignerAccount{
 		Signer: transaction.Signer{
