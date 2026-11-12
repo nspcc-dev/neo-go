@@ -247,7 +247,7 @@ func (s *Designate) getDesignatedByRole(ic *interop.Context, args []stackitem.It
 		panic(ErrInvalidIndex)
 	}
 	index := ind.Uint64()
-	if index > uint64(ic.BlockHeight()+1) { // persisting block should be taken into account.
+	if index > uint64(ic.PersistedBlockHeight()+1) { // persisting block should be taken into account.
 		panic(ErrInvalidIndex)
 	}
 	pubs, _, err := s.GetDesignatedByRole(ic.DAO, r, uint32(index))

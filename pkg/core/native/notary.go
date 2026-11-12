@@ -241,7 +241,7 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 	}
 
 	allowedChangeTill := ic.Tx.Sender() == to
-	currentHeight := ic.BlockHeight()
+	currentHeight := ic.PersistedBlockHeight()
 	deposit := n.GetDepositFor(ic.DAO, to)
 	till := toUint32(additionalParams[1])
 	if till < currentHeight+2 {
@@ -284,7 +284,7 @@ func (n *Notary) lockDepositUntil(ic *interop.Context, args []stackitem.Item) st
 		return stackitem.NewBool(false)
 	}
 	till := toUint32(args[1])
-	if till < (ic.BlockHeight() + 1 + 1) { // deposit can't expire at the current persisting block.
+	if till < (ic.PersistedBlockHeight() + 1 + 1) { // deposit can't expire at the current persisting block.
 		return stackitem.NewBool(false)
 	}
 	deposit := n.GetDepositFor(ic.DAO, addr)
@@ -323,7 +323,7 @@ func (n *Notary) withdrawDeferrable(ic *interop.Context, args []stackitem.Item, 
 		return
 	}
 	// Allow withdrawal only after `till` block was persisted, thus, use ic.BlockHeight().
-	if ic.BlockHeight() < deposit.Till {
+	if ic.PersistedBlockHeight() < deposit.Till {
 		popArgsPushRes(stackitem.NewBool(false))
 		return
 	}
@@ -443,8 +443,8 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	value := toUint32(args[0])
 	cfg := ic.Chain.GetConfig()
 	maxInc := n.Policy.GetMaxValidUntilBlockIncrementInternal(ic)
-	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.BlockHeight())) {
-		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.BlockHeight())))
+	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.PersistedBlockHeight())) {
+		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.PersistedBlockHeight())))
 	}
 	if !n.NEO.CheckCommittee(ic) {
 		panic("invalid committee signature")

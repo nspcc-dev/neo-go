@@ -333,7 +333,7 @@ func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 
 	committee0 := n.standbyKeys[:n.cfg.GetCommitteeSize(ic.Block.Index)]
 	cvs := toKeysWithVotes(committee0)
-	err := n.updateCache(cache, cvs, ic.BlockHeight())
+	err := n.updateCache(cache, cvs, ic.PersistedBlockHeight())
 	if err != nil {
 		return err
 	}
@@ -358,7 +358,7 @@ func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 	cache.registerPrice = int64(DefaultRegisterPrice)
 
 	var numOfCNs = n.cfg.GetNumOfCNs(ic.Block.Index + 1)
-	err = n.updateCachedNewEpochValues(ic.DAO, cache, ic.BlockHeight(), numOfCNs)
+	err = n.updateCachedNewEpochValues(ic.DAO, cache, ic.PersistedBlockHeight(), numOfCNs)
 	if err != nil {
 		return fmt.Errorf("failed to update next block newEpoch* cache: %w", err)
 	}
@@ -501,7 +501,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements the Contract interface.
 func (n *NEO) PostPersist(ic *interop.Context) error {
-	gas := n.GetGASPerBlock(ic.DAO, ic.BlockHeight()+1)
+	gas := n.GetGASPerBlock(ic.DAO, ic.PersistedBlockHeight()+1)
 	cache := ic.DAO.GetROCache(n.ID).(*NeoCache)
 	pubs := getCommitteeMembers(cache.committee)
 	committeeSize := n.cfg.GetCommitteeSize(ic.Block.Index)
@@ -666,7 +666,7 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 }
 
 func (n *NEO) getGASPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	gas := n.GetGASPerBlock(ic.DAO, ic.BlockHeight()+1)
+	gas := n.GetGASPerBlock(ic.DAO, ic.PersistedBlockHeight()+1)
 	return stackitem.NewBigInteger(gas)
 }
 
@@ -817,7 +817,7 @@ func (n *NEO) CalculateBonus(ic *interop.Context, acc util.Uint160, end uint32) 
 	if st.Balance.Sign() == 0 {
 		return big.NewInt(0), nil
 	}
-	if ic.Block == nil || end != ic.BlockHeight()+1 {
+	if ic.Block == nil || end != ic.PersistedBlockHeight()+1 {
 		return nil, errors.New("can't calculate bonus of height unequal (BlockHeight + 1)")
 	}
 	return n.calculateBonus(ic.DAO, st, end)

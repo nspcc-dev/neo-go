@@ -39,7 +39,7 @@ func Call(ic *interop.Context) error {
 		height, ok := ic.Hardforks[activeIn.String()]
 		// Persisting block must not be taken into account, native contract can be called
 		// only AFTER its initialization block persist, thus, can't use ic.IsHardforkEnabled.
-		if !ok || ic.BlockHeight() < height {
+		if !ok || ic.PersistedBlockHeight() < height {
 			return fmt.Errorf("native contract %s is active after hardfork %s", genericMeta.Name, activeIn.String())
 		}
 	}

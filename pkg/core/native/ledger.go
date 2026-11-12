@@ -117,7 +117,7 @@ func (l *Ledger) currentHash(ic *interop.Context, _ []stackitem.Item) stackitem.
 
 // currentIndex implements currentIndex SC method.
 func (l *Ledger) currentIndex(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.Make(ic.BlockHeight())
+	return stackitem.Make(ic.PersistedBlockHeight())
 }
 
 // getBlock implements getBlock SC method.
@@ -194,7 +194,7 @@ func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.I
 // isTraceableBlock defines whether we're able to give information about
 // the block with the index specified.
 func (l *Ledger) isTraceableBlock(ic *interop.Context, index uint32) bool {
-	height := ic.BlockHeight()
+	height := ic.PersistedBlockHeight()
 	maxTraceableBlocks := ic.Chain.GetConfig().MaxTraceableBlocks
 	if ic.IsHardforkEnabled(config.HFEchidna) {
 		maxTraceableBlocks = l.Policy.GetMaxTraceableBlocksInternal(ic.DAO)
@@ -213,7 +213,7 @@ func getBlockHashFromItem(ic *interop.Context, item stackitem.Item) util.Uint256
 		if index > math.MaxUint32 {
 			panic("bad block index")
 		}
-		if uint32(index) > ic.BlockHeight() {
+		if uint32(index) > ic.PersistedBlockHeight() {
 			return util.Uint256{}
 		}
 		return ic.Chain.GetHeaderHash(uint32(index))
