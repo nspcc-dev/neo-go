@@ -609,9 +609,9 @@ func (ic *Context) BlockHeight() uint32 {
 	return ic.Chain.BlockHeight()
 }
 
-// persistingBlockHeight returns the height/index of persisting block irrespectively
+// PersistingBlockHeight returns the height/index of persisting block irrespectively
 // of native Ledger's PostPersist call.
-func (ic *Context) persistingBlockHeight() uint32 {
+func (ic *Context) PersistingBlockHeight() uint32 {
 	if ic.Block != nil {
 		return ic.Block.Index
 	}
@@ -642,7 +642,7 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 	height, ok := ic.Hardforks[hf.String()]
 	if ok {
-		return ic.persistingBlockHeight() >= height // persisting block should be taken into account.
+		return ic.PersistingBlockHeight() >= height // persisting block should be taken into account.
 	}
 	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
 	return false
