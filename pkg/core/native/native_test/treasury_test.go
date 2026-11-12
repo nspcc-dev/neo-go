@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 func newTreasuryClient(t *testing.T) *neotest.ContractInvoker {
@@ -38,8 +39,11 @@ func TestTreasury_Activation(t *testing.T) {
 	// Invoke before Faun should fail.
 	c.InvokeFail(t, fmt.Sprintf("called contract %s not found: key not found", nativehashes.Treasury.StringLE()), "verify")
 
-	// Invoke at Faun should fail.
-	c.InvokeWithFeeFail(t, "System.Contract.CallNative failed: native contract Treasury is active after hardfork Faun", 10000_0000, "verify")
+	// Invoke at Faun should not fail (but fee is calculated manually since Treasury is not yet initialized during test invocation).
+	tx := c.NewUnsignedTx(t, c.Hash, "verify")
+	c.SignTx(t, tx, 1_0000_0000, c.Signers...)
+	c.AddNewBlock(t, tx)
+	c.CheckHalt(t, tx.Hash(), stackitem.Make(true))
 
 	// Invoke after Faun should succeed.
 	c.Invoke(t, true, "verify")
