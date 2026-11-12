@@ -658,6 +658,10 @@ func (n *NEO) distributeGas(ic *interop.Context, acc *state.NEOBalance) (*big.In
 func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	u := toUint160(args[0])
 	end := uint32(toBigInt(args[1]).Int64())
+	persistingH := ic.PersistingBlockHeight()
+	if end != persistingH {
+		panic(fmt.Errorf("end block height must be equal to persisting block index: expected %d, got %d", persistingH, end))
+	}
 	gen, err := n.CalculateBonus(ic, u, end)
 	if err != nil {
 		panic(err)
@@ -817,7 +821,7 @@ func (n *NEO) CalculateBonus(ic *interop.Context, acc util.Uint160, end uint32) 
 	if st.Balance.Sign() == 0 {
 		return big.NewInt(0), nil
 	}
-	if ic.Block == nil || end != ic.PersistedBlockHeight()+1 {
+	if end != ic.PersistingBlockHeight() {
 		return nil, errors.New("can't calculate bonus of height unequal (BlockHeight + 1)")
 	}
 	return n.calculateBonus(ic.DAO, st, end)
