@@ -122,7 +122,8 @@ This payload has two incomplete transactions inside:
   For contract witness only empty invocation scripts are supported for now.
   
   This transaction must have `Notary assisted` attribute with the number of `NKeys`
-  (and Notary contract as one of the signers).
+  (and Notary contract as one of the signers). It can't have `Conflicts`
+  attribute, Notary contract witness check fails for such transactions.
 
 See the [Notary request submission guide](#2-request-submission) to learn how to
 construct and send the payload.
