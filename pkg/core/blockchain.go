@@ -3383,7 +3383,8 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 }
 
 // VerifyWitness checks that w is a correct witness for c signed by h. It returns
-// the amount of GAS consumed during verification and an error.
+// the amount of GAS consumed during verification and an error. It does not cup
+// the provided gas value with the Policy-managed max verification gas limit.
 func (bc *Blockchain) VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error) {
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	ic.Container = c
@@ -3394,9 +3395,8 @@ func (bc *Blockchain) VerifyWitness(h util.Uint160, c hash.Hashable, w *transact
 }
 
 // verifyHashAgainstScript verifies given hash against the given witness and returns the amount of GAS consumed.
+// It does not cup the provided gas value with the Policy-managed max verification gas limit.
 func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, gas int64) (int64, error) {
-	gas = min(gas, bc.policy.GetMaxVerificationGas(interopCtx.DAO))
-
 	vm := interopCtx.SpawnVM()
 	vm.SetGasLimit(gas)
 	if err := bc.InitVerificationContext(interopCtx, hash, witness); err != nil {
@@ -3435,14 +3435,17 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block, isPartialTx bool, verificationFee ...int64) error {
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
-	var gasLimit int64
+	var (
+		gasLimit           int64
+		maxVerificationGas = bc.policy.GetMaxVerificationGas(interopCtx.DAO)
+	)
 	if len(verificationFee) == 0 {
 		gasLimit = t.NetworkFee - int64(t.Size())*bc.FeePerByte() - bc.CalculateAttributesFee(t)
 	} else {
 		gasLimit = verificationFee[0]
 	}
 	for i := range t.Signers {
-		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
+		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, min(gasLimit, maxVerificationGas))
 		if err != nil &&
 			(i != 0 || !isPartialTx || !errors.Is(err, ErrInvalidSignature)) { // it's OK for partially-filled transaction with dummy first witness.
 			return fmt.Errorf("witness #%d: %w", i, err)

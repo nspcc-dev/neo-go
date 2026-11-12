@@ -13,13 +13,16 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,6 +49,28 @@ func TestVerifyHeader(t *testing.T) {
 	})
 	t.Run("Valid", func(t *testing.T) {
 		require.NoError(t, bc.verifyHeader(new(newBlock(bc.config.ProtocolConfiguration, 1, prev.Hash()).Header), &prev))
+	})
+}
+
+func TestVerifyHeaderWitness(t *testing.T) {
+	t.Run("custom GAS limit", func(t *testing.T) {
+		bc := newTestChain(t)
+		policyLimit := bc.GetMaxVerificationGAS()
+		buf := io.NewBufBinWriter()
+		emit.Int(buf.BinWriter, policyLimit+1)
+		emit.Syscall(buf.BinWriter, interopnames.SystemRuntimeBurnGas)
+		emit.Opcodes(buf.BinWriter, opcode.PUSHT)
+		s := buf.Bytes()
+		currHeader := &block.Header{
+			Script: transaction.Witness{
+				InvocationScript:   []byte{},
+				VerificationScript: s,
+			},
+		}
+		prevHeader := &block.Header{
+			NextConsensus: hash.Hash160(s),
+		}
+		require.NoError(t, bc.verifyHeaderWitnesses(currHeader, prevHeader))
 	})
 }
 
