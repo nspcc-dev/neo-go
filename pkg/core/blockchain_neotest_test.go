@@ -570,31 +570,12 @@ func TestBlockchain_InitializeNeoCache_Bug3424(t *testing.T) {
 
 // This test enables Notary native contract at non-zero height and checks that no
 // Notary cache initialization is performed before that height on node restart.
-/*
 func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
 	const notaryEnabledHeight = 3
-	ps, path := newLevelDBForTestingWithPath(t, "")
+	ps, path := store.NewLevelDBForTestingWithPath(t, "")
 	customConfig := func(c *config.Blockchain) {
-		c.P2PSigExtensions = true
-		c.NativeUpdateHistories = make(map[string][]uint32)
-		for _, n := range []string{
-			nativenames.Neo,
-			nativenames.Gas,
-			nativenames.Designation,
-			nativenames.Management,
-			nativenames.CryptoLib,
-			nativenames.Ledger,
-			nativenames.Management,
-			nativenames.Oracle,
-			nativenames.Policy,
-			nativenames.StdLib,
-			nativenames.Notary,
-		} {
-			if n == nativenames.Notary {
-				c.NativeUpdateHistories[n] = []uint32{notaryEnabledHeight}
-			} else {
-				c.NativeUpdateHistories[n] = []uint32{0}
-			}
+		c.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): notaryEnabledHeight,
 		}
 	}
 	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, ps)
@@ -604,10 +585,9 @@ func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
 	e.AddNewBlock(t)
 	bc.Close() // Ensure persist is done and persistent store is properly closed.
 
-	ps, _ = newLevelDBForTestingWithPath(t, path)
+	ps, _ = store.NewLevelDBForTestingWithPath(t, path)
 
-	// If NativeActivations are not taken into account during native cache initialization,
-	// bs.init() will panic on Notary cache initialization as it's not deployed yet.
+	// bc.init() should not panic on Notary cache initialization as it's not deployed yet.
 	require.NotPanics(t, func() {
 		bc, _, _, err = chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, ps)
 		require.NoError(t, err)
@@ -619,7 +599,7 @@ func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
 
 	// Notary isn't initialized yet, so accessing Notary cache should return error.
 	_, err = e.Chain.GetMaxNotValidBeforeDelta()
-	require.Error(t, err)
+	require.ErrorContains(t, err, "native Notary is active starting from Echidna")
 
 	// Ensure Notary will be properly initialized and accessing Notary cache works
 	// as expected.
@@ -631,7 +611,6 @@ func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
 	_, err = e.Chain.GetMaxNotValidBeforeDelta()
 	require.NoError(t, err)
 }
-*/
 
 func TestBlockchain_AddHeaders(t *testing.T) {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
