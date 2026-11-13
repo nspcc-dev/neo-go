@@ -1319,7 +1319,7 @@ func handleEnv(c *cli.Context) error {
 	cfg := getChainConfigFromContext(c.App)
 	ic := getInteropContextFromContext(c.App)
 	message := fmt.Sprintf("Chain height: %d\nVM height (may differ from chain height in case of historic call): %d\nNetwork magic: %d\nDB type: %s\n",
-		bc.BlockHeight(), ic.BlockHeight(), bc.GetConfig().Magic, cfg.ApplicationConfiguration.DBConfiguration.Type)
+		bc.BlockHeight(), ic.PersistedBlockHeight(), bc.GetConfig().Magic, cfg.ApplicationConfiguration.DBConfiguration.Type)
 	if c.Bool(verboseFlagFullName) {
 		cfgBytes, err := json.MarshalIndent(cfg, "", "\t")
 		if err != nil {

@@ -828,7 +828,12 @@ func TestNEO_UnclaimedGas(t *testing.T) {
 
 	t.Run("non-existing account", func(t *testing.T) {
 		// non-existing account, should return zero unclaimed GAS.
-		acc.Invoke(t, 0, "unclaimedGas", util.Uint160{}, 1)
+		acc.Invoke(t, 0, "unclaimedGas", util.Uint160{}, 3)
+	})
+
+	t.Run("invalid end height", func(t *testing.T) {
+		// End height differs from persisting block index, should panic.
+		acc.InvokeFail(t, "end block height must be equal to persisting block index", "unclaimedGas", util.Uint160{}, 2)
 	})
 
 	t.Run("non-zero balance", func(t *testing.T) {
@@ -844,7 +849,7 @@ func TestNEO_UnclaimedGas(t *testing.T) {
 		expectedGas := int64(amount * neoHolderRewardRatio / 100 * defaultGASPerBlock * rewardDistance)
 		acc.Invoke(t, expectedGas, "unclaimedGas", accH, e.Chain.BlockHeight()+1)
 
-		acc.InvokeFail(t, "can't calculate bonus of height unequal (BlockHeight + 1)", "unclaimedGas", accH, e.Chain.BlockHeight())
+		acc.InvokeFail(t, "end block height must be equal to persisting block index", "unclaimedGas", accH, e.Chain.BlockHeight())
 	})
 }
 

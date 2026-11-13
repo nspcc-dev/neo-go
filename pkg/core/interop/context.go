@@ -591,12 +591,12 @@ func (ic *Context) GetTime() uint64 {
 	return ic.Block.Timestamp
 }
 
-// BlockHeight returns the latest persisted and stored block height/index.
+// PersistedBlockHeight returns the latest persisted and stored block height/index.
 // The latest persisted block is updated by native Ledger's PostPersist, hence
 // persisting block index is not taken into account until the call to Ledger's
-// PostPersist. If Context's block is set, then BlockHeight calculations rely
+// PostPersist. If Context's block is set, then PersistedBlockHeight calculations rely
 // on index of this block.
-func (ic *Context) BlockHeight() uint32 {
+func (ic *Context) PersistedBlockHeight() uint32 {
 	if ic.Block != nil {
 		if ic.IsBlockPersisted {
 			return ic.Block.Index // Persisting block is already processed by native Ledger.
@@ -609,9 +609,9 @@ func (ic *Context) BlockHeight() uint32 {
 	return ic.Chain.BlockHeight()
 }
 
-// persistingBlockHeight returns the height/index of persisting block irrespectively
+// PersistingBlockHeight returns the height/index of persisting block irrespectively
 // of native Ledger's PostPersist call.
-func (ic *Context) persistingBlockHeight() uint32 {
+func (ic *Context) PersistingBlockHeight() uint32 {
 	if ic.Block != nil {
 		return ic.Block.Index
 	}
@@ -621,7 +621,7 @@ func (ic *Context) persistingBlockHeight() uint32 {
 // CurrentBlockHash returns current block hash got from Context's block if it's set.
 func (ic *Context) CurrentBlockHash() util.Uint256 {
 	if ic.Block != nil {
-		return ic.Chain.GetHeaderHash(ic.BlockHeight())
+		return ic.Chain.GetHeaderHash(ic.PersistedBlockHeight())
 	}
 	return ic.Chain.CurrentBlockHash()
 }
@@ -632,7 +632,7 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	if block.Index > ic.BlockHeight() { // persisting block is not reachable.
+	if block.Index > ic.PersistedBlockHeight() { // persisting block is not reachable.
 		return nil, storage.ErrKeyNotFound
 	}
 	return block, nil
@@ -642,7 +642,7 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 	height, ok := ic.Hardforks[hf.String()]
 	if ok {
-		return ic.persistingBlockHeight() >= height // persisting block should be taken into account.
+		return ic.PersistingBlockHeight() >= height // persisting block should be taken into account.
 	}
 	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
 	return false

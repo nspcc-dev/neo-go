@@ -107,8 +107,11 @@ func TestTempStorage_Activation(t *testing.T) {
 	// Invoke before Huyao should fail.
 	tempStorageInvoker.InvokeWithFeeFail(t, fmt.Sprintf("token contract %s not found: key not found", nativehashes.TemporaryStorage.StringLE()), 10000_0000, "put", key, value, till)
 
-	// Invoke at Huyao should fail.
-	tempStorageInvoker.InvokeWithFeeFail(t, "System.Contract.CallNative failed: native contract TemporaryStorage is active after hardfork Huyao", 10000_0000, "put", key, value, till)
+	// Invoke at Huyao should not fail (but fee is calculated manually since TempStorage is not yet initialized during test invocation).
+	tx := c.NewUnsignedTx(t, tempStorageInvoker.Hash, "put", key, value, till)
+	c.SignTx(t, tx, 1_0000_0000, c.Signers...)
+	c.AddNewBlock(t, tx)
+	c.CheckHalt(t, tx.Hash(), stackitem.Null{})
 
 	// Invoke after Huyao should succeed.
 	tempStorageInvoker.Invoke(t, stackitem.Null{}, "put", key, value, till)
