@@ -720,7 +720,11 @@ func (p *Policy) BlockAccountInternalDeferrable(ic *interop.Context, hash util.U
 	}
 
 	if ic.IsHardforkEnabled(config.HFFaun) {
-		var continuationScheduled, _ = p.NEO.RevokeVotesDeferrable(ic, hash, continuation)
+		gasRecipient := hash
+		if ic.IsHardforkEnabled(config.HFHuyao) {
+			gasRecipient = nativehashes.Treasury
+		}
+		var continuationScheduled, _ = p.NEO.RevokeVotesDeferrable(ic, hash, gasRecipient, continuation)
 		if !continuationScheduled { // ignore error, as in the reference.
 			continuation()
 		}
