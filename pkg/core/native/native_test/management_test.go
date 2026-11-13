@@ -1532,11 +1532,9 @@ func TestManagement_WhitelistedUpdate(t *testing.T) {
 }
 
 func TestManagement_VotingContractDestroy(t *testing.T) {
-	check := func(t *testing.T, gorgonActivation uint32) {
+	check := func(t *testing.T, hardforks map[string]uint32, abortOnPayment bool) {
 		c := newCustomManagementClient(t, func(cfg *config.Blockchain) {
-			cfg.Hardforks = map[string]uint32{
-				config.HFGorgon.String(): gorgonActivation,
-			}
+			cfg.Hardforks = hardforks
 		})
 		neoCommitteeInvoker := c.CommitteeInvoker(nativehashes.NeoToken)
 		neoValidatorsInvoker := c.ValidatorInvoker(nativehashes.NeoToken)
@@ -1551,15 +1549,23 @@ func TestManagement_VotingContractDestroy(t *testing.T) {
           "github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 		  "github.com/nspcc-dev/neo-go/pkg/interop"
           "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+          "github.com/nspcc-dev/neo-go/pkg/interop/storage"
+          "github.com/nspcc-dev/neo-go/pkg/interop/util"
 	  )
       func Verify() bool {
           return true
       }
-      func Destroy() {
+      func Destroy(abortOnPayment bool) {
+          if abortOnPayment {
+              storage.Put(storage.GetContext(), "abortOnPayment", true)
+          }
           management.Destroy()
       }
       func OnNEP17Payment(from interop.Hash160, amount int, data any) {
           token := runtime.GetCallingScriptHash()
+          if storage.Get(storage.GetReadOnlyContext(), "abortOnPayment") != nil {
+              util.Abort()
+          }
           runtime.Notify("OnNEP17Payment", token, from)
       }`
 		ctr := neotest.CompileSource(t, c.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
@@ -1592,11 +1598,23 @@ func TestManagement_VotingContractDestroy(t *testing.T) {
 		// Generate some blocks to earn some GAS for the contract.
 		c.GenerateNewBlocks(t, 5)
 
+		huyao := c.Chain.IsHardforkEnabled(new(config.HFHuyao), c.Chain.BlockHeight())
+		gorgon := c.Chain.IsHardforkEnabled(new(config.HFGorgon), c.Chain.BlockHeight())
+		if abortOnPayment && gorgon && !huyao {
+			ctrInv.InvokeFail(t, "ABORT", "destroy", true)
+			return
+		}
+
 		// Destroy contract and trigger unvoting and unclaimed GAS payment with a subsequent call to onNEP17Payment.
-		h := ctrInv.Invoke(t, stackitem.Null{}, "destroy")
+		h := ctrInv.Invoke(t, stackitem.Null{}, "destroy", abortOnPayment)
 
 		// Check that prior to Gorgon there should be no onNEP17Payment notification emitted since the contract is marked
-		// as destroyed by this moment. With post-Gorgon behaviour onNEP17Payment is expected.
+		// as destroyed by this moment. With post-Gorgon behaviour onNEP17Payment is expected. Since Huyao, GAS is minted
+		// to Treasury without onNEP17Payment call.
+		gasRecipient := ctr.Hash
+		if huyao {
+			gasRecipient = nativehashes.Treasury
+		}
 		expected := []state.NotificationEvent{{
 			Name:       "Vote", // revoke votes on block.
 			ScriptHash: nativehashes.NeoToken,
@@ -1611,11 +1629,11 @@ func TestManagement_VotingContractDestroy(t *testing.T) {
 			ScriptHash: nativehashes.GasToken,
 			Item: stackitem.NewArray([]stackitem.Item{
 				stackitem.Null{},
-				stackitem.Make(ctr.Hash),
+				stackitem.Make(gasRecipient),
 				stackitem.Make(3_000_000),
 			}),
 		}}
-		if c.Chain.IsHardforkEnabled(new(config.HFGorgon), c.Chain.BlockHeight()) {
+		if gorgon && !huyao {
 			expected = append(expected, state.NotificationEvent{
 				Name:       "OnNEP17Payment",
 				ScriptHash: ctr.Hash,
@@ -1635,10 +1653,17 @@ func TestManagement_VotingContractDestroy(t *testing.T) {
 		c.CheckTxNotificationEvents(t, h, expected)
 	}
 
-	t.Run("pre-Gorgon", func(t *testing.T) {
-		check(t, 100500) // Gorgon is active far away from genesis.
-	})
-	t.Run("post-Gorgon", func(t *testing.T) {
-		check(t, 0) // Gorgon is active from genesis.
-	})
+	for _, abort := range []bool{false, true} {
+		t.Run(fmt.Sprintf("abort=%t", abort), func(t *testing.T) {
+			t.Run("pre-Gorgon", func(t *testing.T) {
+				check(t, map[string]uint32{config.HFGorgon.String(): 100500}, abort)
+			})
+			t.Run("post-Gorgon", func(t *testing.T) {
+				check(t, map[string]uint32{config.HFGorgon.String(): 0}, abort)
+			})
+			t.Run("post-Huyao", func(t *testing.T) {
+				check(t, map[string]uint32{config.HFGorgon.String(): 0, config.HFHuyao.String(): 0}, abort)
+			})
+		})
+	}
 }

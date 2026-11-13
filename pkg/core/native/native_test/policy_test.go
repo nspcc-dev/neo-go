@@ -421,6 +421,147 @@ func TestPolicy_BlockedAccounts(t *testing.T) {
 	})
 }
 
+func TestPolicy_BlockedAccountGASRecipient(t *testing.T) {
+	const src = `package receiver
+	import (
+		"github.com/nspcc-dev/neo-go/pkg/interop"
+		"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
+		"github.com/nspcc-dev/neo-go/pkg/interop/native/neo"
+		"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
+		"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+	)
+	func Send(to interop.Hash160) {
+		storage.Put(storage.GetContext(), "blockOnMint", to)
+		neo.Transfer(runtime.GetExecutingScriptHash(), to, 1, nil)
+	}
+	func OnNEP17Payment(from interop.Hash160, amount int, data any) {
+		victim := storage.Get(storage.GetReadOnlyContext(), "blockOnMint")
+		if from == nil && victim != nil {
+			policy.BlockAccount(victim.(interop.Hash160))
+		} else if data == "blockSelf" {
+			policy.BlockAccount(runtime.GetExecutingScriptHash())
+		} else if data == "blockSender" {
+			policy.BlockAccount(from)
+		} else if data == "destroy" {
+			management.Destroy()
+		}
+	}`
+
+	// mintedTo returns recipients of GAS minted by the transaction.
+	mintedTo := func(t *testing.T, e *neotest.Executor, h util.Uint256) []util.Uint160 {
+		var res []util.Uint160
+		for _, ev := range e.GetTxExecResult(t, h).Events {
+			if ev.ScriptHash != nativehashes.GasToken || ev.Name != "Transfer" {
+				continue
+			}
+			arr := ev.Item.Value().([]stackitem.Item)
+			if !arr[0].Equals(stackitem.Null{}) {
+				continue
+			}
+			to, err := util.Uint160DecodeBytesBE(arr[1].Value().([]byte))
+			require.NoError(t, err)
+			res = append(res, to)
+		}
+		return res
+	}
+
+	for _, huyao := range []bool{false, true} {
+		t.Run(fmt.Sprintf("huyao=%t", huyao), func(t *testing.T) {
+			// setup deploys the receiver contract, gives it and a new sender
+			// account some NEO and lets them accumulate GAS rewards.
+			setup := func(t *testing.T) (*neotest.Executor, *neotest.ContractInvoker, util.Uint160, neotest.Signer) {
+				c := newCustomNativeClient(t, nativenames.Neo, func(cfg *config.Blockchain) {
+					cfg.Hardforks = map[string]uint32{
+						config.HFFaun.String():   0,
+						config.HFGorgon.String(): 0,
+					}
+					if huyao {
+						cfg.Hardforks[config.HFHuyao.String()] = 0
+					}
+				})
+				e := c.Executor
+				ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{
+					Name:        "receiver",
+					Permissions: []manifest.Permission{*manifest.NewPermission(manifest.PermissionWildcard)},
+				})
+				e.DeployContract(t, ctr, nil)
+				sender := e.NewAccount(t)
+				validatorNeo := e.ValidatorInvoker(nativehashes.NeoToken)
+				validatorNeo.Invoke(t, true, "transfer", e.Validator.ScriptHash(), ctr.Hash, 1000, nil)
+				validatorNeo.Invoke(t, true, "transfer", e.Validator.ScriptHash(), sender.ScriptHash(), 1000, nil)
+				e.GenerateNewBlocks(t, 5)
+				return e, e.NewInvoker(nativehashes.NeoToken, sender, e.Committee), ctr.Hash, sender
+			}
+
+			t.Run("callback blocks receiver", func(t *testing.T) {
+				e, neoInv, ctr, sender := setup(t)
+				if !huyao {
+					neoInv.InvokeFail(t, fmt.Sprintf("contract %s is blocked", ctr.StringLE()), "transfer", sender.ScriptHash(), ctr, 1, "blockSelf")
+					return
+				}
+				h := neoInv.Invoke(t, true, "transfer", sender.ScriptHash(), ctr, 1, "blockSelf")
+				require.Equal(t, []util.Uint160{sender.ScriptHash(), nativehashes.Treasury}, mintedTo(t, e, h))
+			})
+
+			t.Run("callback blocks sender", func(t *testing.T) {
+				e, neoInv, ctr, sender := setup(t)
+				h := neoInv.Invoke(t, true, "transfer", sender.ScriptHash(), ctr, 1, "blockSender")
+				expected := []util.Uint160{sender.ScriptHash(), ctr}
+				if huyao {
+					expected[0] = nativehashes.Treasury
+				}
+				require.Equal(t, expected, mintedTo(t, e, h))
+			})
+
+			t.Run("callback destroys receiver", func(t *testing.T) {
+				e, neoInv, ctr, sender := setup(t)
+				h := neoInv.Invoke(t, true, "transfer", sender.ScriptHash(), ctr, 1, "destroy")
+				expected := []util.Uint160{sender.ScriptHash(), ctr}
+				if huyao {
+					expected[1] = nativehashes.Treasury
+				}
+				require.Equal(t, expected, mintedTo(t, e, h))
+			})
+
+			t.Run("sender's reward callback blocks receiver", func(t *testing.T) {
+				e, _, ctr, receiver := setup(t)
+				h := e.NewInvoker(ctr, receiver, e.Committee).Invoke(t, stackitem.Null{}, "send", receiver.ScriptHash())
+				expected := []util.Uint160{ctr, receiver.ScriptHash()}
+				if huyao {
+					expected[1] = nativehashes.Treasury
+				}
+				require.Equal(t, expected, mintedTo(t, e, h))
+			})
+
+			t.Run("recover NEO from blocked contract", func(t *testing.T) {
+				e, _, ctr, _ := setup(t)
+				policyInv := e.CommitteeInvoker(nativehashes.PolicyContract)
+				h := policyInv.Invoke(t, true, "blockAccount", ctr)
+				expected := ctr
+				if huyao {
+					expected = nativehashes.Treasury
+				}
+				require.Equal(t, []util.Uint160{expected}, mintedTo(t, e, h))
+				e.GenerateNewBlocks(t, 5)
+
+				// Fee can't be estimated before the lock period ends.
+				tx := e.SignTx(t, e.NewUnsignedTx(t, nativehashes.PolicyContract, "recoverFund", ctr, nativehashes.NeoToken), 1_0000_0000, e.Committee)
+				b := e.NewUnsignedBlock(t, tx)
+				b.Timestamp = e.TopBlock(t).Timestamp + lockPeriod
+				e.SignBlock(b)
+				require.NoError(t, e.Chain.AddBlock(b))
+				if !huyao {
+					e.CheckFault(t, tx.Hash(), fmt.Sprintf("contract %s is blocked", ctr.StringLE()))
+					return
+				}
+				e.CheckHalt(t, tx.Hash(), stackitem.Make(true))
+				require.Equal(t, []util.Uint160{nativehashes.Treasury}, mintedTo(t, e, tx.Hash()))
+			})
+		})
+	}
+}
+
 func TestPolicy_GetBlockedAccounts(t *testing.T) {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.Hardforks = map[string]uint32{

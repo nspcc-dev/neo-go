@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -182,6 +183,15 @@ func addrToStackItem(u *util.Uint160) stackitem.Item {
 	return stackitem.NewByteArray(u.BytesBE())
 }
 
+// rewardRecipient returns the account that receives GAS distributed to acc:
+// Treasury if acc is blocked and Huyao is enabled, acc otherwise.
+func rewardRecipient(ic *interop.Context, acc util.Uint160) util.Uint160 {
+	if ic.IsHardforkEnabled(config.HFHuyao) && ic.PolicyChecker != nil && ic.PolicyChecker.IsBlocked(ic.DAO, acc) {
+		return nativehashes.Treasury
+	}
+	return acc
+}
+
 // postTransfer emits Transfer notification, calls onNEP17Payment (if so) and schedules
 // GAS distributions (if so). It always either runs or schedules popArgsPushRes callback
 // execution so the caller must not call it afterward.
@@ -201,9 +211,9 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 		}
 		// Execute a part of Mint, enqueue context with onNEP17Payment and return.
 		if len(dists) > 0 && dists[0] != nil {
-			c.gasMinter.MintDeferrable(ic, dists[0].To, dists[0].Amount, callOnPayment, func() {
+			c.gasMinter.MintDeferrable(ic, rewardRecipient(ic, dists[0].To), dists[0].Amount, callOnPayment, func() {
 				if len(dists) > 1 && dists[1] != nil { // at max two distributions are supported for now.
-					c.gasMinter.MintDeferrable(ic, dists[1].To, dists[1].Amount, callOnPayment, func() {
+					c.gasMinter.MintDeferrable(ic, rewardRecipient(ic, dists[1].To), dists[1].Amount, callOnPayment, func() {
 						popArgsPushRes(stackitem.NewBool(true)) // the result of `transfer` in fact.
 					})
 				} else {

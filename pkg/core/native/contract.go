@@ -44,7 +44,7 @@ type (
 		// Methods required for proper cross-native communication.
 		CheckCommittee(ic *interop.Context) bool
 		CheckAlmostFullCommittee(ic *interop.Context) bool
-		RevokeVotesDeferrable(ic *interop.Context, h util.Uint160, continuation func()) (bool, error)
+		RevokeVotesDeferrable(ic *interop.Context, h, gasRecipient util.Uint160, continuation func()) (bool, error)
 	}
 
 	// IGAS is an interface required from native GasToken contract for

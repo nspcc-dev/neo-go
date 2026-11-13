@@ -66,7 +66,8 @@ const (
 	// HFHuyao represents hard-fork introduced in #4330 (ported from
 	// https://github.com/neo-project/neo/pull/4571), #4327 (ported from
 	// https://github.com/neo-project/neo/pull/4727), #4482 (ported from
-	// https://github.com/neo-project/neo/pull/4805).
+	// https://github.com/neo-project/neo/pull/4805), #4492 (ported from
+	// https://github.com/neo-project/neo/pull/4783).
 	HFHuyao // Huyao
 	// HFIara represents hard-fork introduced in #4410 (ported from
 	// https://github.com/neo-project/neo/pull/4717).
