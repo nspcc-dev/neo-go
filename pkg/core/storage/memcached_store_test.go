@@ -1,4 +1,4 @@
-package storage
+package storage_test
 
 import (
 	"bytes"
@@ -7,13 +7,15 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMemCachedPutGetDelete(t *testing.T) {
-	ps := NewMemoryStore()
-	s := NewMemCachedStore(ps)
+	ps := storage.NewMemoryStore()
+	s := storage.NewMemCachedStore(ps)
 	key := []byte("foo")
 	value := []byte("bar")
 
@@ -29,14 +31,14 @@ func TestMemCachedPutGetDelete(t *testing.T) {
 	require.Equal(t, 1, s.Len()) // deletion marker
 	_, err = s.Get(key)
 	assert.NotNil(t, err)
-	assert.Equal(t, err, ErrKeyNotFound)
+	assert.Equal(t, err, storage.ErrKeyNotFound)
 
 	// Double delete.
 	s.Delete(key)
 
 	_, err = s.Get(key)
 	assert.NotNil(t, err)
-	assert.Equal(t, err, ErrKeyNotFound)
+	assert.Equal(t, err, storage.ErrKeyNotFound)
 
 	// Nonexistent.
 	key = []byte("sparse")
@@ -44,19 +46,19 @@ func TestMemCachedPutGetDelete(t *testing.T) {
 
 	_, err = s.Get(key)
 	assert.NotNil(t, err)
-	assert.Equal(t, err, ErrKeyNotFound)
+	assert.Equal(t, err, storage.ErrKeyNotFound)
 }
 
-func testMemCachedStorePersist(t *testing.T, ps Store) {
+func testMemCachedStorePersist(t *testing.T, ps storage.Store) {
 	// cached Store
-	ts := NewMemCachedStore(ps)
+	ts := storage.NewMemCachedStore(ps)
 	// persisting nothing should do nothing
 	c, err := ts.Persist()
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 0, c)
 	// persisting one key should result in one key in ps and nothing in ts
 	ts.Put([]byte("key"), []byte("value"))
-	checkBatch(t, ts, []KeyValueExists{{KeyValue: KeyValue{Key: []byte("key"), Value: []byte("value")}}}, nil)
+	checkBatch(t, ts, []storage.KeyValueExists{{KeyValue: storage.KeyValue{Key: []byte("key"), Value: []byte("value")}}}, nil)
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
@@ -65,7 +67,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value"), v)
 	v, err = ts.MemoryStore.Get([]byte("key"))
-	assert.Equal(t, ErrKeyNotFound, err)
+	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	// now we overwrite the previous `key` contents and also add `key2`,
 	ts.Put([]byte("key"), []byte("newvalue"))
@@ -73,11 +75,11 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	// this is to check that now key is written into the ps before we do
 	// persist
 	v, err = ps.Get([]byte("key2"))
-	assert.Equal(t, ErrKeyNotFound, err)
+	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
-	checkBatch(t, ts, []KeyValueExists{
-		{KeyValue: KeyValue{Key: []byte("key"), Value: []byte("newvalue")}, Exists: true},
-		{KeyValue: KeyValue{Key: []byte("key2"), Value: []byte("value2")}},
+	checkBatch(t, ts, []storage.KeyValueExists{
+		{KeyValue: storage.KeyValue{Key: []byte("key"), Value: []byte("newvalue")}, Exists: true},
+		{KeyValue: storage.KeyValue{Key: []byte("key2"), Value: []byte("value2")}},
 	}, nil)
 	// two keys should be persisted (one overwritten and one new) and
 	// available in the ps
@@ -86,10 +88,10 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 2, c)
 	v, err = ts.MemoryStore.Get([]byte("key"))
-	assert.Equal(t, ErrKeyNotFound, err)
+	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	v, err = ts.MemoryStore.Get([]byte("key2"))
-	assert.Equal(t, ErrKeyNotFound, err)
+	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	v, err = ps.Get([]byte("key"))
 	assert.Equal(t, nil, err)
@@ -104,20 +106,20 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, 0, c)
 	// test persisting deletions
 	ts.Delete([]byte("key"))
-	checkBatch(t, ts, nil, []KeyValueExists{{KeyValue: KeyValue{Key: []byte("key")}, Exists: true}})
+	checkBatch(t, ts, nil, []storage.KeyValueExists{{KeyValue: storage.KeyValue{Key: []byte("key")}, Exists: true}})
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 1, c)
 	v, err = ps.Get([]byte("key"))
-	assert.Equal(t, ErrKeyNotFound, err)
+	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	v, err = ps.Get([]byte("key2"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value2"), v)
 }
 
-func checkBatch(t *testing.T, ts *MemCachedStore, put []KeyValueExists, del []KeyValueExists) {
+func checkBatch(t *testing.T, ts *storage.MemCachedStore, put []storage.KeyValueExists, del []storage.KeyValueExists) {
 	b := ts.GetBatch()
 	assert.Equal(t, len(put), len(b.Put), "wrong number of put elements in a batch")
 	assert.Equal(t, len(del), len(b.Deleted), "wrong number of deleted elements in a batch")
@@ -133,16 +135,16 @@ func checkBatch(t *testing.T, ts *MemCachedStore, put []KeyValueExists, del []Ke
 
 func TestMemCachedPersist(t *testing.T) {
 	t.Run("MemoryStore", func(t *testing.T) {
-		ps := NewMemoryStore()
+		ps := storage.NewMemoryStore()
 		testMemCachedStorePersist(t, ps)
 	})
 	t.Run("MemoryCachedStore", func(t *testing.T) {
-		ps1 := NewMemoryStore()
-		ps2 := NewMemCachedStore(ps1)
+		ps1 := storage.NewMemoryStore()
+		ps2 := storage.NewMemCachedStore(ps1)
 		testMemCachedStorePersist(t, ps2)
 	})
 	t.Run("BoltDBStore", func(t *testing.T) {
-		ps := newBoltStoreForTesting(t)
+		ps := store.NewBoltDBForTesting(t)
 		t.Cleanup(func() {
 			err := ps.Close()
 			require.NoError(t, err)
@@ -154,8 +156,8 @@ func TestMemCachedPersist(t *testing.T) {
 func TestCachedGetFromPersistent(t *testing.T) {
 	key := []byte("key")
 	value := []byte("value")
-	ps := NewMemoryStore()
-	ts := NewMemCachedStore(ps)
+	ps := storage.NewMemoryStore()
+	ts := storage.NewMemCachedStore(ps)
 
 	assert.NoError(t, ps.PutChangeSet(map[string][]byte{string(key): value}, nil))
 	val, err := ts.Get(key)
@@ -163,7 +165,7 @@ func TestCachedGetFromPersistent(t *testing.T) {
 	assert.Equal(t, value, val)
 	ts.Delete(key)
 	val, err = ts.Get(key)
-	assert.Equal(t, err, ErrKeyNotFound)
+	assert.Equal(t, err, storage.ErrKeyNotFound)
 	assert.Nil(t, val)
 }
 
@@ -172,22 +174,22 @@ func TestCachedSeek(t *testing.T) {
 		// Given this prefix...
 		goodPrefix = []byte{'f'}
 		// these pairs should be found...
-		lowerKVs = []KeyValue{
+		lowerKVs = []storage.KeyValue{
 			{[]byte("foo"), []byte("bar")},
 			{[]byte("faa"), []byte("bra")},
 		}
 		// and these should be not.
-		deletedKVs = []KeyValue{
+		deletedKVs = []storage.KeyValue{
 			{[]byte("fee"), []byte("pow")},
 			{[]byte("fii"), []byte("qaz")},
 		}
 		// and these should be not.
-		updatedKVs = []KeyValue{
+		updatedKVs = []storage.KeyValue{
 			{[]byte("fuu"), []byte("wop")},
 			{[]byte("fyy"), []byte("zaq")},
 		}
-		ps = NewMemoryStore()
-		ts = NewMemCachedStore(ps)
+		ps = storage.NewMemoryStore()
+		ts = storage.NewMemCachedStore(ps)
 	)
 	for _, v := range lowerKVs {
 		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
@@ -201,7 +203,7 @@ func TestCachedSeek(t *testing.T) {
 		ts.Put(v.Key, v.Value)
 	}
 	foundKVs := make(map[string][]byte)
-	ts.Seek(SeekRange{Prefix: goodPrefix}, func(k, v []byte) bool {
+	ts.Seek(storage.SeekRange{Prefix: goodPrefix}, func(k, v []byte) bool {
 		foundKVs[string(k)] = v
 		return true
 	})
@@ -219,8 +221,8 @@ func TestCachedSeek(t *testing.T) {
 }
 
 func TestCachedSeekBackwardsEmptyStart(t *testing.T) {
-	ps := NewMemoryStore()
-	ts := NewMemCachedStore(ps)
+	ps := storage.NewMemoryStore()
+	ts := storage.NewMemCachedStore(ps)
 
 	require.NoError(t, ps.PutChangeSet(map[string][]byte{
 		"20": []byte("barb"),
@@ -228,15 +230,15 @@ func TestCachedSeekBackwardsEmptyStart(t *testing.T) {
 	}, nil))
 	ts.Put([]byte("22"), []byte("bard"))
 
-	var actual []KeyValue
-	ts.Seek(SeekRange{Prefix: []byte("2"), Start: []byte{}, Backwards: true}, func(k, v []byte) bool {
-		actual = append(actual, KeyValue{Key: bytes.Clone(k), Value: bytes.Clone(v)})
+	var actual []storage.KeyValue
+	ts.Seek(storage.SeekRange{Prefix: []byte("2"), Start: []byte{}, Backwards: true}, func(k, v []byte) bool {
+		actual = append(actual, storage.KeyValue{Key: bytes.Clone(k), Value: bytes.Clone(v)})
 		return true
 	})
-	require.ElementsMatch(t, []KeyValue{}, actual)
+	require.ElementsMatch(t, []storage.KeyValue{}, actual)
 }
 
-func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCount int) {
+func benchmarkCachedSeek(t *testing.B, ps storage.Store, psElementsCount, tsElementsCount int) {
 	var (
 		searchPrefix      = []byte{1}
 		badPrefix         = []byte{2}
@@ -247,7 +249,7 @@ func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCoun
 		updatedPrefixGood = append(searchPrefix, 3)
 		updatedPrefixBad  = append(badPrefix, 3)
 
-		ts = NewMemCachedStore(ps)
+		ts = storage.NewMemCachedStore(ps)
 	)
 	for i := range psElementsCount {
 		// lower KVs with matching prefix that should be found
@@ -286,18 +288,18 @@ func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCoun
 
 	t.ReportAllocs()
 	for t.Loop() {
-		ts.Seek(SeekRange{Prefix: searchPrefix}, func(k, v []byte) bool { return true })
+		ts.Seek(storage.SeekRange{Prefix: searchPrefix}, func(k, v []byte) bool { return true })
 	}
 	t.StopTimer()
 }
 
 func BenchmarkCachedSeek(t *testing.B) {
-	var stores = map[string]func(testing.TB) Store{
-		"MemPS": func(t testing.TB) Store {
-			return NewMemoryStore()
+	var stores = map[string]func(testing.TB) storage.Store{
+		"MemPS": func(t testing.TB) storage.Store {
+			return storage.NewMemoryStore()
 		},
-		"BoltPS":  newBoltStoreForTesting,
-		"LevelPS": newLevelDBForTesting,
+		"BoltPS":  store.NewBoltDBForTesting,
+		"LevelPS": store.NewLevelDBForTesting,
 	}
 	for psName, newPS := range stores {
 		for psCount := 100; psCount <= 10000; psCount *= 10 {
@@ -312,10 +314,6 @@ func BenchmarkCachedSeek(t *testing.B) {
 	}
 }
 
-func newMemCachedStoreForTesting(t testing.TB) Store {
-	return NewMemCachedStore(NewMemoryStore())
-}
-
 type BadStore struct {
 	onPutBatch func()
 }
@@ -324,18 +322,18 @@ func (b *BadStore) Delete(k []byte) error {
 	return nil
 }
 func (b *BadStore) Get([]byte) ([]byte, error) {
-	return nil, ErrKeyNotFound
+	return nil, storage.ErrKeyNotFound
 }
 func (b *BadStore) Put(k, v []byte) error {
 	return nil
 }
 func (b *BadStore) PutChangeSet(_ map[string][]byte, _ map[string][]byte) error {
 	b.onPutBatch()
-	return ErrKeyNotFound
+	return storage.ErrKeyNotFound
 }
-func (b *BadStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
+func (b *BadStore) Seek(rng storage.SeekRange, f func(k, v []byte) bool) {
 }
-func (b *BadStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
+func (b *BadStore) SeekGC(rng storage.SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
 	return nil
 }
 func (b *BadStore) Close() error {
@@ -350,7 +348,7 @@ func TestMemCachedPersistFailing(t *testing.T) {
 		b1 = []byte("b1")
 	)
 	// cached Store
-	ts := NewMemCachedStore(&bs)
+	ts := storage.NewMemCachedStore(&bs)
 	// Set a pair of keys.
 	ts.Put(t1, t1)
 	ts.Put(t2, t2)
@@ -380,7 +378,7 @@ func TestPrivateMemCachedPersistFailing(t *testing.T) {
 		t2 = []byte("t2")
 	)
 	// cached Store
-	ts := NewPrivateMemCachedStore(&bs)
+	ts := storage.NewPrivateMemCachedStore(&bs)
 	// Set a pair of keys.
 	ts.Put(t1, t1)
 	ts.Put(t2, t2)
@@ -403,27 +401,27 @@ func TestCachedSeekSorting(t *testing.T) {
 		// Given this prefix...
 		goodPrefix = []byte{1}
 		// these pairs should be found...
-		lowerKVs = []KeyValue{
+		lowerKVs = []storage.KeyValue{
 			{[]byte{1, 2, 3}, []byte("bra")},
 			{[]byte{1, 2, 5}, []byte("bar")},
 			{[]byte{1, 3, 3}, []byte("bra")},
 			{[]byte{1, 3, 5}, []byte("bra")},
 		}
 		// and these should be not.
-		deletedKVs = []KeyValue{
+		deletedKVs = []storage.KeyValue{
 			{[]byte{1, 7, 3}, []byte("pow")},
 			{[]byte{1, 7, 4}, []byte("qaz")},
 		}
 		// and these should be not.
-		updatedKVs = []KeyValue{
+		updatedKVs = []storage.KeyValue{
 			{[]byte{1, 2, 4}, []byte("zaq")},
 			{[]byte{1, 2, 6}, []byte("zaq")},
 			{[]byte{1, 3, 2}, []byte("wop")},
 			{[]byte{1, 3, 4}, []byte("zaq")},
 		}
 	)
-	for _, newCached := range []func(Store) *MemCachedStore{NewMemCachedStore, NewPrivateMemCachedStore} {
-		ps := NewMemoryStore()
+	for _, newCached := range []func(storage.Store) *storage.MemCachedStore{storage.NewMemCachedStore, storage.NewPrivateMemCachedStore} {
+		ps := storage.NewMemoryStore()
 		ts := newCached(ps)
 		for _, v := range lowerKVs {
 			require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
@@ -436,14 +434,14 @@ func TestCachedSeekSorting(t *testing.T) {
 			require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
 			ts.Put(v.Key, v.Value)
 		}
-		var foundKVs []KeyValue
-		ts.Seek(SeekRange{Prefix: goodPrefix}, func(k, v []byte) bool {
-			foundKVs = append(foundKVs, KeyValue{Key: bytes.Clone(k), Value: bytes.Clone(v)})
+		var foundKVs []storage.KeyValue
+		ts.Seek(storage.SeekRange{Prefix: goodPrefix}, func(k, v []byte) bool {
+			foundKVs = append(foundKVs, storage.KeyValue{Key: bytes.Clone(k), Value: bytes.Clone(v)})
 			return true
 		})
 		assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))
 		expected := append(lowerKVs, updatedKVs...)
-		slices.SortFunc(expected, func(a, b KeyValue) int {
+		slices.SortFunc(expected, func(a, b storage.KeyValue) int {
 			return bytes.Compare(a.Key, b.Key)
 		})
 		require.Equal(t, expected, foundKVs)

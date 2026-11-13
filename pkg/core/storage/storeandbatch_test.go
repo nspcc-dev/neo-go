@@ -1,4 +1,4 @@
-package storage
+package storage_test
 
 import (
 	"bytes"
@@ -7,27 +7,29 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type dbSetup struct {
 	name   string
-	create func(testing.TB) Store
+	create func(testing.TB) storage.Store
 }
 
-type dbTestFunction func(*testing.T, Store)
+type dbTestFunction func(*testing.T, storage.Store)
 
-func testStoreGetNonExistent(t *testing.T, s Store) {
+func testStoreGetNonExistent(t *testing.T, s storage.Store) {
 	key := []byte("sparse")
 
 	_, err := s.Get(key)
-	assert.Equal(t, err, ErrKeyNotFound)
+	assert.Equal(t, err, storage.ErrKeyNotFound)
 }
 
-func pushSeekDataSet(t *testing.T, s Store) []KeyValue {
+func pushSeekDataSet(t *testing.T, s storage.Store) []storage.KeyValue {
 	// Use the same set of kvs to test Seek with different prefix/start values.
-	kvs := []KeyValue{
+	kvs := []storage.KeyValue{
 		{[]byte("10"), []byte("bar")},
 		{[]byte("11"), []byte("bara")},
 		{[]byte("20"), []byte("barb")},
@@ -39,7 +41,7 @@ func pushSeekDataSet(t *testing.T, s Store) []KeyValue {
 		{[]byte("40"), []byte("barh")},
 		{[]byte("41"), []byte("bari")},
 	}
-	up := NewMemCachedStore(s)
+	up := storage.NewMemCachedStore(s)
 	for _, v := range kvs {
 		up.Put(v.Key, v.Value)
 	}
@@ -48,25 +50,34 @@ func pushSeekDataSet(t *testing.T, s Store) []KeyValue {
 	return kvs
 }
 
-func testStoreSeek(t *testing.T, s Store) {
+// getCmpFunc duplicates storage.getCmpFunc for testing purposes, we're OK with it since
+// it shouldn't be exported from the storage package.
+func getCmpFunc(backwards bool) func(a, b []byte) int {
+	if !backwards {
+		return bytes.Compare
+	}
+	return func(a, b []byte) int { return -bytes.Compare(a, b) }
+}
+
+func testStoreSeek(t *testing.T, s storage.Store) {
 	kvs := pushSeekDataSet(t, s)
-	check := func(t *testing.T, goodprefix, start []byte, goodkvs []KeyValue, backwards bool, cont func(k, v []byte) bool) {
+	check := func(t *testing.T, goodprefix, start []byte, goodkvs []storage.KeyValue, backwards bool, cont func(k, v []byte) bool) {
 		// Seek result expected to be sorted in an ascending (for forwards seeking) or descending (for backwards seeking) way.
 		var cmpFunc = getCmpFunc(backwards)
-		slices.SortFunc(goodkvs, func(a, b KeyValue) int {
+		slices.SortFunc(goodkvs, func(a, b storage.KeyValue) int {
 			return cmpFunc(a.Key, b.Key)
 		})
 
-		rng := SeekRange{
+		rng := storage.SeekRange{
 			Prefix: goodprefix,
 			Start:  start,
 		}
 		if backwards {
 			rng.Backwards = true
 		}
-		actual := make([]KeyValue, 0, len(goodkvs))
+		actual := make([]storage.KeyValue, 0, len(goodkvs))
 		s.Seek(rng, func(k, v []byte) bool {
-			actual = append(actual, KeyValue{
+			actual = append(actual, storage.KeyValue{
 				Key:   bytes.Clone(k),
 				Value: bytes.Clone(v),
 			})
@@ -86,7 +97,7 @@ func testStoreSeek(t *testing.T, s Store) {
 				// and nil start range...
 				start := []byte(nil)
 				// these pairs should be found.
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[2], // key = "20"
 					kvs[3], // key = "21"
 					kvs[4], // key = "22"
@@ -96,7 +107,7 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("0")
 				start := []byte(nil)
-				check(t, goodprefix, start, []KeyValue{}, false, nil)
+				check(t, goodprefix, start, []storage.KeyValue{}, false, nil)
 			})
 			t.Run("early stop", func(t *testing.T) {
 				// Given this prefix...
@@ -104,7 +115,7 @@ func testStoreSeek(t *testing.T, s Store) {
 				// and nil start range...
 				start := []byte(nil)
 				// these pairs should be found.
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[2], // key = "20"
 					kvs[3], // key = "21"
 				}
@@ -118,7 +129,7 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("good", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte(nil)
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[4], // key = "22"
 					kvs[3], // key = "21"
 					kvs[2], // key = "20"
@@ -128,12 +139,12 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("0")
 				start := []byte(nil)
-				check(t, goodprefix, start, []KeyValue{}, true, nil)
+				check(t, goodprefix, start, []storage.KeyValue{}, true, nil)
 			})
 			t.Run("early stop", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte(nil)
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[4], // key = "22"
 					kvs[3], // key = "21"
 				}
@@ -152,7 +163,7 @@ func testStoreSeek(t *testing.T, s Store) {
 				// and empty start range...
 				start := []byte{}
 				// these pairs should be found.
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[2], // key = "20"
 					kvs[3], // key = "21"
 					kvs[4], // key = "22"
@@ -162,7 +173,7 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("0")
 				start := []byte{}
-				check(t, goodprefix, start, []KeyValue{}, false, nil)
+				check(t, goodprefix, start, []storage.KeyValue{}, false, nil)
 			})
 			t.Run("early stop", func(t *testing.T) {
 				// Given this prefix...
@@ -170,7 +181,7 @@ func testStoreSeek(t *testing.T, s Store) {
 				// and empty start range...
 				start := []byte{}
 				// these pairs should be found.
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[2], // key = "20"
 					kvs[3], // key = "21"
 				}
@@ -184,7 +195,7 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("good", func(t *testing.T) {
 				goodprefix := []byte("4")
 				start := []byte{}
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[7], // key = "4"
 				}
 				check(t, goodprefix, start, goodkvs, true, nil)
@@ -192,7 +203,7 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte{}
-				check(t, goodprefix, start, []KeyValue{}, true, nil)
+				check(t, goodprefix, start, []storage.KeyValue{}, true, nil)
 			})
 		})
 	})
@@ -202,7 +213,7 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("good", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte("1") // start will be appended to goodprefix to start seek from
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[3], // key = "21"
 					kvs[4], // key = "22"
 				}
@@ -211,12 +222,12 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte("3") // start is more than all keys prefixed by '2'.
-				check(t, goodprefix, start, []KeyValue{}, false, nil)
+				check(t, goodprefix, start, []storage.KeyValue{}, false, nil)
 			})
 			t.Run("early stop", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte("0") // start will be appended to goodprefix to start seek from
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[2], // key = "20"
 					kvs[3], // key = "21"
 				}
@@ -229,7 +240,7 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("good", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte("1") // start will be appended to goodprefix to start seek from
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[3], // key = "21"
 					kvs[2], // key = "20"
 				}
@@ -238,12 +249,12 @@ func testStoreSeek(t *testing.T, s Store) {
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte(".") // start is less than all keys prefixed by '2'.
-				check(t, goodprefix, start, []KeyValue{}, true, nil)
+				check(t, goodprefix, start, []storage.KeyValue{}, true, nil)
 			})
 			t.Run("early stop", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte("2") // start will be appended to goodprefix to start seek from
-				goodkvs := []KeyValue{
+				goodkvs := []storage.KeyValue{
 					kvs[4], // key = "24"
 					kvs[3], // key = "21"
 				}
@@ -255,9 +266,9 @@ func testStoreSeek(t *testing.T, s Store) {
 	})
 }
 
-func testStoreSeekGC(t *testing.T, s Store) {
+func testStoreSeekGC(t *testing.T, s storage.Store) {
 	kvs := pushSeekDataSet(t, s)
-	err := s.SeekGC(SeekRange{Prefix: []byte("1")}, func(k, v []byte) (bool, bool) {
+	err := s.SeekGC(storage.SeekRange{Prefix: []byte("1")}, func(k, v []byte) (bool, bool) {
 		return true, true
 	})
 	require.NoError(t, err)
@@ -265,7 +276,7 @@ func testStoreSeekGC(t *testing.T, s Store) {
 		_, err = s.Get(kvs[i].Key)
 		require.NoError(t, err)
 	}
-	err = s.SeekGC(SeekRange{Prefix: []byte("3")}, func(k, v []byte) (bool, bool) {
+	err = s.SeekGC(storage.SeekRange{Prefix: []byte("3")}, func(k, v []byte) (bool, bool) {
 		return false, true
 	})
 	require.NoError(t, err)
@@ -289,8 +300,8 @@ func testStoreSeekGC(t *testing.T, s Store) {
 
 func TestAllDBs(t *testing.T) {
 	var DBs = []dbSetup{
-		{"BoltDB", newBoltStoreForTesting},
-		{"LevelDB", newLevelDBForTesting},
+		{"BoltDB", store.NewBoltDBForTesting},
+		{"LevelDB", store.NewLevelDBForTesting},
 		{"MemCached", newMemCachedStoreForTesting},
 		{"Memory", newMemoryStoreForTesting},
 	}
@@ -307,4 +318,12 @@ func TestAllDBs(t *testing.T) {
 			require.NoError(t, s.Close())
 		}
 	}
+}
+
+func newMemCachedStoreForTesting(t testing.TB) storage.Store {
+	return storage.NewMemCachedStore(storage.NewMemoryStore())
+}
+
+func newMemoryStoreForTesting(t testing.TB) storage.Store {
+	return storage.NewMemoryStore()
 }

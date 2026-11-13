@@ -31,7 +31,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -39,6 +38,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/store"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -53,20 +53,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newLevelDBForTestingWithPath(t testing.TB, dbPath string) (storage.Store, string) {
-	if dbPath == "" {
-		dbPath = t.TempDir()
-	}
-	dbOptions := dbconfig.LevelDBOptions{
-		DataDirectoryPath: dbPath,
-	}
-	newLevelStore, err := storage.NewLevelDBStore(dbOptions)
-	require.Nil(t, err, "NewLevelDBStore error")
-	return newLevelStore, dbPath
-}
-
 func TestBlockchain_StartFromExistingDB(t *testing.T) {
-	ps, path := newLevelDBForTestingWithPath(t, "")
+	ps, path := store.NewLevelDBForTestingWithPath(t, "")
 	customConfig := func(c *config.Blockchain) {
 		c.StateRootInHeader = true // Need for P2PStateExchangeExtensions check.
 	}
@@ -91,7 +79,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	bc.Close() // Ensure persist is done and persistent store is properly closed.
 
 	newPS := func(t *testing.T) storage.Store {
-		ps, _ = newLevelDBForTestingWithPath(t, path)
+		ps, _ = store.NewLevelDBForTestingWithPath(t, path)
 		t.Cleanup(func() { require.NoError(t, ps.Close()) })
 		return ps
 	}
@@ -291,7 +279,7 @@ func TestBlockchain_InitHeaderHashes(t *testing.T) {
 
 	check := func(t *testing.T, headerHeight int, trusted *block.Header) {
 		// Create secondary node, add some headers and try to start from existing DB.
-		ps, path := newLevelDBForTestingWithPath(t, "")
+		ps, path := store.NewLevelDBForTestingWithPath(t, "")
 		bc, _ := chain.NewSingleWithCustomConfigAndStore(t, func(cfg *config.Blockchain) {
 			cfg.RemoveUntraceableBlocks = true // required for NeoFSStateSyncExtensions.
 		}, ps, false)
@@ -307,7 +295,7 @@ func TestBlockchain_InitHeaderHashes(t *testing.T) {
 		bc.Close()
 
 		// Open the chain one more time and start with some trusted header.
-		ps, _ = newLevelDBForTestingWithPath(t, path)
+		ps, _ = store.NewLevelDBForTestingWithPath(t, path)
 		bc, _ = chain.NewSingleWithCustomConfigAndStore(t, func(cfg *config.Blockchain) {
 			cfg.RemoveUntraceableBlocks = true
 			cfg.NeoFSStateSyncExtensions = true
@@ -462,7 +450,7 @@ func TestBlockchain_InitHeaderHashes(t *testing.T) {
 // when panic occurs on native Neo cache initialization due to access to native Policy
 // cache when it's not yet initialized to recalculate candidates.
 func TestBlockchain_InitializeNeoCache_Bug3181(t *testing.T) {
-	ps, path := newLevelDBForTestingWithPath(t, "")
+	ps, path := store.NewLevelDBForTestingWithPath(t, "")
 	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, nil, ps)
 	require.NoError(t, err)
 	go bc.Run()
@@ -481,7 +469,7 @@ func TestBlockchain_InitializeNeoCache_Bug3181(t *testing.T) {
 	}
 	bc.Close() // Ensure persist is done and persistent store is properly closed.
 
-	ps, _ = newLevelDBForTestingWithPath(t, path)
+	ps, _ = store.NewLevelDBForTestingWithPath(t, path)
 	t.Cleanup(func() { require.NoError(t, ps.Close()) })
 
 	// Start chain from the existing database that should trigger an update of native
@@ -498,7 +486,7 @@ func TestBlockchain_InitializeNeoCache_Bug3181(t *testing.T) {
 // committee and stand by validators) is properly initialized after node restart
 // at the dBFT epoch boundary.
 func TestBlockchain_InitializeNeoCache_Bug3424(t *testing.T) {
-	ps, path := newLevelDBForTestingWithPath(t, "")
+	ps, path := store.NewLevelDBForTestingWithPath(t, "")
 	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, nil, ps)
 	require.NoError(t, err)
 	go bc.Run()
@@ -567,7 +555,7 @@ func TestBlockchain_InitializeNeoCache_Bug3424(t *testing.T) {
 	// Move to the last block in the epoch and restart the node.
 	advanceChainToEpochBoundary(t)
 	bc.Close() // Ensure persist is done and persistent store is properly closed.
-	ps, _ = newLevelDBForTestingWithPath(t, path)
+	ps, _ = store.NewLevelDBForTestingWithPath(t, path)
 	t.Cleanup(func() { require.NoError(t, ps.Close()) })
 
 	// Start chain from the existing database that should trigger an update of native
@@ -2595,7 +2583,7 @@ func TestBlockchain_Bug1728(t *testing.T) {
 func TestBlockchain_ResetStateErrors(t *testing.T) {
 	chainHeight := 3
 	checkResetErr := func(t *testing.T, cfg func(c *config.Blockchain), h uint32, errText string) {
-		db, path := newLevelDBForTestingWithPath(t, t.TempDir())
+		db, path := store.NewLevelDBForTestingWithPath(t, "")
 		bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, cfg, db, false)
 		e := neotest.NewExecutor(t, bc, validators, committee)
 		go bc.Run()
@@ -2604,7 +2592,7 @@ func TestBlockchain_ResetStateErrors(t *testing.T) {
 		}
 		bc.Close()
 
-		db, _ = newLevelDBForTestingWithPath(t, path)
+		db, _ = store.NewLevelDBForTestingWithPath(t, path)
 		defer db.Close()
 		bc, _, _ = chain.NewMultiWithCustomConfigAndStore(t, cfg, db, false)
 		err := bc.Reset(h)
@@ -2638,7 +2626,7 @@ func TestBlockchain_ResetStateErrors(t *testing.T) {
 // it performs basic chain reset and checks that reset chain has proper state.
 func TestBlockchain_ResetState(t *testing.T) {
 	// Create the DB.
-	db, path := newLevelDBForTestingWithPath(t, t.TempDir())
+	db, path := store.NewLevelDBForTestingWithPath(t, "")
 	bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, nil, db, false)
 	go bc.Run()
 	e := neotest.NewExecutor(t, bc, validators, committee)
@@ -2707,7 +2695,7 @@ func TestBlockchain_ResetState(t *testing.T) {
 	bc.Close()
 
 	// Start new chain with existing DB, but do not run it.
-	db, _ = newLevelDBForTestingWithPath(t, path)
+	db, _ = store.NewLevelDBForTestingWithPath(t, path)
 	bc, _, _ = chain.NewMultiWithCustomConfigAndStore(t, nil, db, false)
 	defer db.Close()
 	require.Equal(t, topBlockHeight, bc.BlockHeight()) // ensure DB was properly initialized.
