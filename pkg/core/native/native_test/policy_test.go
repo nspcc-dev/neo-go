@@ -3,6 +3,7 @@ package native_test
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/big"
 	"slices"
 	"strings"
@@ -887,4 +888,73 @@ func TestPolicy_RecoverFundsInteropAPI(t *testing.T) {
 	require.NoError(t, e.Chain.AddBlock(b))
 
 	ctrInvoker.Invoke(t, stackitem.NewBool(true), "recoverFunds", unlucky.ScriptHash(), nativehashes.GasToken)
+}
+
+func TestPolicy_WhitelistFeeNestedCalls(t *testing.T) {
+	const (
+		callerFee = 1_0000_0000
+		calleeFee = 2_0000_0000
+	)
+	for _, callT := range []bool{false, true} {
+		for _, calls := range []int{1, 2} {
+			t.Run(fmt.Sprintf("CALLT=%t, calls=%d", callT, calls), func(t *testing.T) {
+				bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+					c.Hardforks = map[string]uint32{
+						config.HFFaun.String(): 0,
+					}
+				})
+				e := neotest.NewExecutor(t, bc, acc, acc)
+				p := e.CommitteeInvoker(nativehashes.PolicyContract)
+
+				callee := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(`package callee
+					func Foo() {
+						_ = 1
+					}`), &compiler.Options{Name: "callee"})
+				e.DeployContract(t, callee, nil)
+
+				var hStr strings.Builder
+				for _, b := range callee.Hash.BytesBE() {
+					fmt.Fprintf(&hStr, "\\x%02x", b)
+				}
+				imp, call := "github.com/nspcc-dev/neo-go/pkg/interop", `contract.Call(interop.Hash160(hash), "foo", contract.All)`
+				if callT {
+					imp, call = "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal", `neogointernal.CallWithTokenNoRet(hash, "foo", int(contract.All))`
+				}
+				src := fmt.Sprintf(`package caller
+					import (
+						%q
+						"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+					)
+					const hash = "%s"
+					func Main() {
+						%s
+					}`, imp, hStr.String(), strings.Repeat(call+"\n", calls))
+				caller := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+					Name:        "caller",
+					Permissions: []manifest.Permission{*manifest.NewPermission(manifest.PermissionWildcard)},
+				})
+				e.DeployContract(t, caller, nil)
+				callerInvoker := e.NewInvoker(caller.Hash, e.Committee)
+
+				setCalleeFee := func(fee int64) {
+					p.Invoke(t, stackitem.Null{}, "removeWhitelistFeeContract", callee.Hash, "foo", 0)
+					p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", callee.Hash, "foo", 0, fee)
+				}
+				p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", caller.Hash, "main", 0, callerFee)
+				p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", callee.Hash, "foo", 0, 0)
+
+				free := e.GetTxExecResult(t, callerInvoker.Invoke(t, stackitem.Null{}, "main")).GasConsumed
+
+				setCalleeFee(calleeFee)
+				paid := e.GetTxExecResult(t, callerInvoker.Invoke(t, stackitem.Null{}, "main")).GasConsumed
+				require.Equal(t, int64(calls*calleeFee), paid-free)
+
+				const errMsg = "GAS limit exceeded executing whitelisted contract"
+				callerInvoker.InvokeWithFeeFail(t, errMsg, callerFee+calleeFee/2, "main")
+
+				setCalleeFee(math.MaxInt64)
+				callerInvoker.InvokeWithFeeFail(t, errMsg, 10*(callerFee+calleeFee), "main")
+			})
+		}
+	}
 }

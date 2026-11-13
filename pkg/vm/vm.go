@@ -340,6 +340,14 @@ func (v *VM) AddDatoshi(gas int64) error {
 	return v.addFemtoGasInternal(femtoGas, v.isWhitelisted())
 }
 
+// AddDatoshiUnconditionally consumes the specified amount of gas in Datoshi
+// units even if the executing method is whitelisted. It returns
+// [ErrGASLimitExceeded] if the gas limit was exceeded.
+func (v *VM) AddDatoshiUnconditionally(gas int64) error {
+	femtoGas := new(uint256.Int).Mul(uint256.NewInt(uint64(gas)), uint256FemtoGasPerDatoshi)
+	return v.addFemtoGasInternal(femtoGas, false)
+}
+
 // Estack returns the evaluation stack, so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack

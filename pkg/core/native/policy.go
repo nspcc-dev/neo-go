@@ -896,7 +896,7 @@ func (p *Policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error {
 }
 
 // WhitelistedFee checks whether the specified contract method is whitelisted and
-// returns a non-negative execution fee in picoGAS units if so. It always uses
+// returns a non-negative execution fee in Datoshi units if so. It always uses
 // native cache, hence cache is expected to be initialized by this moment.
 func (p *Policy) WhitelistedFee(dao *dao.Simple, hash util.Uint160, offset int) int64 {
 	cache := dao.GetROCache(p.ID).(*PolicyCache)
@@ -907,7 +907,7 @@ func (p *Policy) WhitelistedFee(dao *dao.Simple, hash util.Uint160, offset int) 
 	if !ok {
 		return -1
 	}
-	return cache.whitelistedContracts[i].Fee * vm.ExecFeeFactorMultiplier
+	return cache.whitelistedContracts[i].Fee
 }
 
 // CleanWhitelist removes a contract with the specified hash from the list of
