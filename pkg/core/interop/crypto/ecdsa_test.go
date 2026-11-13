@@ -11,14 +11,18 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
@@ -146,6 +150,30 @@ func testCurveCHECKMULTISIGBad(t *testing.T) {
 	t.Run("3_2 wrong order", func(t *testing.T) { testCHECKMULTISIGBad(t, false, 3, []int{0, 2}, []int{2, 0}) })
 	t.Run("3_2 duplicate sig", func(t *testing.T) { testCHECKMULTISIGBad(t, false, 3, nil, []int{0, 0}) })
 	t.Run("1_2 too many signatures", func(t *testing.T) { testCHECKMULTISIGBad(t, true, 2, []int{0}, []int{0, 1}) })
+	t.Run("too many signatures fee before Huyao", func(t *testing.T) {
+		bw := io.NewBufBinWriter()
+		emit.Bytes(bw.BinWriter, []byte{})
+		emit.Bytes(bw.BinWriter, []byte{})
+		emit.Int(bw.BinWriter, 2)
+		emit.Bytes(bw.BinWriter, []byte{})
+		emit.Int(bw.BinWriter, 1)
+		syscallOffset := bw.Len()
+		emit.Syscall(bw.BinWriter, interopnames.SystemCryptoCheckMultisig)
+		require.NoError(t, bw.Err)
+		script := bw.Bytes()
+
+		v := initCheckMultisigVMNoArgs(transaction.New(script, 0))
+		v.LoadWithFlags(script, callflag.NoneFlag)
+		for v.Context().NextIP() < syscallOffset {
+			require.NoError(t, v.Step())
+		}
+		gasBefore := v.GasConsumed()
+
+		require.ErrorContains(t, v.Run(), "more signatures than there are keys")
+		require.True(t, v.HasFailed())
+		// Invalid signature counts are rejected before charging for verification.
+		require.Zero(t, v.GasConsumed()-gasBefore)
+	})
 	t.Run("gas limit exceeded", func(t *testing.T) {
 		v := initCHECKMULTISIGVM(t, 1, []int{0}, []int{0})
 		v.SetGasLimit(fee.ECDSAVerifyPrice - 1)
