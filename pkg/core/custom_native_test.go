@@ -169,7 +169,7 @@ func (n *neo) CheckAlmostFullCommittee(ic *interop.Context) bool {
 func (n *neo) getBool(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewBool(true)
 }
-func (n *neo) RevokeVotesDeferrable(ic *interop.Context, acc util.Uint160, continuation func()) (bool, error) {
+func (n *neo) RevokeVotesDeferrable(ic *interop.Context, acc, gasRecipient util.Uint160, continuation func()) (bool, error) {
 	return true, nil
 }
 
