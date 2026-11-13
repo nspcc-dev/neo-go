@@ -43,8 +43,19 @@ type errorAtInstruct struct {
 	err any
 }
 
+// Error implements the error interface.
 func (e *errorAtInstruct) Error() string {
 	return fmt.Sprintf("at instruction %d (%s): %s", e.ip, e.op, e.err)
+}
+
+// Unwrap returns an unwrapped VM FAULT exception error if it has the error type.
+func (e *errorAtInstruct) Unwrap() error {
+	switch v := e.err.(type) {
+	case error:
+		return v
+	default:
+		return nil
+	}
 }
 
 func newError(ip int, op opcode.Opcode, err any) *errorAtInstruct {
