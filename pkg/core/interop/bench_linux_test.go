@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unsafe"
 
 	"golang.org/x/sys/unix"
 )
@@ -44,10 +45,41 @@ func dropPageCache(path string, off int64) error {
 	if err != nil {
 		return err
 	}
-	err = f.Sync()
-	if err == nil {
-		err = unix.Fadvise(int(f.Fd()), off, 0, unix.FADV_DONTNEED)
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return err
 	}
-	_ = f.Close()
-	return err
+	if off >= info.Size() {
+		return nil
+	}
+
+	if err = f.Sync(); err != nil {
+		return err
+	}
+	if err = unix.Fadvise(int(f.Fd()), off, 0, unix.FADV_DONTNEED); err != nil {
+		return err
+	}
+
+	size := info.Size() - off
+	mapped, err := unix.Mmap(int(f.Fd()), off, int(size), unix.PROT_READ, unix.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	defer unix.Munmap(mapped)
+
+	pageSize := os.Getpagesize()
+	pages := (len(mapped) + pageSize - 1) / pageSize
+	vec := make([]byte, pages)
+	_, _, errno := unix.Syscall(unix.SYS_MINCORE, uintptr(unsafe.Pointer(&mapped[0])), uintptr(len(mapped)), uintptr(unsafe.Pointer(&vec[0])))
+	if errno != 0 {
+		return errno
+	}
+	for i, v := range vec {
+		if v&1 != 0 {
+			return fmt.Errorf("page %d still resident after FADV_DONTNEED: %s offset %d", i, realPath, off)
+		}
+	}
+	return nil
 }

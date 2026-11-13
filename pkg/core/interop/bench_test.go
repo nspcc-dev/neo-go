@@ -1335,14 +1335,18 @@ func genStorageFindFromDisk(t *testing.T, nopNs float64) float64 {
 	ns := measureNsPerOp(t, func(b *testing.B) {
 		for b.Loop() {
 			b.StopTimer()
-			require.NoError(b, dropPageCache(dbCfg.FilePath, dataPagesOffset))
+			err := dropPageCache(dbCfg.FilePath, dataPagesOffset)
+			if err != nil {
+				fmt.Println(err)
+			}
+			require.NoError(b, err)
 			ic.DAO = dao.NewSimple(st, false).GetPrivate()
 			ic.VM.Estack().PushVal(istorage.FindDefault)
 			ic.VM.Estack().PushVal(prefix)
 			ic.VM.Estack().PushItem(stc)
 			b.StartTimer()
 
-			err := istorage.Find(ic)
+			err = istorage.Find(ic)
 			if err == nil {
 				err = iterator.Next(ic)
 			}

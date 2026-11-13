@@ -24,7 +24,7 @@ const (
 	// generatePrices enables price CSV generation. To regenerate files in
 	// genOutDir, set it to true, run TestGenerateInteropPriceCSV and
 	// set it back to false.
-	generatePrices = false
+	generatePrices = true
 	// genOutDir is a directory price CSV files are written to.
 	genOutDir = "testdata/prices"
 	// nopCount is the number of NOPs in the script NOP time is measured with.
@@ -74,7 +74,7 @@ func benchmarkNOP(b *testing.B, ic *interop.Context) {
 }
 
 var interopGenerators = map[string][]depGenerator{
-	interopnames.SystemContractCreateMultisigAccount: {
+	/* interopnames.SystemContractCreateMultisigAccount: {
 		{"pubkeys_count", genCreateMultisigAccount},
 	},
 	interopnames.SystemRuntimeCheckWitness: {
@@ -116,7 +116,7 @@ var interopGenerators = map[string][]depGenerator{
 		{"events_count", genNotifyEventsCount},
 		{"params_count", genNotifyParamsCount},
 		{"items_count", genNotifyItemsCount},
-	},
+	}, */
 }
 
 type depGenerator struct {
@@ -125,12 +125,12 @@ type depGenerator struct {
 }
 
 var staticGenerators = map[string]func(t *testing.T, nopNs float64) float64{
-	interopnames.SystemContractCreateStandardAccount: genCreateStandardAccount,
+	/* interopnames.SystemContractCreateStandardAccount: genCreateStandardAccount,
 	interopnames.SystemContractGetCallFlags:          genGetCallFlags,
 	interopnames.SystemCryptoCheckSig:                genCheckSig,
-	interopnames.SystemIteratorNext:                  genIteratorNext,
-	interopnames.SystemStorageFind:                   genStorageFindFromDisk,
-	interopnames.SystemStorageGet:                    genStorageGetFromDisk,
+	interopnames.SystemIteratorNext:                  genIteratorNext, */
+	interopnames.SystemStorageFind: genStorageFindFromDisk,
+	/* interopnames.SystemStorageGet:                    genStorageGetFromDisk,
 	interopnames.SystemStorageGetContext:             genStorageGetContext,
 	interopnames.SystemStorageGetReadOnlyContext:     genStorageGetReadOnlyContext,
 	interopnames.SystemStorageAsReadOnly:             genStorageAsReadOnly,
@@ -147,7 +147,7 @@ var staticGenerators = map[string]func(t *testing.T, nopNs float64) float64{
 	interopnames.SystemRuntimeLog:                    genLog,
 	interopnames.SystemRuntimeGetTime:                genGetTime,
 	interopnames.SystemRuntimeGetTrigger:             genGetTrigger,
-	interopnames.SystemRuntimePlatform:               genPlatform,
+	interopnames.SystemRuntimePlatform:               genPlatform, */
 }
 
 func combineRows(t *testing.T, deps []depGenerator, nopNs float64) (header []string, rows []sample) {
