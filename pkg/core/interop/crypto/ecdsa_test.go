@@ -10,14 +10,18 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
@@ -173,6 +177,23 @@ func testCurveCHECKMULTISIGBad(t *testing.T) {
 	})
 }
 
+func TestECDSASecp256r1CheckMultisigTooManySignaturesFeeBeforeHuyao(t *testing.T) {
+	bw := io.NewBufBinWriter()
+	emit.Bytes(bw.BinWriter, []byte{})
+	emit.Bytes(bw.BinWriter, []byte{})
+	emit.Int(bw.BinWriter, 2)
+	emit.Bytes(bw.BinWriter, []byte{})
+	emit.Int(bw.BinWriter, 1)
+	emit.Syscall(bw.BinWriter, interopnames.SystemCryptoCheckMultisig)
+	require.NoError(t, bw.Err)
+	script := bw.Bytes()
+
+	v := initCheckMultisigVMNoArgs(transaction.New(script, 0))
+	v.LoadWithFlags(script, callflag.NoneFlag)
+	require.ErrorContains(t, v.Run(), "more signatures than there are keys")
+	require.True(t, v.HasFailed())
+	require.Equal(t, int64(780), v.GasConsumed())
+}
 func TestCheckSig(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
