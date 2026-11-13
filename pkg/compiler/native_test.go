@@ -246,6 +246,10 @@ func TestNativeNamedBasicTypes(t *testing.T) {
 	require.Equal(t, smartcontract.InteropInterfaceType, blsPoint.Parameters[0].TypeSC)
 }
 
+func TestPolicyHardforks(t *testing.T) {
+	require.EqualValues(t, policy.HFIara, config.HFIara.String())
+}
+
 type nativeTestCase struct {
 	method string
 	params []string
@@ -314,6 +318,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"removeWhitelistFeeContract", []string{u160, `"method"`, "1"}},
 		{"getWhitelistFeeContracts", nil},
 		{"recoverFund", []string{u160, u160}},
+		{"activateHardfork", []string{`"HF"`, "1"}},
+		{"getHardforkActivationHeight", []string{`"HF"`}},
 	})
 	runNativeTestCases(t, *cs.ByName(nativenames.Ledger).Metadata(), "ledger", []nativeTestCase{
 		{"currentHash", nil},
