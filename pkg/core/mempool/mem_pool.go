@@ -169,14 +169,13 @@ func (mp *Pool) HasConflicts(t *transaction.Transaction, fee Feer) bool {
 }
 
 // getPayer returns an account that pays transaction fees. In case if Notary
-// contract is a sender, it returns the owner of the notary deposit. Boolean
-// return value denotes the latter. It also returns the proper map to track
-// the balance of the payer.
-func getPayer(tx *transaction.Transaction) (payer, bool) {
+// contract is a sender, the owner of the notary deposit is returned as a
+// secondary payer.
+func getPayer(tx *transaction.Transaction) payer {
 	if tx.Sender().Equals(nativehashes.Notary) {
-		return payer{primary: tx.Sender(), secondary: tx.Signers[1].Account}, true
+		return payer{primary: tx.Sender(), secondary: tx.Signers[1].Account}
 	}
-	return payer{primary: tx.Sender()}, false
+	return payer{primary: tx.Sender()}
 }
 
 // getPayerFee returns utilityBalanceAndFees structure for the specified payer.
@@ -194,7 +193,7 @@ func getPayerFee(payer payer, fees map[payer]utilityBalanceAndFees, feer Feer) (
 // (either notary deposit or simple GAS fee) and returns false if both balance check is required and
 // the sender does not have enough GAS (or deposit) to pay.
 func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
-	p, _ := getPayer(tx)
+	p := getPayer(tx)
 	payerFee, ok := getPayerFee(p, mp.fees, feer)
 	if !ok {
 		mp.fees[p] = payerFee
@@ -407,7 +406,7 @@ func (mp *Pool) removeInternal(hash util.Uint256) {
 func (mp *Pool) removeFromMapWithFeesAndAttrs(itm item) {
 	delete(mp.verifiedMap, itm.txn.Hash())
 
-	p, _ := getPayer(itm.txn)
+	p := getPayer(itm.txn)
 	payerFee := mp.fees[p]
 	payerFee.feeSum.SubUint64(&payerFee.feeSum, uint64(itm.txn.SystemFee+itm.txn.NetworkFee))
 	mp.fees[p] = payerFee
@@ -582,11 +581,7 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 // checkTxConflicts is an internal unprotected version of Verify. It takes into
 // consideration conflicting transactions which are about to be removed from mempool.
 func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*transaction.Transaction, error) {
-	p, isSponsored := getPayer(tx)
-	author := p.primary
-	if isSponsored {
-		author = p.secondary
-	}
+	p := getPayer(tx)
 	actualPayerFee, ok := getPayerFee(p, mp.fees, feer)
 
 	// Check Conflicts attributes.
@@ -594,12 +589,24 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*tra
 		expectedPayerFee     utilityBalanceAndFees
 		conflictsToBeRemoved []*transaction.Transaction
 		conflictingFee       int64
+		txSigners            = make(map[util.Uint160]struct{}, len(tx.Signers))
 	)
+	for _, s := range tx.Signers {
+		txSigners[s.Account] = struct{}{}
+	}
+	hasCommonSigner := func(existingTx *transaction.Transaction) bool {
+		for _, s := range existingTx.Signers {
+			if _, ok := txSigners[s.Account]; ok {
+				return true
+			}
+		}
+		return false
+	}
 	// Step 1: check if `tx` was in attributes of mempooled transactions.
 	if conflictingHashes, ok := mp.conflicts[tx.Hash()]; ok {
 		for _, hash := range conflictingHashes {
 			existingTx := mp.verifiedMap[hash]
-			if existingTx.HasSigner(author) {
+			if hasCommonSigner(existingTx) {
 				conflictingFee += existingTx.NetworkFee
 			}
 			conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
@@ -608,24 +615,13 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*tra
 	// Step 2: check if mempooled transactions were in `tx`'s attributes.
 	conflictsAttrs := tx.GetAttributes(transaction.ConflictsT)
 	if len(conflictsAttrs) != 0 {
-		txSigners := make(map[util.Uint160]struct{}, len(tx.Signers))
-		for _, s := range tx.Signers {
-			txSigners[s.Account] = struct{}{}
-		}
 		for _, attr := range conflictsAttrs {
 			hash := attr.Value.(*transaction.Conflicts).Hash
 			existingTx, ok := mp.verifiedMap[hash]
 			if !ok {
 				continue
 			}
-			var signerOK bool
-			for _, s := range existingTx.Signers {
-				if _, ok := txSigners[s.Account]; ok {
-					signerOK = true
-					break
-				}
-			}
-			if !signerOK {
+			if !hasCommonSigner(existingTx) {
 				return nil, fmt.Errorf("%w: not signed by a signer of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
 			}
 			conflictingFee += existingTx.NetworkFee
@@ -639,7 +635,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*tra
 	// Step 3: take into account payer's conflicting transactions before balance check.
 	expectedPayerFee = actualPayerFee
 	for _, conflictingTx := range conflictsToBeRemoved {
-		conflictingPayer, _ := getPayer(conflictingTx)
+		conflictingPayer := getPayer(conflictingTx)
 		if conflictingPayer.primary.Equals(p.primary) && conflictingPayer.secondary.Equals(p.secondary) { // only pick conflicts, those removals will affect payer's fee sum (either standard GAS or notary deposit).
 			expectedPayerFee.feeSum.SubUint64(&expectedPayerFee.feeSum, uint64(conflictingTx.SystemFee+conflictingTx.NetworkFee))
 		}

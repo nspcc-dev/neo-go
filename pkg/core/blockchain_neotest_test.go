@@ -2260,11 +2260,12 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				VerificationScript: e.Committee.Script(),
 			}}
 
-			getNotaryAssistedTx := func(e *neotest.Executor, signaturesCount uint8, serviceFee int64) *transaction.Transaction {
+			getNotaryAssistedTx := func(e *neotest.Executor, signaturesCount uint8, serviceFee int64, attrs ...transaction.Attribute) *transaction.Transaction {
 				tx := newTestTx(t, h, testScript)
 				tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{
 					NKeys: signaturesCount,
 				}})
+				tx.Attributes = append(tx.Attributes, attrs...)
 				tx.NetworkFee += serviceFee // additional fee for NotaryAssisted attribute
 				tx.NetworkFee += 4_000_000  // multisig check
 				tx.Signers = []transaction.Signer{{
@@ -2442,6 +2443,43 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						},
 					}
 					require.Error(t, bc.VerifyTx(tx))
+				})
+				t.Run("main tx with Conflicts", func(t *testing.T) {
+					tx := getNotaryAssistedTx(e, 1, (1+1)*notaryServiceFeePerKey+1_0000_0000, transaction.Attribute{
+						Type:  transaction.ConflictsT,
+						Value: &transaction.Conflicts{Hash: random.Uint256()},
+					})
+					err := bc.VerifyTx(tx)
+					require.ErrorIs(t, err, core.ErrVerificationFailed)
+					require.ErrorContains(t, err, "witness #1")
+				})
+				t.Run("fallback tx with Conflicts", func(t *testing.T) {
+					tx := newTestTx(t, h, testScript)
+					tx.Attributes = []transaction.Attribute{
+						{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
+						{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: random.Uint256()}},
+					}
+					tx.Signers = []transaction.Signer{
+						{
+							Account: notaryHash,
+							Scopes:  transaction.None,
+						},
+						{
+							Account: validator.ScriptHash(),
+							Scopes:  transaction.None,
+						},
+					}
+					tx.NetworkFee = 1_0000_0000
+					tx.Scripts = []transaction.Witness{
+						{
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
+						},
+						{
+							InvocationScript:   validator.SignHashable(uint32(netmode.UnitTestNet), tx),
+							VerificationScript: validator.Script(),
+						},
+					}
+					require.NoError(t, bc.VerifyTx(tx))
 				})
 				t.Run("positive", func(t *testing.T) {
 					tx := getNotaryAssistedTx(e, 1, (1+1)*notaryServiceFeePerKey)

@@ -221,6 +221,21 @@ func TestNewActor(t *testing.T) {
 	}}, opts)
 	require.Error(t, err)
 
+	// Conflicts in main transaction attributes.
+	opts = NewDefaultActorOptions(NewReader(invoker.New(rc, nil)), accs[0])
+	opts.MainAttributes = []transaction.Attribute{{
+		Type:  transaction.ConflictsT,
+		Value: &transaction.Conflicts{Hash: util.Uint256{1, 2, 3}},
+	}}
+	_, err = NewTunedActor(rc, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: multiAccs[0].Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: multiAccs[0],
+	}}, opts)
+	require.ErrorContains(t, err, "main transaction can't have Conflicts attribute")
+
 	// Good, one multisig.
 	multi0, err := NewActor(rc, []actor.SignerAccount{{
 		Signer: transaction.Signer{
