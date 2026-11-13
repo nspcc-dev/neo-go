@@ -70,7 +70,7 @@ type Context struct {
 	Chain         Ledger
 	Container     hash.Hashable
 	Network       uint32
-	Hardforks     map[string]uint32
+	hardforks     map[string]uint32
 	Natives       []Contract
 	PolicyChecker PolicyChecker
 	Trigger       trigger.Type
@@ -119,7 +119,7 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 	return &Context{
 		Chain:           bc,
 		Network:         uint32(cfg.Magic),
-		Hardforks:       cfg.Hardforks,
+		hardforks:       cfg.Hardforks,
 		Natives:         natives,
 		PolicyChecker:   pch,
 		Trigger:         trigger,
@@ -647,8 +647,8 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 // If possible, it relies on the native Policy data instead of the node's config.
 func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 	persistingH := ic.PersistingBlockHeight() // persisting block should be taken into account.
-	height, ok := ic.Hardforks[hf.String()]
-	if IsPolicyHardforksInitializationCompleted(ic.Hardforks, persistingH) &&
+	height, ok := ic.hardforks[hf.String()]
+	if IsPolicyHardforksInitializationCompleted(ic.hardforks, persistingH) &&
 		ic.PolicyChecker != nil {
 		height, ok = ic.PolicyChecker.GetHardforkActivationHeight(hf, ic.DAO, true)
 	}
@@ -668,12 +668,12 @@ func (ic *Context) IsHardforkActivation(hf config.Hardfork) bool {
 		height          uint32
 		ok              bool
 	)
-	if IsPolicyHardforksInitializationCompleted(ic.Hardforks, persistingIndex) &&
+	if IsPolicyHardforksInitializationCompleted(ic.hardforks, persistingIndex) &&
 		ic.PolicyChecker != nil {
 		height, ok = ic.PolicyChecker.GetHardforkActivationHeight(hf, ic.DAO, true)
 	} else {
 		// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
-		height, ok = ic.Hardforks[hf.String()]
+		height, ok = ic.hardforks[hf.String()]
 	}
 	return ok && ic.Block.Index == height
 }
