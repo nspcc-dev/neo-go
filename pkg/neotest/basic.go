@@ -394,7 +394,7 @@ func (e *Executor) NewUnsignedBlock(t testing.TB, txs ...*transaction.Transactio
 func (e *Executor) AddNewBlock(t testing.TB, txs ...*transaction.Transaction) *block.Block {
 	b := e.NewUnsignedBlock(t, txs...)
 	e.SignBlock(b)
-	require.NoError(t, e.Chain.AddBlock(b))
+	require.NoError(t, e.Chain.AddBlock(b), fmt.Sprintf("block #%d", b.Index))
 	return b
 }
 
