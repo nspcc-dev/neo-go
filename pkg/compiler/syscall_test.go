@@ -10,15 +10,16 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -106,13 +107,13 @@ func TestSyscallExecution(t *testing.T) {
 		"crypto.CheckMultisig":             {interopnames.SystemCryptoCheckMultisig, []string{pubs, sigs}, false},
 		"crypto.CheckSig":                  {interopnames.SystemCryptoCheckSig, []string{pub, sig}, false},
 	}
-	ic := &interop.Context{
-		Hardforks: map[string]uint32{
-			config.HFFaun.String(): 0,
-		},
-		Block: &block.Block{},
-	}
-	core.SpawnVM(ic) // set Functions field
+	bc, _ := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFLastConfigManaged.String(): 0, // required to properly initialize Context's hardforks for latest method activations.
+		}
+	})
+	ic, err := bc.GetTestVM(trigger.Application, nil, &block.Block{})
+	require.NoError(t, err)
 	for _, fs := range ic.Functions {
 		// It will be set in test and we want to fail if calling invalid syscall.
 		fs.Func = nil
