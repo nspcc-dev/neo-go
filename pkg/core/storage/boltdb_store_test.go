@@ -12,14 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newBoltStoreForTesting(t testing.TB) Store {
-	d := t.TempDir()
-	testFileName := filepath.Join(d, "test_bolt_db")
-	boltDBStore, err := NewBoltDBStore(dbconfig.BoltDBOptions{FilePath: testFileName})
-	require.NoError(t, err)
-	return boltDBStore
-}
-
 func TestROBoltDB(t *testing.T) {
 	d := t.TempDir()
 	testFileName := filepath.Join(d, "test_ro_bolt_db")

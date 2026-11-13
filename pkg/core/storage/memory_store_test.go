@@ -8,10 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newMemoryStoreForTesting(t testing.TB) Store {
-	return NewMemoryStore()
-}
-
 func BenchmarkMemorySeek(t *testing.B) {
 	for count := 10; count <= 10000; count *= 10 {
 		t.Run(fmt.Sprintf("%dElements", count), func(t *testing.B) {

@@ -8,16 +8,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-func newLevelDBForTesting(t testing.TB) Store {
-	ldbDir := t.TempDir()
-	opts := dbconfig.LevelDBOptions{
-		DataDirectoryPath: ldbDir,
-	}
-	newLevelStore, err := NewLevelDBStore(opts)
-	require.Nil(t, err, "NewLevelDBStore error")
-	return newLevelStore
-}
-
 func TestROLevelDB(t *testing.T) {
 	ldbDir := t.TempDir()
 	opts := dbconfig.LevelDBOptions{

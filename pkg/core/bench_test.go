@@ -3,7 +3,6 @@ package core_test
 import (
 	"fmt"
 	"math/big"
-	"path/filepath"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -11,11 +10,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/store"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -37,8 +36,8 @@ func BenchmarkBlockchain_ForEachNEP17Transfer(t *testing.B) {
 		"MemPS": func(t testing.TB) storage.Store {
 			return storage.NewMemoryStore()
 		},
-		"BoltPS":  newBoltStoreForTesting,
-		"LevelPS": newLevelDBForTesting,
+		"BoltPS":  store.NewBoltDBForTesting,
+		"LevelPS": store.NewLevelDBForTesting,
 	}
 	startFrom := []int{1, 100, 1000}
 	blocksToTake := []int{100, 1000}
@@ -60,8 +59,8 @@ func BenchmarkNEO_GetGASPerVote(t *testing.B) {
 		"MemPS": func(t testing.TB) storage.Store {
 			return storage.NewMemoryStore()
 		},
-		"BoltPS":  newBoltStoreForTesting,
-		"LevelPS": newLevelDBForTesting,
+		"BoltPS":  store.NewBoltDBForTesting,
+		"LevelPS": store.NewLevelDBForTesting,
 	}
 	for psName, newPS := range stores {
 		for nRewardRecords := 10; nRewardRecords <= 1000; nRewardRecords *= 10 {
@@ -127,24 +126,6 @@ func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBloc
 		}))
 	}
 	t.StopTimer()
-}
-
-func newLevelDBForTesting(t testing.TB) storage.Store {
-	dbPath := t.TempDir()
-	dbOptions := dbconfig.LevelDBOptions{
-		DataDirectoryPath: dbPath,
-	}
-	newLevelStore, err := storage.NewLevelDBStore(dbOptions)
-	require.Nil(t, err, "NewLevelDBStore error")
-	return newLevelStore
-}
-
-func newBoltStoreForTesting(t testing.TB) storage.Store {
-	d := t.TempDir()
-	dbPath := filepath.Join(d, "test_bolt_db")
-	boltDBStore, err := storage.NewBoltDBStore(dbconfig.BoltDBOptions{FilePath: dbPath})
-	require.NoError(t, err)
-	return boltDBStore
 }
 
 func benchmarkGasPerVote(t *testing.B, ps storage.Store, nRewardRecords int, rewardDistance int) {
