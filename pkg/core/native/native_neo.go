@@ -705,7 +705,7 @@ func (n *NEO) GetCommitteeAddress(d *dao.Simple) util.Uint160 {
 }
 
 func (n *NEO) CheckCommittee(ic *interop.Context) bool {
-	ok, err := runtime.CheckHashedWitness(ic, n.GetCommitteeAddress(ic.DAO))
+	ok, _, err := runtime.CheckHashedWitness(ic, n.GetCommitteeAddress(ic.DAO))
 	if err != nil {
 		panic(err)
 	}
@@ -724,7 +724,7 @@ func (n *NEO) CheckAlmostFullCommittee(ic *interop.Context) bool {
 	if err != nil {
 		panic(err)
 	}
-	ok, err := runtime.CheckHashedWitness(ic, hash.Hash160(script))
+	ok, _, err := runtime.CheckHashedWitness(ic, hash.Hash160(script))
 	if err != nil {
 		panic(err)
 	}
@@ -874,7 +874,7 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	pub := toPublicKey(args[0])
 	if !ic.IsHardforkEnabled(config.HFEchidna) { // doesn't affect N3 states but affects execution result, so need to be kept, ref. #4262.
-		ok, err := runtime.CheckKeyedWitness(ic, pub)
+		ok, _, err := runtime.CheckKeyedWitness(ic, pub)
 		if err != nil {
 			panic(err)
 		} else if !ok {
@@ -889,7 +889,7 @@ func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stac
 }
 
 func (n *NEO) checkRegisterCandidate(ic *interop.Context, pub *keys.PublicKey) error {
-	ok, err := runtime.CheckKeyedWitness(ic, pub)
+	ok, _, err := runtime.CheckKeyedWitness(ic, pub)
 	if err != nil {
 		panic(err)
 	} else if !ok {
@@ -958,7 +958,7 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 
 func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	pub := toPublicKey(args[0])
-	ok, err := runtime.CheckKeyedWitness(ic, pub)
+	ok, _, err := runtime.CheckKeyedWitness(ic, pub)
 	if err != nil {
 		panic(err)
 	} else if !ok {
@@ -1012,7 +1012,7 @@ func (n *NEO) voteDeferrable(ic *interop.Context, args []stackitem.Item, popArgs
 	if _, ok := args[1].(stackitem.Null); !ok {
 		pub = toPublicKey(args[1])
 	}
-	ok, err := runtime.CheckHashedWitness(ic, acc)
+	ok, _, err := runtime.CheckHashedWitness(ic, acc)
 	if err != nil {
 		popArgsPushRes(stackitem.NewBool(false))
 		return

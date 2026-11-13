@@ -163,14 +163,22 @@ func (ic *Context) Signers() []transaction.Signer {
 // it's supposed to be inited once for all interopContexts, so it doesn't use
 // vm.InteropFuncPrice directly.
 type Function struct {
-	ID         uint32
-	Name       string
-	Func       func(*Context) error
-	Price      int64
+	ID   uint32
+	Name string
+	Func func(*Context) error
+	// Prices is a list of interop prices sorted by hardfork in descending order.
+	Prices     []HFPrice
 	ActiveFrom config.Hardfork
 	// RequiredFlags is a set of flags which must be set during script invocations.
 	// Default value is NoneFlag i.e. no flags are required.
 	RequiredFlags callflag.CallFlag
+}
+
+// HFPrice is an interop price in 10^-11 GAS units that is active starting from
+// the specified hardfork.
+type HFPrice struct {
+	Hardfork config.Hardfork
+	Price    int64
 }
 
 type (
@@ -529,9 +537,13 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 	if !cf.Has(f.RequiredFlags) {
 		return fmt.Errorf("missing call flags: %05b vs %05b", cf, f.RequiredFlags)
 	}
-	price := f.Price * ic.BaseExecFee()
-	if err := ic.VM.AddPicoGas(price); err != nil {
-		return err
+	for _, p := range f.Prices {
+		if p.Hardfork == config.HFDefault || ic.IsHardforkEnabled(p.Hardfork) {
+			if err := ic.VM.AddFemtoGas(p.Price * ic.BaseExecFee()); err != nil {
+				return err
+			}
+			break
+		}
 	}
 	return f.Func(ic)
 }

@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -37,6 +39,13 @@ func LoadToken(ic *interop.Context, id int32) error {
 		args[i] = ic.VM.Estack().Pop().Item()
 	}
 	cs, err := ic.GetContract(tok.Hash)
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		if err != nil && errors.Is(err, storage.ErrKeyNotFound) || err == nil && cs.ID >= 0 {
+			if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * fee.ReadFromDiskPrice); err != nil {
+				return err
+			}
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("token contract %s not found: %w", tok.Hash.StringLE(), err)
 	}
@@ -58,17 +67,24 @@ func Call(ic *interop.Context) error {
 		return errors.New("invalid contract hash")
 	}
 	method := ic.VM.Estack().Pop().String()
+	if strings.HasPrefix(method, "_") {
+		return errors.New("invalid method name (starts with '_')")
+	}
 	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
 	if fs&^callflag.All != 0 {
 		return errors.New("call flags out of range")
 	}
 	args := ic.VM.Estack().Pop().Array()
 	cs, err := ic.GetContract(u)
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		if err != nil && errors.Is(err, storage.ErrKeyNotFound) || err == nil && cs.ID >= 0 { // non-native contracts may be read from disk
+			if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * fee.ReadFromDiskPrice); err != nil {
+				return err
+			}
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("called contract %s not found: %w", u.StringLE(), err)
-	}
-	if strings.HasPrefix(method, "_") {
-		return errors.New("invalid method name (starts with '_')")
 	}
 	md := cs.Manifest.ABI.GetMethod(method, len(args))
 	if md == nil {

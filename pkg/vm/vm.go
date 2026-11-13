@@ -264,6 +264,11 @@ func (v *VM) GasConsumed() int64 {
 	return v.gasLimit / FemtoGasPerDatoshi // known to be divisible without remnant.
 }
 
+// RefCount returns the current value of the VM's reference counter.
+func (v *VM) RefCount() int {
+	return int(v.refs)
+}
+
 // GasLeft returns the amount of GAS left in Datoshi units rounded from femtoGAS
 // to the lower integer (if positive).
 func (v *VM) GasLeft() *big.Int {
@@ -307,6 +312,13 @@ func FemtoGasToDatoshi(x *uint256.Int) *uint256.Int {
 func (v *VM) AddPicoGas(gas int64) error {
 	femtoGas := new(uint256.Int).Mul(uint256.NewInt(uint64(gas)), uint256.NewInt(OpcodePriceMultiplier))
 	return v.addFemtoGasInternal(femtoGas, v.isWhitelisted())
+}
+
+// AddFemtoGas consumes the specified amount of gas in femtoGAS units if the
+// executing method is not whitelisted. It returns [ErrGASLimitExceeded] if the
+// gas limit was exceeded.
+func (v *VM) AddFemtoGas(gas int64) error {
+	return v.addFemtoGas(gas, v.isWhitelisted())
 }
 
 // addFemtoGas consumes the specified amount of gas in femtoGAS units unless
