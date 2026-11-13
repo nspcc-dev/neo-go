@@ -47,6 +47,14 @@ func TestMemCachedPutGetDelete(t *testing.T) {
 	assert.Equal(t, err, ErrKeyNotFound)
 }
 
+func getFromStore(t *testing.T, ps Store, key []byte) ([]byte, error) {
+	view, err := ps.BeginView()
+	require.NoError(t, err)
+	v, err := ps.GetWithView(view, key)
+	require.NoError(t, view.Close())
+	return v, err
+}
+
 func testMemCachedStorePersist(t *testing.T, ps Store) {
 	// cached Store
 	ts := NewMemCachedStore(ps)
@@ -61,10 +69,10 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 1, c)
-	v, err := ps.Get([]byte("key"))
+	v, err := getFromStore(t, ps, []byte("key"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value"), v)
-	v, err = ts.MemoryStore.Get([]byte("key"))
+	v, err = ts.MemoryStore.GetWithView(nil, []byte("key"))
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	// now we overwrite the previous `key` contents and also add `key2`,
@@ -72,7 +80,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	ts.Put([]byte("key2"), []byte("value2"))
 	// this is to check that now key is written into the ps before we do
 	// persist
-	v, err = ps.Get([]byte("key2"))
+	v, err = getFromStore(t, ps, []byte("key2"))
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	checkBatch(t, ts, []KeyValueExists{
@@ -85,16 +93,16 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 2, c)
-	v, err = ts.MemoryStore.Get([]byte("key"))
+	v, err = ts.MemoryStore.GetWithView(nil, []byte("key"))
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
-	v, err = ts.MemoryStore.Get([]byte("key2"))
+	v, err = ts.MemoryStore.GetWithView(nil, []byte("key2"))
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
-	v, err = ps.Get([]byte("key"))
+	v, err = getFromStore(t, ps, []byte("key"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("newvalue"), v)
-	v, err = ps.Get([]byte("key2"))
+	v, err = getFromStore(t, ps, []byte("key2"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value2"), v)
 	checkBatch(t, ts, nil, nil)
@@ -109,10 +117,10 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 1, c)
-	v, err = ps.Get([]byte("key"))
+	v, err = getFromStore(t, ps, []byte("key"))
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
-	v, err = ps.Get([]byte("key2"))
+	v, err = getFromStore(t, ps, []byte("key2"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value2"), v)
 }
@@ -316,6 +324,10 @@ func newMemCachedStoreForTesting(t testing.TB) Store {
 	return NewMemCachedStore(NewMemoryStore())
 }
 
+type badView struct{}
+
+func (badView) Close() error { return nil }
+
 type BadStore struct {
 	onPutBatch func()
 }
@@ -337,6 +349,15 @@ func (b *BadStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 }
 func (b *BadStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
 	return nil
+}
+func (b *BadStore) BeginView() (IView, error) {
+	return badView{}, nil
+}
+func (b *BadStore) GetWithView(_ IView, k []byte) ([]byte, error) {
+	return b.Get(k)
+}
+func (b *BadStore) SeekWithView(_ IView, rng SeekRange, f func(k, v []byte) bool) {
+	b.Seek(rng, f)
 }
 func (b *BadStore) Close() error {
 	return nil
