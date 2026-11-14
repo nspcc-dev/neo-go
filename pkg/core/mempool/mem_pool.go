@@ -243,7 +243,7 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 		mp.lock.Unlock()
 		return ErrDup
 	}
-	conflictsToBeRemoved, err := mp.checkTxConflicts(t, fee)
+	conflictsToBeRemoved, err := mp.checkTxConflicts(t, fee, true)
 	if err != nil {
 		mp.lock.Unlock()
 		return err
@@ -581,7 +581,9 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 
 // checkTxConflicts is an internal unprotected version of Verify. It takes into
 // consideration conflicting transactions which are about to be removed from mempool.
-func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*transaction.Transaction, error) {
+// It caches the payer's fee only when cachePayerFee is set; callers that do must
+// hold the write lock.
+func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer, cachePayerFee bool) ([]*transaction.Transaction, error) {
 	p, isSponsored := getPayer(tx)
 	author := p.primary
 	if isSponsored {
@@ -645,7 +647,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*tra
 		}
 	}
 	_, err := checkBalance(tx, expectedPayerFee)
-	if !ok && err == nil { // ok is for cache check at the beginning.
+	if cachePayerFee && !ok && err == nil { // ok is for cache check at the beginning.
 		mp.fees[p] = actualPayerFee
 	}
 	return conflictsToBeRemoved, err
@@ -658,7 +660,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, feer Feer) ([]*tra
 func (mp *Pool) Verify(tx *transaction.Transaction, feer Feer) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
-	_, err := mp.checkTxConflicts(tx, feer)
+	_, err := mp.checkTxConflicts(tx, feer, false)
 	return err == nil
 }
 
