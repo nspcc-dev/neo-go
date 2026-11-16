@@ -405,6 +405,8 @@ func (n *Notary) verify(ic *interop.Context, args []stackitem.Item) stackitem.It
 		if balance == nil || balance.Amount.Cmp(big.NewInt(tx.NetworkFee+tx.SystemFee)) < 0 {
 			return stackitem.NewBool(false)
 		}
+	} else if len(tx.GetAttributes(transaction.ConflictsT)) != 0 {
+		return stackitem.NewBool(false)
 	}
 	notaries, err := n.GetNotaryNodes(ic.DAO)
 	if err != nil {
