@@ -2,11 +2,13 @@ package contract_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"math"
 	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -15,8 +17,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -113,7 +119,37 @@ func TestCreateMultisigAccount(t *testing.T) {
 		emit.BigInt(w.BinWriter, m)
 		emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
 		require.NoError(t, w.Err)
-		e.InvokeScriptCheckFAULT(t, w.Bytes(), []neotest.Signer{acc}, "m must be positive and fit int32")
+		e.InvokeScriptCheckFAULT(t, w.Bytes(), []neotest.Signer{acc}, "m is out of int32 range")
+	})
+	t.Run("negative m price before Huyao", func(t *testing.T) {
+		bc, _ := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = map[string]uint32{config.HFGorgon.String(): 0}
+		})
+		pub, err := hex.DecodeString("036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296")
+		require.NoError(t, err)
+		w := io.NewBufBinWriter()
+		emit.Bytes(w.BinWriter, pub)
+		emit.Opcodes(w.BinWriter, opcode.PUSH1, opcode.PACK, opcode.PUSHM1)
+		syscallOffset := w.Len()
+		emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
+		emit.Opcodes(w.BinWriter, opcode.RET)
+		require.NoError(t, w.Err)
+
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
+		defer ic.Finalize()
+		ic.VM.LoadScriptWithFlags(w.Bytes(), callflag.All)
+
+		for ic.VM.Context().NextIP() < syscallOffset {
+			require.NoError(t, ic.VM.Step())
+		}
+		gasBefore := ic.VM.GasConsumed()
+
+		require.ErrorContains(t, ic.VM.Run(), "param m cannot be smaller than 1")
+		require.True(t, ic.VM.HasFailed())
+		// The interop charges for the key before rejecting m.
+		expectedGas := vm.PicoGasToDatoshiInt64(fee.ECDSAVerifyPrice * ic.BaseExecFee())
+		require.Equal(t, expectedGas, ic.VM.GasConsumed()-gasBefore)
 	})
 }
 

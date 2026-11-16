@@ -18,9 +18,9 @@ import (
 // given m and a set of public keys.
 func CreateMultisigAccount(ic *interop.Context) error {
 	m := ic.VM.Estack().Pop().BigInt()
-	mu64 := m.Uint64()
-	if !m.IsUint64() || mu64 > math.MaxInt32 {
-		return errors.New("m must be positive and fit int32")
+	m64 := m.Int64()
+	if !m.IsInt64() || m64 > math.MaxInt32 || m64 < math.MinInt32 {
+		return errors.New("m is out of int32 range")
 	}
 	arr := ic.VM.Estack().Pop().Array()
 	pubs := make(keys.PublicKeys, len(arr))
@@ -41,7 +41,7 @@ func CreateMultisigAccount(ic *interop.Context) error {
 	if err := ic.VM.AddPicoGas(invokeFee); err != nil {
 		return err
 	}
-	script, err := smartcontract.CreateMultiSigRedeemScript(int(mu64), pubs)
+	script, err := smartcontract.CreateMultiSigRedeemScript(int(m64), pubs)
 	if err != nil {
 		return err
 	}
