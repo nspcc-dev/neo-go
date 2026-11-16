@@ -178,19 +178,14 @@ func (p *Protocol) UnmarshalJSON(data []byte) error {
 	p.SeedList = aux.SeedList
 
 	// Filter out unknown hardforks.
+	p.Hardforks = make(map[config.Hardfork]uint32, len(aux.Hardforks))
 	for i := range aux.Hardforks {
 		aux.Hardforks[i].Name = strings.TrimPrefix(aux.Hardforks[i].Name, prefixHardfork)
-		if !config.IsHardforkValid(aux.Hardforks[i].Name) {
+		hf, ok := config.ParseHardfork(aux.Hardforks[i].Name)
+		if !ok {
 			return fmt.Errorf("unexpected hardfork: %s", aux.Hardforks[i].Name)
 		}
-	}
-	p.Hardforks = make(map[config.Hardfork]uint32, len(aux.Hardforks))
-	for _, cfgHf := range config.Hardforks {
-		for _, auxHf := range aux.Hardforks {
-			if auxHf.Name == cfgHf.String() {
-				p.Hardforks[cfgHf] = auxHf.Height
-			}
-		}
+		p.Hardforks[hf] = aux.Hardforks[i].Height
 	}
 
 	return nil

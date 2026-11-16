@@ -459,6 +459,20 @@ func TestNewBlockchain_InitHardforks(t *testing.T) {
 			config.HFGorgon.String():        35,
 		}, bc.GetConfig().Hardforks)
 	})
+	t.Run("Policy-managed present", func(t *testing.T) {
+		for _, hf := range config.Hardforks {
+			if hf.Cmp(config.HFLastConfigManaged) > 0 {
+				t.Run(hf.String(), func(t *testing.T) {
+					_, err := initTestChainNoCheck(t, nil, func(c *config.Config) {
+						c.ProtocolConfiguration.Hardforks = map[string]uint32{
+							hf.String(): 0,
+						}
+					})
+					require.ErrorContains(t, err, fmt.Sprintf("hardfork %s is Policy-managed but found in the node's config", hf.String()))
+				})
+			}
+		}
+	})
 }
 
 type nopCloserStorage struct {
@@ -528,4 +542,25 @@ func TestBlockchainRestoreStateRootInHeader(t *testing.T) {
 			bc.Close()
 		}
 	})
+}
+
+// Exported IsHardforkEnabled helper relies on fact that storage won't be accessed
+// for config-managed hardforks.
+func TestBlockchain_isHardforkEnabled(t *testing.T) {
+	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
+		c.ProtocolConfiguration.Hardforks = map[string]uint32{
+			config.HFLastConfigManaged.String(): 0,
+		}
+	})
+	for _, hf := range config.Hardforks {
+		if hf.Cmp(config.HFLastConfigManaged) <= 0 {
+			require.True(t, bc.isHardforkEnabled(new(hf), 0, bc.dao, true), hf)
+		} else {
+			var res bool
+			require.NotPanics(t, func() {
+				res = bc.isHardforkEnabled(new(hf), 0, bc.dao, true)
+			}, hf)
+			require.False(t, res, hf)
+		}
+	}
 }

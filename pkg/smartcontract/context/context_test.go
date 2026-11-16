@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -158,7 +159,12 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 }
 
 func newTestVM(w *transaction.Witness, tx *transaction.Transaction) *vm.VM {
-	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), Container: tx, Functions: crypto.Interops}
+	ic := &interop.Context{
+		Network:   uint32(netmode.UnitTestNet),
+		Container: tx,
+		Functions: crypto.Interops,
+		Block:     &block.Block{Header: block.Header{Index: 0}}, // required for proper IsHardforkEnabled behaviour.
+	}
 	v := ic.SpawnVM()
 	v.LoadScript(w.VerificationScript)
 	v.LoadScript(w.InvocationScript)

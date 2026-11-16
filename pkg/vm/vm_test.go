@@ -3149,3 +3149,19 @@ func TestFemtoGasToDatoshi(t *testing.T) {
 		})
 	}
 }
+
+func TestErrorAtInstruct_Unwrap(t *testing.T) {
+	err := newError(1, opcode.PACK, ErrGASLimitExceeded)
+	require.ErrorIs(t, err, ErrGASLimitExceeded)
+}
+
+func TestFaultException_ErrorIs(t *testing.T) {
+	// Make execution FAULT and ensure fault exception is recognizable via errors.Is.
+	v := newTestVM()
+	v.SetGasLimit(0)
+	v.SetPriceGetter(func(o opcode.Opcode, params *OpcodePriceParams) int64 { return 100500 })
+	script := []byte{byte(opcode.PUSH1)}
+	v.LoadScript(script)
+	err := v.Run()
+	require.ErrorIs(t, err, ErrGASLimitExceeded)
+}
