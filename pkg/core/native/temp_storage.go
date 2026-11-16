@@ -167,8 +167,20 @@ func (s *TempStorage) put(ic *interop.Context, args []stackitem.Item) stackitem.
 	}
 	recordKey := makeRecordKey(contract.ID, key)
 	old := ic.DAO.GetStorageItem(s.ID, recordKey)
-	lifetime := max(1, int64(validTill-ic.Block.Timestamp))
-	need := s.CalculateStoragePrice(ic, old, recordKey, value, lifetime)
+
+	var (
+		traceable    bool
+		oldLifetime  int64
+		oldValidTill uint64
+	)
+	if old != nil {
+		oldValidTill, traceable = isTraceable(ic, old)
+	}
+	if traceable {
+		oldLifetime = max(0, int64(min(validTill, oldValidTill))-int64(ic.Block.Timestamp))
+	}
+	newLifetime := max(0, int64(validTill)-int64(max(ic.Block.Timestamp, oldValidTill)))
+	need := s.CalculateStoragePrice(ic, old, recordKey, value, oldLifetime, newLifetime)
 	if err := ic.VM.AddPicoGas(need); err != nil {
 		panic(fmt.Errorf("failed to charge temporary storage fee (%d picoGAS): %w", need, err))
 	}
@@ -182,22 +194,58 @@ func (s *TempStorage) put(ic *interop.Context, args []stackitem.Item) stackitem.
 
 // CalculateStoragePrice calculates the price for storing the record in the temporary storage in picoGAS units.
 // The caller should provide an existing storage record stored by the given key via `recordSI` (if present in
-// the storage).
-func (s *TempStorage) CalculateStoragePrice(ic *interop.Context, recordSI state.StorageItem, recordKey, value []byte, lifetime int64) int64 {
-	permanentPrice := istorage.CalculatePrice(ic, recordSI, recordKey, value, func(si state.StorageItem) (int, bool) {
-		if len(si) < 8 {
-			panic(fmt.Errorf("bug: unexpected temporary storage record format: expected at least 8 bytes, got %d", len(si)))
+// the storage). oldLifetime is a lifetime of an existing pre-paid record since now till its previous validTill
+// value; may be 0 in case of new/expired record. newLifetime is a lifetime of the same record that was not
+// paid yet; may be 0 in case of validTill reduction for an existing record.
+func (s *TempStorage) CalculateStoragePrice(ic *interop.Context, recordSI state.StorageItem, recordKey, value []byte, oldLifetime, newLifetime int64) int64 {
+	// The final price consists of two parts:
+	//  - "old" part that is already paid by the user (from now till the previous validTill value if exists).
+	//  - "new" part that is not paid by the user yet (from old validTill value till the new validTill value if TTL is increased).
+	// one or both of these parts may be missing.
+	var (
+		minPriceOld, minPriceNew       int64
+		actualPriceOld, actualPriceNew int64
+	)
+	if oldLifetime == 0 && newLifetime == 0 {
+		// Pay at least minimal fee in order not to DOS the contract.
+		if recordSI == nil {
+			newLifetime = 1
+		} else {
+			oldLifetime = 1
 		}
-		chargableValueSize := len(si) - 8 // 8-bytes TTL prefix is not charged.
-		_, ok := isTraceable(ic, si)
-		return chargableValueSize, ok
-	})
-	minPrice := permanentPrice / 10
-	actualPrice := int64(new(uint256.Int).Div(new(uint256.Int).Mul(uint256.NewInt(uint64(permanentPrice)), uint256.NewInt(uint64(min(lifetime, int64(maxTmpStorageMaxTTL))))), maxTmpStorageMaxTTLUint256).Uint64())
-	return max(minPrice, actualPrice)
+	}
+
+	// Calculate the "old" part based on the permanent storage rules for existing records.
+	if oldLifetime > 0 {
+		permanentPriceOld := istorage.CalculatePrice(ic, recordSI, recordKey, value, func(si state.StorageItem) (int, bool) {
+			if len(si) < 8 {
+				panic(fmt.Errorf("bug: unexpected temporary storage record format: expected at least 8 bytes, got %d", len(si)))
+			}
+			chargableValueSize := len(si) - 8 // 8-bytes TTL prefix is not charged.
+			_, ok := isTraceable(ic, si)
+			return chargableValueSize, ok
+		})
+		// Require minimal fee for the "old" part to be paid to avoid DoS: DB access is still performed on update.
+		minPriceOld = permanentPriceOld / 10
+		actualPriceOld = int64(new(uint256.Int).Div(new(uint256.Int).Mul(uint256.NewInt(uint64(permanentPriceOld)), uint256.NewInt(uint64(min(oldLifetime, int64(maxTmpStorageMaxTTL))))), maxTmpStorageMaxTTLUint256).Uint64())
+	}
+
+	// Calculate the "new" part based on the permanent storage rules for new records.
+	if newLifetime > 0 {
+		permanentPriceNew := istorage.CalculatePrice(ic, recordSI, recordKey, value, func(si state.StorageItem) (int, bool) {
+			return 0, false // always treat the "new" part as non-traceable since the user hasn't paid for it yet.
+		})
+		minPriceNew = permanentPriceNew / 10
+		actualPriceNew = int64(new(uint256.Int).Div(new(uint256.Int).Mul(uint256.NewInt(uint64(permanentPriceNew)), uint256.NewInt(uint64(min(newLifetime, int64(maxTmpStorageMaxTTL))))), maxTmpStorageMaxTTLUint256).Uint64())
+	}
+
+	return max(minPriceOld, actualPriceOld) + max(minPriceNew, actualPriceNew)
 }
 
 func (s *TempStorage) checkValidTill(ic *interop.Context, validTill uint64) {
+	if validTill < ic.Block.Timestamp {
+		panic(fmt.Errorf("validTill has already expired: %d vs %d", validTill, ic.Block.Timestamp))
+	}
 	maxValidTill := ic.Block.Timestamp + s.Policy.GetTemporaryStorageMaxTTLInternal(ic.DAO)
 	if validTill > maxValidTill {
 		panic(fmt.Errorf("validTill exceeds max limit: %d vs %d", validTill, maxValidTill))
@@ -345,11 +393,10 @@ func (s *TempStorage) renew(ic *interop.Context, args []stackitem.Item) stackite
 	if !ok {
 		panic(fmt.Errorf("failed to get old record %s: already expired", hex.EncodeToString(recordKey)))
 	}
-	if validTill <= oldValidTill {
-		panic(fmt.Errorf("new expiration point should be newer than the old one: %d vs %d", validTill, oldValidTill))
-	}
 	value := old[8:]
-	need := s.CalculateStoragePrice(ic, old, recordKey, value, int64(validTill-oldValidTill))
+	oldLifetime := max(0, int64(min(validTill, oldValidTill))-int64(ic.Block.Timestamp))
+	newLifetime := max(0, int64(validTill)-int64(oldValidTill))
+	need := s.CalculateStoragePrice(ic, old, recordKey, value, oldLifetime, newLifetime)
 	if err := ic.VM.AddPicoGas(need); err != nil {
 		panic(fmt.Errorf("failed to charge temporary storage fee (%d picoGAS): %w", need, err))
 	}

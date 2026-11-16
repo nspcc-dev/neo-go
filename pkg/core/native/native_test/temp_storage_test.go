@@ -186,6 +186,23 @@ func TestTempStorage_PutGetRenewDelete(t *testing.T) {
 	// put: max key.
 	tmp.Invoke(t, stackitem.Null{}, "put", make([]byte, limits.MaxStorageKeyLen), value1, c.TopBlock(t).Timestamp+2)
 
+	// put: only accessible in the current block.
+	tx1 = tmp.PrepareInvoke(t, "put", key1, value1, c.TopBlock(t).Timestamp+1) // expires in the current block, neotest increments block timestamp by 1.
+	tx2 = tmp.PrepareInvoke(t, "get", key1)
+	tmp.AddBlockCheckHalt(t, tx1, tx2)
+	tmp.CheckHalt(t, tx2.Hash(), stackitem.Make(value1))
+	tmp.Invoke(t, stackitem.Null{}, "get", key1) // ensure not available in the next block.
+
+	// renew: only accessible in the current block.
+	tx1 = tmp.PrepareInvoke(t, "put", key1, value1, c.TopBlock(t).Timestamp+100)
+	tx2 = tmp.NewUnsignedTx(t, tmp.Hash, "renew", key1, c.TopBlock(t).Timestamp+1) // expires in the current block, neotest increments block timestamp by 1.
+	tmp.SignTx(t, tx2, 1_0000_0000, tmp.Signers...)
+	tx3 := tmp.NewUnsignedTx(t, tmp.Hash, "get", key1)
+	tmp.SignTx(t, tx3, 1_0000_0000, tmp.Signers...)
+	tmp.AddBlockCheckHalt(t, tx1, tx2, tx3)
+	tmp.CheckHalt(t, tx3.Hash(), stackitem.Make(value1))
+	tmp.Invoke(t, stackitem.Null{}, "get", key1) // ensure not available in the next block.
+
 	// Error cases.
 	t.Run("put", func(t *testing.T) {
 		t.Run("large key", func(t *testing.T) {
@@ -195,6 +212,9 @@ func TestTempStorage_PutGetRenewDelete(t *testing.T) {
 		t.Run("large validTill", func(t *testing.T) {
 			maxValidTill := c.TopBlock(t).Timestamp + uint64(maxTmpStorageMaxTTL)
 			tmp.InvokeFail(t, "validTill exceeds max limit", "put", []byte("high"), []byte("v"), maxValidTill+2)
+		})
+		t.Run("validTill already expired", func(t *testing.T) {
+			tmp.InvokeFail(t, "validTill has already expired", "put", []byte("high"), []byte("v"), c.TopBlock(t).Timestamp) // by default, neotest increments block timestamp by 1.
 		})
 		t.Run("not enough gas", func(t *testing.T) {
 			tmp.InvokeWithFeeFail(t, "failed to charge temporary storage fee", 1_5000000, "put", []byte("nogas"), make([]byte, 1000), c.TopBlock(t).Timestamp+uint64(maxTmpStorageMaxTTL))
@@ -214,9 +234,8 @@ func TestTempStorage_PutGetRenewDelete(t *testing.T) {
 			maxValidTill := c.TopBlock(t).Timestamp + uint64(maxTmpStorageMaxTTL)
 			tmp.InvokeFail(t, "validTill exceeds max limit", "renew", key2, maxValidTill+2)
 		})
-		t.Run("not newer", func(t *testing.T) {
-			tmp.InvokeFail(t, "new expiration point should be newer than the old one", "renew", key2, validTill2)
-			tmp.InvokeFail(t, "new expiration point should be newer than the old one", "renew", key2, validTill2-1)
+		t.Run("validTill already expired", func(t *testing.T) {
+			tmp.InvokeFail(t, "validTill has already expired", "renew", key2, c.TopBlock(t).Timestamp) // by default, neotest increments block timestamp by 1.
 		})
 		t.Run("expired entry", func(t *testing.T) {
 			tmp.Invoke(t, stackitem.Null{}, "put", []byte("short"), []byte("v"), c.TopBlock(t).Timestamp+1)
