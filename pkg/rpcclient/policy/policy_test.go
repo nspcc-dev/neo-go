@@ -2,9 +2,11 @@ package policy
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -135,6 +137,38 @@ func TestReader(t *testing.T) {
 	}, whitelisted)
 }
 
+func TestGetHardforkActivationHeight(t *testing.T) {
+	ta := new(testAct)
+	pc := NewReader(ta)
+
+	ta.err = errors.New("")
+	_, _, err := pc.GetHardforkActivationHeight(config.HFIara)
+	require.Error(t, err)
+
+	ta.err = nil
+	for _, bad := range []stackitem.Item{
+		stackitem.NewInterop(nil),
+		stackitem.Make(-1),
+		stackitem.Make(int64(math.MaxUint32) + 1),
+	} {
+		ta.res = &result.Invoke{State: "HALT", Stack: []stackitem.Item{bad}}
+		_, _, err = pc.GetHardforkActivationHeight(config.HFIara)
+		require.Error(t, err)
+	}
+
+	ta.res = &result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Null{}}}
+	h, ok, err := pc.GetHardforkActivationHeight(config.HFIara)
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Zero(t, h)
+
+	ta.res = &result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42)}}
+	h, ok, err = pc.GetHardforkActivationHeight(config.HFIara)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, uint32(42), h)
+}
+
 func TestGetBlockedAccounts(t *testing.T) {
 	ta := &testAct{}
 	man := NewReader(ta)
@@ -240,6 +274,8 @@ func TestIntSetters(t *testing.T) {
 	}
 	_, _, err := pc.SetAttributeFee(transaction.OracleResponseT, 123)
 	require.Error(t, err)
+	_, _, err = pc.ActivateHardfork(config.HFIara, 10)
+	require.Error(t, err)
 
 	ta.err = nil
 	ta.txh = util.Uint256{1, 2, 3}
@@ -251,6 +287,10 @@ func TestIntSetters(t *testing.T) {
 		require.Equal(t, ta.vub, vub)
 	}
 	h, vub, err := pc.SetAttributeFee(transaction.OracleResponseT, 123)
+	require.NoError(t, err)
+	require.Equal(t, ta.txh, h)
+	require.Equal(t, ta.vub, vub)
+	h, vub, err = pc.ActivateHardfork(config.HFIara, 10)
 	require.NoError(t, err)
 	require.Equal(t, ta.txh, h)
 	require.Equal(t, ta.vub, vub)
@@ -347,6 +387,26 @@ func TestIntTransactions(t *testing.T) {
 		ta.err = nil
 		ta.tx = &transaction.Transaction{Nonce: 100500, ValidUntilBlock: 42}
 		tx, err := fun(1)
+		require.NoError(t, err)
+		require.Equal(t, ta.tx, tx)
+	}
+}
+
+func TestActivateHardforkTransactions(t *testing.T) {
+	ta := new(testAct)
+	pc := New(ta)
+
+	for _, fun := range []func(config.Hardfork, uint32) (*transaction.Transaction, error){
+		pc.ActivateHardforkTransaction,
+		pc.ActivateHardforkUnsigned,
+	} {
+		ta.err = errors.New("")
+		_, err := fun(config.HFIara, 10)
+		require.Error(t, err)
+
+		ta.err = nil
+		ta.tx = &transaction.Transaction{Nonce: 100500, ValidUntilBlock: 42}
+		tx, err := fun(config.HFIara, 10)
 		require.NoError(t, err)
 		require.Equal(t, ta.tx, tx)
 	}
@@ -540,6 +600,71 @@ func TestRecoveredFundEvent_FromStackItem(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := new(RecoveredFundEvent)
+			var in *stackitem.Array
+			if tc.in != nil {
+				in = stackitem.NewArray(tc.in)
+			}
+			err := actual.FromStackItem(in)
+			if len(tc.err) != 0 {
+				require.ErrorContains(t, err, tc.err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, actual)
+			}
+		})
+	}
+}
+
+func TestHardforkActivationScheduledEvent_FromStackItem(t *testing.T) {
+	tcs := []struct {
+		name     string
+		in       []stackitem.Item
+		expected *HardforkActivationScheduledEvent
+		err      string
+	}{
+		{
+			name: "nil item",
+			in:   nil,
+			err:  "nil item",
+		},
+		{
+			name: "wrong number of elements",
+			in:   []stackitem.Item{},
+			err:  "wrong number of event parameters",
+		},
+		{
+			name: "invalid hardfork",
+			in:   []stackitem.Item{stackitem.NewInterop(nil), stackitem.Make(1)},
+			err:  "invalid hardfork",
+		},
+		{
+			name: "unknown hardfork",
+			in:   []stackitem.Item{stackitem.Make("Unknown"), stackitem.Make(1)},
+			err:  "unknown hardfork",
+		},
+		{
+			name: "invalid activation height",
+			in:   []stackitem.Item{stackitem.Make("Iara"), stackitem.NewInterop(nil)},
+			err:  "invalid activation height",
+		},
+		{
+			name: "negative activation height",
+			in:   []stackitem.Item{stackitem.Make("Iara"), stackitem.Make(-1)},
+			err:  "invalid activation height",
+		},
+		{
+			name: "good",
+			in:   []stackitem.Item{stackitem.Make("Iara"), stackitem.Make(42)},
+			expected: &HardforkActivationScheduledEvent{
+				Hardfork:         config.HFIara,
+				ActivationHeight: 42,
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := new(HardforkActivationScheduledEvent)
 			var in *stackitem.Array
 			if tc.in != nil {
 				in = stackitem.NewArray(tc.in)

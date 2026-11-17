@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -52,6 +53,7 @@ const (
 	maxValidUntilBlockIncrementSetter = "setMaxValidUntilBlockIncrement"
 	millisecondsPerBlockSetter        = "setMillisecondsPerBlock"
 	tempStorageMaxTTLSetter           = "setTemporaryStorageMaxTTL"
+	hardforkActivator                 = "activateHardfork"
 )
 
 // ContractReader provides an interface to call read-only PolicyContract
@@ -95,6 +97,13 @@ type WhitelistFeeChangedEvent struct {
 // RecoveredFundEvent represents a RecoveredFund Policy event.
 type RecoveredFundEvent struct {
 	Account util.Uint160
+}
+
+// HardforkActivationScheduledEvent represents a HardforkActivationScheduled
+// Policy event.
+type HardforkActivationScheduledEvent struct {
+	Hardfork         config.Hardfork
+	ActivationHeight uint32
 }
 
 // NewReader creates an instance of ContractReader that can be used to read
@@ -160,6 +169,25 @@ func (c *ContractReader) GetMillisecondsPerBlock() (int64, error) {
 // from [config.HFHuyao] hardfork.
 func (c *ContractReader) GetTemporaryStorageMaxTTL() (int64, error) {
 	return unwrap.Int64(c.invoker.Call(Hash, "getTemporaryStorageMaxTTL"))
+}
+
+// GetHardforkActivationHeight returns the activation height of the specified
+// hardfork. The boolean result is false if the hardfork is not scheduled or is
+// unknown to the node. Note that this method is available starting from
+// [config.HFHuyao] hardfork.
+func (c *ContractReader) GetHardforkActivationHeight(hf config.Hardfork) (uint32, bool, error) {
+	itm, err := unwrap.Item(c.invoker.Call(Hash, "getHardforkActivationHeight", hf.String()))
+	if err != nil {
+		return 0, false, err
+	}
+	if _, ok := itm.(stackitem.Null); ok {
+		return 0, false, nil
+	}
+	h, err := stackitem.ToUint32(itm)
+	if err != nil {
+		return 0, false, err
+	}
+	return h, true, nil
 }
 
 // GetBlockedAccounts returns current blocked accounts. Note that this method is
@@ -388,6 +416,34 @@ func (c *Contract) SetTemporaryStorageMaxTTLTransaction(value int64) (*transacti
 // available starting from [config.HFHuyao] hardfork.
 func (c *Contract) SetTemporaryStorageMaxTTLUnsigned(value int64) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, tempStorageMaxTTLSetter, nil, value)
+}
+
+// ActivateHardfork creates and sends a transaction that schedules activation
+// of the specified hardfork at activationDelay blocks after the block
+// containing this transaction. The action is successful when transaction ends
+// in HALT state. The returned values are transaction hash, its ValidUntilBlock
+// value and an error if any. Note that this method is available starting from
+// [config.HFHuyao] hardfork.
+func (c *Contract) ActivateHardfork(hf config.Hardfork, activationDelay uint32) (util.Uint256, uint32, error) {
+	return c.actor.SendCall(Hash, hardforkActivator, hf.String(), activationDelay)
+}
+
+// ActivateHardforkTransaction creates a transaction that schedules activation
+// of the specified hardfork at activationDelay blocks after the block
+// containing this transaction. This transaction is signed, but not sent to the
+// network, instead it's returned to the caller. Note that this method is
+// available starting from [config.HFHuyao] hardfork.
+func (c *Contract) ActivateHardforkTransaction(hf config.Hardfork, activationDelay uint32) (*transaction.Transaction, error) {
+	return c.actor.MakeCall(Hash, hardforkActivator, hf.String(), activationDelay)
+}
+
+// ActivateHardforkUnsigned creates a transaction that schedules activation of
+// the specified hardfork at activationDelay blocks after the block containing
+// this transaction. This transaction is not signed and just returned to the
+// caller. Note that this method is available starting from [config.HFHuyao]
+// hardfork.
+func (c *Contract) ActivateHardforkUnsigned(hf config.Hardfork, activationDelay uint32) (*transaction.Transaction, error) {
+	return c.actor.MakeUnsignedCall(Hash, hardforkActivator, nil, hf.String(), activationDelay)
 }
 
 // BlockAccount creates and sends a transaction that blocks an account on the
@@ -684,6 +740,40 @@ func (e *RecoveredFundEvent) FromStackItem(item *stackitem.Array) error {
 	e.Account, err = util.Uint160DecodeBytesBE(h)
 	if err != nil {
 		return fmt.Errorf("failed to unwrap account: %w", err)
+	}
+
+	return nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to
+// HardforkActivationScheduledEvent or returns an error if it's not possible to
+// do so.
+func (e *HardforkActivationScheduledEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return fmt.Errorf("wrong number of event parameters: %d", len(arr))
+	}
+
+	hfName, err := arr[0].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid hardfork: %w", err)
+	}
+	hf, ok := config.ParseHardfork(string(hfName))
+	if !ok {
+		return fmt.Errorf("unknown hardfork: %s", hfName)
+	}
+	e.Hardfork = hf
+
+	e.ActivationHeight, err = stackitem.ToUint32(arr[1])
+	if err != nil {
+		return fmt.Errorf("invalid activation height: %w", err)
 	}
 
 	return nil

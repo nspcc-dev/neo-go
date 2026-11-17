@@ -212,6 +212,15 @@ func TestClientPolicyContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(365*24*time.Hour/time.Millisecond), val)
 
+	hfHeight, ok, err := polizei.GetHardforkActivationHeight(config.HFHuyao)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, uint32(0), hfHeight)
+
+	_, ok, err = polizei.GetHardforkActivationHeight(config.HFIara)
+	require.NoError(t, err)
+	require.False(t, ok)
+
 	act, err := actor.New(c, []actor.SignerAccount{{
 		Signer: transaction.Signer{
 			Account: testchain.CommitteeScriptHash(),
@@ -271,12 +280,15 @@ func TestClientPolicyContract(t *testing.T) {
 	require.NoError(t, err)
 	txttl, err := polis.SetTemporaryStorageMaxTTLUnsigned(100500)
 	require.NoError(t, err)
+	const iaraDelay = 100
+	txhf, err := polis.ActivateHardforkUnsigned(config.HFIara, iaraDelay)
+	require.NoError(t, err)
 
-	for _, tx := range []*transaction.Transaction{txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txttl, txstorage, txnetfee, txexec} {
+	for _, tx := range []*transaction.Transaction{txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txttl, txhf, txstorage, txnetfee, txexec} {
 		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
 	}
 
-	bl := testchain.NewBlock(t, chain, 1, 0, txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txttl, txstorage, txnetfee, txexec)
+	bl := testchain.NewBlock(t, chain, 1, 0, txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txttl, txhf, txstorage, txnetfee, txexec)
 	_, err = c.SubmitBlock(*bl)
 	require.NoError(t, err)
 	txBlockTimestamp := bl.Timestamp
@@ -304,6 +316,23 @@ func TestClientPolicyContract(t *testing.T) {
 	val, err = polizei.GetTemporaryStorageMaxTTL()
 	require.NoError(t, err)
 	require.Equal(t, int64(100500), val)
+
+	hfHeight, ok, err = polizei.GetHardforkActivationHeight(config.HFIara)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, bl.Index+iaraDelay, hfHeight)
+
+	aer, err := c.GetApplicationLog(txhf.Hash(), nil)
+	require.NoError(t, err)
+	require.Equal(t, vmstate.Halt, aer.Executions[0].VMState, aer.Executions[0].FaultException)
+	require.Len(t, aer.Executions[0].Events, 1)
+	require.Equal(t, "HardforkActivationScheduled", aer.Executions[0].Events[0].Name)
+	var hfEvent policy.HardforkActivationScheduledEvent
+	require.NoError(t, hfEvent.FromStackItem(aer.Executions[0].Events[0].Item))
+	require.Equal(t, policy.HardforkActivationScheduledEvent{
+		Hardfork:         config.HFIara,
+		ActivationHeight: bl.Index + iaraDelay,
+	}, hfEvent)
 
 	all, err := polizei.GetBlockedAccountsExpanded(100)
 	require.NoError(t, err)
