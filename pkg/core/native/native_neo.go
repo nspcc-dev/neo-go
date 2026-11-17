@@ -1021,7 +1021,7 @@ func (n *NEO) voteDeferrable(ic *interop.Context, args []stackitem.Item, popArgs
 		popArgsPushRes(stackitem.NewBool(false))
 		return
 	}
-	continuationScheduled, err := n.voteInternalUncheckedDeferrable(ic, acc, pub, func() {
+	continuationScheduled, err := n.voteInternalUncheckedDeferrable(ic, acc, pub, acc, func() {
 		// voteInternalUncheckedDeferrable either panics or returns an error or completes successfully.
 		// The first two cases are covered by the code out of continuation. The last case should always push `true` on stack:
 		popArgsPushRes(stackitem.NewBool(true))
@@ -1032,17 +1032,17 @@ func (n *NEO) voteDeferrable(ic *interop.Context, args []stackitem.Item, popArgs
 	}
 }
 
-// RevokeVotesDeferrable implements INEO interface. It revokes votes of account h and
-// doesn't check the h's witness.
-func (n *NEO) RevokeVotesDeferrable(ic *interop.Context, h util.Uint160, continuation func()) (bool, error) {
-	return n.voteInternalUncheckedDeferrable(ic, h, nil, continuation)
+// RevokeVotesDeferrable implements INEO interface. It revokes votes of account h
+// and doesn't check the h's witness. Unclaimed GAS is minted to gasRecipient.
+func (n *NEO) RevokeVotesDeferrable(ic *interop.Context, h, gasRecipient util.Uint160, continuation func()) (bool, error) {
+	return n.voteInternalUncheckedDeferrable(ic, h, nil, gasRecipient, continuation)
 }
 
 // voteInternalUncheckedDeferrable is an internal representation of voteDeferrable that
 // casts the vote of the specified account without checking the voter's signature.
-// It returns a boolean value denoting whether continuation call was scheduled
-// and an error.
-func (n *NEO) voteInternalUncheckedDeferrable(ic *interop.Context, h util.Uint160, pub *keys.PublicKey, continuation func()) (bool, error) {
+// Unclaimed GAS is minted to gasRecipient. It returns a boolean value denoting
+// whether continuation call was scheduled and an error.
+func (n *NEO) voteInternalUncheckedDeferrable(ic *interop.Context, h util.Uint160, pub *keys.PublicKey, gasRecipient util.Uint160, continuation func()) (bool, error) {
 	key := makeAccountKey(h)
 	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
@@ -1109,7 +1109,7 @@ func (n *NEO) voteInternalUncheckedDeferrable(ic *interop.Context, h util.Uint16
 	}
 
 	if newGas != nil { // Can be if it was already distributed in the same block.
-		n.gas.MintDeferrable(ic, h, newGas, true, continuation)
+		n.gas.MintDeferrable(ic, gasRecipient, newGas, true, continuation)
 		return true, nil
 	}
 	return false, nil
