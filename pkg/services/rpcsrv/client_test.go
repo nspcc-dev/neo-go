@@ -174,7 +174,7 @@ func TestClientPolicyContract(t *testing.T) {
 	const recoverFundsLockPeriod = 365 * 24 * 60 * 60 * 1000
 	chain, _, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
 		cfg.ProtocolConfiguration.Hardforks = map[string]uint32{
-			config.HFFaun.String(): 0,
+			config.HFHuyao.String(): 0,
 		}
 	})
 	for _, b := range getTestBlocks(t) {
@@ -207,6 +207,10 @@ func TestClientPolicyContract(t *testing.T) {
 	ret, err := polizei.IsBlocked(util.Uint160{})
 	require.NoError(t, err)
 	require.False(t, ret)
+
+	val, err = polizei.GetTemporaryStorageMaxTTL()
+	require.NoError(t, err)
+	require.Equal(t, int64(365*24*time.Hour/time.Millisecond), val)
 
 	act, err := actor.New(c, []actor.SignerAccount{{
 		Signer: transaction.Signer{
@@ -265,12 +269,14 @@ func TestClientPolicyContract(t *testing.T) {
 	require.NoError(t, err)
 	txwhitelist2, err := polis.SetWhitelistFeeContractUnsigned(whitelisted[1].Hash, "hexEncode", 1, 0)
 	require.NoError(t, err)
+	txttl, err := polis.SetTemporaryStorageMaxTTLUnsigned(100500)
+	require.NoError(t, err)
 
-	for _, tx := range []*transaction.Transaction{txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txstorage, txnetfee, txexec} {
+	for _, tx := range []*transaction.Transaction{txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txttl, txstorage, txnetfee, txexec} {
 		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
 	}
 
-	bl := testchain.NewBlock(t, chain, 1, 0, txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txstorage, txnetfee, txexec)
+	bl := testchain.NewBlock(t, chain, 1, 0, txtransfer1, txattr, txblock1, txblock2, txblock3, txwhitelist1, txwhitelist2, txttl, txstorage, txnetfee, txexec)
 	_, err = c.SubmitBlock(*bl)
 	require.NoError(t, err)
 	txBlockTimestamp := bl.Timestamp
@@ -294,6 +300,10 @@ func TestClientPolicyContract(t *testing.T) {
 	ret, err = polizei.IsBlocked(util.Uint160{1, 2, 3})
 	require.NoError(t, err)
 	require.True(t, ret)
+
+	val, err = polizei.GetTemporaryStorageMaxTTL()
+	require.NoError(t, err)
+	require.Equal(t, int64(100500), val)
 
 	all, err := polizei.GetBlockedAccountsExpanded(100)
 	require.NoError(t, err)

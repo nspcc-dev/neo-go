@@ -51,6 +51,7 @@ const (
 	attributeFeeSetter                = "setAttributeFee"
 	maxValidUntilBlockIncrementSetter = "setMaxValidUntilBlockIncrement"
 	millisecondsPerBlockSetter        = "setMillisecondsPerBlock"
+	tempStorageMaxTTLSetter           = "setTemporaryStorageMaxTTL"
 )
 
 // ContractReader provides an interface to call read-only PolicyContract
@@ -152,6 +153,13 @@ func (c *ContractReader) GetMaxValidUntilBlockIncrement() (int64, error) {
 // that this method is available starting from Echidna hardfork.
 func (c *ContractReader) GetMillisecondsPerBlock() (int64, error) {
 	return unwrap.Int64(c.invoker.Call(Hash, "getMillisecondsPerBlock"))
+}
+
+// GetTemporaryStorageMaxTTL returns the current maximum TTL of temporary
+// storage items in milliseconds. Note that this method is available starting
+// from [config.HFHuyao] hardfork.
+func (c *ContractReader) GetTemporaryStorageMaxTTL() (int64, error) {
+	return unwrap.Int64(c.invoker.Call(Hash, "getTemporaryStorageMaxTTL"))
 }
 
 // GetBlockedAccounts returns current blocked accounts. Note that this method is
@@ -355,6 +363,31 @@ func (c *Contract) SetMillisecondsPerBlockTransaction(value int64) (*transaction
 // from Echidna hardfork.
 func (c *Contract) SetMillisecondsPerBlockUnsigned(value int64) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, millisecondsPerBlockSetter, nil, value)
+}
+
+// SetTemporaryStorageMaxTTL creates and sends a transaction that sets the
+// maximum TTL of temporary storage items in milliseconds. The action is
+// successful when transaction ends in HALT state. The returned values are
+// transaction hash, its ValidUntilBlock value and an error if any. Note that
+// this method is available starting from [config.HFHuyao] hardfork.
+func (c *Contract) SetTemporaryStorageMaxTTL(value int64) (util.Uint256, uint32, error) {
+	return c.actor.SendCall(Hash, tempStorageMaxTTLSetter, value)
+}
+
+// SetTemporaryStorageMaxTTLTransaction creates a transaction that sets the
+// maximum TTL of temporary storage items in milliseconds. This transaction is
+// signed, but not sent to the network, instead it's returned to the caller.
+// Note that this method is available starting from [config.HFHuyao] hardfork.
+func (c *Contract) SetTemporaryStorageMaxTTLTransaction(value int64) (*transaction.Transaction, error) {
+	return c.actor.MakeCall(Hash, tempStorageMaxTTLSetter, value)
+}
+
+// SetTemporaryStorageMaxTTLUnsigned creates a transaction that sets the
+// maximum TTL of temporary storage items in milliseconds. This transaction is
+// not signed and just returned to the caller. Note that this method is
+// available starting from [config.HFHuyao] hardfork.
+func (c *Contract) SetTemporaryStorageMaxTTLUnsigned(value int64) (*transaction.Transaction, error) {
+	return c.actor.MakeUnsignedCall(Hash, tempStorageMaxTTLSetter, nil, value)
 }
 
 // BlockAccount creates and sends a transaction that blocks an account on the
