@@ -1206,3 +1206,71 @@ func TestPolicy_ActivateHardfork_ShutdownOnUnknownHardfork(t *testing.T) {
 	e.SignBlock(b)
 	require.ErrorIs(t, e.Chain.AddBlock(b), native.ErrUnknownHardfork)
 }
+
+func TestPolicy_WhitelistFeeNestedCalls(t *testing.T) {
+	const (
+		callerFee = 1_0000_0000
+		calleeFee = 2_0000_0000
+	)
+	check := func(t *testing.T, callT bool, calls int) {
+		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = map[string]uint32{
+				config.HFFaun.String(): 0,
+			}
+		})
+		e := neotest.NewExecutor(t, bc, acc, acc)
+		p := e.CommitteeInvoker(nativehashes.PolicyContract)
+
+		callee := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(`package callee
+					func Foo() {
+						_ = 1
+					}`), &compiler.Options{Name: "callee"})
+		e.DeployContract(t, callee, nil)
+
+		var hStr strings.Builder
+		for _, b := range callee.Hash.BytesBE() {
+			fmt.Fprintf(&hStr, "\\x%02x", b)
+		}
+		imp, call := "github.com/nspcc-dev/neo-go/pkg/interop", `contract.Call(interop.Hash160(hash), "foo", contract.All)`
+		if callT {
+			imp, call = "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal", `neogointernal.CallWithTokenNoRet(hash, "foo", int(contract.All))`
+		}
+		src := fmt.Sprintf(`package caller
+					import (
+						%q
+						"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+					)
+					const hash = "%s"
+					func Main() {
+						%s
+					}`, imp, hStr.String(), strings.Repeat(call+"\n", calls))
+		caller := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+			Name:        "caller",
+			Permissions: []manifest.Permission{*manifest.NewPermission(manifest.PermissionWildcard)},
+		})
+		e.DeployContract(t, caller, nil)
+		callerInvoker := e.NewInvoker(caller.Hash, e.Committee)
+
+		setCalleeFee := func(fee int64) {
+			p.Invoke(t, stackitem.Null{}, "removeWhitelistFeeContract", callee.Hash, "foo", 0)
+			p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", callee.Hash, "foo", 0, fee)
+		}
+		p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", caller.Hash, "main", 0, callerFee)
+		p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", callee.Hash, "foo", 0, 0)
+
+		free := e.GetTxExecResult(t, callerInvoker.Invoke(t, stackitem.Null{}, "main")).GasConsumed
+
+		setCalleeFee(calleeFee)
+		paid := e.GetTxExecResult(t, callerInvoker.Invoke(t, stackitem.Null{}, "main")).GasConsumed
+		require.Equal(t, int64(calls*calleeFee), paid-free)
+
+		callerInvoker.InvokeWithFeeFail(t, "GAS limit exceeded executing whitelisted contract", callerFee+calleeFee/2, "main")
+	}
+	for _, callT := range []bool{false, true} {
+		for _, calls := range []int{1, 2} {
+			t.Run(fmt.Sprintf("CALLT=%t, calls=%d", callT, calls), func(t *testing.T) {
+				check(t, callT, calls)
+			})
+		}
+	}
+}

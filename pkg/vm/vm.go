@@ -313,11 +313,16 @@ func FemtoGasToDatoshi(x *uint256.Int) *uint256.Int {
 }
 
 // AddPicoGas consumes the specified amount of gas in picoGAS units if the
-// executing method is not whitelisted. It returns [ErrGASLimitExceeded] if the
-// gas limit was exceeded.
-func (v *VM) AddPicoGas(gas int64) error {
+// executing method is not whitelisted. If ignoreWhitelisted is specified, the
+// GAS will be added irrespectively of context's whitelist marker. It returns
+// [ErrGASLimitExceeded] if the gas limit was exceeded.
+func (v *VM) AddPicoGas(gas int64, ignoreWhitelisted ...bool) error {
 	femtoGas := new(uint256.Int).Mul(uint256.NewInt(uint64(gas)), uint256.NewInt(OpcodePriceMultiplier))
-	return v.addFemtoGasInternal(femtoGas, v.isWhitelisted())
+	whitelisted := v.isWhitelisted()
+	if len(ignoreWhitelisted) > 0 && ignoreWhitelisted[0] {
+		whitelisted = false
+	}
+	return v.addFemtoGasInternal(femtoGas, whitelisted)
 }
 
 // addFemtoGas consumes the specified amount of gas in femtoGAS units unless
