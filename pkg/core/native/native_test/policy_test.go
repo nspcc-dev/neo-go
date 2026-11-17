@@ -738,7 +738,7 @@ func TestPolicy_WhitelistContracts(t *testing.T) {
 	}
 
 	// Invoke at/after Faun should succeed.
-	h := p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1, 0)
+	h := p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1, 1)
 	e.CheckTxNotificationEvent(t, h, 0, state.NotificationEvent{
 		ScriptHash: nativehashes.PolicyContract,
 		Name:       "WhitelistFeeChanged",
@@ -746,7 +746,7 @@ func TestPolicy_WhitelistContracts(t *testing.T) {
 			stackitem.Make(nativehashes.StdLib),
 			stackitem.Make("hexEncode"),
 			stackitem.Make(1),
-			stackitem.Make(0),
+			stackitem.Make(1),
 		}),
 	})
 	p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexDecode", 1, 1)
@@ -771,6 +771,23 @@ func TestPolicy_WhitelistContracts(t *testing.T) {
 			w.Reset()
 		}
 	}
+	checkGetWhitelisted(t, []stackitem.Item{
+		stackitem.NewStruct([]stackitem.Item{
+			stackitem.Make(nativehashes.StdLib),
+			stackitem.Make("hexDecode"),
+			stackitem.Make(1),
+			stackitem.Make(1),
+		}),
+		stackitem.NewStruct([]stackitem.Item{
+			stackitem.Make(nativehashes.StdLib),
+			stackitem.Make("hexEncode"),
+			stackitem.Make(1),
+			stackitem.Make(1),
+		}),
+	})
+
+	// Set: update fee of an existing entry.
+	p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1, 0)
 	checkGetWhitelisted(t, []stackitem.Item{
 		stackitem.NewStruct([]stackitem.Item{
 			stackitem.Make(nativehashes.StdLib),
@@ -1251,16 +1268,12 @@ func TestPolicy_WhitelistFeeNestedCalls(t *testing.T) {
 		e.DeployContract(t, caller, nil)
 		callerInvoker := e.NewInvoker(caller.Hash, e.Committee)
 
-		setCalleeFee := func(fee int64) {
-			p.Invoke(t, stackitem.Null{}, "removeWhitelistFeeContract", callee.Hash, "foo", 0)
-			p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", callee.Hash, "foo", 0, fee)
-		}
 		p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", caller.Hash, "main", 0, callerFee)
 		p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", callee.Hash, "foo", 0, 0)
 
 		free := e.GetTxExecResult(t, callerInvoker.Invoke(t, stackitem.Null{}, "main")).GasConsumed
 
-		setCalleeFee(calleeFee)
+		p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", callee.Hash, "foo", 0, calleeFee)
 		paid := e.GetTxExecResult(t, callerInvoker.Invoke(t, stackitem.Null{}, "main")).GasConsumed
 		require.Equal(t, int64(calls*calleeFee), paid-free)
 
