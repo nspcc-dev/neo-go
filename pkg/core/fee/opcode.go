@@ -319,7 +319,7 @@ var staticCoefficients = [256]int64{
 	opcode.CALL:        2451,
 	opcode.CALLL:       2451,
 	opcode.CALLA:       2927,
-	opcode.CALLT:       (1 << 15) * 1000,
+	opcode.CALLT:       ContractCallPrice,
 	opcode.ABORT:       0,
 	opcode.ABORTMSG:    0,
 	opcode.TRY:         1753,
