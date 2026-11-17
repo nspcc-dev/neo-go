@@ -1073,7 +1073,9 @@ func (p *Policy) setWhitelistFeeContract(ic *interop.Context, args []stackitem.I
 		offset:               uint32(md.Offset),
 	}
 	i, ok := slices.BinarySearchFunc(cache.whitelistedContracts, c, whitelistedContract.Compare)
-	if !ok {
+	if ok {
+		cache.whitelistedContracts[i] = c
+	} else {
 		cache.whitelistedContracts = slices.Insert(cache.whitelistedContracts, i, c)
 	}
 
