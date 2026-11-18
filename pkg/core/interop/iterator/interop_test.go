@@ -22,8 +22,8 @@ func (t *testIter) Next() bool {
 	return t.index < len(t.arr)
 }
 
-func (t testIter) Value() stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(int64(t.arr[t.index])))
+func (t testIter) Value() (stackitem.Item, int) {
+	return stackitem.NewBigInteger(big.NewInt(int64(t.arr[t.index]))), 0
 }
 
 // Iterator is thoroughly tested in VM package, these are smoke tests.

@@ -7,7 +7,9 @@ import (
 
 type iterator interface {
 	Next() bool
-	Value() stackitem.Item
+	// Value returns the current item and its deserialized ByteArray/Buffer byte
+	// count, or zero if no deserialization is needed.
+	Value() (stackitem.Item, int)
 }
 
 // Next advances the iterator, pushes true on success and false otherwise.
@@ -25,7 +27,8 @@ func Next(ic *interop.Context) error {
 func Value(ic *interop.Context) error {
 	iop := ic.VM.Estack().Pop().Interop()
 	arr := iop.Value().(iterator)
-	ic.VM.Estack().PushItem(arr.Value())
+	v, _ := arr.Value()
+	ic.VM.Estack().PushItem(v)
 
 	return nil
 }
@@ -49,7 +52,7 @@ func ValuesTruncated(item stackitem.Item, maxNum int) ([]stackitem.Item, bool, s
 	}
 	result := Values(item, maxNum)
 	if arr.Next() {
-		curr := arr.Value()
+		curr, _ := arr.Value()
 		return result, true, curr
 	}
 	return result, false, nil
@@ -62,7 +65,8 @@ func Values(item stackitem.Item, maxNum int) []stackitem.Item {
 	var result []stackitem.Item
 	arr := item.Value().(iterator)
 	for maxNum > 0 && arr.Next() {
-		result = append(result, arr.Value())
+		value, _ := arr.Value()
+		result = append(result, value)
 		maxNum--
 	}
 	return result

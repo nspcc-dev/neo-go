@@ -54,24 +54,25 @@ func (s *Iterator) Next() bool {
 	return s.next
 }
 
-// Value returns current iterators value (exact type depends on options this
-// iterator was created with).
-func (s *Iterator) Value() stackitem.Item {
+// Value returns the current iterator value and the total ByteArray/Buffer payload
+// bytes deserialized, before applying FindPick0 or FindPick1.
+func (s *Iterator) Value() (stackitem.Item, int) {
 	if !s.next {
 		panic("iterator index out of range")
 	}
+	var bytesRead int
 	key := s.curr.Key
 	if s.opts&FindRemovePrefix == 0 {
 		key = slices.Concat(s.prefix, key)
 	}
 	if s.opts&FindKeysOnly != 0 {
-		return stackitem.NewByteArray(key)
+		return stackitem.NewByteArray(key), 0
 	}
 	value := stackitem.Item(stackitem.NewByteArray(s.curr.Value))
 	if s.opts&FindDeserialize != 0 {
 		bs := s.curr.Value
 		var err error
-		value, err = stackitem.Deserialize(bs)
+		value, bytesRead, err = stackitem.DeserializeCounted(bs)
 		if err != nil {
 			panic(err)
 		}
@@ -82,12 +83,12 @@ func (s *Iterator) Value() stackitem.Item {
 		value = value.Value().([]stackitem.Item)[1]
 	}
 	if s.opts&FindValuesOnly != 0 {
-		return value
+		return value, bytesRead
 	}
 	return stackitem.NewStruct([]stackitem.Item{
 		stackitem.NewByteArray(key),
 		value,
-	})
+	}), bytesRead
 }
 
 func findWithContext(ic *interop.Context, stc *Context, withStart bool, getID ...func(ic *interop.Context) (int32, error)) error {
