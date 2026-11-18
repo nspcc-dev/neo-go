@@ -22,6 +22,12 @@ func GasLeft(ic *interop.Context) error {
 	return nil
 }
 
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const (
+	GetNotificationsPricePerNotification = 6926
+	GetNotificationsBasePrice            = 205000
+)
+
 // GetNotifications returns notifications emitted in the current execution context.
 func GetNotifications(ic *interop.Context) error {
 	item := ic.VM.Estack().Pop().Item()
@@ -44,6 +50,11 @@ func GetNotifications(ic *interop.Context) error {
 	}
 	if len(notifications) > vm.MaxStackSize {
 		return errors.New("too many notifications")
+	}
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * GetNotificationsPricePerNotification * int64(len(notifications))); err != nil {
+			return err
+		}
 	}
 	arr := stackitem.NewArray(make([]stackitem.Item, 0, len(notifications)))
 	for i := range notifications {
@@ -101,8 +112,10 @@ func GetRandom(ic *interop.Context) error {
 	if !isHF {
 		ic.NonceData = [interop.ContextNonceDataLen]byte(res)
 	}
-	if err := ic.VM.AddPicoGas(ic.BaseExecFee() * price); err != nil {
-		return err
+	if !ic.IsHardforkEnabled(config.HFHuyao) {
+		if err := ic.VM.AddPicoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
 	}
 	// Resulting data is interpreted as an unsigned LE integer.
 	slices.Reverse(res)

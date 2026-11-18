@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest/store"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -614,6 +615,83 @@ func TestPolicy_GetBlockedAccounts(t *testing.T) {
 	checkGetBlockedAccounts(t, expected)
 	p.Invoke(t, true, "unblockAccount", expected[0])
 	checkGetBlockedAccounts(t, expected[1:])
+}
+
+func TestPolicy_IteratorValue_GasConsumed(t *testing.T) {
+	check := func(t *testing.T, hf config.Hardfork, method string, expected int64) {
+		t.Run(method, func(t *testing.T) {
+			bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+				c.Hardforks = map[string]uint32{hf.String(): 0}
+			})
+			e := neotest.NewExecutor(t, bc, acc, acc)
+			p := e.CommitteeInvoker(nativehashes.PolicyContract)
+			p.Invoke(t, true, "blockAccount", util.Uint160{1})
+			contract := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader("package test\nfunc X() int { return 1 }"), &compiler.Options{Name: "test"})
+			e.DeployContract(t, contract, nil)
+			p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", contract.Hash, "x", 0, 0)
+
+			ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+			require.NoError(t, err)
+			w := io.NewBufBinWriter()
+			emit.AppCall(w.BinWriter, p.Hash, method, callflag.All)
+			emit.Opcodes(w.BinWriter, opcode.DUP)
+			emit.Syscall(w.BinWriter, interopnames.SystemIteratorNext)
+			emit.Opcodes(w.BinWriter, opcode.ASSERT)
+			require.NoError(t, w.Err)
+			ic.VM.LoadScriptWithFlags(w.Bytes(), callflag.All)
+			require.NoError(t, ic.VM.Run())
+			iterator := ic.VM.Estack().Pop().Item()
+
+			w.Reset()
+			emit.Syscall(w.BinWriter, interopnames.SystemIteratorValue)
+			require.NoError(t, w.Err)
+			v := ic.SpawnVM()
+			v.Load(w.Bytes())
+			v.Estack().PushItem(iterator)
+			require.NoError(t, v.Run())
+			require.True(t, v.HasHalted())
+			require.Equal(t, expected, v.GasConsumed())
+		})
+	}
+	t.Run("Gorgon", func(t *testing.T) {
+		check(t, config.HFGorgon, "getBlockedAccounts", 480)
+		check(t, config.HFGorgon, "getWhitelistFeeContracts", 480)
+	})
+	t.Run("Huyao", func(t *testing.T) {
+		check(t, config.HFHuyao, "getBlockedAccounts", 597)
+		check(t, config.HFHuyao, "getWhitelistFeeContracts", 690)
+	})
+}
+
+func TestPolicy_GetWhitelistFeeContracts_GasConsumed(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFHuyao.String(): 0,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	p := e.CommitteeInvoker(nativehashes.PolicyContract)
+	p.Invoke(t, stackitem.Null{}, "setWhitelistFeeContract", nativehashes.StdLib, "hexEncode", 1, 123)
+
+	w := io.NewBufBinWriter()
+	emit.AppCall(w.BinWriter, p.Hash, "getWhitelistFeeContracts", callflag.All)
+	emit.Opcodes(w.BinWriter, opcode.DUP)
+	emit.Syscall(w.BinWriter, interopnames.SystemIteratorNext)
+	emit.Opcodes(w.BinWriter, opcode.ASSERT, opcode.DUP)
+	emit.Syscall(w.BinWriter, interopnames.SystemIteratorValue)
+	emit.Opcodes(w.BinWriter, opcode.SWAP)
+	emit.Syscall(w.BinWriter, interopnames.SystemIteratorNext)
+	emit.Opcodes(w.BinWriter, opcode.NOT, opcode.ASSERT, opcode.RET)
+	require.NoError(t, w.Err)
+
+	h := p.InvokeScript(t, w.Bytes(), p.Signers)
+	e.CheckHalt(t, h, stackitem.NewStruct([]stackitem.Item{
+		stackitem.Make(nativehashes.StdLib),
+		stackitem.Make("hexEncode"),
+		stackitem.Make(1),
+		stackitem.Make(123),
+	}))
+	require.Equal(t, int64(1_084_590), e.GetTxExecResult(t, h).GasConsumed)
 }
 
 func TestPolicy_GetBlockedAccountsInteropAPI(t *testing.T) {

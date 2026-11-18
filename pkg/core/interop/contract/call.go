@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -17,6 +19,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
+
+// chargeContractLookup charges for a missing or non-native contract lookup.
+func chargeContractLookup(ic *interop.Context, cs *state.Contract, lookupErr error) error {
+	if ic.IsHardforkEnabled(config.HFHuyao) &&
+		(errors.Is(lookupErr, storage.ErrKeyNotFound) || (lookupErr == nil && cs.ID >= 0)) {
+		return ic.VM.AddFemtoGas(ic.BaseExecFee() * fee.ReadFromDiskPrice)
+	}
+	return nil
+}
 
 // LoadToken calls method specified by the token id.
 func LoadToken(ic *interop.Context, id int32) error {
@@ -37,6 +48,9 @@ func LoadToken(ic *interop.Context, id int32) error {
 		args[i] = ic.VM.Estack().Pop().Item()
 	}
 	cs, err := ic.GetContract(tok.Hash)
+	if feeErr := chargeContractLookup(ic, cs, err); feeErr != nil {
+		return feeErr
+	}
 	if err != nil {
 		return fmt.Errorf("token contract %s not found: %w", tok.Hash.StringLE(), err)
 	}
@@ -67,6 +81,9 @@ func Call(ic *interop.Context) error {
 	}
 	args := ic.VM.Estack().Pop().Array()
 	cs, err := ic.GetContract(u)
+	if feeErr := chargeContractLookup(ic, cs, err); feeErr != nil {
+		return feeErr
+	}
 	if err != nil {
 		return fmt.Errorf("called contract %s not found: %w", u.StringLE(), err)
 	}

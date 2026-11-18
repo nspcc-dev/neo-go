@@ -459,28 +459,36 @@ func TestLoadScript(t *testing.T) {
 }
 
 func TestGasLeft(t *testing.T) {
-	const runtimeGasLeftPrice = 1 << 4
-
-	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
+	const gasLimit = 1100
 	w := io.NewBufBinWriter()
-
-	gasLimit := 1100
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGasLeft)
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGasLeft)
 	require.NoError(t, w.Err)
-	tx := transaction.New(w.Bytes(), int64(gasLimit))
-	tx.Nonce = neotest.Nonce()
-	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
-	e.SignTx(t, tx, int64(gasLimit), acc)
-	e.AddNewBlock(t, tx)
-	e.CheckHalt(t, tx.Hash())
-	res := e.GetTxExecResult(t, tx.Hash())
-	l1 := res.Stack[0].Value().(*big.Int)
-	l2 := res.Stack[1].Value().(*big.Int)
+	script := w.Bytes()
 
-	require.Equal(t, int64(gasLimit-runtimeGasLeftPrice*interop.DefaultBaseExecFee), l1.Int64())
-	require.Equal(t, int64(gasLimit-2*runtimeGasLeftPrice*interop.DefaultBaseExecFee), l2.Int64())
+	check := func(t *testing.T, hf config.Hardfork, callPrice int64) {
+		t.Helper()
+		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = map[string]uint32{hf.String(): 0}
+		})
+		e := neotest.NewExecutor(t, bc, acc, acc)
+		tx := transaction.New(script, gasLimit)
+		tx.Nonce = neotest.Nonce()
+		tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
+		e.SignTx(t, tx, gasLimit, acc)
+		e.AddNewBlock(t, tx)
+		left1 := gasLimit - callPrice
+		left2 := gasLimit - 2*callPrice
+		e.CheckHalt(t, tx.Hash(), stackitem.Make(left1), stackitem.Make(left2))
+	}
+	t.Run("Gorgon", func(t *testing.T) {
+		// Each call costs 16 * 30 = 480 Datoshi.
+		check(t, config.HFGorgon, 480)
+	})
+	t.Run("Huyao", func(t *testing.T) {
+		// Each call costs 8900 * 30 / 1000 = 267 Datoshi.
+		check(t, config.HFHuyao, 267)
+	})
 }
 
 func TestGetAddressVersion(t *testing.T) {
