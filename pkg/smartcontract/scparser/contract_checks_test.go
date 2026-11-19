@@ -6,9 +6,9 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -72,10 +72,17 @@ func testMultisigContract(t *testing.T, n, m int) []byte {
 		require.NoError(t, err)
 		pubs[i] = priv.PublicKey()
 	}
+	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 
-	prog, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
-	require.NoError(t, err)
-	return prog
+	w := io.NewBufBinWriter()
+	emit.Int(w.BinWriter, int64(m))
+	for _, pub := range pubs {
+		emit.Bytes(w.BinWriter, pub.Bytes())
+	}
+	emit.Int(w.BinWriter, int64(n))
+	emit.Syscall(w.BinWriter, interopnames.SystemCryptoCheckMultisig)
+	require.NoError(t, w.Err)
+	return w.Bytes()
 }
 
 func TestIsMultiSigContract(t *testing.T) {

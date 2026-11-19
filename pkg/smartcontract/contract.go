@@ -20,7 +20,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 	if m > len(publicKeys) {
 		return nil, fmt.Errorf("length of the signatures (%d) is higher then the number of public keys", m)
 	}
-	if m > 1024 {
+	if len(publicKeys) > 1024 {
 		return nil, fmt.Errorf("public key count %d exceeds maximum of length 1024", len(publicKeys))
 	}
 
