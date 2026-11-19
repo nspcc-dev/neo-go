@@ -31,6 +31,7 @@ type Ledger interface {
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	GetHeaderHash(uint32) util.Uint256
 	HeaderHeight() uint32
+	IsHardforkEnabled(*config.Hardfork, uint32) bool
 	ManagementContractHash() util.Uint160
 }
 
@@ -133,7 +134,9 @@ func SignTxCommittee(bc Ledger, txs ...*transaction.Transaction) error {
 func signTxGeneric(bc Ledger, sign func(hash.Hashable) []byte, verif []byte, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), verif)
+		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), verif, func(hf config.Hardfork) bool {
+			return bc.IsHardforkEnabled(&hf, bc.BlockHeight()+1)
+		})
 		tx.NetworkFee += netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size)*bc.FeePerByte() + bc.CalculateAttributesFee(tx)

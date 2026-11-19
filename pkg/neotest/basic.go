@@ -359,7 +359,9 @@ func AddNetworkFee(t testing.TB, bc *core.Blockchain, tx *transaction.Transactio
 			tx.NetworkFee += ic.VM.GasConsumed()
 			size += io.GetVarSize(sc) + io.GetVarSize(csgr.Script())
 		} else {
-			netFee, sizeDelta := fee.Calculate(baseFee, sgr.Script())
+			netFee, sizeDelta := fee.Calculate(baseFee, sgr.Script(), func(hf config.Hardfork) bool {
+				return bc.IsHardforkEnabled(&hf, bc.BlockHeight()+1)
+			})
 			tx.NetworkFee += netFee
 			size += sizeDelta
 		}
