@@ -158,7 +158,7 @@ func TestFind(t *testing.T) {
 		context.DAO.PutStorageItem(id, skeys[i], items[i])
 	}
 
-	testFind := func(t *testing.T, prefix []byte, opts int64, expected []stackitem.Item) {
+	testFind := func(t *testing.T, prefix []byte, opts int64, expected []stackitem.Item, expectedBytes ...int) {
 		v.Estack().PushVal(opts)
 		v.Estack().PushVal(prefix)
 		v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: id}))
@@ -237,7 +237,7 @@ func TestFind(t *testing.T) {
 	t.Run("deserialize values", func(t *testing.T) {
 		testFind(t, []byte{0x04}, istorage.FindValuesOnly|istorage.FindDeserialize, []stackitem.Item{
 			stackitem.NewByteArray(items[3][2:]),
-		})
+		}, 2)
 		t.Run("invalid", func(t *testing.T) {
 			v.Estack().PushVal(istorage.FindDeserialize)
 			v.Estack().PushVal([]byte{0x05})
@@ -256,8 +256,8 @@ func TestFind(t *testing.T) {
 		})
 	})
 	t.Run("PickN", func(t *testing.T) {
-		testFind(t, []byte{0x06}, istorage.FindPick0|istorage.FindValuesOnly|istorage.FindDeserialize, arr[:1])
-		testFind(t, []byte{0x06}, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize, arr[1:2])
+		testFind(t, []byte{0x06}, istorage.FindPick0|istorage.FindValuesOnly|istorage.FindDeserialize, arr[:1], 6)
+		testFind(t, []byte{0x06}, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize, arr[1:2], 6)
 		// Array with 0 elements.
 		testFind(t, []byte{0x07}, istorage.FindPick0|istorage.FindValuesOnly|istorage.FindDeserialize,
 			[]stackitem.Item{nil})

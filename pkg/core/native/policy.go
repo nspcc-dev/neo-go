@@ -1098,7 +1098,12 @@ func (p *Policy) getWhitelistFeeContracts(ic *interop.Context, _ []stackitem.Ite
 	for i, c := range cache.whitelistedContracts {
 		res[i] = &c.WhitelistFeeContract
 	}
-	return stackitem.NewInterop(&iterator[*state.WhitelistFeeContract]{keys: res})
+	return stackitem.NewInterop(&iterator[*state.WhitelistFeeContract]{
+		keys: res,
+		valueBytes: func(r *state.WhitelistFeeContract) int {
+			return util.Uint160Size + len(r.Method)
+		},
+	})
 }
 
 func (p *Policy) recoverFundDeferrable(ic *interop.Context, args []stackitem.Item, popArgsPushRes func(res stackitem.Item)) {
@@ -1277,6 +1282,9 @@ func makeHardforkKey(hf config.Hardfork) []byte {
 type iterator[T any] struct {
 	keys []T
 	next bool
+	// valueBytes reports ByteArray/Buffer payload bytes charged as deserialized.
+	// If nil, no bytes are counted.
+	valueBytes func(T) int
 }
 
 // Next advances the iterator and returns true if Value can be called at the
@@ -1289,10 +1297,15 @@ func (i *iterator[T]) Next() bool {
 	return i.next
 }
 
-// Value returns current iterators value.
-func (i *iterator[T]) Value() stackitem.Item {
+// Value returns the current value and payload bytes charged as deserialized.
+func (i *iterator[T]) Value() (stackitem.Item, int) {
 	if !i.next {
 		panic("iterator index out of range")
 	}
-	return stackitem.Make(i.keys[0])
+	v := stackitem.Make(i.keys[0])
+	var numBytes int
+	if i.valueBytes != nil {
+		numBytes = i.valueBytes(i.keys[0])
+	}
+	return v, numBytes
 }

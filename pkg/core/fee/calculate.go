@@ -8,8 +8,19 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// ECDSAVerifyPrice is a gas price of a single verification.
-const ECDSAVerifyPrice = 1 << 15
+const (
+	// ECDSAVerifyPrice is a gas price of a single verification before Huyao hardfork.
+	ECDSAVerifyPrice = 1 << 15
+	// ECDSAVerifyPriceSinceHuyao is a gas price of a single verification since
+	// Huyao hardfork in 10^-11 GAS units.
+	ECDSAVerifyPriceSinceHuyao = 2326967
+	// ReadFromDiskPrice is a gas price of a single storage read since Huyao
+	// hardfork in 10^-11 GAS units.
+	ReadFromDiskPrice = 6799366
+	// ContractCallPrice is a gas price of a single contract call since Huyao
+	// hardfork in 10^-11 GAS units.
+	ContractCallPrice = 2205000
+)
 
 // Calculate returns network fee for a transaction in Datoshi units.
 func Calculate(base int64, script []byte) (int64, int) {

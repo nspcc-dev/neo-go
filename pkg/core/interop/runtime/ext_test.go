@@ -459,28 +459,36 @@ func TestLoadScript(t *testing.T) {
 }
 
 func TestGasLeft(t *testing.T) {
-	const runtimeGasLeftPrice = 1 << 4
-
-	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
+	const gasLimit = 1100
 	w := io.NewBufBinWriter()
-
-	gasLimit := 1100
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGasLeft)
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGasLeft)
 	require.NoError(t, w.Err)
-	tx := transaction.New(w.Bytes(), int64(gasLimit))
-	tx.Nonce = neotest.Nonce()
-	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
-	e.SignTx(t, tx, int64(gasLimit), acc)
-	e.AddNewBlock(t, tx)
-	e.CheckHalt(t, tx.Hash())
-	res := e.GetTxExecResult(t, tx.Hash())
-	l1 := res.Stack[0].Value().(*big.Int)
-	l2 := res.Stack[1].Value().(*big.Int)
+	script := w.Bytes()
 
-	require.Equal(t, int64(gasLimit-runtimeGasLeftPrice*interop.DefaultBaseExecFee), l1.Int64())
-	require.Equal(t, int64(gasLimit-2*runtimeGasLeftPrice*interop.DefaultBaseExecFee), l2.Int64())
+	check := func(t *testing.T, hf config.Hardfork, callPrice int64) {
+		t.Helper()
+		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = map[string]uint32{hf.String(): 0}
+		})
+		e := neotest.NewExecutor(t, bc, acc, acc)
+		tx := transaction.New(script, gasLimit)
+		tx.Nonce = neotest.Nonce()
+		tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
+		e.SignTx(t, tx, gasLimit, acc)
+		e.AddNewBlock(t, tx)
+		left1 := gasLimit - callPrice
+		left2 := gasLimit - 2*callPrice
+		e.CheckHalt(t, tx.Hash(), stackitem.Make(left1), stackitem.Make(left2))
+	}
+	t.Run("Gorgon", func(t *testing.T) {
+		// Each call costs 16 * 30 = 480 Datoshi.
+		check(t, config.HFGorgon, 480)
+	})
+	t.Run("Huyao", func(t *testing.T) {
+		// Each call costs 8900 * 30 / 1000 = 267 Datoshi.
+		check(t, config.HFHuyao, 267)
+	})
 }
 
 func TestGetAddressVersion(t *testing.T) {
@@ -627,6 +635,67 @@ func TestGetRandomCompatibility(t *testing.T) {
 
 	require.NoError(t, runtime.GetRandom(ic))
 	require.Equal(t, "247152297361212656635216876565962360375", ic.VM.Estack().Pop().BigInt().String())
+}
+
+// Test compatibility with C# implementation.
+// https://github.com/neo-project/neo/blob/8e5739c29d264562e53e3b7f74e47205af869f45/tests/Neo.UnitTests/SmartContract/UT_Syscalls.cs#L230.
+func TestGetRandomVerificationPrice_Compat(t *testing.T) {
+	w := io.NewBufBinWriter()
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetRandom)
+	emit.Opcodes(w.BinWriter, opcode.DROP)
+	require.NoError(t, w.Err)
+	script := w.Bytes()
+
+	getFee := func(huyaoHeight uint32) int64 {
+		bc, _ := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = map[string]uint32{config.HFHuyao.String(): huyaoHeight}
+		})
+		ic, err := bc.GetTestVM(trigger.Verification, nil, nil)
+		require.NoError(t, err)
+		ic.Block = nil
+		ic.VM.LoadScriptWithFlags(script, callflag.ReadOnly)
+		require.NoError(t, ic.VM.Run())
+		return ic.VM.GasConsumed()
+	}
+
+	// GetRandom in-handler fee (1 << 13) + DROP (1 << 1), multiplied by the default
+	// ExecFeeFactor (30) = 245820 datoshi.
+	require.Equal(t, int64(245820), getFee(100))
+	// GetRandom (15833) + DROP (99 * 1 + 1486), multiplied by 1e-11 GAS * the default
+	// ExecFeeFactor (30) = 522.54 datoshi since Huyao, rounded up.
+	require.Equal(t, int64(523), getFee(0))
+}
+
+// Test compatibility with C# implementation.
+// https://github.com/neo-project/neo/blob/8e5739c29d264562e53e3b7f74e47205af869f45/tests/Neo.UnitTests/SmartContract/UT_Syscalls.cs#L262.
+func TestLogPriceSinceHuyao_Compat(t *testing.T) {
+	w := io.NewBufBinWriter()
+	emit.String(w.BinWriter, "a")
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeLog)
+	require.NoError(t, w.Err)
+	script := w.Bytes()
+
+	getFee := func(hf config.Hardfork) int64 {
+		bc, _ := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = map[string]uint32{hf.String(): 0}
+		})
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
+		ic.VM.LoadScriptWithFlags(script, callflag.All)
+		require.NoError(t, ic.VM.Run())
+		return ic.VM.GasConsumed()
+	}
+
+	feeBefore := getFee(config.HFGorgon)
+	feeAfter := getFee(config.HFHuyao)
+
+	// PUSHDATA1 (1 << 3) + Log (1 << 15), multiplied by ExecFeeFactor = 983280
+	// datoshi before Huyao.
+	require.Equal(t, int64(983280), feeBefore)
+	// PUSHDATA1 (1685) + Log (31767), multiplied by 1e-11 GAS * ExecFeeFactor =
+	// 1003.56 datoshi since Huyao, rounded up.
+	require.Equal(t, int64(1004), feeAfter)
+	require.Less(t, feeAfter, feeBefore)
 }
 
 func TestNotify(t *testing.T) {

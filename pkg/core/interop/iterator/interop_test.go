@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -22,13 +23,13 @@ func (t *testIter) Next() bool {
 	return t.index < len(t.arr)
 }
 
-func (t testIter) Value() stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(int64(t.arr[t.index])))
+func (t testIter) Value() (stackitem.Item, int) {
+	return stackitem.NewBigInteger(big.NewInt(int64(t.arr[t.index]))), 0
 }
 
 // Iterator is thoroughly tested in VM package, these are smoke tests.
 func TestIterator(t *testing.T) {
-	ic := &interop.Context{VM: vm.New()}
+	ic := &interop.Context{VM: vm.New(), Block: block.New(false)}
 	full := []int{4, 8, 15}
 	ic.VM.Estack().PushVal(stackitem.NewInterop(&testIter{index: -1, arr: full}))
 

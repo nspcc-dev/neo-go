@@ -1,13 +1,16 @@
 package iterator
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 type iterator interface {
 	Next() bool
-	Value() stackitem.Item
+	// Value returns the current item and its deserialized ByteArray/Buffer byte
+	// count, or zero if no deserialization is needed.
+	Value() (stackitem.Item, int)
 }
 
 // Next advances the iterator, pushes true on success and false otherwise.
@@ -19,14 +22,29 @@ func Next(ic *interop.Context) error {
 	return nil
 }
 
+// Prices since [config.HFHuyao] in 10^-11 GAS units.
+const (
+	IteratorValuePricePerRef  = 727
+	IteratorValuePricePerByte = 8
+	IteratorValueBasePrice    = 19173
+)
+
 // Value returns current iterator value and depends on iterator type:
 // For slices the result is just value.
 // For maps the result is key-value pair packed in a struct.
 func Value(ic *interop.Context) error {
 	iop := ic.VM.Estack().Pop().Interop()
 	arr := iop.Value().(iterator)
-	ic.VM.Estack().PushItem(arr.Value())
+	v, numBytes := arr.Value()
+	r := ic.VM.RefCount()
+	ic.VM.Estack().PushItem(v)
 
+	if ic.IsHardforkEnabled(config.HFHuyao) {
+		price := IteratorValuePricePerRef*int64(ic.VM.RefCount()-r) + IteratorValuePricePerByte*int64(numBytes)
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * price); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -49,7 +67,7 @@ func ValuesTruncated(item stackitem.Item, maxNum int) ([]stackitem.Item, bool, s
 	}
 	result := Values(item, maxNum)
 	if arr.Next() {
-		curr := arr.Value()
+		curr, _ := arr.Value()
 		return result, true, curr
 	}
 	return result, false, nil
@@ -62,7 +80,8 @@ func Values(item stackitem.Item, maxNum int) []stackitem.Item {
 	var result []stackitem.Item
 	arr := item.Value().(iterator)
 	for maxNum > 0 && arr.Next() {
-		result = append(result, arr.Value())
+		value, _ := arr.Value()
+		result = append(result, value)
 		maxNum--
 	}
 	return result
