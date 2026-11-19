@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 	"testing"
 
@@ -114,9 +115,13 @@ func TestSyscallExecution(t *testing.T) {
 	})
 	ic, err := bc.GetTestVM(trigger.Application, nil, &block.Block{})
 	require.NoError(t, err)
-	for _, fs := range ic.Functions {
+	// ic.Functions is the interop table shared by every Context in the process, and
+	// GetFunction returns pointers into it. Work on a private copy, otherwise clearing
+	// Func below breaks every later test that runs a transaction through a chain.
+	ic.Functions = slices.Clone(ic.Functions)
+	for i := range ic.Functions {
 		// It will be set in test and we want to fail if calling invalid syscall.
-		fs.Func = nil
+		ic.Functions[i].Func = nil
 	}
 
 	srcBuilder := bytes.NewBuffer(nil)
@@ -143,6 +148,15 @@ func TestSyscallExecution(t *testing.T) {
 
 	nf, di, err := compiler.CompileWithOptions("foo.go", srcBuilder, nil)
 	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		// Contexts created later must still see the real syscall implementations.
+		fresh, err := bc.GetTestVM(trigger.Application, nil, &block.Block{})
+		require.NoError(t, err)
+		for _, f := range fresh.Functions {
+			require.NotNil(t, f.Func, "syscall %s lost its implementation", f.Name)
+		}
+	})
 
 	for goName, tc := range interops {
 		t.Run(goName, func(t *testing.T) {
