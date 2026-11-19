@@ -33,6 +33,7 @@ type (
 		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 		GetMaxValidUntilBlockIncrement() uint32
+		IsHardforkEnabled(*config.Hardfork, uint32) bool
 	}
 
 	// Oracle represents an oracle module capable of talking
