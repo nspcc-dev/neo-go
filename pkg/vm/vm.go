@@ -358,7 +358,7 @@ func (v *VM) addFemtoGasInternal(gas *uint256.Int, whitelisted bool) error {
 	if v.gasLimit < 0 || !v.gasConsumed.GtUint64(uint64(v.gasLimit)) {
 		return nil
 	}
-	return ErrGASLimitExceeded
+	return fmt.Errorf("%w: gas limit: %d, gas consumed: %d, gas added: %d", ErrGASLimitExceeded, v.gasLimit, v.gasConsumed, gas)
 }
 
 // AddDatoshi consumes the specified amount of gas in Datoshi units. It returns
