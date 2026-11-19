@@ -317,6 +317,16 @@ func FemtoGasToDatoshi(x *uint256.Int) *uint256.Int {
 	return new(uint256.Int).Div(new(uint256.Int).SubUint64(new(uint256.Int).AddUint64(x, FemtoGasPerDatoshi), 1), uint256FemtoGasPerDatoshi)
 }
 
+// FemtoGasToDatoshiInt64 is an int64 version of FemtoGasToDatoshi that accepts int64
+// as an argument. Maximum allowed x is math.MaxInt64 - FemtoGasPerDatoshi +1,
+// violation of this constraint results in panic. Use it carefully.
+func FemtoGasToDatoshiInt64(x int64) int64 {
+	if x > math.MaxInt64-FemtoGasPerDatoshi+1 {
+		panic(fmt.Sprintf("femtoGas overflows conversion bounds: got %d, max %d", x, math.MaxInt64-FemtoGasPerDatoshi+1))
+	}
+	return (x + FemtoGasPerDatoshi - 1) / FemtoGasPerDatoshi
+}
+
 // AddPicoGas consumes the specified amount of gas in picoGAS units if the
 // executing method is not whitelisted. If ignoreWhitelisted is specified, the
 // GAS will be added irrespectively of context's whitelist marker. It returns
