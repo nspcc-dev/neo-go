@@ -27,7 +27,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -2514,7 +2513,8 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			}
 			size := io.GetVarSize(tx)
 			netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), validator.Script())
-			tx.NetworkFee = netFee + // multisig witness verification price
+			const notaryVerificationPrice = 1 << 15 // the price of Notary `verify` method.
+			tx.NetworkFee = netFee +                // multisig witness verification price
 				int64(size)*bc.FeePerByte() + // fee for unsigned size
 				int64(sizeDelta)*bc.FeePerByte() + // fee for multisig size
 				66*bc.FeePerByte() + // fee for Notary signature size (66 bytes for Invocation script and 0 bytes for Verification script)
@@ -2523,7 +2523,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				vm.PicoGasToDatoshiInt64(fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
 					opcode.PUSH0, opcode.SYSCALL, opcode.RET)) + // Neo.Native.Call
-				vm.PicoGasToDatoshiInt64(nativeprices.NotaryVerificationPrice*bc.GetBaseExecFee()) // Notary witness verification price
+				vm.PicoGasToDatoshiInt64(notaryVerificationPrice*bc.GetBaseExecFee()) // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{
 					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...),

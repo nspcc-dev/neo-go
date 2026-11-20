@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeids"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -116,7 +115,7 @@ func NewNotary() *Notary {
 
 	desc = NewDescriptor("verify", smartcontract.BoolType,
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
-	md = NewMethodAndPrice(n.verify, nativeprices.NotaryVerificationPrice, callflag.ReadStates)
+	md = NewMethodAndPrice(n.verify, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = NewDescriptor("getMaxNotValidBeforeDelta", smartcontract.IntegerType)
