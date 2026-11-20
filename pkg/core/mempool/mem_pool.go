@@ -75,8 +75,9 @@ type Pool struct {
 
 	// subscriptions for mempool events
 	subscriptionsEnabled bool
-	subscriptionsOn      atomic.Bool
+	subsState            atomic.Int32
 	stopCh               chan struct{}
+	dispToExitCh         chan struct{}
 	events               chan mempoolevent.Event
 	subCh                chan chan<- mempoolevent.Event // there are no other events in mempool except Event, so no need in generic subscribers type
 	unsubCh              chan chan<- mempoolevent.Event
@@ -354,13 +355,11 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	if sub != nil && sub != chan struct{}(nil) {
 		close(sub.(chan struct{}))
 	}
-	if mp.subscriptionsOn.Load() {
-		mp.events <- mempoolevent.Event{
-			Type: mempoolevent.TransactionAdded,
-			Tx:   pItem.txn,
-			Data: pItem.data,
-		}
-	}
+	mp.notify(mempoolevent.Event{
+		Type: mempoolevent.TransactionAdded,
+		Tx:   pItem.txn,
+		Data: pItem.data,
+	})
 	return nil
 }
 
@@ -415,13 +414,11 @@ func (mp *Pool) removeFromMapWithFeesAndAttrs(itm item) {
 	if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 		delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 	}
-	if mp.subscriptionsOn.Load() {
-		mp.events <- mempoolevent.Event{
-			Type: mempoolevent.TransactionRemoved,
-			Tx:   itm.txn,
-			Data: itm.data,
-		}
-	}
+	mp.notify(mempoolevent.Event{
+		Type: mempoolevent.TransactionRemoved,
+		Tx:   itm.txn,
+		Data: itm.data,
+	})
 }
 
 // RemoveStale filters verified transactions through the given function keeping
@@ -459,13 +456,11 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 			if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 				delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 			}
-			if mp.subscriptionsOn.Load() {
-				mp.events <- mempoolevent.Event{
-					Type: mempoolevent.TransactionRemoved,
-					Tx:   itm.txn,
-					Data: itm.data,
-				}
-			}
+			mp.notify(mempoolevent.Event{
+				Type: mempoolevent.TransactionRemoved,
+				Tx:   itm.txn,
+				Data: itm.data,
+			})
 		}
 	}
 	if len(staleItems) != 0 {
@@ -505,12 +500,12 @@ func New(capacity int, enableSubscriptions bool, updateMetricsCb func(int)) *Poo
 		oracleResp:           make(map[uint64]util.Uint256),
 		subscriptionsEnabled: enableSubscriptions,
 		stopCh:               make(chan struct{}),
+		dispToExitCh:         make(chan struct{}),
 		events:               make(chan mempoolevent.Event),
 		subCh:                make(chan chan<- mempoolevent.Event),
 		unsubCh:              make(chan chan<- mempoolevent.Event),
 		updateMetricsCb:      updateMetricsCb,
 	}
-	mp.subscriptionsOn.Store(false)
 	return mp
 }
 
