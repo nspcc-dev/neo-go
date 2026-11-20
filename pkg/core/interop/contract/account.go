@@ -3,6 +3,7 @@ package contract
 import (
 	"crypto/elliptic"
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -29,22 +30,21 @@ func CreateMultisigAccount(ic *interop.Context) error {
 		return errors.New("m is out of int32 range")
 	}
 	arr := ic.VM.Estack().Pop().Array()
-	pubs := make(keys.PublicKeys, len(arr))
+	rawPubs := make([][]byte, len(arr))
 	for i, pk := range arr {
-		p, err := keys.NewPublicKeyFromBytes(pk.Value().([]byte), elliptic.P256())
-		if err != nil {
-			return err
-		}
-		pubs[i] = p
+		rawPubs[i] = pk.Value().([]byte)
+	}
+	if m64 < 1 || m64 > int64(len(rawPubs)) || len(rawPubs) > smartcontract.MaxMultiSigRedeemScriptKeys {
+		return fmt.Errorf("invalid multisig parameters: m=%d, public keys count=%d", m64, len(rawPubs))
 	}
 	if ic.IsHardforkEnabled(config.HFHuyao) {
-		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * CreateMultisigAccountPricePerKey * int64(len(pubs))); err != nil {
+		if err := ic.VM.AddFemtoGas(ic.BaseExecFee() * CreateMultisigAccountPricePerKey * int64(len(rawPubs))); err != nil {
 			return err
 		}
 	} else {
 		var invokeFee int64
 		if ic.IsHardforkEnabled(config.HFAspidochelone) {
-			invokeFee = fee.ECDSAVerifyPrice * int64(len(pubs))
+			invokeFee = fee.ECDSAVerifyPrice * int64(len(rawPubs))
 		} else {
 			invokeFee = 1 << 8
 		}
@@ -52,6 +52,14 @@ func CreateMultisigAccount(ic *interop.Context) error {
 		if err := ic.VM.AddPicoGas(invokeFee); err != nil {
 			return err
 		}
+	}
+	pubs := make(keys.PublicKeys, len(rawPubs))
+	for i, b := range rawPubs {
+		p, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+		if err != nil {
+			return err
+		}
+		pubs[i] = p
 	}
 	script, err := smartcontract.CreateMultiSigRedeemScript(int(m64), pubs)
 	if err != nil {

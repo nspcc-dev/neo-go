@@ -3,12 +3,15 @@ package contract_test
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -23,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -107,7 +111,7 @@ func TestCreateMultisigAccount(t *testing.T) {
 		pk, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 		script := createScript(t, []any{pk.PublicKey().Bytes()}, 2)
-		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "length of the signatures (2) is higher then the number of public keys")
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "invalid multisig parameters: m=2, public keys count=1")
 	})
 	t.Run("m overflows int32", func(t *testing.T) {
 		pk, err := keys.NewPrivateKey()
@@ -145,12 +149,102 @@ func TestCreateMultisigAccount(t *testing.T) {
 		}
 		gasBefore := ic.VM.GasConsumed()
 
-		require.ErrorContains(t, ic.VM.Run(), "param m cannot be smaller than 1")
+		require.ErrorContains(t, ic.VM.Run(), "invalid multisig parameters: m=-1, public keys count=1")
 		require.True(t, ic.VM.HasFailed())
-		// The interop charges for the key before rejecting m.
-		expectedGas := vm.PicoGasToDatoshiInt64(fee.ECDSAVerifyPrice * ic.BaseExecFee())
-		require.Equal(t, expectedGas, ic.VM.GasConsumed()-gasBefore)
+		require.Zero(t, ic.VM.GasConsumed()-gasBefore)
 	})
+	t.Run("parameters are checked before decoding keys", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			m    int
+			n    int
+		}{
+			{"zero m", 0, 1},
+			{"too many keys", 1, smartcontract.MaxMultiSigRedeemScriptKeys + 1},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+				require.NoError(t, err)
+				defer ic.Finalize()
+				ic.VM.Estack().PushVal(stackitem.NewArray(slices.Repeat([]stackitem.Item{stackitem.NewByteArray([]byte{0})}, tc.n)))
+				ic.VM.Estack().PushVal(tc.m)
+				require.EqualError(t, contract.CreateMultisigAccount(ic), fmt.Sprintf("invalid multisig parameters: m=%d, public keys count=%d", tc.m, tc.n))
+				require.Zero(t, ic.VM.GasConsumed())
+			})
+		}
+	})
+	t.Run("too many valid keys", func(t *testing.T) {
+		pk, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		script := createScript(t, slices.Repeat([]any{pk.PublicKey().Bytes()}, smartcontract.MaxMultiSigRedeemScriptKeys+1), 1)
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "invalid multisig parameters: m=1, public keys count=1025")
+	})
+	t.Run("fee is charged before decoding keys", func(t *testing.T) {
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
+		defer ic.Finalize()
+		ic.VM.SetGasLimit(0)
+		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{0})}))
+		ic.VM.Estack().PushVal(1)
+		require.ErrorIs(t, contract.CreateMultisigAccount(ic), vm.ErrGASLimitExceeded)
+	})
+}
+
+func TestCreateMultisigAccount_GasConsumed(t *testing.T) {
+	pub := make([]byte, smartcontract.PublicKeyLen)
+
+	emitScript := func(t *testing.T, pubKeys []any, m int) ([]byte, int) {
+		w := io.NewBufBinWriter()
+		emit.Array(w.BinWriter, pubKeys...)
+		emit.Int(w.BinWriter, int64(m))
+		syscallOffset := w.Len()
+		emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
+		require.NoError(t, w.Err)
+		return w.Bytes(), syscallOffset
+	}
+
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	for _, tc := range []struct {
+		name    string
+		pubKeys []any
+		m       int
+		err     string
+	}{
+		{
+			name:    "m < 1",
+			pubKeys: []any{pub},
+			m:       0,
+			err:     "invalid multisig parameters: m=0, public keys count=1",
+		},
+		{
+			name:    "m > n",
+			pubKeys: []any{pub},
+			m:       2,
+			err:     "invalid multisig parameters: m=2, public keys count=1",
+		},
+		{
+			name:    "too many keys",
+			pubKeys: slices.Repeat([]any{pub}, smartcontract.MaxMultiSigRedeemScriptKeys+1),
+			m:       1,
+			err:     "invalid multisig parameters: m=1, public keys count=1025",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			script, syscallOffset := emitScript(t, tc.pubKeys, tc.m)
+			baseFee := bc.GetBaseExecFee()
+			var expected int64
+			ctx := vm.NewContext(script)
+			for ctx.NextIP() < syscallOffset {
+				op, _, err := ctx.Next()
+				require.NoError(t, err)
+				expected += fee.Opcode(baseFee, op)
+			}
+			h := e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, tc.err)
+			require.Equal(t, vm.PicoGasToDatoshiInt64(expected), e.GetTxExecResult(t, h).GasConsumed)
+		})
+	}
 }
 
 func TestCreateAccount_HFAspidochelone(t *testing.T) {
