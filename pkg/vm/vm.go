@@ -477,19 +477,11 @@ func (v *VM) RemoveBreakPoint(n int) {
 	})
 }
 
-// AddBreakPointRel adds a breakpoint n instructions ahead of the current
-// instruction pointer. Instructions are not fixed-size (INITSLOT, JMP,
-// SYSCALL and PUSHDATA all carry operands), so the target offset is computed
-// by parsing the script instead of advancing the pointer by n bytes.
+// AddBreakPointRel adds a breakpoint relative to the current
+// instruction pointer.
 func (v *VM) AddBreakPointRel(n int) {
 	ctx := v.Context()
-	sc := scparser.NewContext(ctx.Program(), ctx.NextIP())
-	for i := 0; i < n; i++ {
-		if _, _, err := sc.Next(); err != nil {
-			break
-		}
-	}
-	v.AddBreakPoint(sc.NextIP())
+	v.AddBreakPoint(ctx.NextIP() + n)
 }
 
 // LoadFileWithFlags loads a program in NEF format from the given path, ready to execute it.
@@ -795,6 +787,34 @@ func (v *VM) StepOver() error {
 	}
 
 	return err
+}
+
+// StepInstructions executes up to n instructions one by one, entering called
+// functions, and stops earlier if a breakpoint is reached or the VM stops.
+// The VM is left in the break state unless it has stopped.
+func (v *VM) StepInstructions(n int) error {
+	if v.HasStopped() {
+		return nil
+	}
+	if v.state == vmstate.Break {
+		v.state = vmstate.None
+	}
+	for range n {
+		ctx := v.Context()
+		if ctx == nil || ctx.NextIP() >= ctx.LenInstr() {
+			break
+		}
+		if err := v.StepInto(); err != nil {
+			return err
+		}
+		if v.state != vmstate.None {
+			break
+		}
+	}
+	if v.state == vmstate.None {
+		v.state = vmstate.Break
+	}
+	return nil
 }
 
 // HasFailed returns whether the VM is in the failed state now. Usually, it's used to
