@@ -1380,6 +1380,9 @@ func (bc *Blockchain) Run() {
 	bc.isRunning.Store(true)
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
+		if bc.config.MempoolSubscriptionsEnabled {
+			bc.memPool.StopSubscriptions()
+		}
 		if _, err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
@@ -1856,9 +1859,6 @@ func (bc *Blockchain) Close() {
 	close(bc.stopCh)
 	<-bc.runToExitCh
 	bc.addLock.Unlock()
-	if bc.config.MempoolSubscriptionsEnabled {
-		bc.memPool.StopSubscriptions()
-	}
 	_ = bc.log.Sync()
 }
 
