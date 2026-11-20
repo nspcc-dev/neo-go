@@ -227,9 +227,10 @@ func (e *Executor) PrepareInvocationNoSign(t testing.TB, script []byte, validUnt
 
 // InvokeScriptCheckHALT adds a transaction with the specified script to the chain
 // and checks if it's HALTed with the specified items on stack.
-func (e *Executor) InvokeScriptCheckHALT(t testing.TB, script []byte, signers []Signer, stack ...stackitem.Item) {
+func (e *Executor) InvokeScriptCheckHALT(t testing.TB, script []byte, signers []Signer, stack ...stackitem.Item) util.Uint256 {
 	hash := e.InvokeScript(t, script, signers)
 	e.CheckHalt(t, hash, stack...)
+	return hash
 }
 
 // InvokeScriptCheckFAULT adds a transaction with the specified script to the
