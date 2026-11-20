@@ -789,6 +789,34 @@ func (v *VM) StepOver() error {
 	return err
 }
 
+// StepInstructions executes up to n instructions one by one, entering called
+// functions, and stops earlier if a breakpoint is reached or the VM stops.
+// The VM is left in the break state unless it has stopped.
+func (v *VM) StepInstructions(n int) error {
+	if v.HasStopped() {
+		return nil
+	}
+	if v.state == vmstate.Break {
+		v.state = vmstate.None
+	}
+	for range n {
+		ctx := v.Context()
+		if ctx == nil || ctx.NextIP() >= ctx.LenInstr() {
+			break
+		}
+		if err := v.StepInto(); err != nil {
+			return err
+		}
+		if v.state != vmstate.None {
+			break
+		}
+	}
+	if v.state == vmstate.None {
+		v.state = vmstate.Break
+	}
+	return nil
+}
+
 // HasFailed returns whether the VM is in the failed state now. Usually, it's used to
 // check status after Run.
 func (v *VM) HasFailed() bool {

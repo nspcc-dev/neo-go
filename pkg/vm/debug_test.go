@@ -43,6 +43,64 @@ func TestVM_Debug(t *testing.T) {
 	})
 }
 
+func TestVM_StepInstructions(t *testing.T) {
+	// Script under test:
+	//   0: INITSLOT 1,0
+	//   3: PUSH10
+	//   4: STLOC0
+	//   5: JMP +6      -> 11
+	//   7: LDLOC0
+	//   8: PUSH1
+	//   9: SUB
+	//  10: STLOC0
+	//  11: LDLOC0
+	//  12: PUSH0
+	//  13: GT
+	//  14: JMPIF -7    -> 11
+	//  16: LDLOC0
+	//  17: RET
+	prog := makeProgram(opcode.INITSLOT, 1, 0, opcode.PUSH10, opcode.STLOC0,
+		opcode.JMP, 6,
+		opcode.LDLOC0, opcode.PUSH1, opcode.SUB, opcode.STLOC0,
+		opcode.LDLOC0, opcode.PUSH0, opcode.GT, opcode.JMPIF, 0xf9,
+		opcode.LDLOC0)
+
+	t.Run("variable length instruction", func(t *testing.T) {
+		v := load(prog)
+		require.NoError(t, v.StepInstructions(1))
+		require.Equal(t, 3, v.Context().NextIP()) // INITSLOT occupies bytes 0..2
+		require.True(t, v.AtBreakpoint())
+	})
+	t.Run("counts executed instructions", func(t *testing.T) {
+		v := load(prog)
+		require.NoError(t, v.StepInstructions(3))
+		require.Equal(t, 5, v.Context().NextIP()) // INITSLOT, PUSH10, STLOC0
+		require.NoError(t, v.StepInstructions(3))
+		require.Equal(t, 13, v.Context().NextIP()) // JMP, LDLOC0, PUSH0
+	})
+	t.Run("jump is followed", func(t *testing.T) {
+		v := load(prog)
+		require.NoError(t, v.StepInstructions(4))
+		require.Equal(t, 11, v.Context().NextIP()) // the JMP skips bytes 7..10
+		require.True(t, v.AtBreakpoint())
+	})
+	t.Run("breakpoint stops the loop", func(t *testing.T) {
+		v := load(prog)
+		v.AddBreakPoint(11)
+		require.NoError(t, v.StepInstructions(10))
+		require.Equal(t, 11, v.Context().NextIP())
+		require.True(t, v.AtBreakpoint())
+	})
+	t.Run("stopped VM is not stepped", func(t *testing.T) {
+		v := load(prog)
+		require.NoError(t, v.Run())
+		require.True(t, v.HasHalted())
+		require.NoError(t, v.StepInstructions(3))
+		require.True(t, v.HasHalted())
+		require.Nil(t, v.Context())
+	})
+}
+
 func TestContext_BreakPoints(t *testing.T) {
 	prog := makeProgram(opcode.CALL, 3, opcode.RET,
 		opcode.PUSH2, opcode.PUSH3, opcode.ADD, opcode.RET)
