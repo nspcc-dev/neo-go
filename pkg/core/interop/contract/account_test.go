@@ -235,6 +235,52 @@ func TestCreateMultisigAccount_GasConsumed(t *testing.T) {
 			err:      "invalid multisig parameters: m=1, public keys count=1025",
 			expected: 307_500,
 		},
+		{
+			name: "Buffer key",
+			emitKeys: func(w *io.BinWriter) {
+				emit.Bytes(w, []byte{1})
+				emit.Instruction(w, opcode.CONVERT, []byte{byte(stackitem.BufferT)})
+				emit.Opcodes(w, opcode.PUSH1, opcode.PACK)
+			},
+			m:        1,
+			err:      "failed to convert public key from bytes: invalid prefix 1",
+			expected: 1_290_540,
+		},
+		{
+			name:     "Integer key",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, 1) },
+			m:        1,
+			err:      "failed to convert public key from bytes: invalid prefix 1",
+			expected: 1_044_570,
+		},
+		{
+			name:     "zero Integer key",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, 0) },
+			m:        1,
+			err:      "failed to convert public key from bytes: EOF",
+			expected: 1_044_570,
+		},
+		{
+			name:     "Boolean key",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, true) },
+			m:        1,
+			err:      "failed to convert public key from bytes: invalid prefix 1",
+			expected: 1_044_570,
+		},
+		{
+			name:     "Null key",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, nil) },
+			m:        1,
+			err:      "failed to retrieve public key bytes: invalid conversion: Null/ByteString",
+			expected: 61_530,
+		},
+		{
+			name:     "Array key",
+			emitKeys: func(w *io.BinWriter) { emit.Opcodes(w, opcode.NEWARRAY0, opcode.PUSH1, opcode.PACK) },
+			m:        1,
+			err:      "failed to retrieve public key bytes: invalid conversion: Array/ByteString",
+			expected: 61_980,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			script := emitScript(t, tc.emitKeys, tc.m)
