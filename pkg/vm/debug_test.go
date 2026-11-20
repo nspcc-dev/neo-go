@@ -43,6 +43,20 @@ func TestVM_Debug(t *testing.T) {
 	})
 }
 
+func TestVM_AddBreakPointRel(t *testing.T) {
+	// INITSLOT carries two operand bytes, so an instruction-relative
+	// breakpoint must decode the script instead of adding the count to the
+	// instruction pointer as a byte offset.
+	prog := makeProgram(opcode.INITSLOT, 1, 0, opcode.PUSH10, opcode.STLOC0)
+	v := load(prog)
+	v.AddBreakPointRel(1)
+	require.NoError(t, v.Run())
+	require.Equal(t, 3, v.Context().NextIP()) // INITSLOT occupies bytes 0..2
+	v.AddBreakPointRel(2)
+	require.NoError(t, v.Run())
+	require.Equal(t, 5, v.Context().NextIP()) // PUSH10, STLOC0
+}
+
 func TestContext_BreakPoints(t *testing.T) {
 	prog := makeProgram(opcode.CALL, 3, opcode.RET,
 		opcode.PUSH2, opcode.PUSH3, opcode.ADD, opcode.RET)

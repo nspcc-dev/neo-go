@@ -876,7 +876,7 @@ func TestDumpSSlot(t *testing.T) {
 	e.runProg(t,
 		"loadhex "+hex.EncodeToString(w.Bytes()),
 		"break 5",
-		"step", "sslot",
+		"cont", "sslot",
 		"cont", "estack",
 	)
 	e.checkNextLine(t, "READY: loaded 6 instructions")
@@ -937,6 +937,23 @@ func TestStep(t *testing.T) {
 	e.checkNextLine(t, "instruction pointer at 3.*PUSH3")
 	e.checkNextLine(t, "execution has finished")
 	e.checkNextLine(t, "execution has finished")
+}
+
+func TestStepInstructionsWithVariableLength(t *testing.T) {
+	// INITSLOT takes two operand bytes, so "step n" must run n instructions
+	// instead of treating n as a byte offset from the current one (issue #3676).
+	script := "5701001a70220668119f706810b724f96840"
+	e := newTestVMCLI(t)
+	e.runProg(t,
+		"loadhex "+script,
+		"step", "ip",
+		"step 2", "ip")
+
+	e.checkNextLine(t, "READY: loaded 18 instructions")
+	e.checkNextLine(t, "at breakpoint 3.*PUSH10")
+	e.checkNextLine(t, "instruction pointer at 3.*PUSH10")
+	e.checkNextLine(t, "at breakpoint 5.*JMP")
+	e.checkNextLine(t, "instruction pointer at 5.*JMP")
 }
 
 func TestErrorOnStepInto(t *testing.T) {
