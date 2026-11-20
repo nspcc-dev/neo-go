@@ -47,6 +47,7 @@ ProtocolConfiguration:
     Echidna: 7300000
     Faun: 8800000
     Gorgon: 12020000
+    Huyao: 15734000
 
 ApplicationConfiguration:
   SkipBlockVerification: false
