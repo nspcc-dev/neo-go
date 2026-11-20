@@ -70,7 +70,7 @@ func TestLedger_GetTransactionState(t *testing.T) {
 		ledgerInvoker.Invoke(t, vmstate.None, "getTransactionVMState", hash)
 	})
 	t.Run("good: FAULT", func(t *testing.T) {
-		faultedH := e.InvokeScript(t, []byte{byte(opcode.ABORT)}, []neotest.Signer{c.Committee})
+		faultedH := e.InvokeScriptCheckFAULT(t, []byte{byte(opcode.ABORT)}, []neotest.Signer{c.Committee}, "ABORT")
 		ledgerInvoker.Invoke(t, vmstate.Fault, "getTransactionVMState", faultedH)
 	})
 }

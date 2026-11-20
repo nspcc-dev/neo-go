@@ -684,8 +684,7 @@ func TestPolicy_GetWhitelistFeeContracts_GasConsumed(t *testing.T) {
 	emit.Opcodes(w.BinWriter, opcode.NOT, opcode.ASSERT, opcode.RET)
 	require.NoError(t, w.Err)
 
-	h := p.InvokeScript(t, w.Bytes(), p.Signers)
-	e.CheckHalt(t, h, stackitem.NewStruct([]stackitem.Item{
+	h := p.InvokeScriptCheckHALT(t, w.Bytes(), p.Signers, stackitem.NewStruct([]stackitem.Item{
 		stackitem.Make(nativehashes.StdLib),
 		stackitem.Make("hexEncode"),
 		stackitem.Make(1),

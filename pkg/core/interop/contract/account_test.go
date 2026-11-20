@@ -89,8 +89,7 @@ func TestCreateMultisigAccount(t *testing.T) {
 		}
 		script := createScript(t, arr, m)
 
-		txH := e.InvokeScript(t, script, []neotest.Signer{acc})
-		e.CheckHalt(t, txH)
+		txH := e.InvokeScriptCheckHALT(t, script, []neotest.Signer{acc})
 		res := e.GetTxExecResult(t, txH)
 		value := res.Stack[0].Value().([]byte)
 		u, err := util.Uint160DecodeBytesBE(value)
