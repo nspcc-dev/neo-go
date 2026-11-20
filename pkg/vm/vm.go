@@ -477,11 +477,19 @@ func (v *VM) RemoveBreakPoint(n int) {
 	})
 }
 
-// AddBreakPointRel adds a breakpoint relative to the current
-// instruction pointer.
+// AddBreakPointRel adds a breakpoint n instructions ahead of the current
+// instruction pointer. Instructions are not fixed-size (INITSLOT, JMP,
+// SYSCALL and PUSHDATA all carry operands), so the target offset is computed
+// by parsing the script instead of advancing the pointer by n bytes.
 func (v *VM) AddBreakPointRel(n int) {
 	ctx := v.Context()
-	v.AddBreakPoint(ctx.NextIP() + n)
+	sc := scparser.NewContext(ctx.Program(), ctx.NextIP())
+	for i := 0; i < n; i++ {
+		if _, _, err := sc.Next(); err != nil {
+			break
+		}
+	}
+	v.AddBreakPoint(sc.NextIP())
 }
 
 // LoadFileWithFlags loads a program in NEF format from the given path, ready to execute it.
