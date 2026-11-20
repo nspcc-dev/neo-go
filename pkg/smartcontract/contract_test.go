@@ -1,6 +1,7 @@
 package smartcontract
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -34,6 +35,9 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
 	assert.Equal(t, opcode.SYSCALL, opcode.Opcode(br.ReadB()))
 	assert.Equal(t, interopnames.ToID([]byte(interopnames.SystemCryptoCheckMultisig)), br.ReadU32LE())
+
+	_, err = CreateMultiSigRedeemScript(1, slices.Repeat(keys.PublicKeys{val1}, 1025))
+	require.ErrorContains(t, err, "public key count 1025 exceeds maximum of length 1024")
 }
 
 func TestCreateDefaultMultiSigRedeemScript(t *testing.T) {

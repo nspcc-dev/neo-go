@@ -6,15 +6,13 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 const (
-	// MaxMultisigKeys is the maximum number of keys allowed for correct multisig contract.
-	MaxMultisigKeys = 1024
-
 	// maxStackSize is the maximum stack size of Neo VM. It's not imported from
 	// the `vm` package to avoid cyclic dependency.
 	maxStackSize = 2 * 1024
@@ -30,7 +28,7 @@ func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
 	if err != nil {
 		return 0, false
 	}
-	if nthings < 1 || nthings > MaxMultisigKeys {
+	if nthings < 1 || nthings > smartcontract.MaxMultiSigRedeemScriptKeys {
 		return 0, false
 	}
 	return int(nthings), true
@@ -74,7 +72,7 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		}
 		pubs = append(pubs, param)
 		nkeys++
-		if nkeys > MaxMultisigKeys {
+		if nkeys > smartcontract.MaxMultiSigRedeemScriptKeys {
 			return nsigs, nil, false
 		}
 	}

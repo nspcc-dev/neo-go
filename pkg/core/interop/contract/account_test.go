@@ -3,12 +3,14 @@ package contract_test
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -23,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -107,7 +110,7 @@ func TestCreateMultisigAccount(t *testing.T) {
 		pk, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 		script := createScript(t, []any{pk.PublicKey().Bytes()}, 2)
-		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "length of the signatures (2) is higher then the number of public keys")
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "invalid multisig parameters: m=2, public keys count=1")
 	})
 	t.Run("m overflows int32", func(t *testing.T) {
 		pk, err := keys.NewPrivateKey()
@@ -145,12 +148,146 @@ func TestCreateMultisigAccount(t *testing.T) {
 		}
 		gasBefore := ic.VM.GasConsumed()
 
-		require.ErrorContains(t, ic.VM.Run(), "param m cannot be smaller than 1")
+		require.ErrorContains(t, ic.VM.Run(), "invalid multisig parameters: m=-1, public keys count=1")
 		require.True(t, ic.VM.HasFailed())
-		// The interop charges for the key before rejecting m.
-		expectedGas := vm.PicoGasToDatoshiInt64(fee.ECDSAVerifyPrice * ic.BaseExecFee())
-		require.Equal(t, expectedGas, ic.VM.GasConsumed()-gasBefore)
+		require.Zero(t, ic.VM.GasConsumed()-gasBefore)
 	})
+	t.Run("parameters are checked before decoding keys", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			m    int
+			n    int
+		}{
+			{"zero m", 0, 1},
+			{"too many keys", 1, smartcontract.MaxMultiSigRedeemScriptKeys + 1},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+				require.NoError(t, err)
+				defer ic.Finalize()
+				ic.VM.Estack().PushVal(stackitem.NewArray(slices.Repeat([]stackitem.Item{stackitem.NewByteArray([]byte{0})}, tc.n)))
+				ic.VM.Estack().PushVal(tc.m)
+				require.EqualError(t, contract.CreateMultisigAccount(ic), fmt.Sprintf("invalid multisig parameters: m=%d, public keys count=%d", tc.m, tc.n))
+				require.Zero(t, ic.VM.GasConsumed())
+			})
+		}
+	})
+	t.Run("too many valid keys", func(t *testing.T) {
+		pk, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		script := createScript(t, slices.Repeat([]any{pk.PublicKey().Bytes()}, smartcontract.MaxMultiSigRedeemScriptKeys+1), 1)
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "invalid multisig parameters: m=1, public keys count=1025")
+	})
+	t.Run("fee is charged before decoding keys", func(t *testing.T) {
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
+		defer ic.Finalize()
+		ic.VM.SetGasLimit(0)
+		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{0})}))
+		ic.VM.Estack().PushVal(1)
+		require.ErrorIs(t, contract.CreateMultisigAccount(ic), vm.ErrGASLimitExceeded)
+	})
+}
+
+func TestCreateMultisigAccount_GasConsumed(t *testing.T) {
+	pub, err := hex.DecodeString("036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296")
+	require.NoError(t, err)
+
+	emitScript := func(t *testing.T, emitKeys func(*io.BinWriter), m int) []byte {
+		w := io.NewBufBinWriter()
+		emitKeys(w.BinWriter)
+		emit.Int(w.BinWriter, int64(m))
+		emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
+		require.NoError(t, w.Err)
+		return w.Bytes()
+	}
+
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	for _, tc := range []struct {
+		name     string
+		emitKeys func(*io.BinWriter)
+		m        int
+		err      string
+		expected int64
+	}{
+		{
+			name:     "m < 1",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, pub) },
+			m:        0,
+			err:      "invalid multisig parameters: m=0, public keys count=1",
+			expected: 61_740,
+		},
+		{
+			name:     "m > n",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, pub) },
+			m:        2,
+			err:      "invalid multisig parameters: m=2, public keys count=1",
+			expected: 61_740,
+		},
+		{
+			name: "too many keys",
+			emitKeys: func(w *io.BinWriter) {
+				emit.Array(w, slices.Repeat([]any{pub}, smartcontract.MaxMultiSigRedeemScriptKeys+1)...)
+			},
+			m:        1,
+			err:      "invalid multisig parameters: m=1, public keys count=1025",
+			expected: 307_500,
+		},
+		{
+			name: "Buffer key",
+			emitKeys: func(w *io.BinWriter) {
+				emit.Bytes(w, []byte{1})
+				emit.Instruction(w, opcode.CONVERT, []byte{byte(stackitem.BufferT)})
+				emit.Opcodes(w, opcode.PUSH1, opcode.PACK)
+			},
+			m:        1,
+			err:      "failed to convert public key from bytes: invalid prefix 1",
+			expected: 1_290_540,
+		},
+		{
+			name:     "Integer key",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, 1) },
+			m:        1,
+			err:      "failed to convert public key from bytes: invalid prefix 1",
+			expected: 1_044_570,
+		},
+		{
+			name:     "zero Integer key",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, 0) },
+			m:        1,
+			err:      "failed to convert public key from bytes: EOF",
+			expected: 1_044_570,
+		},
+		{
+			name:     "Boolean key",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, true) },
+			m:        1,
+			err:      "failed to convert public key from bytes: invalid prefix 1",
+			expected: 1_044_570,
+		},
+		{
+			name:     "Null key",
+			emitKeys: func(w *io.BinWriter) { emit.Array(w, nil) },
+			m:        1,
+			err:      "failed to retrieve public key bytes: invalid conversion: Null/ByteString",
+			expected: 61_530,
+		},
+		{
+			name:     "Array key",
+			emitKeys: func(w *io.BinWriter) { emit.Opcodes(w, opcode.NEWARRAY0, opcode.PUSH1, opcode.PACK) },
+			m:        1,
+			err:      "failed to retrieve public key bytes: invalid conversion: Array/ByteString",
+			expected: 61_980,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			script := emitScript(t, tc.emitKeys, tc.m)
+			h := e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, tc.err)
+			require.Equal(t, tc.expected, e.GetTxExecResult(t, h).GasConsumed)
+		})
+	}
 }
 
 func TestCreateAccount_HFAspidochelone(t *testing.T) {
