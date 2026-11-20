@@ -451,7 +451,7 @@ func BenchmarkBurnGas(b *testing.B) {
 
 const maxSubitems = 16
 
-func getMaxManifestGroupsCount(b *testing.B, c *neotest.Contract) int {
+func getMaxManifestGroupsCount(b testing.TB, c *neotest.Contract) int {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(b, err)
 	nefBytes, err := c.NEF.Bytes()
@@ -825,7 +825,7 @@ func BenchmarkLog(b *testing.B) {
 	benchInteropLoop(b, newBenchExecutor(b), w.Bytes(), nil)
 }
 
-func getMaxManifestEventsCount(b *testing.B, c *neotest.Contract, setEvents func(m *manifest.Manifest, n int)) int {
+func getMaxManifestEventsCount(b testing.TB, c *neotest.Contract, setEvents func(m *manifest.Manifest, n int)) int {
 	nefBytes, err := c.NEF.Bytes()
 	require.NoError(b, err)
 	i := sort.Search(manifest.MaxManifestSize, func(n int) bool {
