@@ -482,7 +482,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
 	expected = expected[:0]
-	for _, h := range []util.Uint160{nativehashes.PolicyContract, nativehashes.Treasury} {
+	for _, h := range []util.Uint160{nativehashes.CryptoLib, nativehashes.PolicyContract, nativehashes.Treasury} {
 		expected = append(expected, state.NotificationEvent{
 			ScriptHash: nativehashes.ContractManagement,
 			Name:       "Update",

@@ -147,7 +147,10 @@ func newCrypto() *Crypto {
 	desc = NewDescriptor("recoverSecp256K1", smartcontract.ByteArrayType,
 		manifest.NewParameter("messageHash", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
-	md = NewMethodAndPrice(c.recoverSecp256K1, 1<<15, callflag.NoneFlag, config.HFEchidna)
+	md = NewMethodAndPrice(c.recoverSecp256K1, 1<<15, callflag.NoneFlag, config.HFEchidna, config.HFHuyao)
+	c.AddMethod(md, desc)
+
+	md = NewMethodAndPrice(c.recoverSecp256K1, 1<<15, callflag.NoneFlag, config.HFHuyao)
 	c.AddMethod(md, desc)
 	return c
 }

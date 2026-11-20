@@ -575,6 +575,27 @@ func TestCryptoLib_RecoverSecp256K1_Compat(t *testing.T) {
 		require.NoError(t, err)
 		committeeInvoker.Invoke(t, stackitem.Null{}, "recoverSecp256K1", msgH, sig)
 	}
+
+	// Check Huyao behaviour is not changed for NeoGo node wrt https://github.com/neo-project/neo/pull/4588
+	// for signature with zero S.
+	h, err := hex.DecodeString("586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862")
+	require.NoError(t, err)
+	sig, err := hex.DecodeString("4e0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c6506114000000000000000000000000000000000000000000000000000000000000000001")
+	require.NoError(t, err)
+	check := func(t *testing.T, huyaoH uint32) {
+		c := newCustomNativeClient(t, nativenames.CryptoLib, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFHuyao.String(): huyaoH,
+			}
+		})
+		c.WithSigners(c.Committee).Invoke(t, stackitem.Null{}, "recoverSecp256K1", h, sig)
+	}
+	t.Run("pre-Huyao", func(t *testing.T) {
+		check(t, 100)
+	})
+	t.Run("post-Huyao", func(t *testing.T) {
+		check(t, 0)
+	})
 }
 
 // TestCryptoLib_RecoverSecp256K1_EIP2098Compat is EIP-2098 compatibility test, ref.
