@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -116,6 +117,61 @@ func TestIsMultiSigContract(t *testing.T) {
 		prog = append(prog, 0)
 		assert.False(t, IsMultiSigContract(prog))
 	})
+}
+
+func TestParseMultiSigContractWithOpcodes(t *testing.T) {
+	pubs := make([][]byte, 16)
+	for i := range pubs {
+		priv, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		pubs[i] = priv.PublicKey().Bytes()
+	}
+	emitCount := func(w *io.BinWriter, n int, op opcode.Opcode) {
+		emit.Opcodes(w, op)
+		if op <= opcode.PUSHINT256 {
+			param := make([]byte, 1<<op)
+			param[0] = byte(n)
+			w.WriteBytes(param)
+		}
+	}
+	for _, tc := range []struct {
+		name             string
+		m, n             int
+		mOpcode, nOpcode opcode.Opcode
+	}{
+		{"small counts", 1, 2, opcode.PUSH1, opcode.PUSH2},
+		{"PUSH16", 16, 16, opcode.PUSH16, opcode.PUSH16},
+		{"PUSHINT8", 1, 2, opcode.PUSHINT8, opcode.PUSHINT8},
+		{"PUSHINT16", 1, 2, opcode.PUSHINT16, opcode.PUSHINT16},
+		{"mixed counts", 1, 2, opcode.PUSHINT8, opcode.PUSHINT16},
+		{"reversed counts", 1, 2, opcode.PUSHINT16, opcode.PUSHINT8},
+		{"PUSHINT32 and PUSHINT64", 1, 2, opcode.PUSHINT32, opcode.PUSHINT64},
+		{"PUSHINT128 and PUSHINT256", 1, 2, opcode.PUSHINT128, opcode.PUSHINT256},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := io.NewBufBinWriter()
+			emitCount(w.BinWriter, tc.m, tc.mOpcode)
+			for _, pub := range pubs[:tc.n] {
+				emit.Bytes(w.BinWriter, pub)
+			}
+			emitCount(w.BinWriter, tc.n, tc.nOpcode)
+			emit.Syscall(w.BinWriter, interopnames.SystemCryptoCheckMultisig)
+			require.NoError(t, w.Err)
+			script := w.Bytes()
+
+			contract, ok := ParseMultiSigContractWithOpcodes(script)
+			require.True(t, ok)
+			require.Equal(t, tc.m, contract.NSigs)
+			require.Equal(t, pubs[:tc.n], contract.PublicKeys)
+			require.Equal(t, tc.mOpcode, contract.MOpcode)
+			require.Equal(t, tc.nOpcode, contract.NOpcode)
+
+			m, publicKeys, ok := ParseMultiSigContract(script)
+			require.True(t, ok)
+			require.Equal(t, tc.m, m)
+			require.Equal(t, pubs[:tc.n], publicKeys)
+		})
+	}
 }
 
 func TestIsScriptCorrect(t *testing.T) {

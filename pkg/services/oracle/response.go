@@ -6,6 +6,7 @@ import (
 	gio "io"
 	"unicode/utf8"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
@@ -144,7 +145,13 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 	}
 	tx.NetworkFee += gasConsumed
 
-	netFee, sizeDelta := fee.Calculate(o.Chain.GetBaseExecFee(), tx.Scripts[1].VerificationScript)
+	netFee, sizeDelta := fee.Calculate(
+		o.Chain.GetBaseExecFee(),
+		tx.Scripts[1].VerificationScript,
+		func(hf config.Hardfork) bool {
+			return o.Chain.IsHardforkEnabled(&hf, o.Chain.BlockHeight()+1)
+		},
+	)
 	tx.NetworkFee += netFee
 	size += sizeDelta
 

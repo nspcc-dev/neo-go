@@ -1480,16 +1480,21 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 	}
 	policySuperInvoker.Invoke(t, true, "blockAccount", accs[1].PrivateKey().GetScriptHash().BytesBE())
 
-	checkErr := func(t *testing.T, expectedErr error, tx *transaction.Transaction) {
+	checkErr := func(t *testing.T, bc *core.Blockchain, expectedErr error, tx *transaction.Transaction) {
 		err := bc.VerifyTx(tx)
 		require.ErrorIs(t, err, expectedErr)
 	}
+	calculateFee := func(bc *core.Blockchain, script []byte) (int64, int) {
+		return fee.Calculate(bc.GetBaseExecFee(), script, func(hf config.Hardfork) bool {
+			return bc.IsHardforkEnabled(&hf, bc.BlockHeight()+1)
+		})
+	}
 
 	testScript := []byte{byte(opcode.PUSH1)}
-	newTestTx := func(t *testing.T, signer util.Uint160, script []byte) *transaction.Transaction {
+	newTestTx := func(t *testing.T, bc *core.Blockchain, signer util.Uint160, script []byte) *transaction.Transaction {
 		tx := transaction.New(script, 1_000_000)
 		tx.Nonce = neotest.Nonce()
-		tx.ValidUntilBlock = e.Chain.BlockHeight() + 5
+		tx.ValidUntilBlock = bc.BlockHeight() + 5
 		tx.Signers = []transaction.Signer{{
 			Account: signer,
 			Scopes:  transaction.CalledByEntry,
@@ -1501,13 +1506,13 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 
 	h := accs[0].PrivateKey().GetScriptHash()
 	t.Run("Expired", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		tx.ValidUntilBlock = 1
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-		checkErr(t, core.ErrTxExpired, tx)
+		checkErr(t, bc, core.ErrTxExpired, tx)
 	})
 	t.Run("NotYetValid", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		currH := bc.BlockHeight()
 		maxVUBInc := bc.GetMaxValidUntilBlockIncrement()
 		tx.ValidUntilBlock = currH + maxVUBInc + 1
@@ -1518,49 +1523,49 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			tx.ValidUntilBlock, currH, currH+maxVUBInc), err.Error())
 	})
 	t.Run("BlockedAccount", func(t *testing.T) {
-		tx := newTestTx(t, accs[1].PrivateKey().GetScriptHash(), testScript)
+		tx := newTestTx(t, bc, accs[1].PrivateKey().GetScriptHash(), testScript)
 		require.NoError(t, accs[1].SignTx(netmode.UnitTestNet, tx))
-		checkErr(t, core.ErrPolicy, tx)
+		checkErr(t, bc, core.ErrPolicy, tx)
 	})
 	t.Run("InsufficientGas", func(t *testing.T) {
 		balance := bc.GetUtilityTokenBalance(h, util.Uint160{})
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		tx.SystemFee = balance.Int64() + 1
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-		checkErr(t, core.ErrInsufficientFunds, tx)
+		checkErr(t, bc, core.ErrInsufficientFunds, tx)
 	})
 	t.Run("TooBigSystemFee", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		tx.SystemFee = bc.GetConfig().MaxBlockSystemFee + 1
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-		checkErr(t, core.ErrPolicy, tx)
+		checkErr(t, bc, core.ErrPolicy, tx)
 	})
 	t.Run("TooBigTx", func(t *testing.T) {
 		script := make([]byte, transaction.MaxTransactionSize)
-		tx := newTestTx(t, h, script)
+		tx := newTestTx(t, bc, h, script)
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-		checkErr(t, core.ErrTxTooBig, tx)
+		checkErr(t, bc, core.ErrTxTooBig, tx)
 	})
-	t.Run("NetworkFee", func(t *testing.T) {
+	testNetworkFee := func(t *testing.T, bc *core.Blockchain) {
 		t.Run("SmallNetworkFee", func(t *testing.T) {
-			tx := newTestTx(t, h, testScript)
+			tx := newTestTx(t, bc, h, testScript)
 			tx.NetworkFee = 1
 			require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-			checkErr(t, core.ErrTxSmallNetworkFee, tx)
+			checkErr(t, bc, core.ErrTxSmallNetworkFee, tx)
 		})
 		t.Run("AlmostEnoughNetworkFee", func(t *testing.T) {
-			tx := newTestTx(t, h, testScript)
-			verificationNetFee, calcultedScriptSize := fee.Calculate(bc.GetBaseExecFee(), accs[0].Contract.Script)
+			tx := newTestTx(t, bc, h, testScript)
+			verificationNetFee, calcultedScriptSize := calculateFee(bc, accs[0].Contract.Script)
 			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
 			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
 			tx.NetworkFee = calculatedNetFee - 1
 			require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 			require.Equal(t, expectedSize, io.GetVarSize(tx))
-			checkErr(t, core.ErrVerificationFailed, tx)
+			checkErr(t, bc, core.ErrVerificationFailed, tx)
 		})
 		t.Run("EnoughNetworkFee", func(t *testing.T) {
-			tx := newTestTx(t, h, testScript)
-			verificationNetFee, calcultedScriptSize := fee.Calculate(bc.GetBaseExecFee(), accs[0].Contract.Script)
+			tx := newTestTx(t, bc, h, testScript)
+			verificationNetFee, calcultedScriptSize := calculateFee(bc, accs[0].Contract.Script)
 			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
 			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
 			tx.NetworkFee = calculatedNetFee
@@ -1569,9 +1574,9 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			require.NoError(t, bc.VerifyTx(tx))
 		})
 		t.Run("CalculateNetworkFee, signature script", func(t *testing.T) {
-			tx := newTestTx(t, h, testScript)
+			tx := newTestTx(t, bc, h, testScript)
 			expectedSize := io.GetVarSize(tx)
-			verificationNetFee, calculatedScriptSize := fee.Calculate(bc.GetBaseExecFee(), accs[0].Contract.Script)
+			verificationNetFee, calculatedScriptSize := calculateFee(bc, accs[0].Contract.Script)
 			expectedSize += calculatedScriptSize
 			expectedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
 			tx.NetworkFee = expectedNetFee
@@ -1588,8 +1593,8 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			pKeys := keys.PublicKeys{multisigAcc.PublicKey()}
 			require.NoError(t, multisigAcc.ConvertMultisig(1, pKeys))
 			multisigHash := hash.Hash160(multisigAcc.Contract.Script)
-			tx := newTestTx(t, multisigHash, testScript)
-			verificationNetFee, calculatedScriptSize := fee.Calculate(bc.GetBaseExecFee(), multisigAcc.Contract.Script)
+			tx := newTestTx(t, bc, multisigHash, testScript)
+			verificationNetFee, calculatedScriptSize := calculateFee(bc, multisigAcc.Contract.Script)
 			expectedSize := io.GetVarSize(tx) + calculatedScriptSize
 			expectedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
 			tx.NetworkFee = expectedNetFee
@@ -1601,15 +1606,44 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			require.Equal(t, verificationNetFee, gasConsumed)
 			require.Equal(t, expectedNetFee, bc.FeePerByte()*int64(actualSize)+gasConsumed)
 		})
+	}
+	t.Run("NetworkFee", func(t *testing.T) {
+		t.Run("Echidna", func(t *testing.T) {
+			testNetworkFee(t, bc)
+		})
+		t.Run("HuyaoActivation", func(t *testing.T) {
+			var activationHeight uint32 = 3
+			bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
+				c.Hardforks = map[string]uint32{config.HFHuyao.String(): activationHeight}
+			})
+			e := neotest.NewExecutor(t, bc, validator, committee)
+			e.ValidatorInvoker(gasHash).Invoke(t, true, "transfer", validator.ScriptHash(), h, gasAmount, nil)
+
+			for _, stage := range []struct {
+				name   string
+				height uint32
+			}{
+				{name: "Before", height: activationHeight - 2},
+				{name: "Activation", height: activationHeight - 1},
+				{name: "After", height: activationHeight},
+			} {
+				t.Run(stage.name, func(t *testing.T) {
+					for bc.BlockHeight() < stage.height {
+						e.AddNewBlock(t)
+					}
+					testNetworkFee(t, bc)
+				})
+			}
+		})
 	})
 	t.Run("InvalidTxScript", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		tx.Script = append(tx.Script, 0xff)
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-		checkErr(t, core.ErrInvalidScript, tx)
+		checkErr(t, bc, core.ErrInvalidScript, tx)
 	})
 	t.Run("InvalidVerificationScript", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		verif := []byte{byte(opcode.JMP), 3, 0xff, byte(opcode.PUSHT)}
 		tx.Signers = append(tx.Signers, transaction.Signer{
 			Account: hash.Hash160(verif),
@@ -1621,10 +1655,10 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			InvocationScript:   []byte{},
 			VerificationScript: verif,
 		})
-		checkErr(t, core.ErrInvalidVerificationScript, tx)
+		checkErr(t, bc, core.ErrInvalidVerificationScript, tx)
 	})
 	t.Run("InvalidInvocationScript", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		verif := []byte{byte(opcode.PUSHT)}
 		tx.Signers = append(tx.Signers, transaction.Signer{
 			Account: hash.Hash160(verif),
@@ -1636,52 +1670,52 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.JMP), 3, 0xff},
 			VerificationScript: verif,
 		})
-		checkErr(t, core.ErrInvalidInvocationScript, tx)
+		checkErr(t, bc, core.ErrInvalidInvocationScript, tx)
 	})
 	t.Run("Conflict", func(t *testing.T) {
 		balance := bc.GetUtilityTokenBalance(h, util.Uint160{}).Int64()
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		tx.NetworkFee = balance / 2
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		require.NoError(t, bc.PoolTx(tx))
 
-		tx2 := newTestTx(t, h, testScript)
+		tx2 := newTestTx(t, bc, h, testScript)
 		tx2.NetworkFee = balance / 2
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx2))
 		err := bc.PoolTx(tx2)
 		require.ErrorIs(t, err, core.ErrMemPoolConflict)
 	})
 	t.Run("InvalidWitnessHash", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		tx.Scripts[0].VerificationScript = []byte{byte(opcode.PUSHT)}
-		checkErr(t, core.ErrWitnessHashMismatch, tx)
+		checkErr(t, bc, core.ErrWitnessHashMismatch, tx)
 	})
 	t.Run("InvalidWitnessSignature", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		tx.Scripts[0].InvocationScript[10] = ^tx.Scripts[0].InvocationScript[10]
-		checkErr(t, core.ErrVerificationFailed, tx)
+		checkErr(t, bc, core.ErrVerificationFailed, tx)
 	})
 	t.Run("InsufficientNetworkFeeForSecondWitness", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		tx.Signers = append(tx.Signers, transaction.Signer{
 			Account: accs[3].PrivateKey().GetScriptHash(),
 			Scopes:  transaction.Global,
 		})
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		require.NoError(t, accs[3].SignTx(netmode.UnitTestNet, tx))
-		checkErr(t, core.ErrVerificationFailed, tx)
+		checkErr(t, bc, core.ErrVerificationFailed, tx)
 	})
 	t.Run("OldTX", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		e.AddNewBlock(t, tx)
 
-		checkErr(t, core.ErrAlreadyExists, tx)
+		checkErr(t, bc, core.ErrAlreadyExists, tx)
 	})
 	t.Run("MemPooledTX", func(t *testing.T) {
-		tx := newTestTx(t, h, testScript)
+		tx := newTestTx(t, bc, h, testScript)
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 		require.NoError(t, bc.PoolTx(tx))
 
@@ -1690,25 +1724,25 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 	})
 	t.Run("MemPoolOOM", func(t *testing.T) {
 		mp := mempool.New(1, false, nil)
-		tx1 := newTestTx(t, h, testScript)
+		tx1 := newTestTx(t, bc, h, testScript)
 		tx1.NetworkFee += 10000 // Give it more priority.
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx1))
 		require.NoError(t, bc.PoolTx(tx1, mp))
 
-		tx2 := newTestTx(t, h, testScript)
+		tx2 := newTestTx(t, bc, h, testScript)
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx2))
 		err := bc.PoolTx(tx2, mp)
 		require.ErrorIs(t, err, core.ErrOOM)
 	})
 	t.Run("Attribute", func(t *testing.T) {
 		t.Run("InvalidHighPriority", func(t *testing.T) {
-			tx := newTestTx(t, h, testScript)
+			tx := newTestTx(t, bc, h, testScript)
 			tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.HighPriority})
 			require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-			checkErr(t, core.ErrInvalidAttribute, tx)
+			checkErr(t, bc, core.ErrInvalidAttribute, tx)
 		})
 		t.Run("ValidHighPriority", func(t *testing.T) {
-			tx := newTestTx(t, h, testScript)
+			tx := newTestTx(t, bc, h, testScript)
 			tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.HighPriority})
 			tx.NetworkFee += 4_000_000 // multisig check
 			tx.Signers = []transaction.Signer{{
@@ -1717,7 +1751,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			}}
 			rawScript := committee.Script()
 			size := io.GetVarSize(tx)
-			netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), rawScript)
+			netFee, sizeDelta := calculateFee(bc, rawScript)
 			tx.NetworkFee += netFee
 			tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
 			tx.Scripts = []transaction.Witness{{
@@ -1766,7 +1800,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 					Scopes:  transaction.None,
 				}}
 				size := io.GetVarSize(tx)
-				netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), oracleScript)
+				netFee, sizeDelta := calculateFee(bc, oracleScript)
 				tx.NetworkFee += netFee
 				tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
 				return tx
@@ -1775,7 +1809,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			t.Run("NoOracleNodes", func(t *testing.T) {
 				tx := getOracleTx(t)
 				require.NoError(t, oracleAcc.SignTx(netmode.UnitTestNet, tx))
-				checkErr(t, core.ErrInvalidAttribute, tx)
+				checkErr(t, bc, core.ErrInvalidAttribute, tx)
 			})
 
 			keys := make([]any, 0, len(oraclePubs))
@@ -1816,36 +1850,36 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				tx := getOracleTx(t)
 				tx.Attributes[0].Value.(*transaction.OracleResponse).ID = 2
 				require.NoError(t, oracleAcc.SignTx(netmode.UnitTestNet, tx))
-				checkErr(t, core.ErrInvalidAttribute, tx)
+				checkErr(t, bc, core.ErrInvalidAttribute, tx)
 			})
 			t.Run("InvalidScope", func(t *testing.T) {
 				tx := getOracleTx(t)
 				tx.Signers[0].Scopes = transaction.Global
 				require.NoError(t, oracleAcc.SignTx(netmode.UnitTestNet, tx))
-				checkErr(t, core.ErrInvalidAttribute, tx)
+				checkErr(t, bc, core.ErrInvalidAttribute, tx)
 			})
 			t.Run("InvalidScript", func(t *testing.T) {
 				tx := getOracleTx(t)
 				tx.Script = append(tx.Script, byte(opcode.NOP))
 				require.NoError(t, oracleAcc.SignTx(netmode.UnitTestNet, tx))
-				checkErr(t, core.ErrInvalidAttribute, tx)
+				checkErr(t, bc, core.ErrInvalidAttribute, tx)
 			})
 			t.Run("InvalidSigner", func(t *testing.T) {
 				tx := getOracleTx(t)
 				tx.Signers[0].Account = accs[0].Contract.ScriptHash()
 				require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-				checkErr(t, core.ErrInvalidAttribute, tx)
+				checkErr(t, bc, core.ErrInvalidAttribute, tx)
 			})
 			t.Run("SmallFee", func(t *testing.T) {
 				tx := getOracleTx(t)
 				tx.SystemFee = 0
 				require.NoError(t, oracleAcc.SignTx(netmode.UnitTestNet, tx))
-				checkErr(t, core.ErrInvalidAttribute, tx)
+				checkErr(t, bc, core.ErrInvalidAttribute, tx)
 			})
 		})
 		t.Run("NotValidBefore", func(t *testing.T) {
 			getNVBTx := func(e *neotest.Executor, height uint32) *transaction.Transaction {
-				tx := newTestTx(t, h, testScript)
+				tx := newTestTx(t, e.Chain, h, testScript)
 				tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: height}})
 				tx.NetworkFee += 4_000_000 // multisig check
 				tx.Signers = []transaction.Signer{{
@@ -1854,7 +1888,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				}}
 				size := io.GetVarSize(tx)
 				rawScript := e.Validator.Script()
-				netFee, sizeDelta := fee.Calculate(e.Chain.GetBaseExecFee(), rawScript)
+				netFee, sizeDelta := calculateFee(e.Chain, rawScript)
 				tx.NetworkFee += netFee
 				tx.NetworkFee += int64(size+sizeDelta) * e.Chain.FeePerByte()
 				tx.Scripts = []transaction.Witness{{
@@ -1885,7 +1919,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		})
 		t.Run("Reserved", func(t *testing.T) {
 			getReservedTx := func(e *neotest.Executor, attrType transaction.AttrType) *transaction.Transaction {
-				tx := newTestTx(t, h, testScript)
+				tx := newTestTx(t, e.Chain, h, testScript)
 				tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: attrType, Value: &transaction.Reserved{Value: []byte{1, 2, 3}}})
 				tx.NetworkFee += 4_000_000 // multisig check
 				tx.Signers = []transaction.Signer{{
@@ -1894,7 +1928,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				}}
 				rawScript := e.Validator.Script()
 				size := io.GetVarSize(tx)
-				netFee, sizeDelta := fee.Calculate(e.Chain.GetBaseExecFee(), rawScript)
+				netFee, sizeDelta := calculateFee(e.Chain, rawScript)
 				tx.NetworkFee += netFee
 				tx.NetworkFee += int64(size+sizeDelta) * e.Chain.FeePerByte()
 				tx.Scripts = []transaction.Witness{{
@@ -1920,7 +1954,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		})
 		t.Run("Conflicts", func(t *testing.T) {
 			getConflictsTx := func(e *neotest.Executor, hashes ...util.Uint256) *transaction.Transaction {
-				tx := newTestTx(t, h, testScript)
+				tx := newTestTx(t, e.Chain, h, testScript)
 				tx.Attributes = make([]transaction.Attribute, len(hashes))
 				for i, h := range hashes {
 					tx.Attributes[i] = transaction.Attribute{
@@ -1937,7 +1971,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				}}
 				rawScript := e.Validator.Script()
 				size := io.GetVarSize(tx)
-				netFee, sizeDelta := fee.Calculate(e.Chain.GetBaseExecFee(), rawScript)
+				netFee, sizeDelta := calculateFee(e.Chain, rawScript)
 				tx.NetworkFee += netFee
 				tx.NetworkFee += int64(size+sizeDelta) * e.Chain.FeePerByte()
 				tx.Scripts = []transaction.Witness{{
@@ -1966,7 +2000,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				})
 				t.Run("dummy on-chain conflict", func(t *testing.T) {
 					t.Run("on-chain conflict signed by malicious party", func(t *testing.T) {
-						tx := newTestTx(t, h, testScript)
+						tx := newTestTx(t, bc, h, testScript)
 						require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
 						conflicting := transaction.New([]byte{byte(opcode.RET)}, 1000_0000)
 						conflicting.ValidUntilBlock = bc.BlockHeight() + 1
@@ -1999,11 +2033,11 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						good := e.NewAccount(t)
 
 						// txGood doesn't conflict with anyone and signed by good signer.
-						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						txGood := newTestTx(t, bc, good.ScriptHash(), testScript)
 						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
 
 						// txM1 conflicts with txGood and signed by two malicious signers.
-						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1 := newTestTx(t, bc, m1.ScriptHash(), testScript)
 						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: m2.ScriptHash()})
 						txM1.Attributes = []transaction.Attribute{
 							{
@@ -2019,7 +2053,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						e.AddNewBlock(t, txM1)
 
 						// txM2 conflicts with txGood and signed by one malicious signer.
-						txM2 := newTestTx(t, m3.ScriptHash(), testScript)
+						txM2 := newTestTx(t, bc, m3.ScriptHash(), testScript)
 						txM2.Attributes = []transaction.Attribute{
 							{
 								Type: transaction.ConflictsT,
@@ -2051,11 +2085,11 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						good := e.NewAccount(t)
 
 						// txGood doesn't conflict with anyone and signed by good signer.
-						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						txGood := newTestTx(t, bc, good.ScriptHash(), testScript)
 						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
 
 						// txM1 conflicts with txGood and signed by one malicious and one good signers.
-						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1 := newTestTx(t, bc, m1.ScriptHash(), testScript)
 						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: good.ScriptHash()})
 						txM1.Attributes = []transaction.Attribute{
 							{
@@ -2071,7 +2105,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						e.AddNewBlock(t, txM1)
 
 						// txM2 conflicts with txGood and signed by two malicious signers.
-						txM2 := newTestTx(t, m2.ScriptHash(), testScript)
+						txM2 := newTestTx(t, bc, m2.ScriptHash(), testScript)
 						txM2.Signers = append(txM2.Signers, transaction.Signer{Account: m3.ScriptHash()})
 						txM2.Attributes = []transaction.Attribute{
 							{
@@ -2099,11 +2133,11 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						good := e.NewAccount(t)
 
 						// txGood doesn't conflict with anyone and signed by good signer.
-						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						txGood := newTestTx(t, bc, good.ScriptHash(), testScript)
 						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
 
 						// txM2 conflicts with txGood and signed by two malicious signers.
-						txM2 := newTestTx(t, m2.ScriptHash(), testScript)
+						txM2 := newTestTx(t, bc, m2.ScriptHash(), testScript)
 						txM2.Signers = append(txM2.Signers, transaction.Signer{Account: m3.ScriptHash()})
 						txM2.Attributes = []transaction.Attribute{
 							{
@@ -2119,7 +2153,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						e.AddNewBlock(t, txM2)
 
 						// txM1 conflicts with txGood and signed by one malicious and one good signers.
-						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1 := newTestTx(t, bc, m1.ScriptHash(), testScript)
 						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: good.ScriptHash()})
 						txM1.Attributes = []transaction.Attribute{
 							{
@@ -2147,11 +2181,11 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						good := e.NewAccount(t)
 
 						// txGood doesn't conflict with anyone and signed by good signer.
-						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						txGood := newTestTx(t, bc, good.ScriptHash(), testScript)
 						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
 
 						// txM1 conflicts with txGood and signed by one malicious and one good signers.
-						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1 := newTestTx(t, bc, m1.ScriptHash(), testScript)
 						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: good.ScriptHash()})
 						txM1.Attributes = []transaction.Attribute{
 							{
@@ -2167,7 +2201,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						e.AddNewBlock(t, txM1)
 
 						// txM2 conflicts with txGood and signed by two malicious signers.
-						txM2 := newTestTx(t, m2.ScriptHash(), testScript)
+						txM2 := newTestTx(t, bc, m2.ScriptHash(), testScript)
 						txM2.Signers = append(txM2.Signers, transaction.Signer{Account: m3.ScriptHash()})
 						txM2.Attributes = []transaction.Attribute{
 							{
@@ -2183,7 +2217,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						e.AddNewBlock(t, txM2)
 
 						// txM3 conflicts with txGood and signed by one good and one malicious signers.
-						txM3 := newTestTx(t, good.ScriptHash(), testScript)
+						txM3 := newTestTx(t, bc, good.ScriptHash(), testScript)
 						txM3.Signers = append(txM3.Signers, transaction.Signer{Account: m1.ScriptHash()})
 						txM3.Attributes = []transaction.Attribute{
 							{
@@ -2205,7 +2239,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 					})
 
 					t.Run("on-chain conflict signed by single valid sender", func(t *testing.T) {
-						tx := newTestTx(t, h, testScript)
+						tx := newTestTx(t, bc, h, testScript)
 						tx.Signers = []transaction.Signer{{Account: validator.ScriptHash()}}
 						require.NoError(t, validator.SignTx(netmode.UnitTestNet, tx))
 						conflicting := transaction.New([]byte{byte(opcode.RET)}, 1000_0000)
@@ -2261,7 +2295,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			}}
 
 			getNotaryAssistedTx := func(e *neotest.Executor, signaturesCount uint8, serviceFee int64, attrs ...transaction.Attribute) *transaction.Transaction {
-				tx := newTestTx(t, h, testScript)
+				tx := newTestTx(t, e.Chain, h, testScript)
 				tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{
 					NKeys: signaturesCount,
 				}})
@@ -2279,7 +2313,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				}
 				rawScript := committee.Script()
 				size := io.GetVarSize(tx)
-				netFee, sizeDelta := fee.Calculate(e.Chain.GetBaseExecFee(), rawScript)
+				netFee, sizeDelta := calculateFee(e.Chain, rawScript)
 				tx.NetworkFee += netFee
 				tx.NetworkFee += int64(size+sizeDelta) * e.Chain.FeePerByte()
 				tx.Scripts = []transaction.Witness{
@@ -2454,7 +2488,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 					require.ErrorContains(t, err, "witness #1")
 				})
 				t.Run("fallback tx with Conflicts", func(t *testing.T) {
-					tx := newTestTx(t, h, testScript)
+					tx := newTestTx(t, bc, h, testScript)
 					tx.Attributes = []transaction.Attribute{
 						{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
 						{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: random.Uint256()}},
@@ -2490,7 +2524,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 	})
 	t.Run("Partially-filled transaction", func(t *testing.T) {
 		getPartiallyFilledTx := func(nvb uint32, validUntil uint32) *transaction.Transaction {
-			tx := newTestTx(t, h, testScript)
+			tx := newTestTx(t, bc, h, testScript)
 			tx.ValidUntilBlock = validUntil
 			tx.Attributes = []transaction.Attribute{
 				{
@@ -2513,7 +2547,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				},
 			}
 			size := io.GetVarSize(tx)
-			netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), validator.Script())
+			netFee, sizeDelta := calculateFee(bc, validator.Script())
 			tx.NetworkFee = netFee + // multisig witness verification price
 				int64(size)*bc.FeePerByte() + // fee for unsigned size
 				int64(sizeDelta)*bc.FeePerByte() + // fee for multisig size

@@ -3746,7 +3746,13 @@ func newTxWithParams(t *testing.T, chain *core.Blockchain, code opcode.Opcode, v
 	tx.SystemFee = systemFee
 	// add network fee
 	size := io.GetVarSize(tx)
-	netFee, sizeDelta := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script)
+	netFee, sizeDelta := fee.Calculate(
+		chain.GetBaseExecFee(),
+		acc0.Contract.Script,
+		func(hf config.Hardfork) bool {
+			return chain.IsHardforkEnabled(&hf, height+1)
+		},
+	)
 	tx.NetworkFee += netFee
 	size += sizeDelta
 	tx.NetworkFee += int64(size) * chain.FeePerByte()

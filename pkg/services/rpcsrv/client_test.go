@@ -714,7 +714,9 @@ func TestCalculateNetworkFee_Base(t *testing.T) {
 			tx.NetworkFee = actualCalculatedNetFee + extraFee
 
 			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
-			cFee, _ := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script)
+			cFee, _ := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script, func(hf config.Hardfork) bool {
+				return chain.IsHardforkEnabled(&hf, chain.BlockHeight()+1)
+			})
 			expected := int64(io.GetVarSize(tx))*feePerByte + cFee + extraFee
 
 			require.Equal(t, expected, actualCalculatedNetFee+extraFee)
@@ -780,8 +782,12 @@ func TestCalculateNetworkFee_Base(t *testing.T) {
 				InvocationScript:   testchain.Sign(tx),
 				VerificationScript: acc1.Contract.Script,
 			})
-			cFee, _ := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script)
-			cFeeM, _ := fee.Calculate(chain.GetBaseExecFee(), acc1.Contract.Script)
+			cFee, _ := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script, func(hf config.Hardfork) bool {
+				return chain.IsHardforkEnabled(&hf, chain.BlockHeight()+1)
+			})
+			cFeeM, _ := fee.Calculate(chain.GetBaseExecFee(), acc1.Contract.Script, func(hf config.Hardfork) bool {
+				return chain.IsHardforkEnabled(&hf, chain.BlockHeight()+1)
+			})
 			expected := int64(io.GetVarSize(tx))*feePerByte + cFee + cFeeM + extraFee
 
 			require.Equal(t, expected, actualCalculatedNetFee+extraFee)

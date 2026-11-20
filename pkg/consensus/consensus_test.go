@@ -639,7 +639,9 @@ func signTx(t *testing.T, bc Ledger, txs ...*transaction.Transaction) {
 	require.NoError(t, err)
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), rawScript)
+		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), rawScript, func(hf config.Hardfork) bool {
+			return bc.IsHardforkEnabled(&hf, bc.BlockHeight()+1)
+		})
 		tx.NetworkFee += +netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size)*bc.FeePerByte() + bc.CalculateAttributesFee(tx)
