@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -1083,6 +1084,138 @@ func TestBlockchain_Close(t *testing.T) {
 	// after Close().
 	require.Panics(t, func() {
 		_ = st.PutChangeSet(map[string][]byte{"0": {1}}, nil)
+	})
+}
+
+func TestBlockchain_CloseSubscriptions(t *testing.T) {
+	isClosed := func(ch <-chan struct{}) func() bool {
+		return func() bool {
+			select {
+			case <-ch:
+				return true
+			default:
+				return false
+			}
+		}
+	}
+	waitClosed := func(t *testing.T, ch <-chan struct{}, msg string) {
+		t.Helper()
+		select {
+		case <-ch:
+		case <-time.After(time.Second):
+			require.FailNow(t, msg)
+		}
+	}
+
+	t.Run("blockchain notifications", func(t *testing.T) {
+		bc, acc := chain.NewSingleWithCustomConfigAndStore(t, nil, storage.NewMemoryStore(), false)
+		e := neotest.NewExecutor(t, bc, acc, acc)
+		go bc.Run()
+
+		executionCh := make(chan *state.AppExecResult)
+		notificationCh := make(chan *state.ContainedNotificationEvent)
+		blockCh := make(chan *block.Block)
+		bc.SubscribeForExecutions(executionCh)
+		bc.SubscribeForNotifications(notificationCh)
+		bc.SubscribeForBlocks(blockCh)
+
+		generatedB := e.AddNewBlock(t)
+
+		closeDone := make(chan struct{})
+		go func() {
+			bc.Close()
+			close(closeDone)
+		}()
+
+		require.Never(t, isClosed(closeDone), 100*time.Millisecond, 10*time.Millisecond)
+
+		var (
+			execCount  int
+			notifCount int
+			gotBlock   *block.Block
+		)
+		for execCount < 2 || notifCount < 1 || gotBlock == nil {
+			select {
+			case aer := <-executionCh:
+				require.Equal(t, generatedB.Hash(), aer.Container)
+				execCount++
+			case notif := <-notificationCh:
+				require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
+				notifCount++
+			case b := <-blockCh:
+				_, err := bc.GetBlock(generatedB.Hash())
+				require.NoError(t, err)
+				gotBlock = b
+			case <-time.After(time.Second):
+				require.FailNowf(t, "timed out waiting for in-flight block events", "exec=%d, notif=%d, block=%v", execCount, notifCount, gotBlock != nil)
+			}
+		}
+		require.Equal(t, generatedB, gotBlock)
+
+		waitClosed(t, closeDone, "Close did not return after draining in-flight block events")
+
+		close(executionCh)
+		close(notificationCh)
+		close(blockCh)
+
+		postDone := make(chan struct{})
+		go func() {
+			bCh := make(chan *block.Block)
+			hCh := make(chan *block.Header)
+			txCh := make(chan *transaction.Transaction)
+			nCh := make(chan *state.ContainedNotificationEvent)
+			eCh := make(chan *state.AppExecResult)
+
+			bc.SubscribeForBlocks(bCh)
+			bc.SubscribeForHeadersOfAddedBlocks(hCh)
+			bc.SubscribeForTransactions(txCh)
+			bc.SubscribeForNotifications(nCh)
+			bc.SubscribeForExecutions(eCh)
+
+			bc.UnsubscribeFromBlocks(bCh)
+			bc.UnsubscribeFromHeadersOfAddedBlocks(hCh)
+			bc.UnsubscribeFromTransactions(txCh)
+			bc.UnsubscribeFromNotifications(nCh)
+			bc.UnsubscribeFromExecutions(eCh)
+			close(postDone)
+		}()
+		waitClosed(t, postDone, "SubscribeFor*/UnsubscribeFrom* blocked after Close")
+	})
+
+	t.Run("mempool subscriptions", func(t *testing.T) {
+		bc, acc := chain.NewSingleWithCustomConfigAndStore(t, func(c *config.Blockchain) {
+			c.MempoolSubscriptionsEnabled = true
+		}, storage.NewMemoryStore(), false)
+		e := neotest.NewExecutor(t, bc, acc, acc)
+		go bc.Run()
+		// Synchronize with bc.Run startup and ensure mempool subscriptions are active.
+		b := e.AddNewBlock(t)
+		bc.GetMemPool().RunSubscriptions()
+
+		mpCh := make(chan mempoolevent.Event)
+		bc.GetMemPool().SubscribeForTransactions(mpCh)
+
+		tx := e.NewUnsignedTx(t, e.NativeHash(t, nativenames.Gas), "transfer", acc.ScriptHash(), util.Uint160{1, 2, 3}, 1, nil)
+		e.SignTx(t, tx, -1, acc)
+		require.NoError(t, bc.PoolTx(tx))
+
+		closeDone := make(chan struct{})
+		go func() {
+			bc.Close()
+			close(closeDone)
+		}()
+
+		require.Never(t, isClosed(closeDone), 100*time.Millisecond, 10*time.Millisecond)
+
+		// Storage must still be open while mempool notification dispatcher finishes.
+		_, err := bc.GetBlock(b.Hash())
+		require.NoError(t, err)
+
+		ev := <-mpCh
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: tx}, ev)
+
+		waitClosed(t, closeDone, "Close did not return after draining in-flight mempool event")
+		close(mpCh)
 	})
 }
 

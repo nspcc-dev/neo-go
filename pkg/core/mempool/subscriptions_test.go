@@ -92,4 +92,75 @@ func TestSubscriptions(t *testing.T) {
 		require.Equal(t, 0, len(subChan1))
 		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[3]}, event2)
 	})
+
+	t.Run("stop waits for in-flight event", func(t *testing.T) {
+		fs := &FeerStub{balance: 100}
+		mp := New(5, true, nil)
+
+		// StopSubscriptions before RunSubscriptions must be a no-op.
+		mp.StopSubscriptions()
+
+		mp.RunSubscriptions()
+		subCh := make(chan mempoolevent.Event)
+		mp.SubscribeForTransactions(subCh)
+
+		newTx := func(nonce uint32) *transaction.Transaction {
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+			tx.Nonce = nonce
+			tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+			return tx
+		}
+
+		tx := newTx(0)
+		require.NoError(t, mp.Add(tx, fs))
+
+		stopDone := make(chan struct{})
+		go func() {
+			mp.StopSubscriptions()
+			close(stopDone)
+		}()
+
+		require.Never(t, func() bool {
+			select {
+			case <-stopDone:
+				return true
+			default:
+				return false
+			}
+		}, 100*time.Millisecond, 10*time.Millisecond)
+
+		ev := <-subCh
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: tx}, ev)
+
+		select {
+		case <-stopDone:
+		case <-time.After(time.Second):
+			require.FailNow(t, "StopSubscriptions did not return after draining in-flight event")
+		}
+		close(subCh)
+
+		// Post-stop operations must not block.
+		postDone := make(chan struct{})
+		go func() {
+			otherCh := make(chan mempoolevent.Event)
+			mp.SubscribeForTransactions(otherCh)
+			mp.UnsubscribeFromTransactions(otherCh)
+			mp.StopSubscriptions()
+
+			tx2 := newTx(1)
+			require.NoError(t, mp.Add(tx2, fs))
+			mp.Remove(tx2.Hash())
+
+			tx3 := newTx(2)
+			require.NoError(t, mp.Add(tx3, fs))
+			mp.RemoveStale(func(*transaction.Transaction) bool { return false }, fs)
+			require.Zero(t, mp.Count())
+			close(postDone)
+		}()
+		select {
+		case <-postDone:
+		case <-time.After(time.Second):
+			require.FailNow(t, "mempool operations blocked after StopSubscriptions")
+		}
+	})
 }
