@@ -195,8 +195,9 @@ type Blockchain struct {
 	gcLastUntraceableBlockHeight uint32
 
 	// Stop synchronization mechanisms.
-	stopCh      chan struct{}
-	runToExitCh chan struct{}
+	stopCh                         chan struct{}
+	runToExitCh                    chan struct{}
+	notificationDispatcherToExitCh chan struct{}
 	// isRunning denotes whether blockchain routines are currently running.
 	isRunning atomic.Value
 
@@ -417,18 +418,19 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger, newN
 	}
 
 	bc := &Blockchain{
-		config:      cfg,
-		dao:         dao.NewSimple(s, cfg.StateRootInHeader),
-		persistent:  dao.NewSimple(s, cfg.StateRootInHeader),
-		store:       s,
-		stopCh:      make(chan struct{}),
-		runToExitCh: make(chan struct{}),
-		memPool:     mempool.New(cfg.MemPoolSize, cfg.MempoolSubscriptionsEnabled, updateMempoolMetrics),
-		log:         log,
-		events:      make(chan bcEvent),
-		subCh:       make(chan any),
-		unsubCh:     make(chan any),
-		contracts:   native.NewContracts(natives),
+		config:                         cfg,
+		dao:                            dao.NewSimple(s, cfg.StateRootInHeader),
+		persistent:                     dao.NewSimple(s, cfg.StateRootInHeader),
+		store:                          s,
+		stopCh:                         make(chan struct{}),
+		runToExitCh:                    make(chan struct{}),
+		notificationDispatcherToExitCh: make(chan struct{}),
+		memPool:                        mempool.New(cfg.MemPoolSize, cfg.MempoolSubscriptionsEnabled, updateMempoolMetrics),
+		log:                            log,
+		events:                         make(chan bcEvent),
+		subCh:                          make(chan any),
+		unsubCh:                        make(chan any),
+		contracts:                      native.NewContracts(natives),
 	}
 	bc.management = bc.contracts.Management()
 	if bc.management == native.IManagement(nil) {
@@ -1380,6 +1382,7 @@ func (bc *Blockchain) Run() {
 	bc.isRunning.Store(true)
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
+		<-bc.notificationDispatcherToExitCh
 		if bc.config.MempoolSubscriptionsEnabled {
 			bc.memPool.StopSubscriptions()
 		}
@@ -1735,6 +1738,7 @@ func (bc *Blockchain) removeUntraceableBlocks(newPeriod, tgtHeight uint32) time.
 
 // notificationDispatcher manages subscription to events and broadcasts new events.
 func (bc *Blockchain) notificationDispatcher() {
+	defer close(bc.notificationDispatcherToExitCh)
 	var (
 		// These are just sets of subscribers, though modelled as maps
 		// for ease of management (not a lot of subscriptions is really
@@ -1850,7 +1854,8 @@ func (bc *Blockchain) notificationDispatcher() {
 	}
 }
 
-// Close stops Blockchain's internal loop, syncs changes to persistent storage
+// Close stops Blockchain's internal loops, waits for notification dispatchers
+// to finish in-flight events processing, syncs changes to persistent storage
 // and closes it. The Blockchain is no longer functional after the call to Close.
 func (bc *Blockchain) Close() {
 	// If there is a block addition in progress, wait for it to finish and
@@ -2740,13 +2745,34 @@ func (bc *Blockchain) GetConfig() config.Blockchain {
 	return bc.config
 }
 
+// subscribe is an internal representation of SubscribeFor* methods.
+func (bc *Blockchain) subscribe(ch any) {
+	select {
+	case bc.subCh <- ch:
+	case <-bc.stopCh:
+	}
+}
+
+// unsubscribe is an internal representation of UnsubscribeFrom* methods.
+func unsubscribe[T any](bc *Blockchain, ch chan T) {
+	for {
+		select {
+		case <-ch:
+		case bc.unsubCh <- ch:
+			return
+		case <-bc.stopCh:
+			return
+		}
+	}
+}
+
 // SubscribeForBlocks adds given channel to new block event broadcasting, so when
 // there is a new block added to the chain you'll receive it via this channel.
 // Make sure it's read from regularly as not reading these events might affect
 // other Blockchain functions. Make sure you're not changing the received blocks,
 // as it may affect the functionality of Blockchain and other subscribers.
 func (bc *Blockchain) SubscribeForBlocks(ch chan *block.Block) {
-	bc.subCh <- ch
+	bc.subscribe(ch)
 }
 
 // SubscribeForHeadersOfAddedBlocks adds given channel to new header event broadcasting, so
@@ -2756,7 +2782,7 @@ func (bc *Blockchain) SubscribeForBlocks(ch chan *block.Block) {
 // headers, as it may affect the functionality of Blockchain and other
 // subscribers.
 func (bc *Blockchain) SubscribeForHeadersOfAddedBlocks(ch chan *block.Header) {
-	bc.subCh <- ch
+	bc.subscribe(ch)
 }
 
 // SubscribeForTransactions adds given channel to new transaction event
@@ -2766,7 +2792,7 @@ func (bc *Blockchain) SubscribeForHeadersOfAddedBlocks(ch chan *block.Header) {
 // you're not changing the received transactions, as it may affect the
 // functionality of Blockchain and other subscribers.
 func (bc *Blockchain) SubscribeForTransactions(ch chan *transaction.Transaction) {
-	bc.subCh <- ch
+	bc.subscribe(ch)
 }
 
 // SubscribeForNotifications adds given channel to new notifications event
@@ -2778,7 +2804,7 @@ func (bc *Blockchain) SubscribeForTransactions(ch chan *transaction.Transaction)
 // functions. Make sure you're not changing the received notification events, as
 // it may affect the functionality of Blockchain and other subscribers.
 func (bc *Blockchain) SubscribeForNotifications(ch chan *state.ContainedNotificationEvent) {
-	bc.subCh <- ch
+	bc.subscribe(ch)
 }
 
 // SubscribeForExecutions adds given channel to new transaction execution event
@@ -2788,21 +2814,14 @@ func (bc *Blockchain) SubscribeForNotifications(ch chan *state.ContainedNotifica
 // not changing the received execution results, as it may affect the
 // functionality of Blockchain and other subscribers.
 func (bc *Blockchain) SubscribeForExecutions(ch chan *state.AppExecResult) {
-	bc.subCh <- ch
+	bc.subscribe(ch)
 }
 
 // UnsubscribeFromBlocks unsubscribes given channel from new block notifications,
 // you can close it afterwards. Passing non-subscribed channel is a no-op, but
 // the method can read from this channel (discarding any read data).
 func (bc *Blockchain) UnsubscribeFromBlocks(ch chan *block.Block) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+	unsubscribe(bc, ch)
 }
 
 // UnsubscribeFromHeadersOfAddedBlocks unsubscribes given channel from new
@@ -2810,28 +2829,14 @@ unsubloop:
 // non-subscribed channel is a no-op, but the method can read from this
 // channel (discarding any read data).
 func (bc *Blockchain) UnsubscribeFromHeadersOfAddedBlocks(ch chan *block.Header) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+	unsubscribe(bc, ch)
 }
 
 // UnsubscribeFromTransactions unsubscribes given channel from new transaction
 // notifications, you can close it afterwards. Passing non-subscribed channel is
 // a no-op, but the method can read from this channel (discarding any read data).
 func (bc *Blockchain) UnsubscribeFromTransactions(ch chan *transaction.Transaction) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+	unsubscribe(bc, ch)
 }
 
 // UnsubscribeFromNotifications unsubscribes given channel from new
@@ -2839,28 +2844,14 @@ unsubloop:
 // non-subscribed channel is a no-op, but the method can read from this channel
 // (discarding any read data).
 func (bc *Blockchain) UnsubscribeFromNotifications(ch chan *state.ContainedNotificationEvent) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+	unsubscribe(bc, ch)
 }
 
 // UnsubscribeFromExecutions unsubscribes given channel from new execution
 // notifications, you can close it afterwards. Passing non-subscribed channel is
 // a no-op, but the method can read from this channel (discarding any read data).
 func (bc *Blockchain) UnsubscribeFromExecutions(ch chan *state.AppExecResult) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+	unsubscribe(bc, ch)
 }
 
 // CalculateClaimable calculates the amount of GAS generated by owning specified

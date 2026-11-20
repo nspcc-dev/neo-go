@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
@@ -24,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -1197,6 +1200,88 @@ func TestBlockchain_Subscriptions(t *testing.T) {
 
 	// Ensure that new blocks are processed correctly after unsubscription.
 	e.GenerateNewBlocks(t, 2*chBufSize)
+}
+
+func TestBlockchain_Subscriptions_Close(t *testing.T) {
+	checkClose := func(t *testing.T, bc *core.Blockchain, blockHash util.Uint256, drain func()) {
+		var closeDone atomic.Bool
+		go func() {
+			bc.Close()
+			closeDone.Store(true)
+		}()
+		synctest.Wait()
+		require.False(t, closeDone.Load())
+
+		// Storage must still be open while notification dispatchers finish.
+		_, err := bc.GetBlock(blockHash)
+		require.NoError(t, err)
+
+		drain()
+
+		synctest.Wait()
+		require.True(t, closeDone.Load())
+	}
+
+	t.Run("blockchain notifications", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			bc, acc := chain.NewSingleWithCustomConfigAndStore(t, nil, storage.NewMemoryStore(), false)
+			e := neotest.NewExecutor(t, bc, acc, acc)
+			go bc.Run()
+
+			executionCh := make(chan *state.AppExecResult)
+			notificationCh := make(chan *state.ContainedNotificationEvent)
+			blockCh := make(chan *block.Block)
+			bc.SubscribeForExecutions(executionCh)
+			bc.SubscribeForNotifications(notificationCh)
+			bc.SubscribeForBlocks(blockCh)
+
+			generatedB := e.AddNewBlock(t)
+
+			checkClose(t, bc, generatedB.Hash(), func() {
+				var (
+					execCount  int
+					notifCount int
+					gotBlock   *block.Block
+				)
+				for execCount < 2 || notifCount < 1 || gotBlock == nil {
+					select {
+					case aer := <-executionCh:
+						require.Equal(t, generatedB.Hash(), aer.Container)
+						execCount++
+					case notif := <-notificationCh:
+						require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
+						notifCount++
+					case gotBlock = <-blockCh:
+					}
+				}
+				require.Equal(t, generatedB, gotBlock)
+			})
+		})
+	})
+
+	t.Run("mempool subscriptions", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			bc, acc := chain.NewSingleWithCustomConfigAndStore(t, func(c *config.Blockchain) {
+				c.MempoolSubscriptionsEnabled = true
+			}, storage.NewMemoryStore(), false)
+			e := neotest.NewExecutor(t, bc, acc, acc)
+			go bc.Run()
+			synctest.Wait()
+
+			b := e.AddNewBlock(t)
+			mpCh := make(chan mempoolevent.Event)
+			bc.GetMemPool().SubscribeForTransactions(mpCh)
+
+			tx := e.NewUnsignedTx(t, e.NativeHash(t, nativenames.Gas), "transfer", acc.ScriptHash(), util.Uint160{1, 2, 3}, 1, nil)
+			e.SignTx(t, tx, -1, acc)
+			require.NoError(t, bc.PoolTx(tx))
+
+			checkClose(t, bc, b.Hash(), func() {
+				ev := <-mpCh
+				require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: tx}, ev)
+			})
+		})
+	})
 }
 
 func TestBlockchain_RemoveUntraceable(t *testing.T) {
