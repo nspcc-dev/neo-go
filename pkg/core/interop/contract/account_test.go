@@ -207,10 +207,11 @@ func TestCreateMultisigAccount_GasConsumed(t *testing.T) {
 	e := neotest.NewExecutor(t, bc, acc, acc)
 
 	for _, tc := range []struct {
-		name    string
-		pubKeys []any
-		m       int
-		err     string
+		name      string
+		pubKeys   []any
+		m         int
+		err       string
+		chargeFee bool
 	}{
 		{
 			name:    "m < 1",
@@ -230,6 +231,25 @@ func TestCreateMultisigAccount_GasConsumed(t *testing.T) {
 			m:       1,
 			err:     "invalid multisig parameters: m=1, public keys count=1025",
 		},
+		{
+			name:    "Null",
+			pubKeys: []any{nil},
+			m:       1,
+			err:     "failed to retrieve public key bytes: invalid conversion: Null/ByteString",
+		},
+		{
+			name:      "Integer",
+			pubKeys:   []any{1},
+			m:         1,
+			err:       "failed to convert public key from bytes: invalid prefix 1",
+			chargeFee: true,
+		},
+		{
+			name:    "Array",
+			pubKeys: []any{[]any{}},
+			m:       1,
+			err:     "failed to retrieve public key bytes: invalid conversion: Array/ByteString",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			script, syscallOffset := emitScript(t, tc.pubKeys, tc.m)
@@ -240,6 +260,9 @@ func TestCreateMultisigAccount_GasConsumed(t *testing.T) {
 				op, _, err := ctx.Next()
 				require.NoError(t, err)
 				expected += fee.Opcode(baseFee, op)
+			}
+			if tc.chargeFee {
+				expected += fee.ECDSAVerifyPrice * int64(len(tc.pubKeys)) * baseFee
 			}
 			h := e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, tc.err)
 			require.Equal(t, vm.PicoGasToDatoshiInt64(expected), e.GetTxExecResult(t, h).GasConsumed)

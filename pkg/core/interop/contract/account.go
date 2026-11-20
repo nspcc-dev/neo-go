@@ -32,7 +32,11 @@ func CreateMultisigAccount(ic *interop.Context) error {
 	arr := ic.VM.Estack().Pop().Array()
 	rawPubs := make([][]byte, len(arr))
 	for i, pk := range arr {
-		rawPubs[i] = pk.Value().([]byte)
+		b, err := pk.TryBytes()
+		if err != nil {
+			return fmt.Errorf("failed to retrieve public key bytes: %w", err)
+		}
+		rawPubs[i] = b
 	}
 	if m64 < 1 || m64 > int64(len(rawPubs)) || len(rawPubs) > smartcontract.MaxMultiSigRedeemScriptKeys {
 		return fmt.Errorf("invalid multisig parameters: m=%d, public keys count=%d", m64, len(rawPubs))
@@ -57,7 +61,7 @@ func CreateMultisigAccount(ic *interop.Context) error {
 	for i, b := range rawPubs {
 		p, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to convert public key from bytes: %w", err)
 		}
 		pubs[i] = p
 	}
