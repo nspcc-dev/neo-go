@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 	"testing"
 
@@ -114,10 +115,9 @@ func TestSyscallExecution(t *testing.T) {
 	})
 	ic, err := bc.GetTestVM(trigger.Application, nil, &block.Block{})
 	require.NoError(t, err)
-	for _, fs := range ic.Functions {
-		// It will be set in test and we want to fail if calling invalid syscall.
-		fs.Func = nil
-	}
+	// ic.Functions is the interop table shared by every Context in the process;
+	// keep it intact and give each sub-test its own copy below.
+	sharedFunctions := ic.Functions
 
 	srcBuilder := bytes.NewBuffer(nil)
 	srcBuilder.WriteString(`package foo
@@ -147,6 +147,13 @@ func TestSyscallExecution(t *testing.T) {
 	for goName, tc := range interops {
 		t.Run(goName, func(t *testing.T) {
 			name := strings.ToTitle(strings.Replace(goName, ".", "", 1))
+			// Every sub-test works on its own copy of the shared interop table, so
+			// clearing Func below cannot break other Contexts in the process.
+			ic.Functions = slices.Clone(sharedFunctions)
+			for i := range ic.Functions {
+				// It will be set in runSyscallTestCase and we want to fail if calling invalid syscall.
+				ic.Functions[i].Func = nil
+			}
 			runSyscallTestCase(t, ic, name, nf.Script, di, tc)
 		})
 	}
