@@ -147,14 +147,17 @@ func TestSyscallExecution(t *testing.T) {
 	for goName, tc := range interops {
 		t.Run(goName, func(t *testing.T) {
 			name := strings.ToTitle(strings.Replace(goName, ".", "", 1))
-			// Every sub-test works on its own copy of the shared interop table, so
-			// clearing Func below cannot break other Contexts in the process.
-			ic.Functions = slices.Clone(sharedFunctions)
-			for i := range ic.Functions {
+			// Every sub-test gets its own interop context instance with its own
+			// copy of the shared interop table, so neither the process-wide table
+			// nor other Contexts are mutated.
+			subIC, err := bc.GetTestVM(trigger.Application, nil, &block.Block{})
+			require.NoError(t, err)
+			subIC.Functions = slices.Clone(sharedFunctions)
+			for i := range subIC.Functions {
 				// It will be set in runSyscallTestCase and we want to fail if calling invalid syscall.
-				ic.Functions[i].Func = nil
+				subIC.Functions[i].Func = nil
 			}
-			runSyscallTestCase(t, ic, name, nf.Script, di, tc)
+			runSyscallTestCase(t, subIC, name, nf.Script, di, tc)
 		})
 	}
 }
