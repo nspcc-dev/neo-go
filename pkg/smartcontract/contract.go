@@ -10,6 +10,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
+// MaxMultiSigRedeemScriptKeys is the maximum number of public keys allowed for
+// correct standard multisig verification script.
+const MaxMultiSigRedeemScriptKeys = 1024
+
 // CreateMultiSigRedeemScript creates an "m out of n" type verification script
 // where n is the length of publicKeys. It modifies passed publicKeys by
 // sorting them.
@@ -20,8 +24,8 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 	if m > len(publicKeys) {
 		return nil, fmt.Errorf("length of the signatures (%d) is higher then the number of public keys", m)
 	}
-	if m > 1024 {
-		return nil, fmt.Errorf("public key count %d exceeds maximum of length 1024", len(publicKeys))
+	if len(publicKeys) > MaxMultiSigRedeemScriptKeys {
+		return nil, fmt.Errorf("public key count %d exceeds maximum of length %d", len(publicKeys), MaxMultiSigRedeemScriptKeys)
 	}
 
 	buf := io.NewBufBinWriter()
