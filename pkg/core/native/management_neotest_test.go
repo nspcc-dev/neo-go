@@ -118,8 +118,7 @@ func TestManagement_CallInTheSameBlock(t *testing.T) {
 
 		script, err := b.Script()
 		require.NoError(t, err)
-		txHash := e.InvokeScript(t, script, []neotest.Signer{e.Validator})
-		e.CheckHalt(t, txHash, stackitem.Make(1))
+		e.InvokeScriptCheckHALT(t, script, []neotest.Signer{e.Validator}, stackitem.Make(1))
 	})
 	t.Run("next tx", func(t *testing.T) {
 		m.Name = "another contract"

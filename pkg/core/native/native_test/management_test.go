@@ -1403,8 +1403,7 @@ func TestManagement_GetContract(t *testing.T) {
 		emit.Opcodes(w.BinWriter, opcode.NOT)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT) // No more elements, single value left on the stack.
 		require.NoError(t, w.Err)
-		h := managementInvoker.InvokeScript(t, w.Bytes(), managementInvoker.Signers)
-		managementInvoker.CheckHalt(t, h, stackitem.NewStruct([]stackitem.Item{stackitem.Make([]byte{0, 0, 0, 1}), stackitem.Make(cs1.Hash.BytesBE())}))
+		managementInvoker.InvokeScriptCheckHALT(t, w.Bytes(), managementInvoker.Signers, stackitem.NewStruct([]stackitem.Item{stackitem.Make([]byte{0, 0, 0, 1}), stackitem.Make(cs1.Hash.BytesBE())}))
 	})
 }
 
