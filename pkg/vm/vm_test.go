@@ -1356,6 +1356,14 @@ func TestABORTMSG(t *testing.T) {
 		)
 		checkVMFailedWithError(t, vm, "(ABORTMSG): invalid value: not UTF-8")
 	})
+	// Ref. https://github.com/neo-project/neo-vm/pull/620.
+	t.Run("null message compat", func(t *testing.T) {
+		vm := load([]byte{
+			byte(opcode.PUSHNULL),
+			byte(opcode.ABORTMSG)},
+		)
+		checkVMFailedWithError(t, vm, "at instruction 1 (ABORTMSG): ABORTMSG is executed. Reason: ")
+	})
 }
 
 func TestASSERTMSG(t *testing.T) {
@@ -1374,6 +1382,18 @@ func TestASSERTMSG(t *testing.T) {
 			byte(opcode.ASSERTMSG)},
 		)
 		checkVMFailedWithError(t, vm, "at instruction 4 (ASSERTMSG): invalid value: not UTF-8")
+	})
+	// Ref. https://github.com/neo-project/neo-vm/pull/620.
+	t.Run("null message compat", func(t *testing.T) {
+		vm := load([]byte{
+			byte(opcode.PUSHT),
+			byte(opcode.PUSHNULL),
+			byte(opcode.ASSERTMSG),
+			byte(opcode.PUSH5)},
+		)
+		runVM(t, vm)
+		require.Equal(t, 1, vm.Estack().Len())
+		require.Equal(t, big.NewInt(5), vm.Estack().Pop().Value())
 	})
 }
 
