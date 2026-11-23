@@ -2003,6 +2003,13 @@ func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
 	return statesync.NewModule(bc, bc.stateRoot, bc.log, bc.dao, bc.jumpToState)
 }
 
+func logStack(log *zap.Logger, container hash.Hashable, t trigger.Type, depth int) {
+	log.Info("ISTACK",
+		zap.String("container", container.Hash().StringLE()),
+		zap.String("trigger", t.String()),
+		zap.Int("max_depth", depth))
+}
+
 // storeBlock performs chain update using the block given, it executes all
 // transactions with all appropriate side-effects and updates Blockchain state.
 // This is the only way to change Blockchain state.
@@ -2087,7 +2094,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
 		v.SetGasLimit(tx.SystemFee)
 
-		err := systemInterop.Exec()
+		depth, err := systemInterop.ExecWithIStackTrack()
+		logStack(bc.log, tx, trigger.Application, depth)
 		var faultException string
 		if !v.HasFailed() {
 			_, err := systemInterop.DAO.Persist()
@@ -2266,7 +2274,10 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.S
 		systemInterop.ReuseVM(v)
 	}
 	v.LoadScriptWithFlags(script, callflag.All)
-	if err := systemInterop.Exec(); err != nil {
+
+	depth, err := systemInterop.ExecWithIStackTrack()
+	logStack(bc.log, block, trig, depth)
+	if err != nil {
 		return nil, v, fmt.Errorf("VM has failed: %w", err)
 	} else if _, err := systemInterop.DAO.Persist(); err != nil {
 		return nil, v, fmt.Errorf("can't save changes: %w", err)

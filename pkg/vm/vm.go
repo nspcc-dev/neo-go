@@ -652,37 +652,48 @@ func (v *VM) Ready() bool {
 
 // Run starts execution of the loaded program.
 func (v *VM) Run() error {
+	_, err := v.RunWithIStackDepth()
+	return err
+}
+func (v *VM) RunWithIStackDepth() (int, error) {
 	var ctx *Context
 
 	if !v.Ready() {
 		v.state = vmstate.Fault
-		return errors.New("no program loaded")
+		return 0, errors.New("no program loaded")
 	}
 
 	if v.state.HasFlag(vmstate.Fault) {
 		// VM already ran something and failed, in general its state is
 		// undefined in this case so we can't run anything.
-		return errors.New("VM has failed")
+		return 0, errors.New("VM has failed")
 	}
 	// vmstate.Halt (the default) or vmstate.Break are safe to continue.
 	v.state = vmstate.None
 	ctx = v.Context()
+	var maxIStackDepth int
 	for {
 		switch {
 		case v.state.HasFlag(vmstate.Fault):
 			// Should be caught and reported already by the v.Step(),
 			// but we're checking here anyway just in case.
-			return errors.New("VM has failed")
+			return maxIStackDepth, errors.New("VM has failed")
 		case v.state.HasFlag(vmstate.Halt), v.state.HasFlag(vmstate.Break):
 			// Normal exit from this loop.
-			return nil
+			return maxIStackDepth, nil
 		case v.state == vmstate.None:
 			if err := v.step(ctx); err != nil {
-				return err
+				if l := len(v.Istack()); l > maxIStackDepth {
+					maxIStackDepth = l
+				}
+				return maxIStackDepth, err
 			}
 		default:
 			v.state = vmstate.Fault
-			return errors.New("unknown state")
+			return maxIStackDepth, errors.New("unknown state")
+		}
+		if l := len(v.Istack()); l > maxIStackDepth {
+			maxIStackDepth = l
 		}
 		// check for breakpoint before executing the next instruction
 		ctx = v.Context()

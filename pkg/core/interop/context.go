@@ -603,6 +603,12 @@ func (ic *Context) Exec() error {
 	return ic.VM.Run()
 }
 
+// Exec executes loaded VM script and calls registered finalizers to release the occupied resources.
+func (ic *Context) ExecWithIStackTrack() (int, error) {
+	defer ic.Finalize()
+	return ic.VM.RunWithIStackDepth()
+}
+
 // GetTime returns the timestamp of persisting block. It panics if persisting block is nil.
 func (ic *Context) GetTime() uint64 {
 	return ic.Block.Timestamp
