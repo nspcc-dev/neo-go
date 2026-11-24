@@ -3156,6 +3156,7 @@ func TestFemtoGasToDatoshi(t *testing.T) {
 		FemtoGasPerDatoshi + 1: 2,
 	} {
 		t.Run(strconv.Itoa(int(in)), func(t *testing.T) {
+			require.Equal(t, out, FemtoGasToDatoshiInt64(in))
 			require.Equal(t, out, int64(FemtoGasToDatoshi(uint256.NewInt(uint64(in))).Uint64()))
 		})
 	}

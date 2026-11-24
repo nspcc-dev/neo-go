@@ -44,57 +44,70 @@ func IsMultiSigContract(script []byte) bool {
 // ParseMultiSigContract returns the number of signatures and a list of public keys
 // from the verification script of the contract.
 func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
-	var nsigs, nkeys int
+	m, _, pubs, _, ok := ParseMultiSigContractExtended(script)
+	return m, pubs, ok
+}
+
+// ParseMultiSigContractExtended parses a multi-signature verification script.
+// It returns the number of required signatures and its opcode, a list of public keys,
+// and the opcode for the number of keys.
+func ParseMultiSigContractExtended(script []byte) (int, opcode.Opcode, [][]byte, opcode.Opcode, bool) {
+	var (
+		nsigs, nkeys     int
+		mOpcode, nOpcode opcode.Opcode
+	)
 	if len(script) < 42 {
-		return nsigs, nil, false
+		return nsigs, mOpcode, nil, nOpcode, false
 	}
 
 	ctx := NewContext(script, 0)
 	instr, param, err := ctx.Next()
 	if err != nil {
-		return nsigs, nil, false
+		return nsigs, mOpcode, nil, nOpcode, false
 	}
+	mOpcode = instr
 	nsigs, ok := getNumOfThingsFromInstr(instr, param)
 	if !ok {
-		return nsigs, nil, false
+		return nsigs, mOpcode, nil, nOpcode, false
 	}
 	var pubs [][]byte
 	for {
 		instr, param, err = ctx.Next()
 		if err != nil {
-			return nsigs, nil, false
+			return nsigs, mOpcode, nil, nOpcode, false
 		}
 		if instr != opcode.PUSHDATA1 {
 			break
 		}
 		if len(param) < 33 {
-			return nsigs, nil, false
+			return nsigs, mOpcode, nil, nOpcode, false
 		}
 		pubs = append(pubs, param)
 		nkeys++
 		if nkeys > smartcontract.MaxMultiSigRedeemScriptKeys {
-			return nsigs, nil, false
+			return nsigs, mOpcode, nil, nOpcode, false
 		}
 	}
 	if nkeys < nsigs {
-		return nsigs, nil, false
+		return nsigs, mOpcode, nil, nOpcode, false
 	}
+	nOpcode = instr
 	nkeys2, ok := getNumOfThingsFromInstr(instr, param)
 	if !ok {
-		return nsigs, nil, false
+		return nsigs, mOpcode, nil, nOpcode, false
 	}
 	if nkeys2 != nkeys {
-		return nsigs, nil, false
+		return nsigs, mOpcode, nil, nOpcode, false
 	}
 	instr, param, err = ctx.Next()
 	if err != nil || instr != opcode.SYSCALL || binary.LittleEndian.Uint32(param) != multisigInteropID {
-		return nsigs, nil, false
+		return nsigs, mOpcode, nil, nOpcode, false
 	}
 	instr, _, err = ctx.Next()
 	if err != nil || instr != opcode.RET || ctx.IP() != len(script) {
-		return nsigs, nil, false
+		return nsigs, mOpcode, nil, nOpcode, false
 	}
-	return nsigs, pubs, true
+	return nsigs, mOpcode, pubs, nOpcode, true
 }
 
 // IsSignatureContract checks whether the passed script is a signature check

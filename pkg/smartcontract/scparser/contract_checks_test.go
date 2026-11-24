@@ -125,6 +125,31 @@ func TestIsMultiSigContract(t *testing.T) {
 	})
 }
 
+func TestParseMultiSigContractExtended(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		m, n             int
+		mOpcode, nOpcode opcode.Opcode
+	}{
+		{"small ints", 1, 2, opcode.PUSH1, opcode.PUSH2},
+		{"small int and PUSHINT8", 15, 16, opcode.PUSH15, opcode.PUSHINT8},
+		{"PUSHINT8", 16, 17, opcode.PUSHINT8, opcode.PUSHINT8},
+		{"small int and PUSHINT16", 1, 128, opcode.PUSH1, opcode.PUSHINT16},
+		{"PUSHINT16", 128, 128, opcode.PUSHINT16, opcode.PUSHINT16},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			script := testMultisigContract(t, tc.n, tc.m)
+
+			m, mOpcode, publicKeys, nOpcode, ok := ParseMultiSigContractExtended(script)
+			require.True(t, ok)
+			require.Equal(t, tc.m, m)
+			require.Equal(t, tc.mOpcode, mOpcode)
+			require.Len(t, publicKeys, tc.n)
+			require.Equal(t, tc.nOpcode, nOpcode)
+		})
+	}
+}
+
 func TestIsScriptCorrect(t *testing.T) {
 	w := io.NewBufBinWriter()
 	emit.String(w.BinWriter, "something")
