@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -565,14 +566,27 @@ func (ic *Context) initVM(v *vm.VM) {
 	v.SetGasLimit(-1)
 	v.SyscallHandler = ic.SyscallHandler
 	if ic.IsHardforkEnabled(config.HFHuyao) {
-		v.SetPriceGetter(ic.GetPriceV1)
+		v.SetPriceGetter(ic.getPriceV1)
 		v.SetOpcodeExecutor(v.OpcodeExecutorV1)
 	} else {
-		v.SetPriceGetter(ic.GetPriceV0)
+		v.SetPriceGetter(ic.getPriceV0)
 		v.SetOpcodeExecutor(v.OpcodeExecutorV0)
 	}
 	v.SetIsHardforkEnabled(ic.IsHardforkEnabled)
 	ic.VM = v
+}
+
+// getPriceV0 is a price getter function that returns a price for executing
+// opcode before Huyao hardfork, in femtoGAS units.
+func (ic *Context) getPriceV0(op opcode.Opcode, _ *vm.OpcodePriceParams) int64 {
+	return fee.Opcode(ic.baseExecFee, op) * vm.OpcodePriceMultiplier
+}
+
+// getPriceV1 is a price getter function that returns a price for executing
+// opcode since Huyao hardfork with the provided dynamic pricing parameters,
+// in femtoGAS units.
+func (ic *Context) getPriceV1(op opcode.Opcode, params *vm.OpcodePriceParams) int64 {
+	return fee.OpcodeV1(ic.baseExecFee, op, params)
 }
 
 // ReuseVM resets given VM and allows to reuse it in the current context.
