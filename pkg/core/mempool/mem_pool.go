@@ -506,7 +506,6 @@ func New(capacity int, enableSubscriptions bool, updateMetricsCb func(int)) *Poo
 		unsubCh:                        make(chan chan<- mempoolevent.Event),
 		updateMetricsCb:                updateMetricsCb,
 	}
-	mp.subscriptionsOn.Store(false)
 	return mp
 }
 
