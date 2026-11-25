@@ -2,9 +2,12 @@ package storage_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"runtime"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -461,4 +464,105 @@ func TestCachedSeekSorting(t *testing.T) {
 		})
 		require.Equal(t, expected, foundKVs)
 	}
+}
+
+func testMemCachedSeekAsyncPersistGet(t *testing.T, ps storage.Store) {
+	ts := storage.NewMemCachedStore(ps)
+
+	ts.Put([]byte("k1"), []byte("v1"))
+	ts.Put([]byte("k2"), []byte("v2"))
+	_, err := ts.PersistSync()
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch := ts.SeekAsync(ctx, storage.SeekRange{Prefix: []byte("k")}, false)
+	kv, ok := <-ch
+	require.True(t, ok)
+	require.Equal(t, []byte("k1"), kv.Key)
+	require.Equal(t, []byte("v1"), kv.Value)
+
+	ts.Put([]byte("p1"), []byte("vp1"))
+
+	var persistErr error
+	persistDone := make(chan struct{})
+	go func() {
+		_, persistErr = ts.Persist()
+		close(persistDone)
+	}()
+
+	getDone := make(chan error, 1)
+	go func() {
+		deadline := time.Now().Add(200 * time.Millisecond)
+		for {
+			val, gErr := ts.Get([]byte("k1"))
+			if gErr != nil {
+				getDone <- gErr
+				return
+			}
+			if !bytes.Equal(val, []byte("v1")) {
+				getDone <- fmt.Errorf("unexpected value %q, want %q", val, "v1")
+				return
+			}
+			select {
+			case <-persistDone:
+				getDone <- nil
+				return
+			default:
+			}
+			if time.Now().After(deadline) {
+				getDone <- nil
+				return
+			}
+			runtime.Gosched()
+		}
+	}()
+
+	const deadlockTimeout = 2 * time.Second
+	select {
+	case gErr := <-getDone:
+		require.NoError(t, gErr)
+	case <-time.After(deadlockTimeout):
+		cancel()
+		for range ch {
+		}
+		if gErr := <-getDone; gErr != nil {
+			t.Logf("Get returned error after cancellation: %v", gErr)
+		}
+		<-persistDone
+		t.Fatal("deadlock: Get blocked behind Persist while SeekAsync is active")
+	}
+
+	cancel()
+	for range ch {
+	}
+
+	select {
+	case <-persistDone:
+		require.NoError(t, persistErr)
+	case <-time.After(deadlockTimeout):
+		t.Fatal("deadlock: Persist did not finish after SeekAsync was cancelled")
+	}
+}
+
+func TestMemCachedSeekAsyncPersistGet(t *testing.T) {
+	t.Run("MemoryStore", func(t *testing.T) {
+		ps := storage.NewMemoryStore()
+		testMemCachedSeekAsyncPersistGet(t, ps)
+	})
+	t.Run("BoltDBStore", func(t *testing.T) {
+		ps := store.NewBoltDBForTesting(t)
+		t.Cleanup(func() {
+			require.NoError(t, ps.Close())
+		})
+		testMemCachedSeekAsyncPersistGet(t, ps)
+	})
+	t.Run("LevelDBStore", func(t *testing.T) {
+		ps := store.NewLevelDBForTesting(t)
+		t.Cleanup(func() {
+			require.NoError(t, ps.Close())
+		})
+		testMemCachedSeekAsyncPersistGet(t, ps)
+	})
 }
