@@ -9,12 +9,14 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -251,7 +253,12 @@ func getMaxManifestPermissionsCount() int {
 			m.Permissions[j] = *manifest.NewPermission(manifest.PermissionHash, random.Uint160())
 		}
 		data, _ := json.Marshal(m)
-		return len(data) > manifest.MaxManifestSize
+		if len(data) > manifest.MaxManifestSize {
+			return true
+		}
+		cs := &state.Contract{ContractBase: state.ContractBase{Manifest: *m}}
+		d := dao.NewSimple(storage.NewMemoryStore(), false)
+		return d.PutStorageConvertible(1, []byte{1}, cs) != nil
 	})
 	return i - 1
 }
@@ -444,7 +451,7 @@ func BenchmarkBurnGas(b *testing.B) {
 
 const maxSubitems = 16
 
-func getMaxManifestGroupsCount(b *testing.B, c *neotest.Contract) int {
+func getMaxManifestGroupsCount(b testing.TB, c *neotest.Contract) int {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(b, err)
 	nefBytes, err := c.NEF.Bytes()
@@ -818,7 +825,7 @@ func BenchmarkLog(b *testing.B) {
 	benchInteropLoop(b, newBenchExecutor(b), w.Bytes(), nil)
 }
 
-func getMaxManifestEventsCount(b *testing.B, c *neotest.Contract, setEvents func(m *manifest.Manifest, n int)) int {
+func getMaxManifestEventsCount(b testing.TB, c *neotest.Contract, setEvents func(m *manifest.Manifest, n int)) int {
 	nefBytes, err := c.NEF.Bytes()
 	require.NoError(b, err)
 	i := sort.Search(manifest.MaxManifestSize, func(n int) bool {
