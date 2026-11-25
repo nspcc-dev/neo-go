@@ -1,7 +1,9 @@
 package mempool
 
 import (
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
@@ -92,4 +94,58 @@ func TestSubscriptions(t *testing.T) {
 		require.Equal(t, 0, len(subChan1))
 		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[3]}, event2)
 	})
+
+	t.Run("stop waits for in-flight event", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			fs := &FeerStub{balance: 100}
+			mp := New(5, true, nil)
+
+			// StopSubscriptions before RunSubscriptions must be a no-op.
+			mp.StopSubscriptions()
+
+			mp.RunSubscriptions()
+			subCh := make(chan mempoolevent.Event)
+			mp.SubscribeForTransactions(subCh)
+
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+			tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+			require.NoError(t, mp.Add(tx, fs))
+
+			// Pending event should be read by the caller before mempool closes subscriptions.
+			var stopDone atomic.Bool
+			go func() {
+				mp.StopSubscriptions()
+				stopDone.Store(true)
+			}()
+			synctest.Wait()
+			require.False(t, stopDone.Load())
+
+			ev := <-subCh
+			require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: tx}, ev)
+
+			synctest.Wait()
+			require.True(t, stopDone.Load())
+		})
+	})
+}
+
+// BenchmarkMemPoolAdd_NotifyAllocs ensures there's no extra allocation introduced
+// by generic notify() helper in case of disabled mempool subscriptions.
+func BenchmarkMemPoolAdd_NotifyAllocs(b *testing.B) {
+	fs := &FeerStub{balance: 100}
+	mp := New(5, false, nil)
+
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	require.NoError(b, mp.Add(tx, fs)) // initialize fees cache.
+	mp.Remove(tx.Hash())
+	require.Zero(b, mp.Count())
+
+	b.ReportAllocs()
+	for b.Loop() {
+		require.NoError(b, mp.Add(tx, fs))
+		b.StopTimer()
+		mp.Remove(tx.Hash())
+		b.StartTimer()
+	}
 }
