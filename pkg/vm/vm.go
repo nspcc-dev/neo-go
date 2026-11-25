@@ -2065,7 +2065,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (pricePar
 		panic("ABORT")
 
 	case opcode.ABORTMSG:
-		msg := v.estack.Pop().String()
+		msgItem := v.estack.Pop()
+		var msg string
+		if _, ok := msgItem.value.(stackitem.Null); !ok { // Null item overrides GetString(): https://github.com/neo-project/neo-vm/blob/ad70930210c534f65ffb3b7611d5addf36d313bb/src/Neo.VM/Types/Null.cs#L60
+			msg = msgItem.String()
+		}
 		panic(fmt.Sprintf("%s is executed. Reason: %s", op, msg))
 
 	case opcode.ASSERT:
@@ -2077,7 +2081,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (pricePar
 
 	case opcode.ASSERTMSG:
 		r := v.refs
-		msg := v.estack.Pop().String()
+		msgItem := v.estack.Pop()
+		var msg string
+		if _, ok := msgItem.value.(stackitem.Null); !ok { // Null item overrides GetString(): https://github.com/neo-project/neo-vm/blob/ad70930210c534f65ffb3b7611d5addf36d313bb/src/Neo.VM/Types/Null.cs#L60
+			msg = msgItem.String()
+		}
 		if !v.estack.Pop().Bool() {
 			panic(fmt.Sprintf("%s is executed with false result. Reason: %s", op, msg))
 		}
