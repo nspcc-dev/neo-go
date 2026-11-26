@@ -21,7 +21,7 @@ const benchGasLimit int64 = 50_0000_0000
 func benchOpcodeLoop(b *testing.B, script []byte) {
 	bc, _ := chain.NewSingleWithOptions(b, &chain.Options{
 		BlockchainConfigHook: func(c *config.Blockchain) {
-			c.Hardforks = map[string]uint32{config.HFLatestKnown.String(): 0}
+			c.Hardforks = map[string]uint32{config.HFLastConfigManaged.String(): 0}
 		},
 		Logger: zap.NewNop(),
 	})
