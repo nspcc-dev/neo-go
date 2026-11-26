@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -145,6 +146,9 @@ func NewOracle(cfg Config) (*Oracle, error) {
 	}
 	if o.MainCfg.RefreshInterval == 0 {
 		o.MainCfg.RefreshInterval = defaultRefreshInterval
+	}
+	for i := range o.MainCfg.AllowedContentTypes {
+		o.MainCfg.AllowedContentTypes[i] = strings.TrimSpace(strings.ToLower(o.MainCfg.AllowedContentTypes[i]))
 	}
 
 	var err error

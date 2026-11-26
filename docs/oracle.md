@@ -20,7 +20,8 @@ Parameters:
    127.0.0.1 or 192.168.0.1) for https requests, it defaults to false and it's
    false on public networks, but you can enable it for private ones.
  * `AllowedContentTypes`: a list of allowed MIME types. Only `application/json`
-   is allowed by default. Can be left empty to allow everything.
+   is allowed by default. Can be left empty to allow everything. All values are
+   whitespace-trimmed and lowercased.
  * `Nodes`: a list of oracle node RPC endpoints, it's used for oracle node
    communication. All oracle nodes should be specified there.
  * `NeoFS`: a subsection of its own for NeoFS configuration with two
