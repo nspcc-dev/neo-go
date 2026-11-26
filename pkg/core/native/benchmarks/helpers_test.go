@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -37,6 +38,11 @@ const countPoints = 8
 type sample struct {
 	deps  []int
 	value float64
+}
+
+type txParams struct {
+	scriptlen int
+	rules     []transaction.WitnessRule
 }
 
 type nefParams struct {
@@ -96,14 +102,13 @@ func sampleRange(start, maxValue int, measure func(int) sample) []sample {
 }
 
 // newPriceChain enables Huyao for both the NOP baseline and native measurements.
-func newPriceChain(t testing.TB) *core.Blockchain {
-	bc, _ := chain.NewSingleWithOptions(t, &chain.Options{
+func newPriceChain(t testing.TB) (*core.Blockchain, neotest.Signer) {
+	return chain.NewSingleWithOptions(t, &chain.Options{
 		BlockchainConfigHook: func(c *config.Blockchain) {
 			c.Hardforks = map[string]uint32{config.HFHuyao.String(): 0}
 		},
 		Logger: zap.NewNop(),
 	})
-	return bc
 }
 
 func newPriceContext(t testing.TB, bc *core.Blockchain, tx *transaction.Transaction) *interop.Context {
@@ -117,7 +122,11 @@ func newPriceContext(t testing.TB, bc *core.Blockchain, tx *transaction.Transact
 }
 
 func newNativeContext(t testing.TB, name string) (*core.Blockchain, *interop.Context, *interop.HFSpecificContractMD) {
-	bc := newPriceChain(t)
+	bc, _ := newPriceChain(t)
+	return newNativeContextForChain(t, bc, name)
+}
+
+func newNativeContextForChain(t testing.TB, bc *core.Blockchain, name string) (*core.Blockchain, *interop.Context, *interop.HFSpecificContractMD) {
 	ic := newPriceContext(t, bc, nil)
 	var md *interop.ContractMD
 	for _, c := range ic.Natives {
@@ -130,6 +139,64 @@ func newNativeContext(t testing.TB, name string) (*core.Blockchain, *interop.Con
 	hf := config.HFHuyao
 	ic.VM.SetGasLimit(-1)
 	return bc, ic, md.HFSpecificContractMD(&hf)
+}
+
+func newPriceExecutor(t testing.TB) (*neotest.Executor, neotest.Signer) {
+	bc, validator := newPriceChain(t)
+	e := neotest.NewExecutor(t, bc, validator, validator)
+	return e, e.NewAccount(t)
+}
+
+func newTestTx(t testing.TB, e *neotest.Executor, signer neotest.Signer, p txParams) *transaction.Transaction {
+	tx := e.PrepareInvocationNoSign(t, bytes.Repeat([]byte{byte(opcode.RET)}, max(p.scriptlen, 1)))
+	tx.Signers = []transaction.Signer{{Account: signer.ScriptHash()}}
+	if len(p.rules) != 0 {
+		tx.Signers[0].Scopes = transaction.Rules
+		tx.Signers[0].Rules = p.rules
+	}
+	neotest.AddNetworkFee(t, e.Chain, tx, signer)
+	e.AddSystemFee(tx, -1)
+	require.NoError(t, signer.SignTx(e.Chain.GetConfig().Magic, tx))
+	require.LessOrEqual(t, tx.Size(), transaction.MaxTransactionSize)
+	return tx
+}
+
+func getMaxTxCount(t testing.TB, e *neotest.Executor, tx *transaction.Transaction) int {
+	header := e.SignBlock(e.NewUnsignedBlock(t))
+	cfg := e.Chain.GetConfig()
+	limit := int(cfg.MaxTransactionsPerBlock)
+	txCount := (int(cfg.MaxBlockSize) - header.GetExpectedBlockSizeWithoutTransactions(limit)) / tx.Size()
+	return min(limit, txCount)
+}
+
+func newLimitedWitnessRules(maxSize int) []transaction.WitnessRule {
+	const (
+		maxSubitems = 16
+		hashSize    = 1 + util.Uint160Size // Condition type and hash.
+		orSize      = 2                    // Condition type and child count.
+		ruleSize    = 1 + orSize           // Action and top Or.
+	)
+	left := maxSize - 1 // Rules count prefix.
+	rules := make([]transaction.WitnessRule, 0, maxSubitems)
+	var hashIndex uint32
+	for left >= ruleSize+orSize+hashSize && len(rules) < maxSubitems {
+		left -= ruleSize
+		top := make(transaction.ConditionOr, 0, maxSubitems)
+		for left >= orSize+hashSize && len(top) < maxSubitems {
+			left -= orSize
+			mid := make(transaction.ConditionOr, 0, maxSubitems)
+			for left >= hashSize && len(mid) < maxSubitems {
+				hashIndex++
+				var h transaction.ConditionScriptHash
+				binary.LittleEndian.PutUint32(h[:], hashIndex)
+				mid = append(mid, &h)
+				left -= hashSize
+			}
+			top = append(top, &mid)
+		}
+		rules = append(rules, transaction.WitnessRule{Action: transaction.WitnessDeny, Condition: &top})
+	}
+	return rules
 }
 
 func newManifest(t testing.TB, p manifestParams, hash util.Uint160) *manifest.Manifest {

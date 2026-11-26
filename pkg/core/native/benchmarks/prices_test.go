@@ -49,7 +49,7 @@ func TestGenerateNativePriceCSV(t *testing.T) {
 	require.NotEmpty(t, names, "no benchmarks match %q", *benchmarkFilter)
 	sort.Strings(names)
 
-	bc := newPriceChain(t)
+	bc, _ := newPriceChain(t)
 	nopIC := newPriceContext(t, bc, nil)
 	nopNs := measureNsPerOp(t, func(b *testing.B) { benchmarkNOP(b, nopIC) }) / nopCount
 	for _, name := range names {
@@ -77,6 +77,19 @@ func benchmarkNOP(b *testing.B, ic *interop.Context) {
 }
 
 var nativeGenerators = map[string][]depGenerator{
+	nativenames.Ledger + ".GetBlock": {
+		{"txcount", genLedgerGetBlockTxCount},
+		{"blocksize", func(t *testing.T, nopNs float64) []sample {
+			rows := genLedgerGetBlockSize(t, nopNs)
+			return append(rows, genLedgerGetBlockScriptLen(t, nopNs)...)
+		}},
+	},
+	nativenames.Ledger + ".GetTransaction": {
+		{"txsize", func(t *testing.T, nopNs float64) []sample {
+			rows := genLedgerGetTransactionScriptLen(t, nopNs)
+			return append(rows, genLedgerGetTransactionSize(t, nopNs)...)
+		}},
+	},
 	nativenames.Management + ".GetContract": {
 		{"nefsize", genManagementGetContractNEFSize},
 		{"refsdelta", genManagementGetContractRefsDelta},
@@ -106,6 +119,8 @@ type depGenerator struct {
 }
 
 var staticGenerators = map[string]func(t *testing.T, nopNs float64) float64{
+	nativenames.Ledger + ".CurrentHash":                 genLedgerCurrentHash,
+	nativenames.Ledger + ".CurrentIndex":                genLedgerCurrentIndex,
 	nativenames.Management + ".Destroy":                 genManagementDestroy,
 	nativenames.Management + ".GetMinimumDeploymentFee": genManagementGetMinimumDeploymentFee,
 	nativenames.Management + ".IsContract":              genManagementIsContract,
