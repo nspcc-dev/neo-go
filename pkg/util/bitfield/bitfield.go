@@ -49,13 +49,15 @@ func (f Field) And(m Field) {
 	}
 }
 
-// Equals compares two Fields and returns true if they're equal.
+// Equals compares the stored words of two Fields. Fields of different lengths
+// are unequal, even if the additional words contain only zeroes.
 func (f Field) Equals(o Field) bool {
 	return slices.Equal(f, o)
 }
 
 // IsSubset returns true when f is a subset of o (only has bits set that are
 // set in o).
+// It returns false if f has more stored words than o, including zero words.
 func (f Field) IsSubset(o Field) bool {
 	if len(f) > len(o) {
 		return false
