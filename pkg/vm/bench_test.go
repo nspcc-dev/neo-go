@@ -235,6 +235,6 @@ func BenchmarkScriptNEWBUFFER(t *testing.B) {
 			opcode.STSFLD0,
 			opcode.JMPIF, 0xf5)
 
-		benchScript(t, script.Bytes())
+		benchScript(b, script.Bytes())
 	})
 }
