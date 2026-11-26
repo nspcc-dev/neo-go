@@ -13,6 +13,8 @@ import (
 const (
 	// maxBatchSize is the maximum number of requests per batch.
 	maxBatchSize = 100
+
+	errNotJSONObject = "request must be a JSON object"
 )
 
 // Request contains standard JSON-RPC 2.0 request and batch of
@@ -30,6 +32,8 @@ type In struct {
 	Method    string          `json:"method"`
 	RawParams []Param         `json:"params,omitzero"`
 	RawID     json.RawMessage `json:"id,omitzero"`
+	// Err holds a JSON-RPC error produced while decoding a batch element.
+	Err *neorpc.Error `json:"-"`
 }
 
 // Batch represents a standard JSON-RPC 2.0
@@ -46,42 +50,76 @@ func (r Request) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (r *Request) UnmarshalJSON(data []byte) error {
-	var (
-		in    *In
-		batch Batch
-	)
-	in = &In{}
-	err := json.Unmarshal(data, in)
-	if err == nil {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return io.ErrUnexpectedEOF
+	}
+	switch trimmed[0] {
+	case '{':
+		in := new(In)
+		if err := json.Unmarshal(trimmed, in); err != nil {
+			if _, ok := errors.AsType[*json.SyntaxError](err); ok || errors.Is(err, io.ErrUnexpectedEOF) {
+				return err
+			}
+			return neorpc.NewInvalidRequestError(err.Error())
+		}
 		r.In = in
+		r.Batch = nil
 		return nil
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	t, err := decoder.Token() // read `[`
-	if err != nil {
-		return err
-	}
-	if t != json.Delim('[') {
-		return fmt.Errorf("`[` expected, got %s", t)
-	}
-	count := 0
-	for decoder.More() {
-		if count > maxBatchSize {
-			return fmt.Errorf("the number of requests in batch shouldn't exceed %d", maxBatchSize)
+	case '[':
+		decoder := json.NewDecoder(bytes.NewReader(trimmed))
+		if _, err := decoder.Token(); err != nil {
+			return err
 		}
-		in = &In{}
-		decodeErr := decoder.Decode(in)
-		if decodeErr != nil {
-			return decodeErr
+		var batch Batch
+		for decoder.More() {
+			if len(batch) >= maxBatchSize {
+				return neorpc.NewInvalidRequestError(fmt.Sprintf("the number of requests in batch shouldn't exceed %d", maxBatchSize))
+			}
+			var raw json.RawMessage
+			if err := decoder.Decode(&raw); err != nil {
+				return err
+			}
+			elem := bytes.TrimSpace(raw)
+			var in *In
+			if elem[0] != '{' {
+				in = NewIn()
+				in.Err = neorpc.NewInvalidRequestError(errNotJSONObject)
+			} else {
+				in = new(In)
+				if err := json.Unmarshal(elem, in); err != nil {
+					in = NewIn()
+					in.Err = neorpc.NewInvalidRequestError(err.Error())
+				}
+			}
+			batch = append(batch, *in)
 		}
-		batch = append(batch, *in)
-		count++
+		t, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		if t != json.Delim(']') {
+			return fmt.Errorf("`]` expected, got %v", t)
+		}
+		if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+			if err != nil {
+				return err
+			}
+			return errors.New("unexpected trailing data after JSON array")
+		}
+		if len(batch) == 0 {
+			return neorpc.NewInvalidRequestError("empty request")
+		}
+		r.In = nil
+		r.Batch = batch
+		return nil
+	default:
+		var v any
+		if err := json.Unmarshal(trimmed, &v); err != nil {
+			return err
+		}
+		return neorpc.NewInvalidRequestError(errNotJSONObject)
 	}
-	if len(batch) == 0 {
-		return errors.New("empty request")
-	}
-	r.Batch = batch
-	return nil
 }
 
 // DecodeData decodes the given reader into the request struct.

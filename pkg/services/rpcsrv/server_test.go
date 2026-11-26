@@ -2775,6 +2775,130 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				}
 			})
 		}
+
+		checkErrorResp := func(t *testing.T, resp neorpc.Response, code int64) {
+			require.Equal(t, neorpc.JSONRPCVersion, resp.JSONRPC)
+			require.Equal(t, json.RawMessage("null"), resp.ID)
+			require.Nil(t, resp.Result)
+			require.NotNil(t, resp.Error)
+			require.Equal(t, code, resp.Error.Code)
+			require.NotEmpty(t, resp.Error.Message)
+		}
+
+		oversizedBatch := "[" + strings.TrimSuffix(strings.Repeat("1,", 101), ",") + "]"
+		singleErrCases := []struct {
+			name string
+			req  string
+			code int64
+		}{
+			{
+				name: "malformed single JSON",
+				req:  `{"jsonrpc": "2.0", "method": "foobar, "params": "bar", "baz]`,
+				code: neorpc.BadRequestCode,
+			},
+			{
+				name: "malformed batch JSON",
+				req:  `[{"jsonrpc": "2.0", "method": "sum", "params": [1,2,4], "id": "1"}, {"jsonrpc": "2.0", "method"]`,
+				code: neorpc.BadRequestCode,
+			},
+			{
+				name: "invalid request object",
+				req:  `{"jsonrpc": "2.0", "method": 1, "params": "bar"}`,
+				code: neorpc.InvalidRequestCode,
+			},
+			{
+				name: "number",
+				req:  `42`,
+				code: neorpc.InvalidRequestCode,
+			},
+			{
+				name: "true",
+				req:  `true`,
+				code: neorpc.InvalidRequestCode,
+			},
+			{
+				name: "false",
+				req:  `false`,
+				code: neorpc.InvalidRequestCode,
+			},
+			{
+				name: "string",
+				req:  `"hello"`,
+				code: neorpc.InvalidRequestCode,
+			},
+			{
+				name: "null",
+				req:  `null`,
+				code: neorpc.InvalidRequestCode,
+			},
+			{
+				name: "empty batch",
+				req:  `[]`,
+				code: neorpc.InvalidRequestCode,
+			},
+			{
+				name: "oversized batch",
+				req:  oversizedBatch,
+				code: neorpc.InvalidRequestCode,
+			},
+		}
+		for _, tc := range singleErrCases {
+			t.Run("single error/"+tc.name, func(t *testing.T) {
+				body := doRPCCall(tc.req, httpSrv.URL, t)
+				var resp neorpc.Response
+				require.NoError(t, json.Unmarshal(body, &resp))
+				checkErrorResp(t, resp, tc.code)
+			})
+		}
+
+		invalidBatchCases := []struct {
+			name  string
+			req   string
+			count int
+		}{
+			{name: "single int", req: `[1]`, count: 1},
+			{name: "single null", req: `[null]`, count: 1},
+			{name: "multiple ints", req: `[1,2,3]`, count: 3},
+			{name: "mixed scalars", req: `[true, "hello", 42]`, count: 3},
+		}
+		for _, tc := range invalidBatchCases {
+			t.Run("invalid batch/"+tc.name, func(t *testing.T) {
+				body := doRPCCall(tc.req, httpSrv.URL, t)
+				var responses []neorpc.Response
+				require.NoError(t, json.Unmarshal(body, &responses))
+				require.Len(t, responses, tc.count)
+				for _, resp := range responses {
+					checkErrorResp(t, resp, neorpc.InvalidRequestCode)
+				}
+			})
+		}
+
+		mixedBatchItems := []struct {
+			name string
+			item string
+		}{
+			{name: "number", item: `42`},
+			{name: "nested array", item: `[42]`},
+			{name: "null", item: `null`},
+			{name: "invalid request object", item: `{"jsonrpc":"2.0","method":1,"params":"bar"}`},
+		}
+		for _, tc := range mixedBatchItems {
+			t.Run("mixed batch/"+tc.name, func(t *testing.T) {
+				req := fmt.Sprintf(`[%s, {"jsonrpc":"2.0","method":"getblockcount","params":[],"id":7}]`, tc.item)
+				body := doRPCCall(req, httpSrv.URL, t)
+				var responses []neorpc.Response
+				require.NoError(t, json.Unmarshal(body, &responses))
+				require.Len(t, responses, 2)
+				checkErrorResp(t, responses[0], neorpc.InvalidRequestCode)
+
+				require.Equal(t, neorpc.JSONRPCVersion, responses[1].JSONRPC)
+				require.Equal(t, json.RawMessage("7"), responses[1].ID)
+				require.Nil(t, responses[1].Error)
+				var count uint32
+				require.NoError(t, json.Unmarshal(responses[1].Result, &count))
+				require.Equal(t, e.chain.BlockHeight()+1, count)
+			})
+		}
 	})
 
 	t.Run("getapplicationlog for block", func(t *testing.T) {
