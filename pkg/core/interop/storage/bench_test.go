@@ -44,6 +44,7 @@ func BenchmarkStorageFind(b *testing.B) {
 				}
 				b.StopTimer()
 				context.Finalize()
+				b.StartTimer()
 			}
 		})
 	}
@@ -103,6 +104,7 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 							require.True(b, actual)
 						}
 						context.Finalize()
+						b.StartTimer()
 					}
 				})
 			}
