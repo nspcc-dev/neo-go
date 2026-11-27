@@ -15,6 +15,10 @@ const (
 	maxBatchSize = 100
 )
 
+// ErrInvalidRequest is returned by (*Request).UnmarshalJSON when a syntactically
+// valid JSON payload is not a valid JSON-RPC 2.0 request or batch.
+var ErrInvalidRequest = errors.New("invalid request")
+
 // Request contains standard JSON-RPC 2.0 request and batch of
 // requests: http://www.jsonrpc.org/specification.
 // It's used in server to represent incoming queries.
@@ -30,6 +34,8 @@ type In struct {
 	Method    string          `json:"method"`
 	RawParams []Param         `json:"params,omitzero"`
 	RawID     json.RawMessage `json:"id,omitzero"`
+	// Err holds a JSON-RPC error produced while decoding a batch element.
+	Err *neorpc.Error `json:"-"`
 }
 
 // Batch represents a standard JSON-RPC 2.0
@@ -50,9 +56,12 @@ func (r *Request) UnmarshalJSON(data []byte) error {
 		in    *In
 		batch Batch
 	)
+	if bytes.Equal(data, []byte("null")) {
+		return fmt.Errorf("%w: null request", ErrInvalidRequest)
+	}
 	in = &In{}
-	err := json.Unmarshal(data, in)
-	if err == nil {
+	inErr := json.Unmarshal(data, in)
+	if inErr == nil {
 		r.In = in
 		return nil
 	}
@@ -61,40 +70,54 @@ func (r *Request) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if t != json.Delim('[') {
-		return fmt.Errorf("`[` expected, got %s", t)
+	if t == json.Delim('{') {
+		return fmt.Errorf("%w: %w", ErrInvalidRequest, inErr)
 	}
-	count := 0
+	if t != json.Delim('[') {
+		return fmt.Errorf("%w: `[` expected, got %v", ErrInvalidRequest, t)
+	}
 	for decoder.More() {
-		if count > maxBatchSize {
-			return fmt.Errorf("the number of requests in batch shouldn't exceed %d", maxBatchSize)
+		if len(batch) >= maxBatchSize {
+			return fmt.Errorf("%w: the number of requests in batch shouldn't exceed %d", ErrInvalidRequest, maxBatchSize)
 		}
-		in = &In{}
-		decodeErr := decoder.Decode(in)
+		var raw json.RawMessage
+		decodeErr := decoder.Decode(&raw)
 		if decodeErr != nil {
 			return decodeErr
 		}
+		in = &In{}
+		if bytes.Equal(raw, []byte("null")) {
+			decodeErr = errors.New("null request")
+		} else {
+			decodeErr = json.Unmarshal(raw, in)
+		}
+		if decodeErr != nil {
+			in = NewIn()
+			in.Err = neorpc.NewInvalidRequestError(decodeErr.Error())
+		}
 		batch = append(batch, *in)
-		count++
 	}
 	if len(batch) == 0 {
-		return errors.New("empty request")
+		return fmt.Errorf("%w: empty request", ErrInvalidRequest)
 	}
 	r.Batch = batch
 	return nil
 }
 
 // DecodeData decodes the given reader into the request struct.
-func (r *Request) DecodeData(data io.ReadCloser) error {
+func (r *Request) DecodeData(data io.ReadCloser) *neorpc.Error {
 	defer data.Close()
 
 	rawData := json.RawMessage{}
 	err := json.NewDecoder(data).Decode(&rawData)
 	if err != nil {
-		return fmt.Errorf("error parsing JSON payload: %w", err)
+		return neorpc.NewParseError(fmt.Sprintf("error parsing JSON payload: %s", err))
 	}
 
-	return r.UnmarshalJSON(rawData)
+	if err = r.UnmarshalJSON(rawData); err != nil {
+		return neorpc.NewInvalidRequestError(err.Error())
+	}
+	return nil
 }
 
 // NewRequest creates a new Request struct.

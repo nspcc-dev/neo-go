@@ -576,7 +576,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 
 	err := req.DecodeData(httpRequest.Body)
 	if err != nil {
-		s.writeHTTPErrorResponse(params.NewIn(), w, neorpc.NewParseError(err.Error()))
+		s.writeHTTPErrorResponse(params.NewIn(), w, err)
 		return
 	}
 
@@ -664,6 +664,9 @@ func (s *Server) handleInternal(req *neorpc.Request, sub *subscriber) (*neorpc.R
 func (s *Server) handleIn(req *params.In, sub *subscriber) abstract {
 	var res any
 	var resErr *neorpc.Error
+	if req.Err != nil {
+		return s.packResponse(req, nil, req.Err)
+	}
 	if req.JSONRPC != neorpc.JSONRPCVersion {
 		return s.packResponse(req, nil, neorpc.NewInvalidParamsError(fmt.Sprintf("problem parsing JSON: invalid version, expected 2.0 got '%s'", req.JSONRPC)))
 	}
@@ -775,12 +778,21 @@ func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- abstractResult
 	ws.SetPongHandler(func(string) error { return ws.SetReadDeadline(time.Now().Add(wsPongLimit)) })
 requestloop:
 	for err == nil {
-		req := params.NewRequest()
-		err := ws.ReadJSON(req)
-		if err != nil {
-			break
+		var (
+			req = params.NewRequest()
+			res abstractResult
+		)
+		if readErr := ws.ReadJSON(req); readErr != nil {
+			if errors.Is(readErr, params.ErrInvalidRequest) {
+				res = s.packResponse(params.NewIn(), nil, neorpc.NewInvalidRequestError(readErr.Error()))
+			} else if _, ok := errors.AsType[*json.SyntaxError](readErr); ok {
+				res = s.packResponse(params.NewIn(), nil, neorpc.NewParseError(readErr.Error()))
+			} else {
+				break
+			}
+		} else {
+			res = s.handleRequest(req, subscr)
 		}
-		res := s.handleRequest(req, subscr)
 		res.RunForErrors(func(jsonErr *neorpc.Error) {
 			s.logRequestError(req, jsonErr)
 		})

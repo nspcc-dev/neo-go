@@ -2277,7 +2277,7 @@ func TestUninitedClient(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		r := params.NewRequest()
 		err := r.DecodeData(req.Body)
-		require.NoErrorf(t, err, "Cannot decode request body: %s", req.Body)
+		require.Nilf(t, err, "Cannot decode request body: %s", req.Body)
 		// request handler already have `getversion` response wrapper
 		requestHandler(t, r.In, w, "")
 	}))
@@ -2324,7 +2324,7 @@ func TestNetwork(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		r := params.NewRequest()
 		err := r.DecodeData(req.Body)
-		require.NoErrorf(t, err, "Cannot decode request body: %s", req.Body)
+		require.Nilf(t, err, "Cannot decode request body: %s", req.Body)
 		// request handler already have `getversion` response wrapper
 		requestHandler(t, r.In, w, "")
 	}))
