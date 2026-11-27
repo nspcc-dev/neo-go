@@ -2,9 +2,12 @@ package storage_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"runtime"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -49,6 +52,11 @@ func TestMemCachedPutGetDelete(t *testing.T) {
 	assert.Equal(t, err, storage.ErrKeyNotFound)
 }
 
+func getFromStore(t *testing.T, ps storage.Store, key []byte) ([]byte, error) {
+	v, err := ps.GetWithView(key)
+	return v, err
+}
+
 func testMemCachedStorePersist(t *testing.T, ps storage.Store) {
 	// cached Store
 	ts := storage.NewMemCachedStore(ps)
@@ -63,10 +71,10 @@ func testMemCachedStorePersist(t *testing.T, ps storage.Store) {
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 1, c)
-	v, err := ps.Get([]byte("key"))
+	v, err := getFromStore(t, ps, []byte("key"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value"), v)
-	v, err = ts.MemoryStore.Get([]byte("key"))
+	v, err = ts.MemoryStore.GetWithView([]byte("key"))
 	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	// now we overwrite the previous `key` contents and also add `key2`,
@@ -74,7 +82,7 @@ func testMemCachedStorePersist(t *testing.T, ps storage.Store) {
 	ts.Put([]byte("key2"), []byte("value2"))
 	// this is to check that now key is written into the ps before we do
 	// persist
-	v, err = ps.Get([]byte("key2"))
+	v, err = getFromStore(t, ps, []byte("key2"))
 	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	checkBatch(t, ts, []storage.KeyValueExists{
@@ -87,16 +95,16 @@ func testMemCachedStorePersist(t *testing.T, ps storage.Store) {
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 2, c)
-	v, err = ts.MemoryStore.Get([]byte("key"))
+	v, err = ts.MemoryStore.GetWithView([]byte("key"))
 	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
-	v, err = ts.MemoryStore.Get([]byte("key2"))
+	v, err = ts.MemoryStore.GetWithView([]byte("key2"))
 	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
-	v, err = ps.Get([]byte("key"))
+	v, err = getFromStore(t, ps, []byte("key"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("newvalue"), v)
-	v, err = ps.Get([]byte("key2"))
+	v, err = getFromStore(t, ps, []byte("key2"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value2"), v)
 	checkBatch(t, ts, nil, nil)
@@ -111,10 +119,10 @@ func testMemCachedStorePersist(t *testing.T, ps storage.Store) {
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 1, c)
-	v, err = ps.Get([]byte("key"))
+	v, err = getFromStore(t, ps, []byte("key"))
 	assert.Equal(t, storage.ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
-	v, err = ps.Get([]byte("key2"))
+	v, err = getFromStore(t, ps, []byte("key2"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value2"), v)
 }
@@ -314,6 +322,10 @@ func BenchmarkCachedSeek(t *testing.B) {
 	}
 }
 
+type badView struct{}
+
+func (badView) Close() error { return nil }
+
 type BadStore struct {
 	onPutBatch func()
 }
@@ -335,6 +347,12 @@ func (b *BadStore) Seek(rng storage.SeekRange, f func(k, v []byte) bool) {
 }
 func (b *BadStore) SeekGC(rng storage.SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
 	return nil
+}
+func (b *BadStore) GetWithView(k []byte) ([]byte, error) {
+	return b.Get(k)
+}
+func (b *BadStore) SeekWithView(rng storage.SeekRange, f func(k, v []byte) bool) {
+	b.Seek(rng, f)
 }
 func (b *BadStore) Close() error {
 	return nil
@@ -446,4 +464,105 @@ func TestCachedSeekSorting(t *testing.T) {
 		})
 		require.Equal(t, expected, foundKVs)
 	}
+}
+
+func testMemCachedSeekAsyncPersistGet(t *testing.T, ps storage.Store) {
+	ts := storage.NewMemCachedStore(ps)
+
+	ts.Put([]byte("k1"), []byte("v1"))
+	ts.Put([]byte("k2"), []byte("v2"))
+	_, err := ts.PersistSync()
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch := ts.SeekAsync(ctx, storage.SeekRange{Prefix: []byte("k")}, false)
+	kv, ok := <-ch
+	require.True(t, ok)
+	require.Equal(t, []byte("k1"), kv.Key)
+	require.Equal(t, []byte("v1"), kv.Value)
+
+	ts.Put([]byte("p1"), []byte("vp1"))
+
+	var persistErr error
+	persistDone := make(chan struct{})
+	go func() {
+		_, persistErr = ts.Persist()
+		close(persistDone)
+	}()
+
+	getDone := make(chan error, 1)
+	go func() {
+		deadline := time.Now().Add(200 * time.Millisecond)
+		for {
+			val, gErr := ts.Get([]byte("k1"))
+			if gErr != nil {
+				getDone <- gErr
+				return
+			}
+			if !bytes.Equal(val, []byte("v1")) {
+				getDone <- fmt.Errorf("unexpected value %q, want %q", val, "v1")
+				return
+			}
+			select {
+			case <-persistDone:
+				getDone <- nil
+				return
+			default:
+			}
+			if time.Now().After(deadline) {
+				getDone <- nil
+				return
+			}
+			runtime.Gosched()
+		}
+	}()
+
+	const deadlockTimeout = 2 * time.Second
+	select {
+	case gErr := <-getDone:
+		require.NoError(t, gErr)
+	case <-time.After(deadlockTimeout):
+		cancel()
+		for range ch {
+		}
+		if gErr := <-getDone; gErr != nil {
+			t.Logf("Get returned error after cancellation: %v", gErr)
+		}
+		<-persistDone
+		t.Fatal("deadlock: Get blocked behind Persist while SeekAsync is active")
+	}
+
+	cancel()
+	for range ch {
+	}
+
+	select {
+	case <-persistDone:
+		require.NoError(t, persistErr)
+	case <-time.After(deadlockTimeout):
+		t.Fatal("deadlock: Persist did not finish after SeekAsync was cancelled")
+	}
+}
+
+func TestMemCachedSeekAsyncPersistGet(t *testing.T) {
+	t.Run("MemoryStore", func(t *testing.T) {
+		ps := storage.NewMemoryStore()
+		testMemCachedSeekAsyncPersistGet(t, ps)
+	})
+	t.Run("BoltDBStore", func(t *testing.T) {
+		ps := store.NewBoltDBForTesting(t)
+		t.Cleanup(func() {
+			require.NoError(t, ps.Close())
+		})
+		testMemCachedSeekAsyncPersistGet(t, ps)
+	})
+	t.Run("LevelDBStore", func(t *testing.T) {
+		ps := store.NewLevelDBForTesting(t)
+		t.Cleanup(func() {
+			require.NoError(t, ps.Close())
+		})
+		testMemCachedSeekAsyncPersistGet(t, ps)
+	})
 }

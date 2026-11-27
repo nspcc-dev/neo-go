@@ -599,7 +599,8 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		// compare storage states
 		fetchStorage := func(ps storage.Store, storagePrefix byte) []storage.KeyValue {
 			var kv []storage.KeyValue
-			ps.Seek(storage.SeekRange{Prefix: []byte{storagePrefix}}, func(k, v []byte) bool {
+
+			ps.SeekWithView(storage.SeekRange{Prefix: []byte{storagePrefix}}, func(k, v []byte) bool {
 				key := bytes.Clone(k)
 				value := bytes.Clone(v)
 				if key[0] == byte(storage.STTempStorage) {
@@ -623,7 +624,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 
 		// no temp items should be left
 		var haveItems bool
-		bcBoltStore.Seek(storage.SeekRange{Prefix: []byte{byte(storage.STStorage)}}, func(_, _ []byte) bool {
+		bcBoltStore.SeekWithView(storage.SeekRange{Prefix: []byte{byte(storage.STStorage)}}, func(_, _ []byte) bool {
 			haveItems = true
 			return false
 		})

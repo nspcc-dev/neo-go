@@ -53,8 +53,16 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 	}
 }
 
+// Finalize releases RO DB view occupied by the current private instance of
+// MemCachedStore.
+func (s *MemCachedStore) Finalize() error {
+	return nil
+}
+
 // NewPrivateMemCachedStore creates a new private (unlocked) MemCachedStore object.
-// Private cached stores are closed after Persist.
+// Private cached stores are closed after Persist. If lower is a MemCachedStore
+// with an opened view, the view is shared with the new store (but is not owned
+// by it).
 func NewPrivateMemCachedStore(lower Store) *MemCachedStore {
 	return &MemCachedStore{
 		MemoryStore: *NewMemoryStore(),
@@ -91,10 +99,24 @@ func (s *MemCachedStore) runlock() {
 	}
 }
 
-// Get implements the Store interface.
+// Get offers get functionality over underlying DB.
 func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 	s.rlock()
 	defer s.runlock()
+	return s.getInternal(key)
+}
+
+// GetWithView implements the Store interface. It is not designated for the
+// external usage. Use Get instead.
+func (s *MemCachedStore) GetWithView(key []byte) ([]byte, error) {
+	s.rlock()
+	defer s.runlock()
+	return s.getInternal(key)
+}
+
+// getInternal is an internal unprotected version of Get and GetWithView. It's the
+// caller's responsibility to hold s.mut.
+func (s *MemCachedStore) getInternal(key []byte) ([]byte, error) {
 	m := s.chooseMap(key)
 	if val, ok := m[string(key)]; ok {
 		if val == nil {
@@ -102,7 +124,7 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 		}
 		return val, nil
 	}
-	return s.ps.Get(key)
+	return s.ps.GetWithView(key)
 }
 
 // Put puts new KV pair into the store.
@@ -133,7 +155,7 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 	for _, m := range []map[string][]byte{s.mem, s.stor} {
 		for k, v := range m {
 			key := []byte(k)
-			_, err := s.ps.Get(key)
+			_, err := s.ps.GetWithView(key)
 			if v == nil {
 				b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
 			} else {
@@ -152,8 +174,15 @@ func (s *MemCachedStore) PutChangeSet(puts map[string][]byte, stores map[string]
 	return nil
 }
 
-// Seek implements the Store interface.
+// Seek offers the DB seek functionality. See Store comments for behaviour details.
 func (s *MemCachedStore) Seek(rng SeekRange, cont func(k, v []byte) bool) {
+	ps, memRes := s.prepareSeekMemSnapshot(rng)
+	performSeek(context.Background(), ps, memRes, rng, false, cont)
+}
+
+// SeekWithView implements the Store interface. It is not designated for the
+// external usage. Use Seek instead.
+func (s *MemCachedStore) SeekWithView(rng SeekRange, cont func(k []byte, v []byte) bool) {
 	ps, memRes := s.prepareSeekMemSnapshot(rng)
 	performSeek(context.Background(), ps, memRes, rng, false, cont)
 }
@@ -303,7 +332,7 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 		if rng.SearchDepth > 1 {
 			rng.SearchDepth--
 		}
-		ps.Seek(rng, mergeFunc)
+		ps.SeekWithView(rng, mergeFunc)
 	}
 
 	if !done && haveMem {
