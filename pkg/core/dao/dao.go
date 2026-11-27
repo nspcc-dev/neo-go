@@ -11,6 +11,7 @@ import (
 	"maps"
 	"math/big"
 	"sync"
+	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -49,6 +50,14 @@ type Simple struct {
 
 	nativeCacheLock sync.RWMutex
 	nativeCache     map[int32]NativeContractCache
+	// nativeCacheSnapshot holds an immutable snapshot of the parent DAO's
+	// nativeCache captured atomically with the DAO's Store view. When non-nil,
+	// lookups fall back to nativeCacheSnapshot instead of nativeCachePS so
+	// newer writes to the parent DAO are not visible.
+	nativeCacheSnapshot map[int32]NativeContractCache
+	// nativeCacheSnapshotted is set once a snapshot of this DAO's nativeCache
+	// has been taken, triggering copy-on-write on direct GetRWCache calls.
+	nativeCacheSnapshotted atomic.Bool
 	// nativeCachePS is the backend store that provides functionality to store
 	// and retrieve multi-tier native contract cache. The lowest Simple has its
 	// nativeCachePS set to nil.
@@ -107,23 +116,59 @@ func (dao *Simple) GetPrivate() *Simple {
 }
 
 // GetPrivateWithView is similar to GetPrivate, but the returned DAO opens a
-// read-only view of the persistent store and uses it for all read operations.
-// This prevents a situation when concurrent read requests to this DAO are
-// blocked by some pending DB write. It's the user's responsibility to finalize
-// the opened view via Store.Finalize once this instance of DAO is no longer
-// needed.
+// read-only view of the persistent store and captures a consistent snapshot of
+// the parent's in-memory storage layers and native contract cache. Newer writes
+// to the parent DAO are not visible through the returned DAO. It's the user's
+// responsibility to finalize the opened view via Store.Finalize once this
+// instance of DAO is no longer needed.
 func (dao *Simple) GetPrivateWithView() *Simple {
-	return dao.getPrivate(storage.NewPrivateMemCachedStoreWithView(dao.Store))
+	var nativeSnap map[int32]NativeContractCache
+	st := storage.NewPrivateMemCachedStoreWithViewLock(dao.Store, func(freeze func()) {
+		dao.nativeCacheLock.RLock()
+		defer dao.nativeCacheLock.RUnlock()
+		freeze()
+		nativeSnap = dao.snapshotNativeCacheLocked()
+	})
+	d := dao.getPrivate(st)
+	d.nativeCacheSnapshot = nativeSnap
+	return d
 }
 
 // GetPrivates returns two brand new DAO instances both with another layer of
 // private MemCachedStore around the current DAO Store. They share the same
-// view to the underlying DB.
+// view to the underlying DB and the same native cache snapshot.
 func (dao *Simple) GetPrivates() (*Simple, *Simple) {
-	p1 := dao.getPrivate(storage.NewPrivateMemCachedStoreWithView(dao.Store))
+	p1 := dao.GetPrivateWithView()
 	p2 := dao.getPrivate(storage.NewPrivateMemCachedStore(dao.Store))
 	p2.Store.View = p1.Store.View
+	p2.nativeCacheSnapshot = p1.nativeCacheSnapshot
 	return p1, p2
+}
+
+// snapshotNativeCacheLocked returns a non-nil shallow snapshot of dao's effective
+// nativeCache map. Caller must hold at least dao.nativeCacheLock.RLock().
+func (dao *Simple) snapshotNativeCacheLocked() map[int32]NativeContractCache {
+	dao.nativeCacheSnapshotted.Store(true)
+	var snap map[int32]NativeContractCache
+	switch {
+	case dao.nativeCacheSnapshot != nil:
+		snap = maps.Clone(dao.nativeCacheSnapshot)
+	case dao.nativeCachePS != nil:
+		dao.nativeCachePS.nativeCacheLock.RLock()
+		snap = dao.nativeCachePS.snapshotNativeCacheLocked()
+		dao.nativeCachePS.nativeCacheLock.RUnlock()
+	default:
+		snap = maps.Clone(dao.nativeCache)
+		if snap == nil {
+			snap = make(map[int32]NativeContractCache)
+		}
+		return snap
+	}
+	if snap == nil {
+		snap = make(map[int32]NativeContractCache, len(dao.nativeCache))
+	}
+	maps.Copy(snap, dao.nativeCache)
+	return snap
 }
 
 func (dao *Simple) getPrivate(st *storage.MemCachedStore) *Simple {
@@ -1115,6 +1160,7 @@ func (dao *Simple) persistNativeCache() {
 	lower := dao.nativeCachePS
 	maps.Copy(lower.nativeCache, dao.nativeCache)
 	dao.nativeCache = nil
+	dao.nativeCacheSnapshot = nil
 }
 
 // GetROCache returns native contact cache. The cache CAN NOT be modified by
@@ -1138,22 +1184,35 @@ func (dao *Simple) GetRWCache(id int32) NativeContractCache {
 // getCache is an internal unlocked representation of GetROCache and GetRWCache.
 func (dao *Simple) getCache(k int32, ro bool) NativeContractCache {
 	if itm, ok := dao.nativeCache[k]; ok {
+		if !ro && itm != nil && dao.nativeCacheSnapshotted.Load() {
+			cp := itm.Copy()
+			dao.nativeCache[k] = cp
+			return cp
+		}
 		// Don't need to create itm copy, because its value was already copied
 		// the first time it was retrieved from lower ps.
 		return itm
 	}
 
+	if dao.nativeCacheSnapshot != nil {
+		v := dao.nativeCacheSnapshot[k]
+		if ro || v == nil {
+			return v
+		}
+		cp := v.Copy()
+		dao.nativeCache[k] = cp
+		return cp
+	}
+
 	if dao.nativeCachePS != nil {
-		if ro {
-			return dao.nativeCachePS.GetROCache(k)
+		v := dao.nativeCachePS.GetROCache(k)
+		if ro || v == nil {
+			return v
 		}
-		v := dao.nativeCachePS.GetRWCache(k)
-		if v != nil {
-			// Create a copy here in order not to modify the existing cache.
-			cp := v.Copy()
-			dao.nativeCache[k] = cp
-			return cp
-		}
+		// Create a copy here in order not to modify the existing cache.
+		cp := v.Copy()
+		dao.nativeCache[k] = cp
+		return cp
 	}
 	return nil
 }

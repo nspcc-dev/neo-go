@@ -23,17 +23,17 @@ type MemCachedStore struct {
 	plock sync.Mutex
 	// Persistent Store.
 	ps Store
-	// layers holds in-memory changesets that are either being persisted to ps
-	// or have already been persisted to ps while older read views remain open.
-	// Ordered oldest to newest; protected by mut. Backing arrays and individual
-	// layers are immutable once published.
+	// layers holds immutable in-memory changesets that were frozen for active
+	// read views or for persisting to ps. Ordered oldest to newest by gen;
+	// protected by mut. Backing arrays and individual layers are immutable
+	// once published.
 	layers []*memLayer
-	// persistGen is a monotonically increasing counter incremented on each
-	// persist attempt. Protected by mut.
-	persistGen uint64
-	// persisting is true while persist is executing ps.PutChangeSet.
-	// Protected by mut.
-	persisting bool
+	// layerGen is a monotonically increasing counter assigned to each frozen
+	// layer. Protected by mut.
+	layerGen uint64
+	// persistedGen is the highest layer generation successfully flushed to ps.
+	// Layers with gen > persistedGen are not yet durable in ps. Protected by mut.
+	persistedGen uint64
 	// viewGens tracks active views opened via BeginView by their minimum
 	// required layer generation (minGen -> count). Protected by mut.
 	viewGens map[uint64]int
@@ -65,6 +65,7 @@ type memCachedView struct {
 	s      *MemCachedStore
 	lower  IView
 	minGen uint64
+	maxGen uint64
 	closed atomic.Bool
 }
 
@@ -153,6 +154,21 @@ func NewPrivateMemCachedStoreWithView(lower Store) *MemCachedStore {
 	return s
 }
 
+// NewPrivateMemCachedStoreWithViewLock is similar to NewPrivateMemCachedStoreWithView,
+// but invokes withSnapLock around freezing the lower MemCachedStore's current maps
+// so the caller can atomically capture auxiliary state (such as DAO native cache)
+// at the exact same snapshot point.
+func NewPrivateMemCachedStoreWithViewLock(lower *MemCachedStore, withSnapLock func(func())) *MemCachedStore {
+	view, err := lower.beginView(true, withSnapLock)
+	if err != nil {
+		panic(fmt.Errorf("failed to initialize read transaction to lower persistent storage: %w", err))
+	}
+	s := NewPrivateMemCachedStore(lower)
+	s.View = view
+	s.closeView = true
+	return s
+}
+
 // lock write-locks non-private store.
 func (s *MemCachedStore) lock() {
 	if !s.private {
@@ -184,10 +200,7 @@ func (s *MemCachedStore) runlock() {
 func (s *MemCachedStore) acquireViewGen() uint64 {
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	minGen := s.persistGen + 1
-	if s.persisting {
-		minGen = s.persistGen
-	}
+	minGen := s.persistedGen + 1
 	if s.viewGens == nil {
 		s.viewGens = make(map[uint64]int)
 	}
@@ -206,20 +219,31 @@ func (s *MemCachedStore) releaseView(minGen uint64) {
 	s.pruneLayersLocked()
 }
 
+// freezeCurrentLocked moves non-empty live maps into a new immutable memLayer
+// and returns the resulting highest layer generation. Caller must hold s.mut.Lock().
+func (s *MemCachedStore) freezeCurrentLocked() uint64 {
+	if len(s.mem) == 0 && len(s.stor) == 0 {
+		return s.layerGen
+	}
+	s.layerGen++
+	layer := &memLayer{
+		mem:  s.mem,
+		stor: s.stor,
+		gen:  s.layerGen,
+	}
+	nextLayers := make([]*memLayer, len(s.layers)+1)
+	copy(nextLayers, s.layers)
+	nextLayers[len(s.layers)] = layer
+	s.layers = nextLayers
+	s.mem = make(map[string][]byte, len(layer.mem))
+	s.stor = make(map[string][]byte, len(layer.stor))
+	return s.layerGen
+}
+
 // pruneLayersLocked drops persisted layers that no active view can still need.
 // Caller must hold s.mut.Lock().
 func (s *MemCachedStore) pruneLayersLocked() {
 	if len(s.layers) == 0 {
-		return
-	}
-	if len(s.viewGens) == 0 {
-		if s.persisting {
-			if len(s.layers) > 1 {
-				s.layers = []*memLayer{s.layers[len(s.layers)-1]}
-			}
-		} else {
-			s.layers = nil
-		}
 		return
 	}
 	var minActiveGen uint64 = math.MaxUint64
@@ -229,11 +253,7 @@ func (s *MemCachedStore) pruneLayersLocked() {
 		}
 	}
 	cut := 0
-	limit := len(s.layers)
-	if s.persisting {
-		limit--
-	}
-	for cut < limit && s.layers[cut].gen < minActiveGen {
+	for cut < len(s.layers) && s.layers[cut].gen <= s.persistedGen && s.layers[cut].gen < minActiveGen {
 		cut++
 	}
 	if cut == 0 {
@@ -253,10 +273,31 @@ func (s *MemCachedStore) unwrapView(view IView) IView {
 	return view
 }
 
+func (s *MemCachedStore) boundMaxGen(view IView) (uint64, bool) {
+	if v, ok := view.(*memCachedView); ok && v.s == s && v.maxGen != math.MaxUint64 {
+		return v.maxGen, true
+	}
+	return 0, false
+}
+
 // BeginView implements the Store interface.
 func (s *MemCachedStore) BeginView() (IView, error) {
+	return s.beginView(true, nil)
+}
+
+func (s *MemCachedStore) beginView(freeze bool, withSnapLock func(func())) (IView, error) {
 	if s.private {
-		return s.ps.BeginView()
+		if lower, ok := s.ps.(*MemCachedStore); ok {
+			return lower.beginView(freeze, withSnapLock)
+		}
+		lower, err := s.ps.BeginView()
+		if err != nil {
+			return nil, err
+		}
+		if withSnapLock != nil {
+			withSnapLock(func() {})
+		}
+		return lower, nil
 	}
 	minGen := s.acquireViewGen()
 	lower, err := s.ps.BeginView()
@@ -264,11 +305,39 @@ func (s *MemCachedStore) BeginView() (IView, error) {
 		s.releaseView(minGen)
 		return nil, err
 	}
+	var maxGen uint64 = math.MaxUint64
+	if freeze {
+		snap := func() {
+			s.mut.Lock()
+			maxGen = s.freezeCurrentLocked()
+			s.mut.Unlock()
+		}
+		if withSnapLock != nil {
+			withSnapLock(snap)
+		} else {
+			snap()
+		}
+	}
 	return &memCachedView{
 		s:      s,
 		lower:  lower,
 		minGen: minGen,
+		maxGen: maxGen,
 	}, nil
+}
+
+// Len returns the number of unpersisted keys cached in memory.
+func (s *MemCachedStore) Len() int {
+	s.rlock()
+	defer s.runlock()
+	n := len(s.mem) + len(s.stor)
+	for _, layer := range slices.Backward(s.layers) {
+		if layer.gen <= s.persistedGen {
+			break
+		}
+		n += len(layer.mem) + len(layer.stor)
+	}
+	return n
 }
 
 // Get offers get functionality over underlying DB.
@@ -289,8 +358,14 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 		if lower, ok := s.ps.(*MemCachedStore); ok {
 			return lower.Get(key)
 		}
+		view, err := s.ps.BeginView()
+		if err != nil {
+			return nil, err
+		}
+		defer view.Close()
+		return s.ps.GetWithView(view, key)
 	}
-	view, err := s.BeginView()
+	view, err := s.beginView(false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -301,8 +376,16 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 // GetWithView implements the Store interface. It is not designated for the
 // external usage. Use Get instead.
 func (s *MemCachedStore) GetWithView(view IView, key []byte) ([]byte, error) {
+	var (
+		val []byte
+		ok  bool
+	)
 	s.rlock()
-	val, ok := s.getMemory(key)
+	if maxGen, bounded := s.boundMaxGen(view); bounded {
+		val, ok = s.getFromLayersUpTo(key, maxGen)
+	} else {
+		val, ok = s.getMemory(key)
+	}
 	s.runlock()
 	if ok {
 		if val == nil {
@@ -313,19 +396,22 @@ func (s *MemCachedStore) GetWithView(view IView, key []byte) ([]byte, error) {
 	return s.ps.GetWithView(s.unwrapView(view), key)
 }
 
-// getMemory looks up key in s's own maps and retained persisted layers.
+// getMemory looks up key in s's own maps and retained layers.
 // Caller must hold at least s.rlock().
 func (s *MemCachedStore) getMemory(key []byte) ([]byte, bool) {
 	if val, ok := s.chooseMap(key)[string(key)]; ok {
 		return val, true
 	}
-	return s.getFromLayers(key)
+	return s.getFromLayersUpTo(key, math.MaxUint64)
 }
 
-// getFromLayers looks up key in retained layers from newest to oldest.
-// Caller must hold at least s.rlock().
-func (s *MemCachedStore) getFromLayers(key []byte) ([]byte, bool) {
+// getFromLayersUpTo looks up key in retained layers with gen <= maxGen from
+// newest to oldest. Caller must hold at least s.rlock().
+func (s *MemCachedStore) getFromLayersUpTo(key []byte, maxGen uint64) ([]byte, bool) {
 	for _, layer := range slices.Backward(s.layers) {
+		if layer.gen > maxGen {
+			continue
+		}
 		if val, ok := layer.chooseMap(key)[string(key)]; ok {
 			return val, true
 		}
@@ -355,7 +441,11 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 	view := s.View
 	if view == nil {
 		var err error
-		view, err = s.BeginView()
+		if s.private {
+			view, err = s.BeginView()
+		} else {
+			view, err = s.beginView(false, nil)
+		}
 		if err != nil {
 			panic(err)
 		}
@@ -369,22 +459,55 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 
 	b.Put = make([]KeyValueExists, 0, len(s.mem)+len(s.stor))
 	b.Deleted = make([]KeyValueExists, 0)
-	for _, m := range []map[string][]byte{s.mem, s.stor} {
-		for k, v := range m {
-			key := []byte(k)
-			var exists bool
-			if lv, ok := s.getFromLayers(key); ok {
-				exists = lv != nil
-			} else {
-				_, err := s.ps.GetWithView(lowerView, key)
-				exists = err == nil
+
+	checkExists := func(key []byte) bool {
+		if lv, ok := s.getFromLayersUpTo(key, s.persistedGen); ok {
+			return lv != nil
+		}
+		_, err := s.ps.GetWithView(lowerView, key)
+		return err == nil
+	}
+
+	hasUnpersistedLayers := len(s.layers) > 0 && s.layers[len(s.layers)-1].gen > s.persistedGen
+	if !hasUnpersistedLayers {
+		for _, m := range []map[string][]byte{s.mem, s.stor} {
+			for k, v := range m {
+				key := []byte(k)
+				exists := checkExists(key)
+				if v == nil {
+					b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: exists})
+				} else {
+					b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: exists})
+				}
 			}
+		}
+		return &b
+	}
+
+	seen := make(map[string]struct{}, len(s.mem)+len(s.stor))
+	addMap := func(m map[string][]byte) {
+		for k, v := range m {
+			if _, ok := seen[k]; ok {
+				continue
+			}
+			seen[k] = struct{}{}
+			key := []byte(k)
+			exists := checkExists(key)
 			if v == nil {
 				b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: exists})
 			} else {
 				b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: exists})
 			}
 		}
+	}
+	addMap(s.mem)
+	addMap(s.stor)
+	for _, layer := range slices.Backward(s.layers) {
+		if layer.gen <= s.persistedGen {
+			break
+		}
+		addMap(layer.mem)
+		addMap(layer.stor)
 	}
 	return &b
 }
@@ -414,8 +537,77 @@ func (s *MemCachedStore) Seek(rng SeekRange, cont func(k, v []byte) bool) {
 // SeekWithView implements the Store interface. It is not designated for the
 // external usage. Use Seek instead.
 func (s *MemCachedStore) SeekWithView(view IView, rng SeekRange, cont func(k, v []byte) bool) {
-	memRes := s.prepareSeekMemSnapshot(rng)
+	memRes := s.prepareSeekMemSnapshot(view, rng)
 	performSeek(context.Background(), s.unwrapView(view), s.ps, memRes, rng, false, cont)
+}
+
+// SeekGC implements the Store interface.
+func (s *MemCachedStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
+	s.lock()
+	defer s.unlock()
+	if len(s.layers) == 0 || s.layers[len(s.layers)-1].gen <= s.persistedGen {
+		noop := func() {}
+		s.seek(rng, func(k, v []byte) bool {
+			keep, cont := keepCont(k, v)
+			if !keep {
+				delete(s.chooseMap(k), string(k))
+			}
+			return cont
+		}, noop, noop)
+		return nil
+	}
+
+	sPrefix := string(rng.Prefix)
+	lPrefix := len(sPrefix)
+	sStart := string(rng.Start)
+	isKeyOK := func(key string) bool {
+		return strings.HasPrefix(key, sPrefix) && (rng.Start == nil || cmp.Compare(key[lPrefix:], sStart) >= 0)
+	}
+	if rng.Backwards {
+		isKeyOK = func(key string) bool {
+			return strings.HasPrefix(key, sPrefix) && (rng.Start == nil || cmp.Compare(key[lPrefix:], sStart) <= 0)
+		}
+	}
+
+	var (
+		memList []KeyValue
+		seen    = make(map[string]struct{})
+	)
+	addMap := func(m map[string][]byte) {
+		for k, v := range m {
+			if !isKeyOK(k) {
+				continue
+			}
+			if _, ok := seen[k]; ok {
+				continue
+			}
+			seen[k] = struct{}{}
+			if v != nil {
+				memList = append(memList, KeyValue{Key: []byte(k), Value: v})
+			}
+		}
+	}
+	addMap(s.chooseMap(rng.Prefix))
+	for _, layer := range slices.Backward(s.layers) {
+		if layer.gen <= s.persistedGen {
+			break
+		}
+		addMap(layer.chooseMap(rng.Prefix))
+	}
+	cmpFunc := getCmpFunc(rng.Backwards)
+	slices.SortFunc(memList, func(a, b KeyValue) int {
+		return cmpFunc(a.Key, b.Key)
+	})
+	for _, kv := range memList {
+		keep, cont := keepCont(kv.Key, kv.Value)
+		if !keep {
+			s.chooseMap(kv.Key)[string(kv.Key)] = nil
+		}
+		if !cont {
+			break
+		}
+	}
+	return nil
 }
 
 // GetStorageChanges returns all current storage changes. It can only be done for private
@@ -444,7 +636,7 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix
 		}
 		closeView = true
 	}
-	memRes := s.prepareSeekMemSnapshot(rng)
+	memRes := s.prepareSeekMemSnapshot(view, rng)
 	lowerView := s.unwrapView(view)
 	go func() {
 		if closeView {
@@ -465,10 +657,10 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix
 }
 
 // prepareSeekMemSnapshot prepares memory store snapshot of `stor`/`mem` and any
-// retained persisted layers in order not to hold the lock over MemCachedStore
-// throughout the whole Seek operation.
+// retained layers visible to view in order not to hold the lock over
+// MemCachedStore throughout the whole Seek operation.
 // The results of prepareSeekMemSnapshot can be safely used as performSeek arguments.
-func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) []KeyValueExists {
+func (s *MemCachedStore) prepareSeekMemSnapshot(view IView, rng SeekRange) []KeyValueExists {
 	var memRes []KeyValueExists
 	sPrefix := string(rng.Prefix)
 	lPrefix := len(sPrefix)
@@ -482,22 +674,19 @@ func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) []KeyValueExists 
 		}
 	}
 	s.rlock()
-	m := s.chooseMap(rng.Prefix)
-	if len(s.layers) == 0 || rng.SearchDepth == 1 {
-		for k, v := range m {
-			if isKeyOK(k) {
-				memRes = append(memRes, KeyValueExists{
-					KeyValue: KeyValue{
-						Key:   []byte(k),
-						Value: v,
-					},
-					Exists: v != nil,
-				})
+	if maxGen, bounded := s.boundMaxGen(view); bounded {
+		var seen map[string]struct{}
+		for _, layer := range slices.Backward(s.layers) {
+			if layer.gen > maxGen {
+				continue
 			}
-		}
-	} else {
-		seen := make(map[string]struct{}, len(m))
-		addMap := func(mm map[string][]byte) {
+			mm := layer.chooseMap(rng.Prefix)
+			if len(mm) == 0 {
+				continue
+			}
+			if seen == nil {
+				seen = make(map[string]struct{}, len(mm))
+			}
 			for k, v := range mm {
 				if !isKeyOK(k) {
 					continue
@@ -515,9 +704,48 @@ func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) []KeyValueExists 
 				})
 			}
 		}
-		addMap(m)
-		for _, layer := range slices.Backward(s.layers) {
-			addMap(layer.chooseMap(rng.Prefix))
+	} else {
+		m := s.chooseMap(rng.Prefix)
+		hasUnpersistedLayers := len(s.layers) > 0 && s.layers[len(s.layers)-1].gen > s.persistedGen
+		if len(s.layers) == 0 || (rng.SearchDepth == 1 && !hasUnpersistedLayers) {
+			for k, v := range m {
+				if isKeyOK(k) {
+					memRes = append(memRes, KeyValueExists{
+						KeyValue: KeyValue{
+							Key:   []byte(k),
+							Value: v,
+						},
+						Exists: v != nil,
+					})
+				}
+			}
+		} else {
+			seen := make(map[string]struct{}, len(m))
+			addMap := func(mm map[string][]byte) {
+				for k, v := range mm {
+					if !isKeyOK(k) {
+						continue
+					}
+					if _, ok := seen[k]; ok {
+						continue
+					}
+					seen[k] = struct{}{}
+					memRes = append(memRes, KeyValueExists{
+						KeyValue: KeyValue{
+							Key:   []byte(k),
+							Value: v,
+						},
+						Exists: v != nil,
+					})
+				}
+			}
+			addMap(m)
+			for _, layer := range slices.Backward(s.layers) {
+				if rng.SearchDepth == 1 && layer.gen <= s.persistedGen {
+					break
+				}
+				addMap(layer.chooseMap(rng.Prefix))
+			}
 		}
 	}
 	s.runlock()
@@ -701,58 +929,49 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	defer s.plock.Unlock()
 	s.mut.Lock()
 
-	keys = len(s.mem) + len(s.stor)
-	if keys == 0 {
+	// Freeze current maps if non-empty and flush all layers not yet persisted
+	// to ps. Each layer stays immutable for active views until every view that
+	// may still depend on it is closed.
+	s.freezeCurrentLocked()
+	firstUnpersisted := len(s.layers)
+	for firstUnpersisted > 0 && s.layers[firstUnpersisted-1].gen > s.persistedGen {
+		firstUnpersisted--
+	}
+	if firstUnpersisted == len(s.layers) {
 		s.mut.Unlock()
 		return 0, nil
 	}
-
-	// Freeze current maps into an immutable layer while s starts using fresh
-	// new maps. The layer stays visible to readers during PutChangeSet and
-	// remains retained afterward until every view that may still depend on it
-	// is closed.
-	s.persistGen++
-	layer := &memLayer{
-		mem:  s.mem,
-		stor: s.stor,
-		gen:  s.persistGen,
-	}
-	nextLayers := make([]*memLayer, len(s.layers)+1)
-	copy(nextLayers, s.layers)
-	nextLayers[len(s.layers)] = layer
-	s.layers = nextLayers
-	s.persisting = true
-	s.mem = make(map[string][]byte, len(s.mem))
-	s.stor = make(map[string][]byte, len(s.stor))
+	toFlush := slices.Clone(s.layers[firstUnpersisted:])
+	targetGen := toFlush[len(toFlush)-1].gen
 	if !isSync {
 		s.mut.Unlock()
 	}
-	err = s.ps.PutChangeSet(layer.mem, layer.stor)
+
+	var flushMem, flushStor map[string][]byte
+	if len(toFlush) == 1 {
+		flushMem = toFlush[0].mem
+		flushStor = toFlush[0].stor
+	} else {
+		var memCap, storCap int
+		for _, l := range toFlush {
+			memCap += len(l.mem)
+			storCap += len(l.stor)
+		}
+		flushMem = make(map[string][]byte, memCap)
+		flushStor = make(map[string][]byte, storCap)
+		for _, l := range toFlush {
+			maps.Copy(flushMem, l.mem)
+			maps.Copy(flushStor, l.stor)
+		}
+	}
+	keys = len(flushMem) + len(flushStor)
+	err = s.ps.PutChangeSet(flushMem, flushStor)
 
 	if !isSync {
 		s.mut.Lock()
 	}
-	s.persisting = false
 	if err == nil {
-		// layer.mem and layer.stor are completely flushed now to s.ps; drop
-		// any layers that no active read view can still need.
-		s.pruneLayersLocked()
-	} else {
-		// We're toast. We'll try to still keep proper state, but OOM
-		// killer will get to us eventually.
-		mergedMem := make(map[string][]byte, len(layer.mem)+len(s.mem))
-		maps.Copy(mergedMem, layer.mem)
-		maps.Copy(mergedMem, s.mem)
-		mergedStor := make(map[string][]byte, len(layer.stor)+len(s.stor))
-		maps.Copy(mergedStor, layer.stor)
-		maps.Copy(mergedStor, s.stor)
-		s.mem = mergedMem
-		s.stor = mergedStor
-		if len(s.layers) == 1 {
-			s.layers = nil
-		} else {
-			s.layers = slices.Clone(s.layers[:len(s.layers)-1])
-		}
+		s.persistedGen = targetGen
 		s.pruneLayersLocked()
 	}
 	s.mut.Unlock()
