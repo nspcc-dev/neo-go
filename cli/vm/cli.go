@@ -1182,6 +1182,13 @@ func runVMWithHandling(c *cli.Context) {
 		writeErr(c.App.ErrWriter, err)
 	}
 
+	printVMState(c)
+}
+
+// printVMState reports the current VM state.
+func printVMState(c *cli.Context) {
+	v := getVMFromContext(c.App)
+
 	var (
 		message string
 		dumpNtf bool
@@ -1203,6 +1210,7 @@ func runVMWithHandling(c *cli.Context) {
 		}
 	}
 	if dumpNtf {
+		var err error
 		var e string
 		e, err = dumpEvents(c.App)
 		if err == nil && len(e) != 0 {
@@ -1227,24 +1235,26 @@ func handleCont(c *cli.Context) error {
 }
 
 func handleStep(c *cli.Context) error {
-	var (
-		n   = 1
-		err error
-	)
-
 	if !checkVMIsReady(c.App) {
 		return nil
 	}
 	v := getVMFromContext(c.App)
+	n := 1
 	args := c.Args().Slice()
 	if len(args) > 0 {
-		n, err = strconv.Atoi(args[0])
+		parsed, err := strconv.Atoi(args[0])
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 		}
+		if parsed < 1 {
+			return fmt.Errorf("%w: step count should be positive", ErrInvalidParameter)
+		}
+		n = parsed
 	}
-	v.AddBreakPointRel(n)
-	runVMWithHandling(c)
+	if err := v.StepInstructions(n); err != nil {
+		writeErr(c.App.ErrWriter, err)
+	}
+	printVMState(c)
 	changePrompt(c.App)
 	return nil
 }

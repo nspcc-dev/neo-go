@@ -876,7 +876,7 @@ func TestDumpSSlot(t *testing.T) {
 	e.runProg(t,
 		"loadhex "+hex.EncodeToString(w.Bytes()),
 		"break 5",
-		"step", "sslot",
+		"cont", "sslot",
 		"cont", "estack",
 	)
 	e.checkNextLine(t, "READY: loaded 6 instructions")
@@ -925,6 +925,7 @@ func TestStep(t *testing.T) {
 		"step",
 		"loadhex "+script,
 		"step invalid",
+		"step 0",
 		"step",
 		"step 2",
 		"ip", "step", "ip")
@@ -932,11 +933,69 @@ func TestStep(t *testing.T) {
 	e.checkNextLine(t, "no program loaded")
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
 	e.checkError(t, ErrInvalidParameter)
+	e.checkError(t, ErrInvalidParameter)
 	e.checkNextLine(t, "at breakpoint 1.*PUSH1")
 	e.checkNextLine(t, "at breakpoint 3.*PUSH3")
 	e.checkNextLine(t, "instruction pointer at 3.*PUSH3")
 	e.checkNextLine(t, "execution has finished")
 	e.checkNextLine(t, "execution has finished")
+}
+
+func TestStep_InstructionsWithVariableLength(t *testing.T) {
+	// The script under test: INITSLOT carries two operand bytes and the
+	// decrement block is only reachable through a jump.
+	//
+	//   0: INITSLOT 1,0
+	//   3: PUSH10
+	//   4: STLOC0
+	//   5: JMP +6      -> 11
+	//   7: LDLOC0
+	//   8: PUSH1
+	//   9: SUB
+	//  10: STLOC0
+	//  11: LDLOC0
+	//  12: PUSH0
+	//  13: GT
+	//  14: JMPIF -7    -> 11
+	//  16: LDLOC0
+	//  17: RET
+	w := io.NewBufBinWriter()
+	emit.Instruction(w.BinWriter, opcode.INITSLOT, []byte{1, 0})
+	emit.Opcodes(w.BinWriter, opcode.PUSH10, opcode.STLOC0)
+	emit.Instruction(w.BinWriter, opcode.JMP, []byte{6})
+	emit.Opcodes(w.BinWriter, opcode.LDLOC0, opcode.PUSH1, opcode.SUB, opcode.STLOC0)
+	emit.Opcodes(w.BinWriter, opcode.LDLOC0, opcode.PUSH0, opcode.GT)
+	emit.Instruction(w.BinWriter, opcode.JMPIF, []byte{0xf9})
+	emit.Opcodes(w.BinWriter, opcode.LDLOC0, opcode.RET)
+	require.NoError(t, w.Err)
+	script := hex.EncodeToString(w.Bytes())
+
+	e := newTestVMCLI(t)
+	e.runProg(t,
+		"loadhex "+script,
+		"step", "ip",
+		"step 2", "ip",
+		"loadhex "+script,
+		"step 4", "ip",
+		"loadhex "+script,
+		"step 3",
+		"step 3", "ip")
+
+	e.checkNextLine(t, "READY: loaded 18 instructions")
+	e.checkNextLine(t, "at breakpoint 3.*PUSH10")
+	e.checkNextLine(t, "instruction pointer at 3.*PUSH10")
+	e.checkNextLine(t, "at breakpoint 5.*JMP")
+	e.checkNextLine(t, "instruction pointer at 5.*JMP")
+
+	// The jump at 5 skips the decrement block, so four instructions end at 11.
+	e.checkNextLine(t, "READY: loaded 18 instructions")
+	e.checkNextLine(t, "at breakpoint 11.*LDLOC0")
+	e.checkNextLine(t, "instruction pointer at 11.*LDLOC0")
+
+	e.checkNextLine(t, "READY: loaded 18 instructions")
+	e.checkNextLine(t, "at breakpoint 5.*JMP")
+	e.checkNextLine(t, "at breakpoint 13.*GT")
+	e.checkNextLine(t, "instruction pointer at 13.*GT")
 }
 
 func TestErrorOnStepInto(t *testing.T) {
