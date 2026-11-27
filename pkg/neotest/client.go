@@ -3,6 +3,8 @@ package neotest
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -61,7 +63,6 @@ func (c *ContractInvoker) TestInvokeScript(t testing.TB, script []byte, signers 
 	if err != nil {
 		return nil, err
 	}
-	t.Cleanup(ic.Finalize)
 
 	if c.collectCoverage {
 		ic.VM.SetOnExecHook(c.coverageHook)
@@ -69,6 +70,7 @@ func (c *ContractInvoker) TestInvokeScript(t testing.TB, script []byte, signers 
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
 	err = ic.VM.Run()
+	finalizeTestVM(t, ic)
 	return ic.VM.Estack(), err
 }
 
@@ -80,7 +82,6 @@ func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...any) (
 	if err != nil {
 		return nil, err
 	}
-	t.Cleanup(ic.Finalize)
 
 	if c.collectCoverage {
 		ic.VM.SetOnExecHook(c.coverageHook)
@@ -88,7 +89,18 @@ func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...any) (
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
 	err = ic.VM.Run()
+	finalizeTestVM(t, ic)
 	return ic.VM.Estack(), err
+}
+
+func finalizeTestVM(t testing.TB, ic *interop.Context) {
+	for _, itm := range ic.VM.Estack().ToArray() {
+		if itm.Type() == stackitem.InteropT && iterator.IsIterator(itm) {
+			t.Cleanup(ic.Finalize)
+			return
+		}
+	}
+	ic.Finalize()
 }
 
 // WithSigners creates a new client with the provided signer.

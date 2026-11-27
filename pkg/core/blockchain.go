@@ -2018,6 +2018,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		aerchan         = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone         = make(chan error)
 	)
+	defer func() {
+		aerCache.Store.View = nil
+		_ = cache.Store.Finalize()
+	}()
 	go func() {
 		var (
 			kvcache      = aerCache
@@ -2176,11 +2180,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 
 	aererr := <-aerdone
-	// TODO: ?
 	// The view must be released before waiting for persistence below, otherwise
 	// the persisting routine can't take the DB write lock.
-	//_ = cache.Store.Finalize()
-	//aerCache.Store.View = nil // TODO: @roman-khimov, hide this finalization under DAO-bound methods?
+	aerCache.Store.View = nil
+	if err := cache.Store.Finalize(); err != nil && aererr == nil {
+		aererr = err
+	}
 	if aererr != nil {
 		return aererr
 	}
@@ -3293,21 +3298,35 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 }
 
 // GetTestVM returns an interop context with VM set up for a test run.
+// The caller must call Context.Finalize once the returned context is no longer
+// needed to release the underlying DB view and any open iterators.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error) {
+	d := bc.dao.GetPrivateWithView()
 	if b == nil {
-		var err error
-		h := bc.BlockHeight() + 1
-		b, err = bc.GetFakeNextBlock(h)
+		curH, err := d.GetCurrentBlockHeight()
 		if err != nil {
+			_ = d.Store.Finalize()
+			return nil, fmt.Errorf("failed to get current block height: %w", err)
+		}
+		h := curH + 1
+		b, err = bc.getFakeNextBlock(d, h, curH)
+		if err != nil {
+			_ = d.Store.Finalize()
 			return nil, fmt.Errorf("failed to create fake block for height %d: %w", h, err)
 		}
 	}
-	systemInterop := bc.newInteropContext(t, bc.dao, b, tx)
+	systemInterop := bc.newInteropContext(t, d, b, tx)
+	systemInterop.RegisterCancelFunc(func() {
+		systemInterop.DAO.Store.View = nil
+		_ = d.Store.Finalize()
+	})
 	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
 	return systemInterop, nil
 }
 
 // GetTestHistoricVM returns an interop context with VM set up for a test run.
+// The caller must call Context.Finalize once the returned context is no longer
+// needed to release the underlying DB view and any open iterators.
 func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, nextBlockHeight uint32) (*interop.Context, error) {
 	if bc.config.KeepOnlyLatestState {
 		return nil, errors.New("only latest state is supported")
@@ -3331,29 +3350,38 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve stateroot for height %d: %w", b.Index, err)
 	}
-	s := mpt.NewTrieStore(sr.Root, mode, storage.NewPrivateMemCachedStore(bc.dao.Store)) // TODO: @roman-khimov, use WithView and finalize this view on IC finalization?
+	trieBacking := storage.NewPrivateMemCachedStoreWithView(bc.dao.Store)
+	s := mpt.NewTrieStore(sr.Root, mode, trieBacking)
 	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader)
 	dTrie.Version = bc.dao.Version
 	// Initialize native cache before passing DAO to interop context constructor, because
 	// the constructor will call BaseExecFee/StoragePrice policy methods on the passed DAO.
 	err = bc.initializeNativeCache(b.Index, dTrie)
 	if err != nil {
+		_ = trieBacking.Finalize()
 		return nil, fmt.Errorf("failed to initialize native cache backed by historic DAO: %w", err)
 	}
 	systemInterop := bc.newInteropContext(t, dTrie, b, tx)
+	systemInterop.RegisterCancelFunc(func() {
+		_ = trieBacking.Finalize()
+	})
 	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
 	return systemInterop, nil
 }
 
 // GetFakeNextBlock returns fake block with the specified index and pre-filled Timestamp field.
 func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) {
+	return bc.getFakeNextBlock(bc.dao, nextBlockHeight, bc.BlockHeight())
+}
+
+func (bc *Blockchain) getFakeNextBlock(d *dao.Simple, nextBlockHeight uint32, blockHeight uint32) (*block.Block, error) {
 	b := block.New(bc.config.StateRootInHeader)
 	b.Index = nextBlockHeight
-	hdr, err := bc.GetHeader(bc.GetHeaderHash(nextBlockHeight - 1))
+	hdr, err := bc.getHeader(d, bc.getHeaderHash(d, nextBlockHeight-1))
 	if err != nil {
 		return nil, err
 	}
-	b.Timestamp = hdr.Timestamp + uint64(bc.GetMillisecondsPerBlock())
+	b.Timestamp = hdr.Timestamp + uint64(bc.getMillisecondsPerBlock(d, blockHeight))
 	return b, nil
 }
 
@@ -3372,8 +3400,12 @@ func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 // nodes work with (in milliseconds). This method performs access to native Policy
 // cache hence Policy is expected to be initialized by this moment.
 func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
-	if bc.isHardforkEnabled(new(config.HFEchidna), bc.BlockHeight(), nil, false) {
-		return bc.policy.GetMillisecondsPerBlockInternal(bc.dao)
+	return bc.getMillisecondsPerBlock(bc.dao, bc.BlockHeight())
+}
+
+func (bc *Blockchain) getMillisecondsPerBlock(d *dao.Simple, blockHeight uint32) uint32 {
+	if bc.isHardforkEnabled(new(config.HFEchidna), blockHeight, nil, false) {
+		return bc.policy.GetMillisecondsPerBlockInternal(d)
 	}
 	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
 }

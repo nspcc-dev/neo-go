@@ -114,6 +114,7 @@ func TestSyscallExecution(t *testing.T) {
 	})
 	ic, err := bc.GetTestVM(trigger.Application, nil, &block.Block{})
 	require.NoError(t, err)
+	defer ic.Finalize()
 	for _, fs := range ic.Functions {
 		// It will be set in test and we want to fail if calling invalid syscall.
 		fs.Func = nil

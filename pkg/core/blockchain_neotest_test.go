@@ -24,7 +24,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	interopstorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -3176,4 +3178,97 @@ func TestRuntimeNotifyRefcounting(t *testing.T) {
 		e.AddNewBlock(t)
 	}
 	cInv.InvokeFail(t, "System.Runtime.Notify failed: notification count shouldn't exceed 512", "produceNumerousNotifications", count)
+}
+
+func TestGetTestVMSnapshotIsolation(t *testing.T) {
+	for name, newPS := range map[string]func(testing.TB) storage.Store{
+		"BoltDBStore":  store.NewBoltDBForTesting,
+		"LevelDBStore": store.NewLevelDBForTesting,
+	} {
+		t.Run(name, func(t *testing.T) {
+			bc, acc := chain.NewSingleWithCustomConfigAndStore(t, nil, newPS(t), true)
+			e := neotest.NewExecutor(t, bc, acc, acc)
+
+			src := `package test
+			import (
+				"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+				"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+			)
+			func Put(k, v string) {
+				storage.Put(storage.GetContext(), k, v)
+			}
+			func Get(k string) any {
+				return storage.Get(storage.GetReadOnlyContext(), k)
+			}
+			func Find() iterator.Iterator {
+				return storage.Find(storage.GetReadOnlyContext(), []byte("k"), storage.None)
+			}`
+			c := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(src), &compiler.Options{Name: "snap_test"})
+			e.DeployContract(t, c, nil)
+			cInv := e.NewInvoker(c.Hash, acc)
+			pInv := e.CommitteeInvoker(nativehashes.PolicyContract)
+
+			cInv.Invoke(t, stackitem.Null{}, "put", "k1", "v1")
+			cInv.Invoke(t, stackitem.Null{}, "put", "k2", "v1")
+
+			// Open a test VM snapshot at the current block state.
+			ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+			require.NoError(t, err)
+			defer ic.Finalize()
+
+			runCall := func(ctx *interop.Context, h util.Uint160, method string, args ...any) stackitem.Item {
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, h, method, callflag.ReadStates|callflag.AllowCall, args...)
+				require.NoError(t, w.Err)
+				v := ctx.SpawnVM()
+				v.LoadWithFlags(w.Bytes(), callflag.All)
+				require.NoError(t, v.Run())
+				require.Equal(t, 1, v.Estack().Len())
+				return v.Estack().Pop().Item()
+			}
+
+			// Start an iterator in the open VM snapshot (like an RPC session).
+			iterItem := runCall(ic, c.Hash, "find")
+			iterVal, ok := iterItem.Value().(*interopstorage.Iterator)
+			require.True(t, ok)
+
+			// Advance one item before new blocks arrive.
+			require.True(t, iterVal.Next())
+			firstElem, _ := iterVal.Value()
+			firstPair := firstElem.Value().([]stackitem.Item)
+			require.Equal(t, []byte("k1"), firstPair[0].Value())
+			require.Equal(t, []byte("v1"), firstPair[1].Value())
+
+			// Commit newer storage and nativeCache changes in new blocks.
+			cInv.Invoke(t, stackitem.Null{}, "put", "k1", "v2")
+			cInv.Invoke(t, stackitem.Null{}, "put", "k3", "v2")
+			pInv.Invoke(t, stackitem.Null{}, "setFeePerByte", 2000)
+
+			// Existing iterator and reads inside ic must remain bound to the captured snapshot.
+			require.True(t, iterVal.Next())
+			secondElem, _ := iterVal.Value()
+			secondPair := secondElem.Value().([]stackitem.Item)
+			require.Equal(t, []byte("k2"), secondPair[0].Value())
+			require.Equal(t, []byte("v1"), secondPair[1].Value())
+			require.False(t, iterVal.Next())
+
+			require.Equal(t, []byte("v1"), runCall(ic, c.Hash, "get", "k1").Value())
+			require.Equal(t, stackitem.Null{}, runCall(ic, c.Hash, "get", "k3"))
+			feeBefore, err := runCall(ic, nativehashes.PolicyContract, "getFeePerByte").TryInteger()
+			require.NoError(t, err)
+			require.Equal(t, int64(1000), feeBefore.Int64())
+
+			ic.Finalize()
+
+			// A new test VM sees the latest committed storage and nativeCache state.
+			ic2, err := bc.GetTestVM(trigger.Application, nil, nil)
+			require.NoError(t, err)
+			defer ic2.Finalize()
+			require.Equal(t, []byte("v2"), runCall(ic2, c.Hash, "get", "k1").Value())
+			require.Equal(t, []byte("v2"), runCall(ic2, c.Hash, "get", "k3").Value())
+			feeAfter, err := runCall(ic2, nativehashes.PolicyContract, "getFeePerByte").TryInteger()
+			require.NoError(t, err)
+			require.Equal(t, int64(2000), feeAfter.Int64())
+		})
+	}
 }

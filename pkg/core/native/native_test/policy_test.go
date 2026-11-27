@@ -632,6 +632,7 @@ func TestPolicy_IteratorValue_GasConsumed(t *testing.T) {
 
 			ic, err := bc.GetTestVM(trigger.Application, nil, nil)
 			require.NoError(t, err)
+			defer ic.Finalize()
 			w := io.NewBufBinWriter()
 			emit.AppCall(w.BinWriter, p.Hash, method, callflag.All)
 			emit.Opcodes(w.BinWriter, opcode.DUP)

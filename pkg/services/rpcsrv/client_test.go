@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -35,6 +36,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	corestorage "github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -43,6 +45,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/store"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
@@ -74,6 +77,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestClient_NEP17(t *testing.T) {
@@ -1200,6 +1204,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 		require.NoError(t, chain.VerifyTx(tx))
 		ic, err := chain.GetTestVM(trigger.Application, tx, nil)
 		require.NoError(t, err)
+		defer ic.Finalize()
 		ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
 		require.NoError(t, ic.VM.Run())
 	})
@@ -1215,6 +1220,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 		require.NoError(t, chain.VerifyTx(tx))
 		ic, err := chain.GetTestVM(trigger.Application, tx, nil)
 		require.NoError(t, err)
+		defer ic.Finalize()
 		ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
 		require.NoError(t, ic.VM.Run())
 		require.Equal(t, 2, len(ic.Notifications))
@@ -1249,6 +1255,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 		require.NoError(t, chain.VerifyTx(tx))
 		ic, err := chain.GetTestVM(trigger.Application, tx, nil)
 		require.NoError(t, err)
+		defer ic.Finalize()
 		ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
 		require.NoError(t, ic.VM.Run())
 	})
@@ -3239,4 +3246,113 @@ func TestClient_TemporaryStorage(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, items)
 	})
+}
+
+func TestClient_SessionSnapshotIsolation(t *testing.T) {
+	for name, newPS := range map[string]func(testing.TB) corestorage.Store{
+		"BoltDBStore":  store.NewBoltDBForTesting,
+		"LevelDBStore": store.NewLevelDBForTesting,
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg, err := config.Load("../../../config", netmode.UnitTestNet)
+			require.NoError(t, err)
+			cfg.ApplicationConfiguration.RPC.SessionEnabled = true
+			cfg.ApplicationConfiguration.RPC.SessionExpansionEnabled = false
+			cfg.ApplicationConfiguration.RPC.SessionBackedByMPT = false
+
+			logger := zaptest.NewLogger(t)
+			bc, err := core.NewBlockchain(newPS(t), cfg.Blockchain(), logger)
+			require.NoError(t, err)
+			go bc.Run()
+			t.Cleanup(bc.Close)
+			for _, b := range getTestBlocks(t) {
+				require.NoError(t, bc.AddBlock(b))
+			}
+
+			_, _, httpSrv := wrapUnitTestChain(t, bc, nil, cfg, logger)
+			c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+			require.NoError(t, err)
+			t.Cleanup(c.Close)
+			require.NoError(t, c.Init())
+
+			acc0 := wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0))
+			act, err := actor.New(c, []actor.SignerAccount{{
+				Signer:  transaction.Signer{Account: acc0.ScriptHash(), Scopes: transaction.CalledByEntry},
+				Account: acc0,
+			}})
+			require.NoError(t, err)
+
+			src := `package sesssnap
+			import (
+				"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+				"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+			)
+			func Put(k, v string) {
+				storage.Put(storage.GetContext(), k, v)
+			}
+			func Find() iterator.Iterator {
+				return storage.Find(storage.GetReadOnlyContext(), []byte("k"), storage.None)
+			}`
+			ctr := neotest.CompileSource(t, acc0.ScriptHash(), strings.NewReader(src), &compiler.Options{Name: "sesssnap"})
+			txDeploy, err := management.New(act).DeployUnsigned(ctr.NEF, ctr.Manifest, nil)
+			require.NoError(t, err)
+			require.NoError(t, acc0.SignTx(bc.GetConfig().Magic, txDeploy))
+			_, err = c.SubmitBlock(*testchain.NewBlock(t, bc, 1, 0, txDeploy))
+			require.NoError(t, err)
+
+			tx1, err := act.MakeCall(ctr.Hash, "put", "k1", "v1")
+			require.NoError(t, err)
+			tx2, err := act.MakeCall(ctr.Hash, "put", "k2", "v1")
+			require.NoError(t, err)
+			_, err = c.SubmitBlock(*testchain.NewBlock(t, bc, 1, 0, tx1, tx2))
+			require.NoError(t, err)
+
+			// Start an RPC session and traverse only the first item.
+			res, err := c.InvokeFunction(ctr.Hash, "find", []smartcontract.Parameter{}, nil)
+			require.NoError(t, err)
+			require.NotEmpty(t, res.Session)
+			it, ok := res.Stack[0].Value().(result.Iterator)
+			require.True(t, ok)
+			require.NotNil(t, it.ID)
+
+			batch1, err := c.TraverseIterator(res.Session, *it.ID, 1)
+			require.NoError(t, err)
+			require.Len(t, batch1, 1)
+			require.Equal(t, []byte("k1"), batch1[0].Value().([]stackitem.Item)[0].Value())
+			require.Equal(t, []byte("v1"), batch1[0].Value().([]stackitem.Item)[1].Value())
+
+			// Submit a newer block modifying k2 and adding k3 while the session is open.
+			tx3, err := act.MakeCall(ctr.Hash, "put", "k2", "v2")
+			require.NoError(t, err)
+			tx4, err := act.MakeCall(ctr.Hash, "put", "k3", "v2")
+			require.NoError(t, err)
+			_, err = c.SubmitBlock(*testchain.NewBlock(t, bc, 1, 0, tx3, tx4))
+			require.NoError(t, err)
+
+			// Continuing the existing session must still see only the snapshot state (k2=v1, no k3).
+			batch2, err := c.TraverseIterator(res.Session, *it.ID, 10)
+			require.NoError(t, err)
+			require.Len(t, batch2, 1)
+			require.Equal(t, []byte("k2"), batch2[0].Value().([]stackitem.Item)[0].Value())
+			require.Equal(t, []byte("v1"), batch2[0].Value().([]stackitem.Item)[1].Value())
+
+			terminated, err := c.TerminateSession(res.Session)
+			require.NoError(t, err)
+			require.True(t, terminated)
+
+			// A new session sees the latest committed state (k1=v1, k2=v2, k3=v2).
+			res2, err := c.InvokeFunction(ctr.Hash, "find", []smartcontract.Parameter{}, nil)
+			require.NoError(t, err)
+			it2, ok := res2.Stack[0].Value().(result.Iterator)
+			require.True(t, ok)
+			all, err := c.TraverseIterator(res2.Session, *it2.ID, 10)
+			require.NoError(t, err)
+			require.Len(t, all, 3)
+			require.Equal(t, []byte("v1"), all[0].Value().([]stackitem.Item)[1].Value())
+			require.Equal(t, []byte("v2"), all[1].Value().([]stackitem.Item)[1].Value())
+			require.Equal(t, []byte("v2"), all[2].Value().([]stackitem.Item)[1].Value())
+			_, err = c.TerminateSession(res2.Session)
+			require.NoError(t, err)
+		})
+	}
 }

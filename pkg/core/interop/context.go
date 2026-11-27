@@ -610,9 +610,10 @@ func (ic *Context) RegisterCancelFunc(f context.CancelFunc) {
 	}
 }
 
-// Finalize calls all registered cancel functions to release the occupied resources.
+// Finalize calls all registered cancel functions in LIFO order to release the
+// occupied resources.
 func (ic *Context) Finalize() {
-	for _, f := range ic.cancelFuncs {
+	for _, f := range slices.Backward(ic.cancelFuncs) {
 		f()
 	}
 	ic.cancelFuncs = nil
