@@ -55,7 +55,7 @@ func TestRequestDecode(t *testing.T) {
 	t.Run("valid single", func(t *testing.T) {
 		r := NewRequest()
 		err := r.DecodeData(readCloser{strings.NewReader(`{"jsonrpc":"2.0","method":"getblockcount","params":[],"id":1}`)})
-		require.NoError(t, err)
+		require.Nil(t, err)
 		require.NotNil(t, r.In)
 		require.Nil(t, r.Batch)
 		require.Equal(t, neorpc.JSONRPCVersion, r.In.JSONRPC)
@@ -67,7 +67,7 @@ func TestRequestDecode(t *testing.T) {
 	t.Run("valid single with trailing token via DecodeData", func(t *testing.T) {
 		r := NewRequest()
 		err := r.DecodeData(readCloser{strings.NewReader(`{"jsonrpc":"2.0","method":"getblockcount","params":[],"id":1}"`)})
-		require.NoError(t, err)
+		require.Nil(t, err)
 		require.NotNil(t, r.In)
 		require.Equal(t, "getblockcount", r.In.Method)
 	})
@@ -75,7 +75,7 @@ func TestRequestDecode(t *testing.T) {
 	t.Run("valid batch", func(t *testing.T) {
 		r := NewRequest()
 		err := r.DecodeData(readCloser{strings.NewReader(`[{"jsonrpc":"2.0","method":"getblockcount","id":1},{"jsonrpc":"2.0","method":"getversion","id":2}]`)})
-		require.NoError(t, err)
+		require.Nil(t, err)
 		require.Nil(t, r.In)
 		require.Len(t, r.Batch, 2)
 		require.Equal(t, "getblockcount", r.Batch[0].Method)
@@ -91,14 +91,13 @@ func TestRequestDecode(t *testing.T) {
 		}
 
 		r := NewRequest()
-		require.NoError(t, r.DecodeData(readCloser{strings.NewReader(makeBatch(maxBatchSize))}))
+		require.Nil(t, r.DecodeData(readCloser{strings.NewReader(makeBatch(maxBatchSize))}))
 		require.Len(t, r.Batch, maxBatchSize)
 
 		r = NewRequest()
 		err := r.DecodeData(readCloser{strings.NewReader(makeBatch(maxBatchSize + 1))})
-		rpcErr, ok := errors.AsType[*neorpc.Error](err)
-		require.True(t, ok)
-		require.Equal(t, int64(neorpc.InvalidRequestCode), rpcErr.Code)
+		require.NotNil(t, err)
+		require.Equal(t, int64(neorpc.InvalidRequestCode), err.Code)
 	})
 
 	invalidRequestCases := []struct {
@@ -116,27 +115,24 @@ func TestRequestDecode(t *testing.T) {
 	}
 	for _, tc := range invalidRequestCases {
 		t.Run("invalid request/"+tc.name, func(t *testing.T) {
-			for _, via := range []string{"DecodeData", "UnmarshalJSON"} {
-				t.Run(via, func(t *testing.T) {
-					r := NewRequest()
-					var err error
-					if via == "DecodeData" {
-						err = r.DecodeData(readCloser{strings.NewReader(tc.data)})
-					} else {
-						err = r.UnmarshalJSON([]byte(tc.data))
-					}
-					rpcErr, ok := errors.AsType[*neorpc.Error](err)
-					require.True(t, ok, "expected *neorpc.Error, got %T: %v", err, err)
-					require.Equal(t, int64(neorpc.InvalidRequestCode), rpcErr.Code)
-				})
-			}
+			t.Run("DecodeData", func(t *testing.T) {
+				r := NewRequest()
+				err := r.DecodeData(readCloser{strings.NewReader(tc.data)})
+				require.NotNil(t, err)
+				require.Equal(t, int64(neorpc.InvalidRequestCode), err.Code)
+			})
+			t.Run("UnmarshalJSON", func(t *testing.T) {
+				r := NewRequest()
+				err := json.Unmarshal([]byte(tc.data), r)
+				require.ErrorIs(t, err, ErrInvalidRequest)
+			})
 		})
 	}
 
 	t.Run("mixed batch", func(t *testing.T) {
 		payload := `[42, [42], null, true, "hello", {"jsonrpc":"2.0","method":1,"params":"bar"}, {"jsonrpc":"2.0","method":"getblockcount","id":7}]`
 		r := NewRequest()
-		require.NoError(t, r.DecodeData(readCloser{strings.NewReader(payload)}))
+		require.Nil(t, r.DecodeData(readCloser{strings.NewReader(payload)}))
 		require.Nil(t, r.In)
 		require.Len(t, r.Batch, 7)
 		for i := range 6 {
@@ -164,30 +160,27 @@ func TestRequestDecode(t *testing.T) {
 	}
 	for _, tc := range malformedCases {
 		t.Run("malformed/"+tc.name, func(t *testing.T) {
-			for _, via := range []string{"DecodeData", "UnmarshalJSON"} {
-				t.Run(via, func(t *testing.T) {
-					r := NewRequest()
-					var err error
-					if via == "DecodeData" {
-						err = r.DecodeData(readCloser{strings.NewReader(tc.data)})
-					} else {
-						err = r.UnmarshalJSON([]byte(tc.data))
-					}
-					require.Error(t, err)
-					_, ok := errors.AsType[*neorpc.Error](err)
-					require.False(t, ok, "malformed JSON must not return *neorpc.Error: %v", err)
-				})
-			}
+			t.Run("DecodeData", func(t *testing.T) {
+				r := NewRequest()
+				err := r.DecodeData(readCloser{strings.NewReader(tc.data)})
+				require.NotNil(t, err)
+				require.Equal(t, int64(neorpc.BadRequestCode), err.Code)
+			})
+			t.Run("UnmarshalJSON", func(t *testing.T) {
+				r := NewRequest()
+				err := json.Unmarshal([]byte(tc.data), r)
+				require.Error(t, err)
+				require.False(t, errors.Is(err, ErrInvalidRequest), "malformed JSON must not return ErrInvalidRequest: %v", err)
+			})
 		})
 	}
 
-	t.Run("UnmarshalJSON trailing data", func(t *testing.T) {
+	t.Run("json.Unmarshal trailing data", func(t *testing.T) {
 		for _, data := range []string{`[1] extra`, `[] extra`, `{"jsonrpc":"2.0"} extra`, `42 43`} {
 			r := NewRequest()
-			err := r.UnmarshalJSON([]byte(data))
+			err := json.Unmarshal([]byte(data), r)
 			require.Error(t, err)
-			_, ok := errors.AsType[*neorpc.Error](err)
-			require.False(t, ok, "trailing data must not return *neorpc.Error: %v", err)
+			require.False(t, errors.Is(err, ErrInvalidRequest), "trailing data must not return ErrInvalidRequest: %v", err)
 		}
 	})
 }

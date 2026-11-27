@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	gio "io"
 	"math"
 	"math/big"
 	"math/rand/v2"
@@ -577,7 +576,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 
 	err := req.DecodeData(httpRequest.Body)
 	if err != nil {
-		s.writeHTTPErrorResponse(params.NewIn(), w, decodeErrToRPCError(err))
+		s.writeHTTPErrorResponse(params.NewIn(), w, err)
 		return
 	}
 
@@ -779,17 +778,18 @@ func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- abstractResult
 	ws.SetPongHandler(func(string) error { return ws.SetReadDeadline(time.Now().Add(wsPongLimit)) })
 requestloop:
 	for err == nil {
-		var msg []byte
-		_, msg, err = ws.ReadMessage()
-		if err != nil {
-			break
-		}
 		var (
 			req = params.NewRequest()
 			res abstractResult
 		)
-		if decodeErr := req.DecodeData(gio.NopCloser(bytes.NewReader(msg))); decodeErr != nil {
-			res = s.packResponse(params.NewIn(), nil, decodeErrToRPCError(decodeErr))
+		if readErr := ws.ReadJSON(req); readErr != nil {
+			if errors.Is(readErr, params.ErrInvalidRequest) {
+				res = s.packResponse(params.NewIn(), nil, neorpc.NewInvalidRequestError(readErr.Error()))
+			} else if _, ok := errors.AsType[*json.SyntaxError](readErr); ok {
+				res = s.packResponse(params.NewIn(), nil, neorpc.NewParseError(readErr.Error()))
+			} else {
+				break
+			}
 		} else {
 			res = s.handleRequest(req, subscr)
 		}
@@ -3284,13 +3284,6 @@ func (s *Server) blockHeightFromParam(param *params.Param) (uint32, *neorpc.Erro
 		return 0, neorpc.WrapErrorWithData(neorpc.ErrUnknownHeight, fmt.Sprintf("param at index %d should be greater than or equal to 0 and less than or equal to current block height, got: %d", 0, num))
 	}
 	return uint32(num), nil
-}
-
-func decodeErrToRPCError(err error) *neorpc.Error {
-	if rpcErr, ok := errors.AsType[*neorpc.Error](err); ok {
-		return rpcErr
-	}
-	return neorpc.NewParseError(err.Error())
 }
 
 func (s *Server) packResponse(r *params.In, result any, respErr *neorpc.Error) abstract {
