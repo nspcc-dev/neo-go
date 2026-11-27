@@ -42,7 +42,9 @@ type Ledger interface {
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+	GetHeaderHash(uint32) util.Uint256
 	ComputeNextBlockValidators() []*keys.PublicKey
+	CurrentBlockHash() util.Uint256
 	GetMillisecondsPerBlock() uint32
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	SubscribeForBlocks(ch chan *coreb.Block)

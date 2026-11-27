@@ -216,7 +216,7 @@ func getBlockHashFromItem(ic *interop.Context, item stackitem.Item) util.Uint256
 		if uint32(index) > ic.PersistedBlockHeight() {
 			return util.Uint256{}
 		}
-		return ic.Chain.GetHeaderHash(uint32(index))
+		return ic.GetHeaderHash(ic.DAO, uint32(index))
 	}
 	hash, err := getUint256FromItem(item)
 	if err != nil {

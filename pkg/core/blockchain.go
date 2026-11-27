@@ -2691,12 +2691,19 @@ func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
 
 // CurrentBlockHash returns the highest processed block hash.
 func (bc *Blockchain) CurrentBlockHash() util.Uint256 {
+	return bc.currentBlockHash(bc.dao)
+}
+
+// currentBlockHash is an internal representation of the CurrentBlockHash that
+// uses provided DAO instead of the Blockchain's one for interactions with the
+// DB.
+func (bc *Blockchain) currentBlockHash(dao *dao.Simple) util.Uint256 {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
 		tb := topBlock.(*block.Block)
 		return tb.Hash()
 	}
-	return bc.GetHeaderHash(bc.BlockHeight())
+	return bc.getHeaderHash(dao, bc.BlockHeight())
 }
 
 // BlockHeight returns the height/index of the highest block.
@@ -3543,6 +3550,8 @@ func (bc *Blockchain) newInteropContext(trig trigger.Type, d *dao.Simple, block 
 		return native.GetContract(d, bc.NativeManagementID(), h)
 	},
 		bc.getBlock,
+		bc.currentBlockHash,
+		bc.getHeaderHash,
 		bc.contracts.List, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {

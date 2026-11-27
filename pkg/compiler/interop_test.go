@@ -378,7 +378,7 @@ func TestAppCall(t *testing.T) {
 		interop.DefaultBaseExecFee*vm.ExecFeeFactorMultiplier, native.DefaultStoragePrice*vm.ExecFeeFactorMultiplier, contractGetter,
 		func(simple *dao.Simple, h util.Uint256) (*block.Block, error) {
 			return fc.GetBlock(h)
-		}, nil, nil, nil, nil, zaptest.NewLogger(t))
+		}, nil, nil, nil, nil, nil, nil, zaptest.NewLogger(t))
 
 	t.Run("valid script", func(t *testing.T) {
 		src := getAppCallScript(fmt.Sprintf("%#v", ih.BytesBE()))
