@@ -2,8 +2,10 @@ package storage_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -467,4 +469,275 @@ func TestCachedSeekSorting(t *testing.T) {
 		})
 		require.Equal(t, expected, foundKVs)
 	}
+}
+
+func testMemCachedViewConsistentAcrossPersist(t *testing.T, ps storage.Store) {
+	s := storage.NewMemCachedStore(ps)
+
+	prefix := byte(storage.STStorage)
+	k0 := []byte{prefix, 'k', '0'}
+	k1 := []byte{prefix, 'k', '1'}
+	k2 := []byte{prefix, 'k', '2'}
+	kdel := []byte{prefix, 'k', 'd'}
+
+	// Initial disk state T0. Also pre-grow and free pages so subsequent small
+	// BoltDB commits fit in the existing mmap without blocking on remap while
+	// priv holds a read transaction on the same goroutine.
+	padKey := []byte{0x01, 'p', 'a', 'd'}
+	s.Put(padKey, make([]byte, 64*1024))
+	_, err := s.Persist()
+	require.NoError(t, err)
+	s.Delete(padKey)
+	s.Put(k0, []byte("old"))
+	s.Put(kdel, []byte("gone"))
+	_, err = s.Persist()
+	require.NoError(t, err)
+
+	// Unpersisted changes in s.
+	s.Put(k0, []byte("new"))
+	s.Put(k1, []byte("added"))
+	s.Delete(kdel)
+
+	// Pin a view at disk state T0.
+	priv := storage.NewPrivateMemCachedStoreWithView(s)
+	defer func() {
+		require.NoError(t, priv.Finalize())
+	}()
+	child := storage.NewPrivateMemCachedStore(priv)
+
+	// Flush s to disk (T1) while priv still holds view@T0.
+	n, err := s.Persist()
+	require.NoError(t, err)
+	require.Equal(t, 3, n)
+
+	checkState := func(st *storage.MemCachedStore, wantK0, wantK1, wantK2 []byte) {
+		v, err := st.Get(k0)
+		require.NoError(t, err)
+		require.Equal(t, wantK0, v)
+
+		v, err = st.Get(k1)
+		require.NoError(t, err)
+		require.Equal(t, wantK1, v)
+
+		if wantK2 != nil {
+			v, err = st.Get(k2)
+			require.NoError(t, err)
+			require.Equal(t, wantK2, v)
+		}
+
+		_, err = st.Get(kdel)
+		require.ErrorIs(t, err, storage.ErrKeyNotFound)
+
+		var expected []storage.KeyValue
+		expected = append(expected,
+			storage.KeyValue{Key: k0, Value: wantK0},
+			storage.KeyValue{Key: k1, Value: wantK1},
+		)
+		if wantK2 != nil {
+			expected = append(expected, storage.KeyValue{Key: k2, Value: wantK2})
+		}
+
+		var got []storage.KeyValue
+		st.Seek(storage.SeekRange{Prefix: []byte{prefix}}, func(k, v []byte) bool {
+			got = append(got, storage.KeyValue{Key: bytes.Clone(k), Value: bytes.Clone(v)})
+			return true
+		})
+		require.Equal(t, expected, got)
+
+		var gotAsync []storage.KeyValue
+		for kv := range st.SeekAsync(context.Background(), storage.SeekRange{Prefix: []byte{prefix}}, false) {
+			gotAsync = append(gotAsync, storage.KeyValue{Key: bytes.Clone(kv.Key), Value: bytes.Clone(kv.Value)})
+		}
+		require.Equal(t, expected, gotAsync)
+	}
+
+	checkState(priv, []byte("new"), []byte("added"), nil)
+	checkState(child, []byte("new"), []byte("added"), nil)
+
+	// Verify GetBatch sees keys persisted in T1 as existing.
+	batchCheck := storage.NewPrivateMemCachedStore(priv)
+	batchCheck.Put(k1, []byte("override"))
+	batchCheck.Delete(k0)
+	checkBatch(t, batchCheck,
+		[]storage.KeyValueExists{{KeyValue: storage.KeyValue{Key: k1, Value: []byte("override")}, Exists: true}},
+		[]storage.KeyValueExists{{KeyValue: storage.KeyValue{Key: k0}, Exists: true}},
+	)
+
+	// Open an overlapping second view at T1, then run a second Persist (T2).
+	priv2 := storage.NewPrivateMemCachedStoreWithView(s)
+	defer func() {
+		require.NoError(t, priv2.Finalize())
+	}()
+
+	s.Put(k0, []byte("newer"))
+	s.Put(k2, []byte("added2"))
+	n, err = s.Persist()
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+
+	checkState(priv, []byte("newer"), []byte("added"), []byte("added2"))
+	checkState(priv2, []byte("newer"), []byte("added"), []byte("added2"))
+
+	// Closing the older view prunes T1 layer while keeping T2 layer for priv2.
+	require.NoError(t, priv.Finalize())
+	// Finalize is idempotent.
+	require.NoError(t, priv.Finalize())
+
+	checkState(priv2, []byte("newer"), []byte("added"), []byte("added2"))
+	require.NoError(t, priv2.Finalize())
+
+	// Direct reads on s after all views close see the persisted T2 state.
+	checkState(s, []byte("newer"), []byte("added"), []byte("added2"))
+}
+
+func TestMemCachedViewConsistentAcrossPersist(t *testing.T) {
+	t.Run("BoltDBStore", func(t *testing.T) {
+		ps := store.NewBoltDBForTesting(t)
+		t.Cleanup(func() {
+			require.NoError(t, ps.Close())
+		})
+		testMemCachedViewConsistentAcrossPersist(t, ps)
+	})
+	t.Run("LevelDBStore", func(t *testing.T) {
+		ps := store.NewLevelDBForTesting(t)
+		t.Cleanup(func() {
+			require.NoError(t, ps.Close())
+		})
+		testMemCachedViewConsistentAcrossPersist(t, ps)
+	})
+	t.Run("NestedMemCachedStore", func(t *testing.T) {
+		ps := store.NewLevelDBForTesting(t)
+		t.Cleanup(func() {
+			require.NoError(t, ps.Close())
+		})
+		lower := storage.NewMemCachedStore(ps)
+		testMemCachedViewConsistentAcrossPersist(t, lower)
+	})
+}
+
+func TestMemCachedViewPersistFailing(t *testing.T) {
+	var (
+		bs BadStore
+		k0 = []byte{byte(storage.STStorage), 'k', '0'}
+		k1 = []byte{byte(storage.STStorage), 'k', '1'}
+	)
+	ts := storage.NewMemCachedStore(&bs)
+	ts.Put(k0, []byte("v0"))
+
+	priv := storage.NewPrivateMemCachedStoreWithView(ts)
+	defer func() {
+		require.NoError(t, priv.Finalize())
+	}()
+
+	bs.onPutBatch = func() {
+		ts.Put(k1, []byte("v1"))
+		// Concurrent read while Persist is in-flight.
+		v, err := priv.Get(k0)
+		require.NoError(t, err)
+		require.Equal(t, []byte("v0"), v)
+	}
+	_, err := ts.Persist()
+	require.Error(t, err)
+
+	v, err := priv.Get(k0)
+	require.NoError(t, err)
+	require.Equal(t, []byte("v0"), v)
+	v, err = priv.Get(k1)
+	require.NoError(t, err)
+	require.Equal(t, []byte("v1"), v)
+}
+
+func TestMemCachedViewConcurrentPersist(t *testing.T) {
+	for name, newPS := range map[string]func(testing.TB) storage.Store{
+		"MemoryStore":  func(testing.TB) storage.Store { return storage.NewMemoryStore() },
+		"BoltDBStore":  store.NewBoltDBForTesting,
+		"LevelDBStore": store.NewLevelDBForTesting,
+	} {
+		t.Run(name, func(t *testing.T) {
+			ps := newPS(t)
+			t.Cleanup(func() {
+				require.NoError(t, ps.Close())
+			})
+			s := storage.NewMemCachedStore(ps)
+
+			const keyCount = 32
+			prefix := byte(storage.STStorage)
+			keys := make([][]byte, keyCount)
+			for i := range keyCount {
+				keys[i] = []byte{prefix, 'k', byte(i)}
+				s.Put(keys[i], []byte("init"))
+			}
+
+			var wg sync.WaitGroup
+			stop := make(chan struct{})
+
+			// Background persister.
+			wg.Go(func() {
+				for {
+					select {
+					case <-stop:
+						return
+					default:
+						_, err := s.Persist()
+						require.NoError(t, err)
+					}
+				}
+			})
+
+			// Readers holding views across concurrent Persist calls.
+			for range 4 {
+				wg.Go(func() {
+					for range 40 {
+						priv := storage.NewPrivateMemCachedStoreWithView(s)
+						for _, k := range keys {
+							v, err := priv.Get(k)
+							require.NoError(t, err)
+							require.NotEmpty(t, v)
+						}
+						var seen int
+						priv.Seek(storage.SeekRange{Prefix: []byte{prefix}}, func(_, _ []byte) bool {
+							seen++
+							return true
+						})
+						require.Equal(t, keyCount, seen)
+						require.NoError(t, priv.Finalize())
+					}
+				})
+			}
+
+			// Writer updating keys concurrently (never deleting them).
+			for i := range 40 {
+				val := []byte(fmt.Sprintf("v-%d", i))
+				for _, k := range keys {
+					s.Put(k, val)
+				}
+			}
+
+			close(stop)
+			wg.Wait()
+		})
+	}
+}
+
+func TestMemCachedViewCloseDuringPersistSync(t *testing.T) {
+	ps := storage.NewMemoryStore()
+	s := storage.NewMemCachedStore(ps)
+	k := []byte{byte(storage.STStorage), 'k'}
+	s.Put(k, []byte("v1"))
+
+	priv := storage.NewPrivateMemCachedStoreWithView(s)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := s.PersistSync()
+		done <- err
+	}()
+
+	// Closing the view while PersistSync holds s.mut and waits on ps.mut must not deadlock.
+	require.NoError(t, priv.Finalize())
+	require.NoError(t, <-done)
+
+	v, err := s.Get(k)
+	require.NoError(t, err)
+	require.Equal(t, []byte("v1"), v)
 }
