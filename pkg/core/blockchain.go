@@ -2152,7 +2152,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
 	}
 	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index && sr.Index > bc.config.TrustedHeader.Index {
-		h, err := bc.GetHeader(bc.GetHeaderHash(sr.Index + 1))
+		h, err := bc.getHeader(cache, bc.getHeaderHash(cache, sr.Index+1))
 		if err != nil {
 			err = fmt.Errorf("failed to get next header %d to verify stateroot: %w", sr.Index+1, err)
 		} else if h.PrevStateRoot != sr.Root {
@@ -2662,6 +2662,12 @@ func (bc *Blockchain) getBlock(dao *dao.Simple, hash util.Uint256) (*block.Block
 
 // GetHeader returns data block header identified with the given hash value.
 func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
+	return bc.getHeader(bc.dao, hash)
+}
+
+// getHeader is an internal representation of the GetHeader method that uses provided DAO
+// for interactions with the DB instead of the Blockchain's one.
+func (bc *Blockchain) getHeader(dao *dao.Simple, hash util.Uint256) (*block.Header, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
 		tb := topBlock.(*block.Block)
@@ -2669,7 +2675,7 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 			return &tb.Header, nil
 		}
 	}
-	block, err := bc.dao.GetBlock(hash)
+	block, err := dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
