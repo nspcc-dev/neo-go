@@ -45,7 +45,6 @@ const (
 type Ledger interface {
 	BlockHeight() uint32
 	CurrentBlockHash() util.Uint256
-	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetConfig() config.Blockchain
 	GetHeaderHash(uint32) util.Uint256
 	NativeManagementID() int32
@@ -90,6 +89,7 @@ type Context struct {
 	InvocationCalls  []state.ContractInvocation
 	cancelFuncs      []context.CancelFunc
 	getContract      func(*dao.Simple, util.Uint160) (*state.Contract, error)
+	getBlock         func(*dao.Simple, util.Uint256) (*block.Block, error)
 	// baseExecFee is a factor to multiply the cost of execution in picoGAS units.
 	baseExecFee int64
 	// baseStorageFee is a factor to multiply the cost of storing 1 byte of data
@@ -104,7 +104,9 @@ type Context struct {
 // NewContext returns new interop context. It expects baseExecFee and
 // baseStorageFee to be represented in picoGAS units.
 func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, baseStorageFee int64,
-	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
+	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error),
+	getBlock func(*dao.Simple, util.Uint256) (*block.Block, error),
+	natives []Contract,
 	loadTokenFunc func(ic *Context, id int32) error,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	var (
@@ -130,6 +132,7 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 		Log:             log,
 		Invocations:     make(map[util.Uint160]int),
 		getContract:     getContract,
+		getBlock:        getBlock,
 		baseExecFee:     baseExecFee,
 		baseStorageFee:  baseStorageFee,
 		loadToken:       loadTokenFunc,
@@ -659,7 +662,7 @@ func (ic *Context) CurrentBlockHash() util.Uint256 {
 
 // GetBlock returns block if it exists and available at the current Context's height.
 func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
-	block, err := ic.Chain.GetBlock(hash)
+	block, err := ic.getBlock(ic.DAO, hash)
 	if err != nil {
 		return nil, err
 	}

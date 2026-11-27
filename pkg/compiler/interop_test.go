@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -374,7 +375,10 @@ func TestAppCall(t *testing.T) {
 
 	fc := fakechain.NewFakeChain()
 	ic := interop.NewContext(trigger.Application, fc, dao.NewSimple(storage.NewMemoryStore(), false),
-		interop.DefaultBaseExecFee*vm.ExecFeeFactorMultiplier, native.DefaultStoragePrice*vm.ExecFeeFactorMultiplier, contractGetter, nil, nil, nil, nil, zaptest.NewLogger(t))
+		interop.DefaultBaseExecFee*vm.ExecFeeFactorMultiplier, native.DefaultStoragePrice*vm.ExecFeeFactorMultiplier, contractGetter,
+		func(simple *dao.Simple, h util.Uint256) (*block.Block, error) {
+			return fc.GetBlock(h)
+		}, nil, nil, nil, nil, zaptest.NewLogger(t))
 
 	t.Run("valid script", func(t *testing.T) {
 		src := getAppCallScript(fmt.Sprintf("%#v", ih.BytesBE()))

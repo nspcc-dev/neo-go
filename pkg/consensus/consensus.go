@@ -36,6 +36,7 @@ const nsInMs = 1000000
 // Ledger is the interface to Blockchain sufficient for Service.
 type Ledger interface {
 	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
+	GetBlock(hash util.Uint256) (*coreb.Block, error)
 	GetConfig() config.Blockchain
 	GetMemPool() *mempool.Pool
 	GetNextBlockValidators() ([]*keys.PublicKey, error)

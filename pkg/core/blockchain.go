@@ -2629,6 +2629,12 @@ func (bc *Blockchain) SeekStorage(id int32, prefix []byte, start []byte, cont fu
 
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
+	return bc.getBlock(bc.dao, hash)
+}
+
+// getBlock is an internal version of GetBlock that uses provided DAO instead of
+// Blockchain's one.
+func (bc *Blockchain) getBlock(dao *dao.Simple, hash util.Uint256) (*block.Block, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
 		tb := topBlock.(*block.Block)
@@ -2637,7 +2643,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 		}
 	}
 
-	block, err := bc.dao.GetBlock(hash)
+	block, err := dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -2645,7 +2651,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 		return nil, errors.New("only header is found")
 	}
 	for _, tx := range block.Transactions {
-		stx, _, err := bc.dao.GetTransaction(tx.Hash())
+		stx, _, err := dao.GetTransaction(tx.Hash())
 		if err != nil {
 			return nil, err
 		}
@@ -3535,7 +3541,9 @@ func (bc *Blockchain) newInteropContext(trig trigger.Type, d *dao.Simple, block 
 	}
 	ic := interop.NewContext(trig, bc, d, baseExecFee, baseStorageFee, func(d *dao.Simple, h util.Uint160) (*state.Contract, error) {
 		return native.GetContract(d, bc.NativeManagementID(), h)
-	}, bc.contracts.List, contract.LoadToken, block, tx, bc.log)
+	},
+		bc.getBlock,
+		bc.contracts.List, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {
 	case tx != nil:
