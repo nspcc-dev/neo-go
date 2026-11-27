@@ -55,7 +55,7 @@ func getOracleConfig(t *testing.T, bc *core.Blockchain, w, pass string, returnOr
 		Network: netmode.UnitTestNet,
 		MainCfg: config.OracleConfiguration{
 			RefreshInterval:     time.Second,
-			AllowedContentTypes: []string{"application/json"},
+			AllowedContentTypes: []string{"application/json", "  Text/Plain  "},
 			UnlockWallet: config.Wallet{
 				Path:     w,
 				Password: pass,
@@ -191,6 +191,7 @@ func TestOracle(t *testing.T) {
 	putOracleRequest(t, cInvoker, "https://get.filterinv", &flt, "handle", []byte{}, 10_000_000)
 
 	putOracleRequest(t, cInvoker, "https://get.invalidcontent", nil, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cInvoker, "https://get.sanitizedcontent", nil, "handle", []byte{}, 10_000_000)
 
 	checkResp := func(t *testing.T, id uint64, resp *transaction.OracleResponse) *state.OracleRequest {
 		// Use a hack to get request from Oracle contract, because we can't use GetRequestInternal directly.
@@ -336,6 +337,13 @@ func TestOracle(t *testing.T) {
 		checkResp(t, 11, &transaction.OracleResponse{
 			ID:   11,
 			Code: transaction.ContentTypeNotSupported,
+		})
+	})
+	t.Run("SanitizedContentType", func(t *testing.T) {
+		checkResp(t, 12, &transaction.OracleResponse{
+			ID:     12,
+			Code:   transaction.Success,
+			Result: []byte{1, 2, 3},
 		})
 	})
 }
@@ -576,6 +584,11 @@ func newDefaultHTTPClient(returnOracleRedirectionErrOn func(address string) bool
 			"https://get.invalidcontent": {
 				code: http.StatusOK,
 				ct:   "image/gif",
+				body: []byte{1, 2, 3},
+			},
+			"https://get.sanitizedcontent": {
+				code: http.StatusOK,
+				ct:   " text/PLAIN; charset=utf-8 ",
 				body: []byte{1, 2, 3},
 			},
 		},
