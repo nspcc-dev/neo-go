@@ -2013,12 +2013,15 @@ func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
 // This is the only way to change Blockchain state.
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	var (
-		cache          = bc.dao.GetPrivate()
-		aerCache       = bc.dao.GetPrivate()
-		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
-		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
-		aerdone        = make(chan error)
+		cache, aerCache = bc.dao.GetPrivates()
+		appExecResults  = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
+		aerchan         = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
+		aerdone         = make(chan error)
 	)
+	defer func() {
+		aerCache.Store.View = nil
+		_ = cache.Store.Finalize()
+	}()
 	go func() {
 		var (
 			kvcache      = aerCache
@@ -2152,7 +2155,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
 	}
 	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index && sr.Index > bc.config.TrustedHeader.Index {
-		h, err := bc.GetHeader(bc.GetHeaderHash(sr.Index + 1))
+		h, err := bc.getHeader(cache, bc.getHeaderHash(cache, sr.Index+1))
 		if err != nil {
 			err = fmt.Errorf("failed to get next header %d to verify stateroot: %w", sr.Index+1, err)
 		} else if h.PrevStateRoot != sr.Root {
@@ -2177,6 +2180,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 
 	aererr := <-aerdone
+	// The view must be released before waiting for persistence below, otherwise
+	// the persisting routine can't take the DB write lock.
+	aerCache.Store.View = nil
+	if err := cache.Store.Finalize(); err != nil && aererr == nil {
+		aererr = err
+	}
 	if aererr != nil {
 		return aererr
 	}
@@ -2190,6 +2199,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.persistCond.Wait()
 	}
 
+	// No finalization is needed since it's performed by PersistPrivate.
 	_ = bc.dao.PersistPrivate(aerCache, cache)
 
 	mpt.Store = bc.dao.Store
@@ -2558,19 +2568,19 @@ func (bc *Blockchain) persist() (time.Duration, error) {
 
 	persisted, err = bc.dao.Persist()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to persist dao: %w", err)
 	}
 	if persisted > 0 {
 		bHeight, err := bc.persistent.GetCurrentBlockHeight()
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("failed to get current block height: %w", err)
 		}
 		oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
 		diff := bHeight - oldHeight
 
 		storedHeaderHeight, _, err := bc.persistent.GetCurrentHeaderHeight()
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("failed to get current header height: %w", err)
 		}
 		duration = time.Since(start)
 		// Low number of keys is not representative and duration _can_
@@ -2629,6 +2639,12 @@ func (bc *Blockchain) SeekStorage(id int32, prefix []byte, start []byte, cont fu
 
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
+	return bc.getBlock(bc.dao, hash)
+}
+
+// getBlock is an internal version of GetBlock that uses provided DAO instead of
+// Blockchain's one.
+func (bc *Blockchain) getBlock(dao *dao.Simple, hash util.Uint256) (*block.Block, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
 		tb := topBlock.(*block.Block)
@@ -2637,7 +2653,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 		}
 	}
 
-	block, err := bc.dao.GetBlock(hash)
+	block, err := dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -2645,7 +2661,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 		return nil, errors.New("only header is found")
 	}
 	for _, tx := range block.Transactions {
-		stx, _, err := bc.dao.GetTransaction(tx.Hash())
+		stx, _, err := dao.GetTransaction(tx.Hash())
 		if err != nil {
 			return nil, err
 		}
@@ -2656,6 +2672,12 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 
 // GetHeader returns data block header identified with the given hash value.
 func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
+	return bc.getHeader(bc.dao, hash)
+}
+
+// getHeader is an internal representation of the GetHeader method that uses provided DAO
+// for interactions with the DB instead of the Blockchain's one.
+func (bc *Blockchain) getHeader(dao *dao.Simple, hash util.Uint256) (*block.Header, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
 		tb := topBlock.(*block.Block)
@@ -2663,7 +2685,7 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 			return &tb.Header, nil
 		}
 	}
-	block, err := bc.dao.GetBlock(hash)
+	block, err := dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -2685,12 +2707,19 @@ func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
 
 // CurrentBlockHash returns the highest processed block hash.
 func (bc *Blockchain) CurrentBlockHash() util.Uint256 {
+	return bc.currentBlockHash(bc.dao)
+}
+
+// currentBlockHash is an internal representation of the CurrentBlockHash that
+// uses provided DAO instead of the Blockchain's one for interactions with the
+// DB.
+func (bc *Blockchain) currentBlockHash(dao *dao.Simple) util.Uint256 {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
 		tb := topBlock.(*block.Block)
 		return tb.Hash()
 	}
-	return bc.GetHeaderHash(bc.BlockHeight())
+	return bc.getHeaderHash(dao, bc.BlockHeight())
 }
 
 // BlockHeight returns the height/index of the highest block.
@@ -3269,21 +3298,35 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 }
 
 // GetTestVM returns an interop context with VM set up for a test run.
+// The caller must call Context.Finalize once the returned context is no longer
+// needed to release the underlying DB view and any open iterators.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error) {
+	d := bc.dao.GetPrivateWithView()
 	if b == nil {
-		var err error
-		h := bc.BlockHeight() + 1
-		b, err = bc.GetFakeNextBlock(h)
+		curH, err := d.GetCurrentBlockHeight()
 		if err != nil {
+			_ = d.Store.Finalize()
+			return nil, fmt.Errorf("failed to get current block height: %w", err)
+		}
+		h := curH + 1
+		b, err = bc.getFakeNextBlock(d, h, curH)
+		if err != nil {
+			_ = d.Store.Finalize()
 			return nil, fmt.Errorf("failed to create fake block for height %d: %w", h, err)
 		}
 	}
-	systemInterop := bc.newInteropContext(t, bc.dao, b, tx)
+	systemInterop := bc.newInteropContext(t, d, b, tx)
+	systemInterop.RegisterCancelFunc(func() {
+		systemInterop.DAO.Store.View = nil
+		_ = d.Store.Finalize()
+	})
 	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
 	return systemInterop, nil
 }
 
 // GetTestHistoricVM returns an interop context with VM set up for a test run.
+// The caller must call Context.Finalize once the returned context is no longer
+// needed to release the underlying DB view and any open iterators.
 func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, nextBlockHeight uint32) (*interop.Context, error) {
 	if bc.config.KeepOnlyLatestState {
 		return nil, errors.New("only latest state is supported")
@@ -3307,29 +3350,38 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve stateroot for height %d: %w", b.Index, err)
 	}
-	s := mpt.NewTrieStore(sr.Root, mode, storage.NewPrivateMemCachedStore(bc.dao.Store))
+	trieBacking := storage.NewPrivateMemCachedStoreWithView(bc.dao.Store)
+	s := mpt.NewTrieStore(sr.Root, mode, trieBacking)
 	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader)
 	dTrie.Version = bc.dao.Version
 	// Initialize native cache before passing DAO to interop context constructor, because
 	// the constructor will call BaseExecFee/StoragePrice policy methods on the passed DAO.
 	err = bc.initializeNativeCache(b.Index, dTrie)
 	if err != nil {
+		_ = trieBacking.Finalize()
 		return nil, fmt.Errorf("failed to initialize native cache backed by historic DAO: %w", err)
 	}
 	systemInterop := bc.newInteropContext(t, dTrie, b, tx)
+	systemInterop.RegisterCancelFunc(func() {
+		_ = trieBacking.Finalize()
+	})
 	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
 	return systemInterop, nil
 }
 
 // GetFakeNextBlock returns fake block with the specified index and pre-filled Timestamp field.
 func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) {
+	return bc.getFakeNextBlock(bc.dao, nextBlockHeight, bc.BlockHeight())
+}
+
+func (bc *Blockchain) getFakeNextBlock(d *dao.Simple, nextBlockHeight uint32, blockHeight uint32) (*block.Block, error) {
 	b := block.New(bc.config.StateRootInHeader)
 	b.Index = nextBlockHeight
-	hdr, err := bc.GetHeader(bc.GetHeaderHash(nextBlockHeight - 1))
+	hdr, err := bc.getHeader(d, bc.getHeaderHash(d, nextBlockHeight-1))
 	if err != nil {
 		return nil, err
 	}
-	b.Timestamp = hdr.Timestamp + uint64(bc.GetMillisecondsPerBlock())
+	b.Timestamp = hdr.Timestamp + uint64(bc.getMillisecondsPerBlock(d, blockHeight))
 	return b, nil
 }
 
@@ -3348,8 +3400,12 @@ func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 // nodes work with (in milliseconds). This method performs access to native Policy
 // cache hence Policy is expected to be initialized by this moment.
 func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
-	if bc.isHardforkEnabled(new(config.HFEchidna), bc.BlockHeight(), nil, false) {
-		return bc.policy.GetMillisecondsPerBlockInternal(bc.dao)
+	return bc.getMillisecondsPerBlock(bc.dao, bc.BlockHeight())
+}
+
+func (bc *Blockchain) getMillisecondsPerBlock(d *dao.Simple, blockHeight uint32) uint32 {
+	if bc.isHardforkEnabled(new(config.HFEchidna), blockHeight, nil, false) {
+		return bc.policy.GetMillisecondsPerBlockInternal(d)
 	}
 	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
 }
@@ -3535,7 +3591,11 @@ func (bc *Blockchain) newInteropContext(trig trigger.Type, d *dao.Simple, block 
 	}
 	ic := interop.NewContext(trig, bc, d, baseExecFee, baseStorageFee, func(d *dao.Simple, h util.Uint160) (*state.Contract, error) {
 		return native.GetContract(d, bc.NativeManagementID(), h)
-	}, bc.contracts.List, contract.LoadToken, block, tx, bc.log)
+	},
+		bc.getBlock,
+		bc.currentBlockHash,
+		bc.getHeaderHash,
+		bc.contracts.List, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {
 	case tx != nil:

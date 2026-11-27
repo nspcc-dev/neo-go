@@ -44,10 +44,7 @@ const (
 // Ledger is the interface to Blockchain required for Context functionality.
 type Ledger interface {
 	BlockHeight() uint32
-	CurrentBlockHash() util.Uint256
-	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetConfig() config.Blockchain
-	GetHeaderHash(uint32) util.Uint256
 	NativeManagementID() int32
 }
 
@@ -78,18 +75,21 @@ type Context struct {
 	Block         *block.Block
 	// IsBlockPersisted denotes whether current Block was persisted by native
 	// Ledger contract via PostPersist method.
-	IsBlockPersisted bool
-	NonceData        [ContextNonceDataLen]byte
-	Tx               *transaction.Transaction
-	DAO              *dao.Simple
-	Notifications    []state.NotificationEvent
-	Log              *zap.Logger
-	VM               *vm.VM
-	Functions        []Function
-	Invocations      map[util.Uint160]int
-	InvocationCalls  []state.ContractInvocation
-	cancelFuncs      []context.CancelFunc
-	getContract      func(*dao.Simple, util.Uint160) (*state.Contract, error)
+	IsBlockPersisted    bool
+	NonceData           [ContextNonceDataLen]byte
+	Tx                  *transaction.Transaction
+	DAO                 *dao.Simple
+	Notifications       []state.NotificationEvent
+	Log                 *zap.Logger
+	VM                  *vm.VM
+	Functions           []Function
+	Invocations         map[util.Uint160]int
+	InvocationCalls     []state.ContractInvocation
+	cancelFuncs         []context.CancelFunc
+	getContract         func(*dao.Simple, util.Uint160) (*state.Contract, error)
+	getBlock            func(*dao.Simple, util.Uint256) (*block.Block, error)
+	getCurrentBlockHash func(*dao.Simple) util.Uint256
+	GetHeaderHash       func(*dao.Simple, uint32) util.Uint256
 	// baseExecFee is a factor to multiply the cost of execution in picoGAS units.
 	baseExecFee int64
 	// baseStorageFee is a factor to multiply the cost of storing 1 byte of data
@@ -104,7 +104,11 @@ type Context struct {
 // NewContext returns new interop context. It expects baseExecFee and
 // baseStorageFee to be represented in picoGAS units.
 func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, baseStorageFee int64,
-	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
+	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error),
+	getBlock func(*dao.Simple, util.Uint256) (*block.Block, error),
+	getCurrentBlockHash func(*dao.Simple) util.Uint256,
+	getHeaderHash func(*dao.Simple, uint32) util.Uint256,
+	natives []Contract,
 	loadTokenFunc func(ic *Context, id int32) error,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	var (
@@ -118,22 +122,25 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 		}
 	}
 	return &Context{
-		Chain:           bc,
-		Network:         uint32(cfg.Magic),
-		hardforks:       cfg.Hardforks,
-		Natives:         natives,
-		PolicyChecker:   pch,
-		Trigger:         trigger,
-		Block:           block,
-		Tx:              tx,
-		DAO:             dao,
-		Log:             log,
-		Invocations:     make(map[util.Uint160]int),
-		getContract:     getContract,
-		baseExecFee:     baseExecFee,
-		baseStorageFee:  baseStorageFee,
-		loadToken:       loadTokenFunc,
-		SaveInvocations: cfg.SaveInvocations,
+		Chain:               bc,
+		Network:             uint32(cfg.Magic),
+		hardforks:           cfg.Hardforks,
+		Natives:             natives,
+		PolicyChecker:       pch,
+		Trigger:             trigger,
+		Block:               block,
+		Tx:                  tx,
+		DAO:                 dao,
+		Log:                 log,
+		Invocations:         make(map[util.Uint160]int),
+		getContract:         getContract,
+		getBlock:            getBlock,
+		getCurrentBlockHash: getCurrentBlockHash,
+		GetHeaderHash:       getHeaderHash,
+		baseExecFee:         baseExecFee,
+		baseStorageFee:      baseStorageFee,
+		loadToken:           loadTokenFunc,
+		SaveInvocations:     cfg.SaveInvocations,
 	}
 }
 
@@ -603,9 +610,10 @@ func (ic *Context) RegisterCancelFunc(f context.CancelFunc) {
 	}
 }
 
-// Finalize calls all registered cancel functions to release the occupied resources.
+// Finalize calls all registered cancel functions in LIFO order to release the
+// occupied resources.
 func (ic *Context) Finalize() {
-	for _, f := range ic.cancelFuncs {
+	for _, f := range slices.Backward(ic.cancelFuncs) {
 		f()
 	}
 	ic.cancelFuncs = nil
@@ -652,14 +660,14 @@ func (ic *Context) PersistingBlockHeight() uint32 {
 // CurrentBlockHash returns current block hash got from Context's block if it's set.
 func (ic *Context) CurrentBlockHash() util.Uint256 {
 	if ic.Block != nil {
-		return ic.Chain.GetHeaderHash(ic.PersistedBlockHeight())
+		return ic.GetHeaderHash(ic.DAO, ic.PersistedBlockHeight())
 	}
-	return ic.Chain.CurrentBlockHash()
+	return ic.getCurrentBlockHash(ic.DAO)
 }
 
 // GetBlock returns block if it exists and available at the current Context's height.
 func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
-	block, err := ic.Chain.GetBlock(hash)
+	block, err := ic.getBlock(ic.DAO, hash)
 	if err != nil {
 		return nil, err
 	}

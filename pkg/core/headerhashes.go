@@ -212,6 +212,12 @@ func (h *HeaderHashes) CurrentHeaderHash() util.Uint256 {
 // GetHeaderHash returns hash of the header/block with specified index, if
 // HeaderHashes doesn't have a hash for this height, zero Uint256 value is returned.
 func (h *HeaderHashes) GetHeaderHash(i uint32) util.Uint256 {
+	return h.getHeaderHash(h.dao, i)
+}
+
+// getHeaderHash is an internal representation of GetHeaderHash that uses
+// the provided DAO for interactions with the DB.
+func (h *HeaderHashes) getHeaderHash(dao *dao.Simple, i uint32) util.Uint256 {
 	h.lock.RLock()
 	res, ok := h.getLocalHeaderHash(i)
 	h.lock.RUnlock()
@@ -225,7 +231,7 @@ func (h *HeaderHashes) GetHeaderHash(i uint32) util.Uint256 {
 	if ok {
 		return hashes[i-page]
 	}
-	hashes, err := h.dao.GetHeaderHashes(page)
+	hashes, err := dao.GetHeaderHashes(page)
 	if err != nil {
 		return util.Uint256{}
 	}

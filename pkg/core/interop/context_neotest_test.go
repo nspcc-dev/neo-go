@@ -89,6 +89,7 @@ func TestContext_IsHardforkActivation(t *testing.T) {
 	require.False(t, ic.IsHardforkActivation(config.HFCockatrice))
 	require.False(t, ic.IsHardforkActivation(config.HFLastConfigManaged))
 	require.False(t, ic.IsHardforkActivation(config.HFIara))
+	ic.Finalize()
 
 	// ...at some side block when HFLastConfigManaged is not active...
 	e.AddNewBlock(t)
@@ -99,6 +100,7 @@ func TestContext_IsHardforkActivation(t *testing.T) {
 	require.True(t, ic.IsHardforkActivation(config.HFCockatrice))
 	require.False(t, ic.IsHardforkActivation(config.HFLastConfigManaged))
 	require.False(t, ic.IsHardforkActivation(config.HFIara))
+	ic.Finalize()
 
 	// ... and when HFLastConfigManaged is active.
 	e.AddNewBlock(t)
@@ -109,12 +111,14 @@ func TestContext_IsHardforkActivation(t *testing.T) {
 	require.False(t, ic.IsHardforkActivation(config.HFCockatrice))
 	require.True(t, ic.IsHardforkActivation(config.HFLastConfigManaged))
 	require.False(t, ic.IsHardforkActivation(config.HFIara))
+	ic.Finalize()
 
 	// Schedule Policy-managed forks and check their activation as far.
 	p.Invoke(t, stackitem.Null{}, "activateHardfork", config.HFIara.String(), 1)
 	p.Invoke(t, stackitem.Null{}, "activateHardfork", config.HFJackalope.String(), 1)
 	ic, err = bc.GetTestVM(trigger.Application, nil, e.TopBlock(t))
 	require.NoError(t, err)
+	defer ic.Finalize()
 	require.False(t, ic.IsHardforkActivation(config.HFAspidochelone))
 	require.False(t, ic.IsHardforkActivation(config.HFLastConfigManaged))
 	require.True(t, ic.IsHardforkActivation(config.HFIara))

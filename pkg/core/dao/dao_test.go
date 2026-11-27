@@ -2,6 +2,8 @@ package dao
 
 import (
 	"encoding/binary"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -10,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/store"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -474,4 +477,145 @@ func TestPutGetStateSyncCurrentBlockHeight(t *testing.T) {
 	actual, err := dao.GetStateSyncCurrentBlockHeight()
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
+}
+
+type testNativeCache struct {
+	val int
+}
+
+func (c *testNativeCache) Copy() NativeContractCache {
+	return &testNativeCache{val: c.val}
+}
+
+func TestNativeCacheSnapshotIsolation(t *testing.T) {
+	ps := store.NewLevelDBForTesting(t)
+	t.Cleanup(func() {
+		require.NoError(t, ps.Close())
+	})
+	d := NewSimple(ps, false)
+
+	const (
+		id1 int32 = -1
+		id2 int32 = -2
+	)
+	key := []byte("k")
+
+	// Empty snapshot must not see cache entries added later.
+	emptySnap := d.GetPrivateWithView()
+	defer func() {
+		require.NoError(t, emptySnap.Store.Finalize())
+	}()
+
+	d.SetCache(id1, &testNativeCache{val: 1})
+	d.PutStorageItem(id1, key, []byte("v1"))
+	require.Nil(t, emptySnap.GetROCache(id1))
+	require.Nil(t, emptySnap.GetStorageItem(id1, key))
+
+	// Capture snapshot at v1 via GetPrivates and a nested child via GetPrivate.
+	p1, p2 := d.GetPrivates()
+	defer func() {
+		require.NoError(t, p1.Store.Finalize())
+	}()
+	child := p1.GetPrivate()
+
+	// Commit v2 via PersistPrivate and flush to disk.
+	writer := d.GetPrivate()
+	writer.GetRWCache(id1).(*testNativeCache).val = 2
+	writer.SetCache(id2, &testNativeCache{val: 20})
+	writer.PutStorageItem(id1, key, []byte("v2"))
+	d.PersistPrivate(writer)
+	_, err := d.Persist()
+	require.NoError(t, err)
+
+	// Direct GetRWCache on root must copy-on-write and not mutate older snapshots.
+	d.GetRWCache(id1).(*testNativeCache).val = 3
+	d.PutStorageItem(id1, key, []byte("v3"))
+
+	// p1, p2, and child must still observe v1 and no id2.
+	for _, snap := range []*Simple{p1, p2, child} {
+		require.Equal(t, 1, snap.GetROCache(id1).(*testNativeCache).val)
+		require.Nil(t, snap.GetROCache(id2))
+		require.Equal(t, state.StorageItem("v1"), snap.GetStorageItem(id1, key))
+	}
+
+	// Mutating p1 via GetRWCache must not affect p2 or root d.
+	p1.GetRWCache(id1).(*testNativeCache).val = 99
+	require.Equal(t, 99, p1.GetROCache(id1).(*testNativeCache).val)
+	require.Equal(t, 99, child.GetROCache(id1).(*testNativeCache).val)
+	require.Equal(t, 1, p2.GetROCache(id1).(*testNativeCache).val)
+	require.Equal(t, 3, d.GetROCache(id1).(*testNativeCache).val)
+
+	// A new snapshot captures v3 and id2.
+	latest := d.GetPrivateWithView()
+	defer func() {
+		require.NoError(t, latest.Store.Finalize())
+	}()
+	require.Equal(t, 3, latest.GetROCache(id1).(*testNativeCache).val)
+	require.Equal(t, 20, latest.GetROCache(id2).(*testNativeCache).val)
+	require.Equal(t, state.StorageItem("v3"), latest.GetStorageItem(id1, key))
+}
+
+func TestNativeCacheStoreSnapshotAtomicity(t *testing.T) {
+	for name, newPS := range map[string]func(testing.TB) storage.Store{
+		"MemoryStore":  func(testing.TB) storage.Store { return storage.NewMemoryStore() },
+		"BoltDBStore":  store.NewBoltDBForTesting,
+		"LevelDBStore": store.NewLevelDBForTesting,
+	} {
+		t.Run(name, func(t *testing.T) {
+			ps := newPS(t)
+			t.Cleanup(func() {
+				require.NoError(t, ps.Close())
+			})
+			d := NewSimple(ps, false)
+
+			const contractID int32 = -1
+			key := []byte("ver")
+			d.SetCache(contractID, &testNativeCache{val: 0})
+			d.PutStorageItem(contractID, key, []byte("v-0"))
+
+			var wg sync.WaitGroup
+			stop := make(chan struct{})
+
+			// Background disk persister.
+			wg.Go(func() {
+				for {
+					select {
+					case <-stop:
+						return
+					default:
+						_, err := d.Persist()
+						require.NoError(t, err)
+					}
+				}
+			})
+
+			// Concurrent readers verify Store and nativeCache always match the same version.
+			for range 4 {
+				wg.Go(func() {
+					for range 40 {
+						snap := d.GetPrivateWithView()
+						cVal := snap.GetROCache(contractID).(*testNativeCache).val
+						sVal := snap.GetStorageItem(contractID, key)
+						want := state.StorageItem(fmt.Sprintf("v-%d", cVal))
+						require.Equal(t, want, sVal)
+						// Reading a second time inside the same view must stay identical.
+						require.Equal(t, cVal, snap.GetROCache(contractID).(*testNativeCache).val)
+						require.Equal(t, want, snap.GetStorageItem(contractID, key))
+						require.NoError(t, snap.Store.Finalize())
+					}
+				})
+			}
+
+			// Writer commits paired Store + nativeCache updates atomically via PersistPrivate.
+			for i := 1; i <= 40; i++ {
+				w := d.GetPrivate()
+				w.GetRWCache(contractID).(*testNativeCache).val = i
+				w.PutStorageItem(contractID, key, []byte(fmt.Sprintf("v-%d", i)))
+				d.PersistPrivate(w)
+			}
+
+			close(stop)
+			wg.Wait()
+		})
+	}
 }

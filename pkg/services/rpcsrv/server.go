@@ -2546,6 +2546,7 @@ func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contrac
 	if t == trigger.Verification && b == nil { // don't initialize verification context for contained invocations.
 		err = s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
 		if err != nil {
+			ic.Finalize()
 			switch {
 			case errors.Is(err, core.ErrUnknownVerificationContract):
 				return nil, neorpc.WrapErrorWithData(neorpc.ErrUnknownContract, err.Error())
@@ -2613,8 +2614,6 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 		}
 		s.sessions[sessionID] = sess
 		s.sessionsLock.Unlock()
-	} else {
-		ic.Finalize()
 	}
 	var diag *result.InvokeDiag
 	tree := ic.VM.GetInvocationTree()
@@ -2623,6 +2622,9 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 			Invocations: tree.Calls,
 			Changes:     storage.BatchToOperations(ic.DAO.GetBatch()),
 		}
+	}
+	if sess == nil {
+		ic.Finalize()
 	}
 	notifications := ic.Notifications
 	if notifications == nil {

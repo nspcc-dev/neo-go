@@ -25,6 +25,7 @@ func TestTempStorage_CalculateStoragePrice_Compat(t *testing.T) {
 	bc, _, _ := chain.NewMulti(t)
 	ic, err := bc.GetTestVM(trigger.Application, nil, &block.Block{Header: block.Header{Timestamp: 1}})
 	require.NoError(t, err)
+	defer ic.Finalize()
 
 	require.Equal(t, permanentDatoshi*vm.ExecFeeFactorMultiplier, ic.BaseStorageFee()) // C# test setup compatibility check; don't change `permanent` if this check fails -- adjust test chain setup instead.
 	minimal := permanentDatoshi / 10
@@ -74,6 +75,7 @@ func TestTempStorage_CalculateStoragePrice_EdgeCasesCompat(t *testing.T) {
 	bc, _, _ := chain.NewMulti(t)
 	ic, err := bc.GetTestVM(trigger.Application, nil, &block.Block{Header: block.Header{Timestamp: timestamp}})
 	require.NoError(t, err)
+	defer ic.Finalize()
 	price := ic.BaseStorageFee()
 	require.Positive(t, price)
 	key := []byte{0x00}

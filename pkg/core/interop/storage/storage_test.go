@@ -386,6 +386,7 @@ func createVM(t testing.TB) (*vm.VM, *interop.Context, *core.Blockchain) {
 	chain, _ := chain.NewSingle(t)
 	ic, err := chain.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
 	require.NoError(t, err)
+	t.Cleanup(ic.Finalize)
 	v := ic.SpawnVM()
 	return v, ic, chain
 }
